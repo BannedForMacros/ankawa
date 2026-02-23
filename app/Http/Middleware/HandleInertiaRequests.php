@@ -25,6 +25,10 @@ class HandleInertiaRequests extends Middleware
                 'permisos' => $request->user() ? $this->getPermisosUsuario($request->user()) : [],
                 'menu'     => $request->user() ? $this->getMenuUsuario($request->user()) : [],
             ],
+            'flash' => [
+                'success' => session('success'),
+                'error'   => session('error'),
+            ],
         ];
     }
 

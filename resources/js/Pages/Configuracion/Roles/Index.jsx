@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Table from '@/Components/Table';
-import Badge from '@/Components/Badge'; // Asegúrate de haber creado este componente
+import Badge from '@/Components/Badge';
+import ConfirmDialog from '@/Components/ConfirmDialog'; // 1. Importación del diálogo
 import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
@@ -13,8 +14,14 @@ import { Plus, ShieldCheck } from 'lucide-react';
 export default function Index({ roles }) {
     const { flash } = usePage().props;
 
+    // Estados de Modales y Edición
     const [showModal, setShowModal] = useState(false);
-    const [editando, setEditando]   = useState(null); // null = crear, objeto = editar
+    const [editando, setEditando]   = useState(null);
+
+    // 2. Estados para la eliminación confirmada
+    const [confirmOpen, setConfirmOpen]   = useState(false);
+    const [rolAEliminar, setRolAEliminar] = useState(null);
+    const [deleting, setDeleting]         = useState(false);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:      '',
@@ -22,12 +29,8 @@ export default function Index({ roles }) {
         activo:      1,
     });
 
-    // Flash messages del backend
-    useEffect(() => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error)   toast.error(flash.error);
-    }, [flash]);
 
+    // Lógica de Modal Crear/Editar
     const abrirCrear = () => {
         reset();
         setEditando(null);
@@ -55,20 +58,48 @@ export default function Index({ roles }) {
         if (editando) {
             put(route('configuracion.roles.update', editando.id), {
                 preserveScroll: true,
-                onSuccess: cerrarModal,
+                onSuccess: (page) => {
+                    cerrarModal();
+                    const msg = page.props.flash?.success;
+                    if (msg) toast.success(msg);
+                },
+                onError: () => toast.error('Error al actualizar el rol.'),
             });
         } else {
             post(route('configuracion.roles.store'), {
                 preserveScroll: true,
-                onSuccess: cerrarModal,
+                onSuccess: (page) => {
+                    cerrarModal();
+                    const msg = page.props.flash?.success;
+                    if (msg) toast.success(msg);
+                },
+                onError: () => toast.error('Error al crear el rol.'),
             });
         }
     };
 
-    const handleDelete = (rol) => {
-        if (!confirm(`¿Desactivar el rol "${rol.nombre}"?`)) return;
-        router.delete(route('configuracion.roles.destroy', rol.id), {
+    // 3. Métodos de eliminación con confirmación estética
+    const pedirConfirmacion = (rol) => {
+        setRolAEliminar(rol);
+        setConfirmOpen(true);
+    };
+
+    const handleDelete = () => {
+        setDeleting(true);
+        router.delete(route('configuracion.roles.destroy', rolAEliminar.id), {
             preserveScroll: true,
+            onSuccess: (page) => {
+                setConfirmOpen(false);
+                setRolAEliminar(null);
+                setDeleting(false);
+                // Leer el flash directamente de la respuesta
+                const msg = page.props.flash?.success;
+                if (msg) toast.success(msg);
+            },
+            onError: () => {
+                setDeleting(false);
+                toast.error('Ocurrió un error al desactivar el rol.');
+            },
         });
     };
 
@@ -81,7 +112,6 @@ export default function Index({ roles }) {
             label: 'Estado',
             sortable: true,
             render: (row) => (
-                /* Uso del nuevo componente Badge */
                 <Badge 
                     status={row.activo ? 'activo' : 'inactivo'} 
                     text={row.activo ? 'Activo' : 'Inactivo'} 
@@ -95,7 +125,7 @@ export default function Index({ roles }) {
             render: (row) => (
                 <ActionButtons
                     onEdit={() => abrirEditar(row)}
-                    onDelete={() => handleDelete(row)}
+                    onDelete={() => pedirConfirmacion(row)} // 4. Cambio a confirmación
                 />
             ),
         },
@@ -123,7 +153,7 @@ export default function Index({ roles }) {
                     </PrimaryButton>
                 </div>
 
-                {/* Tabla con Buscador Separado (ya incluido en tu componente Table) */}
+                {/* Tabla */}
                 <Table
                     columns={columns}
                     data={roles.data}
@@ -137,7 +167,6 @@ export default function Index({ roles }) {
             <Modal show={showModal} onClose={cerrarModal} maxWidth="md">
                 <form onSubmit={handleSubmit}>
                     <div className="p-7">
-                        {/* Header modal */}
                         <div className="flex items-center gap-4 mb-8">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center"
                                 style={{ backgroundColor: '#BE0F4A' }}>
@@ -148,7 +177,6 @@ export default function Index({ roles }) {
                             </h2>
                         </div>
 
-                        {/* Nombre */}
                         <div className="mb-5">
                             <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
                                 Nombre del Rol <span className="text-[#BE0F4A]">*</span>
@@ -157,16 +185,12 @@ export default function Index({ roles }) {
                                 type="text"
                                 value={data.nombre}
                                 onChange={e => setData('nombre', e.target.value)}
-                                placeholder="Ej: Administrador, Operador..."
                                 className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136]
                                     ${errors.nombre ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
                             />
-                            {errors.nombre && (
-                                <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.nombre}</p>
-                            )}
+                            {errors.nombre && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.nombre}</p>}
                         </div>
 
-                        {/* Descripción */}
                         <div className="mb-5">
                             <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
                                 Descripción
@@ -174,13 +198,11 @@ export default function Index({ roles }) {
                             <textarea
                                 value={data.descripcion}
                                 onChange={e => setData('descripcion', e.target.value)}
-                                placeholder="Indique brevemente qué permite este rol..."
                                 rows={3}
                                 className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136] resize-none"
                             />
                         </div>
 
-                        {/* Estado — solo al editar */}
                         {editando && (
                             <div className="mb-2">
                                 <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
@@ -189,7 +211,7 @@ export default function Index({ roles }) {
                                 <select
                                     value={data.activo}
                                     onChange={e => setData('activo', parseInt(e.target.value))}
-                                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136] appearance-none cursor-pointer"
+                                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136] cursor-pointer"
                                 >
                                     <option value={1}>✅ Activo</option>
                                     <option value={0}>❌ Inactivo</option>
@@ -198,20 +220,27 @@ export default function Index({ roles }) {
                         )}
                     </div>
 
-                    {/* Footer modal */}
                     <div className="flex items-center justify-end gap-3 px-7 py-5 bg-gray-50/80 border-t border-gray-100 rounded-b-2xl">
                         <SecondaryButton type="button" onClick={cerrarModal} disabled={processing}>
                             Cancelar
                         </SecondaryButton>
-                        <PrimaryButton type="submit" disabled={processing} className="shadow-sm">
-                            {processing
-                                ? 'Procesando...'
-                                : editando ? 'Guardar Cambios' : 'Crear Rol'
-                            }
+                        <PrimaryButton type="submit" disabled={processing}>
+                            {processing ? 'Procesando...' : editando ? 'Guardar Cambios' : 'Crear Rol'}
                         </PrimaryButton>
                     </div>
                 </form>
             </Modal>
+
+            {/* 5. Componente ConfirmDialog (Antes del cierre del Layout) */}
+            <ConfirmDialog
+                show={confirmOpen}
+                title="Desactivar Rol"
+                message={`¿Está seguro de desactivar el rol "${rolAEliminar?.nombre}"? Los usuarios vinculados podrían perder acceso.`}
+                confirmText="Sí, desactivar"
+                processing={deleting}
+                onConfirm={handleDelete}
+                onCancel={() => { setConfirmOpen(false); setRolAEliminar(null); }}
+            />
         </AuthenticatedLayout>
     );
 }
