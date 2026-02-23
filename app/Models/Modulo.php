@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Modulo extends Model
 {
-    protected $table = 'modulos';
+    protected $table = 'modules'; // OJO: la tabla real se llama modules
 
     protected $fillable = [
         'nombre',
@@ -20,24 +20,19 @@ class Modulo extends Model
         'activo'
     ];
 
-    // Los permisos que pertenecen a este módulo (Ej: Crear, Ver, Editar)
-    public function permisos(): HasMany
-    {
-        return $this->hasMany(Permiso::class, 'modulo_id');
-    }
-
-    // --- RECURSIVIDAD PARA MENÚS ---
-
-    // Para obtener el módulo "padre" (si es un submenú)
     public function padre(): BelongsTo
     {
         return $this->belongsTo(Modulo::class, 'parent_id');
     }
 
-    // Para obtener los "submódulos" (si es un menú principal)
     public function submodulos(): HasMany
     {
-        return $this->hasMany(Modulo::class, 'parent_id')->orderBy('orden', 'asc');
+        return $this->hasMany(Modulo::class, 'parent_id')->orderBy('orden');
+    }
+
+    public function rolPermisos(): HasMany
+    {
+        return $this->hasMany(RolModuloPermiso::class, 'modulo_id');
     }
 
     public function scopeActivo($query)

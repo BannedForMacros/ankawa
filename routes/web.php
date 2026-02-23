@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MesaPartesController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Configuracion\RolController;
 use Inertia\Inertia;
 
 Route::get('/', function () {
@@ -26,6 +27,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/expedientes', function () {
         return Inertia::render('Expedientes/Index');
     })->name('expedientes.index');
+
+    Route::prefix('configuracion')->middleware(['auth'])->group(function () {
+
+    Route::get('/roles',        [RolController::class, 'index'])  ->name('configuracion.roles.index')  ->middleware('permiso:configuracion.roles,ver');
+    Route::post('/roles',       [RolController::class, 'store'])  ->name('configuracion.roles.store')  ->middleware('permiso:configuracion.roles,crear');
+    Route::put('/roles/{rol}',  [RolController::class, 'update']) ->name('configuracion.roles.update') ->middleware('permiso:configuracion.roles,editar');
+    Route::delete('/roles/{rol}',[RolController::class,'destroy'])->name('configuracion.roles.destroy')->middleware('permiso:configuracion.roles,eliminar');
+
+});
 });
 
 // Mesa de Partes - SIN AUTENTICACIÓN

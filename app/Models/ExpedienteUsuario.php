@@ -9,8 +9,6 @@ class ExpedienteUsuario extends Model
 {
     protected $table = 'expediente_usuarios';
 
-
-
     protected $fillable = [
         'expediente_id',
         'usuario_id',
