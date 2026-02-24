@@ -204,4 +204,100 @@ class MesaPartesController extends Controller
             return back()->withErrors(['general' => 'Error al enviar la subsanación.']);
         }
     }
+
+    // ── Actualizar solicitud (Cliente — solo en estado subsanacion) ──
+    public function actualizarSolicitud(Request $request, SolicitudArbitraje $solicitud)
+    {
+        // Solo el dueño
+        abort_if(
+            $solicitud->email_demandante !== Auth::user()->email &&
+            $solicitud->usuario_id !== Auth::id(),
+            403
+        );
+
+        // Solo si está en subsanacion
+        abort_if($solicitud->estado !== 'subsanacion', 422, 'La solicitud no está en estado de subsanación.');
+
+        $request->validate([
+            // Demandante — solo domicilio
+            'domicilio_demandante'  => 'nullable|string|max:500',
+
+            // Demandado — todo editable
+            'nombre_demandado'      => 'required|string|max:255',
+            'documento_demandado'   => 'nullable|string|max:50',
+            'email_demandado'       => 'required|email|max:255',
+            'telefono_demandado'    => 'nullable|string|max:20',
+            'domicilio_demandado'   => 'nullable|string|max:500',
+
+            // Controversia
+            'resumen_controversia'  => 'required|string',
+            'pretensiones'          => 'required|string',
+            'monto_involucrado'     => 'nullable|numeric|min:0',
+
+            // Documentos nuevos
+            'documentos_nuevos'     => 'nullable|array',
+            'documentos_nuevos.*'   => 'file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+
+            // IDs de documentos a eliminar
+            'documentos_eliminar'   => 'nullable|array',
+            'documentos_eliminar.*' => 'exists:documentos,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Actualizar campos permitidos
+            $solicitud->update([
+                'domicilio_demandante' => $request->domicilio_demandante,
+                'nombre_demandado'     => $request->nombre_demandado,
+                'documento_demandado'  => $request->documento_demandado,
+                'email_demandado'      => $request->email_demandado,
+                'telefono_demandado'   => $request->telefono_demandado,
+                'domicilio_demandado'  => $request->domicilio_demandado,
+                'resumen_controversia' => $request->resumen_controversia,
+                'pretensiones'         => $request->pretensiones,
+                'monto_involucrado'    => $request->monto_involucrado,
+            ]);
+
+            // Eliminar documentos marcados
+            if ($request->documentos_eliminar) {
+                $docs = Documento::whereIn('id', $request->documentos_eliminar)
+                    ->where('modelo_tipo', SolicitudArbitraje::class)
+                    ->where('modelo_id', $solicitud->id)
+                    ->get();
+
+                foreach ($docs as $doc) {
+                    Storage::disk('public')->delete($doc->ruta_archivo);
+                    $doc->delete();
+                }
+            }
+
+            // Subir documentos nuevos
+            if ($request->hasFile('documentos_nuevos')) {
+                foreach ($request->file('documentos_nuevos') as $archivo) {
+                    $ruta = $archivo->store(
+                        'solicitudes/' . $solicitud->id . '/documentos',
+                        'public'
+                    );
+
+                    Documento::create([
+                        'modelo_tipo'     => SolicitudArbitraje::class,
+                        'modelo_id'       => $solicitud->id,
+                        'tipo_documento'  => 'subsanacion',
+                        'ruta_archivo'    => $ruta,
+                        'nombre_original' => $archivo->getClientOriginalName(),
+                        'peso_bytes'      => $archivo->getSize(),
+                        'activo'          => true,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return back()->with('success', 'Solicitud actualizada correctamente.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('actualizarSolicitud: ' . $e->getMessage());
+            return back()->withErrors(['general' => 'Error al actualizar.']);
+        }
+    }
 }

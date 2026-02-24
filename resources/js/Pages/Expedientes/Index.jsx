@@ -51,7 +51,7 @@ function Modal({ open, onClose, title, children }) {
     );
 }
 
-export default function Index({ expedientes, solicitudesPendientes, secretariosArbitrales, rolActual }) {
+export default function Index({ expedientes, solicitudesPendientes, secretariosArbitrales = [], rolActual }) {
 
     const [tab, setTab]           = useState(
         solicitudesPendientes.length > 0 ? 'solicitudes' : 'expedientes'

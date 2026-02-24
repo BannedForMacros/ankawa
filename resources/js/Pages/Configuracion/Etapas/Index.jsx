@@ -152,7 +152,7 @@ function FilaActividad({ actividad, onEdit, onDelete }) {
     );
 }
 
-// ── Card de Etapa — igual que antes ──
+// ── Card de Etapa ──
 function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditActividad, onDeleteActividad }) {
     const [abierto, setAbierto] = useState(true);
 
@@ -225,7 +225,6 @@ export default function Index({ servicios, roles }) {
     const [modalActividad, setModalActividad]             = useState(false);
     const [editandoActividad, setEditandoActividad]       = useState(null);
     const [etapaParaActividad, setEtapaParaActividad]     = useState(null);
-    const [rolesSeleccionados, setRolesSeleccionados]     = useState([]);
 
     const [confirmEtapa, setConfirmEtapa]         = useState(false);
     const [etapaAEliminar, setEtapaAEliminar]     = useState(null);
@@ -330,7 +329,6 @@ export default function Index({ servicios, roles }) {
             activo:         1,
             roles:          [],
         });
-        setRolesSeleccionados([]);
         setEtapaParaActividad(etapa);
         setEditandoActividad(null);
         setModalActividad(true);
@@ -349,15 +347,12 @@ export default function Index({ servicios, roles }) {
             activo:         actividad.activo,
             roles:          rolesIds,
         });
-        setRolesSeleccionados(rolesIds);
         setEditandoActividad(actividad);
         setModalActividad(true);
     };
 
     const submitActividad = (e) => {
         e.preventDefault();
-        // Sincronizar roles seleccionados al form antes de enviar
-        formActividad.setData('roles', rolesSeleccionados);
 
         const route_name = editandoActividad
             ? route('configuracion.actividades.update', editandoActividad.id)
@@ -368,7 +363,6 @@ export default function Index({ servicios, roles }) {
             onSuccess: (page) => {
                 setModalActividad(false);
                 setEditandoActividad(null);
-                setRolesSeleccionados([]);
                 formActividad.reset();
                 const msg = page.props.flash?.success;
                 if (msg) toast.success(msg);
@@ -478,7 +472,7 @@ export default function Index({ servicios, roles }) {
                 )}
             </div>
 
-            {/* Modal Etapa — sin cambios */}
+            {/* Modal Etapa */}
             <Modal show={modalEtapa} onClose={() => setModalEtapa(false)} maxWidth="sm">
                 <form onSubmit={submitEtapa}>
                     <div className="p-7">
@@ -524,7 +518,7 @@ export default function Index({ servicios, roles }) {
                 </form>
             </Modal>
 
-            {/* Modal Actividad — con selector de roles */}
+            {/* Modal Actividad */}
             <Modal show={modalActividad} onClose={() => setModalActividad(false)} maxWidth="md">
                 <form onSubmit={submitActividad}>
                     <div className="p-7">
@@ -584,12 +578,12 @@ export default function Index({ servicios, roles }) {
                                 error={formActividad.errors.orden} />
                         </div>
 
-                        {/* Selector de roles — NUEVO */}
+                        {/* Selector de roles — DIRECTAMENTE CONECTADO */}
                         <div className="mb-5">
                             <RolesSelector
                                 roles={roles}
-                                seleccionados={rolesSeleccionados}
-                                onChange={setRolesSeleccionados}
+                                seleccionados={formActividad.data.roles}
+                                onChange={(nuevosRoles) => formActividad.setData('roles', nuevosRoles)}
                             />
                         </div>
 

@@ -46,17 +46,23 @@ class SolicitudArbitraje extends Model
     }
 
     public function expediente(): HasOne
-{
-    return $this->hasOne(ExpedienteArb::class, 'solicitud_id');
-}
+    {
+        return $this->hasOne(ExpedienteArb::class, 'solicitud_id');
+    }
 
-public function subsanaciones(): HasMany
-{
-    return $this->hasMany(ExpedienteArbSubsanacion::class, 'solicitud_id');
-}
+    public function subsanaciones(): HasMany
+    {
+        return $this->hasMany(ExpedienteArbSubsanacion::class, 'solicitud_id');
+    }
 
-public function tieneSusanacionPendiente(): bool
-{
-    return $this->subsanaciones()->where('estado', 'pendiente')->where('activo', true)->exists();
-}
+    public function tieneSusanacionPendiente(): bool
+    {
+        return $this->subsanaciones()->where('estado', 'pendiente')->where('activo', true)->exists();
+    }
+
+    public function movimientos(): HasMany
+    {
+        return $this->hasMany(ExpedienteArbMovimiento::class, 'solicitud_id')
+                    ->orderBy('created_at', 'asc');
+    }
 }

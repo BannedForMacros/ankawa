@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ExpedienteArb;
-use App\Models\ExpedienteArbMovimiento;
-use App\Models\ExpedienteArbSubsanacion;
-use App\Models\ExpedienteArbNotificacion;
-use App\Models\ExpedienteArbUsuario;
-use App\Models\ExpedienteArbPlazo;
-use App\Models\SolicitudArbitraje;
+use App\Models\Actividad;
 use App\Models\Correlativo;
+use App\Models\ExpedienteArb;
+use App\Models\ExpedienteArbArbitro;
+use App\Models\ExpedienteArbMovimiento;
+use App\Models\ExpedienteArbNotificacion;
+use App\Models\ExpedienteArbPlazo;
+use App\Models\ExpedienteArbSubsanacion;
+use App\Models\ExpedienteArbUsuario;
+use App\Models\SolicitudArbitraje;
+use App\Models\Documento;
 use App\Models\User;
+use App\Traits\GuardaMovimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,42 +23,109 @@ use Inertia\Inertia;
 
 class ExpedienteArbController extends Controller
 {
-    // ── Lista — cada rol ve lo que le corresponde ──
+    use GuardaMovimiento;
+
+    // ─────────────────────────────────────────────
+    // HELPERS PRIVADOS
+    // ─────────────────────────────────────────────
+
+    private function rolActual(): string
+    {
+        return Auth::user()->rol->slug ?? '';
+    }
+
+    private function validarDocumento(Request $request, array $extra = []): void
+    {
+        $request->validate(array_merge([
+            'descripcion' => 'required|string|max:2000',
+            'documento'   => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ], $extra));
+    }
+
+    private function registrarNotificacion(
+        string $nombre,
+        string $email,
+        string $asunto,
+        string $tipo,
+        ?int   $expedienteId = null,
+        ?int   $solicitudId  = null,
+        ?int   $actividadId  = null,
+    ): void {
+        ExpedienteArbNotificacion::create([
+            'expediente_id'       => $expedienteId,
+            'solicitud_id'        => $solicitudId,
+            'actividad_id'        => $actividadId,
+            'enviado_por'         => Auth::id(),
+            'destinatario_nombre' => $nombre,
+            'destinatario_email'  => $email,
+            'asunto'              => $asunto,
+            'tipo'                => $tipo,
+            'estado_envio'        => 'enviado',
+            'activo'              => true,
+        ]);
+    }
+
+    private function crearPlazo(int $expedienteId, Actividad $actividad): void
+    {
+        if ($actividad->dias_plazo > 0) {
+            ExpedienteArbPlazo::create([
+                'expediente_id'     => $expedienteId,
+                'actividad_id'      => $actividad->id,
+                'fecha_inicio'      => now()->toDateString(),
+                'fecha_vencimiento' => now()->addWeekdays($actividad->dias_plazo)->toDateString(),
+                'dias_plazo'        => $actividad->dias_plazo,
+                'estado'            => 'pendiente',
+                'activo'            => true,
+            ]);
+        }
+    }
+
+    private function cerrarPlazo(int $expedienteId, int $actividadId): void
+    {
+        ExpedienteArbPlazo::where('expediente_id', $expedienteId)
+            ->where('actividad_id', $actividadId)
+            ->where('estado', 'pendiente')
+            ->update(['estado' => 'completado', 'fecha_completado' => now()]);
+    }
+
+    // ─────────────────────────────────────────────
+    // INDEX — lista de expedientes
+    // ─────────────────────────────────────────────
+
     public function index()
     {
         $user    = Auth::user();
-        $rolSlug = $user->rol->slug ?? '';
+        $rolSlug = $this->rolActual();
 
         $query = ExpedienteArb::with(['solicitud', 'servicio', 'etapaActual', 'actividadActual'])
-            ->activo();
+            ->where('activo', true);
 
-        // Cliente solo ve sus expedientes
+        // Cliente solo ve los suyos
         if ($rolSlug === 'cliente') {
             $query->whereHas('usuarios', fn($q) =>
                 $q->where('usuario_id', $user->id)->where('activo', true)
             );
         }
 
-        $expedientes = $query->orderByDesc('created_at')->get()
-            ->map(fn($e) => [
-                'id'                => $e->id,
-                'numero_expediente' => $e->numero_expediente,
-                'servicio'          => $e->servicio->nombre,
-                'nombre_demandante' => $e->solicitud->nombre_demandante,
-                'nombre_demandado'  => $e->solicitud->nombre_demandado,
-                'etapa_actual'      => $e->etapaActual?->nombre,
-                'actividad_actual'  => $e->actividadActual?->nombre,
-                'estado'            => $e->estado,
-                'tiene_subsanacion' => $e->tiene_subsanacion,
-                'fecha_inicio'      => $e->fecha_inicio->format('d/m/Y'),
-                'dias_en_proceso'   => $e->fecha_inicio->diffInDays(now()),
-            ]);
+        $expedientes = $query->orderByDesc('created_at')->get()->map(fn($e) => [
+            'id'                => $e->id,
+            'numero_expediente' => $e->numero_expediente,
+            'servicio'          => $e->servicio->nombre,
+            'nombre_demandante' => $e->solicitud->nombre_demandante,
+            'nombre_demandado'  => $e->solicitud->nombre_demandado,
+            'etapa_actual'      => $e->etapaActual?->nombre,
+            'actividad_actual'  => $e->actividadActual?->nombre,
+            'estado'            => $e->estado,
+            'tiene_subsanacion' => (bool) $e->tiene_subsanacion,
+            'fecha_inicio'      => $e->fecha_inicio,
+            'dias_en_proceso'   => now()->diffInDays($e->fecha_inicio),
+        ]);
 
-        // Solicitudes pendientes — solo las ven roles de secretaría
+        // Solicitudes pendientes (para roles de secretaría — solo en bandeja)
         $solicitudesPendientes = [];
         if (in_array($rolSlug, ['secretaria_general_adjunta', 'secretario_general', 'director'])) {
             $solicitudesPendientes = SolicitudArbitraje::with('servicio')
-                ->whereIn('estado', ['pendiente', 'en_revision', 'subsanacion'])
+                ->whereIn('estado', ['pendiente', 'subsanacion'])
                 ->whereDoesntHave('expediente')
                 ->orderByDesc('created_at')
                 ->get()
@@ -72,105 +143,222 @@ class ExpedienteArbController extends Controller
                 ]);
         }
 
-        // Secretarios arbitrales — para asignación (solo secretario general y director)
-        $secretariosArbitrales = [];
-        if (in_array($rolSlug, ['secretario_general', 'director'])) {
-            $secretariosArbitrales = User::whereHas('rol', fn($q) =>
-                    $q->where('slug', 'secretario_arbitral')
-                )
-                ->where('activo', 1)
-                ->get(['id', 'name', 'email']);
-        }
-
         return Inertia::render('Expedientes/Index', [
             'expedientes'           => $expedientes,
             'solicitudesPendientes' => $solicitudesPendientes,
-            'secretariosArbitrales' => $secretariosArbitrales,
             'rolActual'             => $rolSlug,
         ]);
     }
 
-    // ── Detalle del expediente ──
+    // ─────────────────────────────────────────────
+    // SHOW — detalle del expediente
+    // ─────────────────────────────────────────────
+
     public function show(ExpedienteArb $expediente)
     {
         $user    = Auth::user();
-        $rolSlug = $user->rol->slug ?? '';
+        $rolSlug = $this->rolActual();
 
-        // Cliente solo puede ver sus propios expedientes
+        // Cliente solo ve el suyo
         if ($rolSlug === 'cliente') {
-            $tieneAcceso = $expediente->usuarios()
-                ->where('usuario_id', $user->id)
-                ->where('activo', true)
-                ->exists();
-
-            abort_if(!$tieneAcceso, 403);
+            abort_if(
+                !$expediente->usuarios()->where('usuario_id', $user->id)->where('activo', true)->exists(),
+                403
+            );
         }
 
         $expediente->load([
-            'solicitud.servicio',
+            'solicitud.servicio.etapas.actividades.roles',  // etapas completas con roles
             'solicitud.documentos',
+            'solicitud.movimientos.registradoPor',
+            'solicitud.movimientos.documentos',
             'etapaActual',
-            'actividadActual',
+            'actividadActual.roles',
+            'actividadActual.etapa',
             'usuarios.usuario.rol',
             'arbitros.usuario',
             'arbitros.designadoPor',
             'plazos.actividad',
-            'subsanaciones.registradoPor',
-            'movimientos.usuario',
+            'movimientos.registradoPor',
+            'movimientos.documentos',
             'movimientos.etapaDestino',
             'movimientos.actividadDestino',
-            'documentos',
         ]);
 
-        // Siguiente actividad disponible (para avanzar)
-        $siguienteActividad = null;
+        // ¿Puede actuar el rol actual en la actividad actual?
+        $puedeActuar = false;
         if ($expediente->actividadActual) {
-            $siguienteActividad = $expediente->actividadActual->etapa
-                ->actividades()
-                ->where('orden', '>', $expediente->actividadActual->orden)
-                ->where('activo', true)
-                ->orderBy('orden')
-                ->first();
-
-            // Si no hay más en esta etapa, buscar en la siguiente etapa
-            if (!$siguienteActividad) {
-                $siguienteEtapa = $expediente->solicitud->servicio
-                    ->etapas()
-                    ->where('orden', '>', $expediente->etapaActual->orden)
-                    ->where('activo', true)
-                    ->orderBy('orden')
-                    ->with(['actividades' => fn($q) => $q->where('activo', true)->orderBy('orden')])
-                    ->first();
-
-                $siguienteActividad = $siguienteEtapa?->actividades->first();
-            }
+            $puedeActuar = $expediente->actividadActual->roles
+                ->contains('id', $user->rol_id);
         }
 
-        // Árbitros disponibles para designar
+        // Siguiente actividad
+        $siguienteActividadModel = $this->calcularSiguienteActividad($expediente);
+        $siguienteActividad = $siguienteActividadModel ? [
+            'id'           => $siguienteActividadModel->id,
+            'nombre'       => $siguienteActividadModel->nombre,
+            'etapa_nombre' => $siguienteActividadModel->etapa->nombre ?? null,
+        ] : null;
+
+        // Árbitros disponibles
         $arbitrosDisponibles = [];
         if (in_array($rolSlug, ['director', 'secretario_general'])) {
-            $arbitrosDisponibles = User::whereHas('rol', fn($q) =>
-                    $q->where('slug', 'arbitro')
-                )
-                ->where('activo', 1)
+            $arbitrosDisponibles = User::whereHas('rol', fn($q) => $q->where('slug', 'arbitro'))
+                ->where('activo', true)
                 ->get(['id', 'name', 'email']);
         }
 
+        // Plazo activo
+        $plazoActual = $expediente->actividadActual
+            ? $expediente->plazos
+                ->where('actividad_id', $expediente->actividad_actual_id)
+                ->where('estado', 'pendiente')
+                ->first()
+            : null;
+
+        // Mapear movimientos con actividad_id para el frontend
+        $movimientos = $expediente->movimientos->map(fn($m) => [
+            'id'               => $m->id,
+            'tipo'             => $m->tipo,
+            'descripcion'      => $m->descripcion,
+            'actividad_id'     => $m->actividad_id,
+            'autor'            => $m->registradoPor?->name,
+            'actividad_destino'=> $m->actividadDestino?->nombre,
+            'created_at'       => $m->created_at->format('d/m/Y H:i'),
+            'documento'        => $m->documentos->first() ? [
+                'nombre' => $m->documentos->first()->nombre_original,
+                'ruta'   => $m->documentos->first()->ruta_archivo,
+            ] : null,
+        ]);
+
+        // Movimientos Etapa 1 (de la solicitud)
+        $movimientosSolicitud = $expediente->solicitud->movimientos->map(fn($m) => [
+            'id'          => $m->id,
+            'tipo'        => $m->tipo,
+            'descripcion' => $m->descripcion,
+            'autor'       => $m->registradoPor?->name,
+            'created_at'  => $m->created_at->format('d/m/Y H:i'),
+            'documento'   => $m->documentos->first() ? [
+                'nombre' => $m->documentos->first()->nombre_original,
+                'ruta'   => $m->documentos->first()->ruta_archivo,
+            ] : null,
+        ]);
+
+        // Etapas con actividades y roles (para el acordeón)
+        $etapas = $expediente->solicitud->servicio->etapas
+            ->sortBy('orden')
+            ->map(fn($etapa) => [
+                'id'     => $etapa->id,
+                'nombre' => $etapa->nombre,
+                'orden'  => $etapa->orden,
+                'actividades' => $etapa->actividades
+                    ->sortBy('orden')
+                    ->map(fn($a) => [
+                        'id'        => $a->id,
+                        'nombre'    => $a->nombre,
+                        'orden'     => $a->orden,
+                        'dias_plazo'=> $a->dias_plazo,
+                        'roles'     => $a->roles->map(fn($r) => [
+                            'id'     => $r->id,
+                            'nombre' => $r->nombre,
+                        ])->values(),
+                    ])->values(),
+            ])->values();
+
         return Inertia::render('Expedientes/Show', [
-            'expediente'          => $expediente,
+            'expediente' => [
+                'id'                  => $expediente->id,
+                'numero_expediente'   => $expediente->numero_expediente,
+                'estado'              => $expediente->estado,
+                'tiene_subsanacion'   => (bool) $expediente->tiene_subsanacion,
+                'fecha_inicio'        => $expediente->fecha_inicio,
+                'etapa_actual_id'     => $expediente->etapa_actual_id,
+                'actividad_actual_id' => $expediente->actividad_actual_id,
+                'etapaActual'         => $expediente->etapaActual ? [
+                    'id'     => $expediente->etapaActual->id,
+                    'nombre' => $expediente->etapaActual->nombre,
+                ] : null,
+                'actividadActual'     => $expediente->actividadActual ? [
+                    'id'     => $expediente->actividadActual->id,
+                    'nombre' => $expediente->actividadActual->nombre,
+                ] : null,
+                'solicitud' => [
+                    'id'                  => $expediente->solicitud->id,
+                    'numero_cargo'        => $expediente->solicitud->numero_cargo,
+                    'nombre_demandante'   => $expediente->solicitud->nombre_demandante,
+                    'email_demandante'    => $expediente->solicitud->email_demandante,
+                    'nombre_demandado'    => $expediente->solicitud->nombre_demandado,
+                    'email_demandado'     => $expediente->solicitud->email_demandado,
+                    'monto_involucrado'   => $expediente->solicitud->monto_involucrado,
+                    'resumen_controversia'=> $expediente->solicitud->resumen_controversia,
+                    'servicio'            => [
+                        'nombre' => $expediente->solicitud->servicio->nombre,
+                    ],
+                    'movimientos' => $movimientosSolicitud,
+                ],
+                'arbitros'   => $expediente->arbitros->map(fn($a) => [
+                    'id'               => $a->id,
+                    'nombre_arbitro'   => $a->nombre_arbitro,
+                    'email_arbitro'    => $a->email_arbitro,
+                    'tipo_designacion' => $a->tipo_designacion,
+                    'estado_aceptacion'=> $a->estado_aceptacion,
+                ])->values(),
+                'movimientos' => $movimientos,
+            ],
+            'etapas'              => $etapas,
+            'puedeActuar'         => $puedeActuar,
             'siguienteActividad'  => $siguienteActividad,
             'arbitrosDisponibles' => $arbitrosDisponibles,
-            'rolActual'           => $rolSlug,
+            'plazoActual'         => $plazoActual ? [
+                'actividad'          => ['nombre' => $plazoActual->actividad?->nombre],
+                'fecha_vencimiento'  => $plazoActual->fecha_vencimiento,
+                'dias_plazo'         => $plazoActual->dias_plazo,
+            ] : null,
+            'rolActual' => $rolSlug,
         ]);
     }
 
-    // ── ACCIÓN: Admitir solicitud (Secretaria General Adjunta) ──
+    private function calcularSiguienteActividad(ExpedienteArb $expediente): ?Actividad
+    {
+        if (!$expediente->actividadActual) return null;
+
+        // Siguiente en la misma etapa
+        $siguiente = $expediente->actividadActual->etapa
+            ->actividades()
+            ->where('orden', '>', $expediente->actividadActual->orden)
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->first();
+
+        if ($siguiente) return $siguiente;
+
+        // Primera actividad de la siguiente etapa
+        $siguienteEtapa = $expediente->solicitud->servicio
+            ->etapas()
+            ->where('orden', '>', $expediente->etapaActual->orden)
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->with(['actividades' => fn($q) => $q->where('activo', true)->orderBy('orden')])
+            ->first();
+
+        return $siguienteEtapa?->actividades->first();
+    }
+
+    // ─────────────────────────────────────────────
+    // ACCIONES SOBRE SOLICITUD (Etapa 1 — antes de expediente)
+    // ─────────────────────────────────────────────
+
+    // ADMITIR — crea el expediente
     public function admitir(Request $request, SolicitudArbitraje $solicitud)
     {
-        $request->validate(['observacion' => 'nullable|string|max:1000']);
+        // Admitir NO requiere documento aquí — la secretaria actúa desde Show.jsx
+        $request->validate([
+            'observacion' => 'nullable|string|max:1000',
+        ]);
 
         DB::beginTransaction();
         try {
+            // Generar número correlativo
             $anio        = now()->year;
             $correlativo = Correlativo::where('tipo', 'EXP-ARB')
                 ->where('anio', $anio)
@@ -179,13 +367,14 @@ class ExpedienteArbController extends Controller
                     ['tipo' => 'EXP-ARB', 'anio' => $anio],
                     ['ultimo_numero' => 0, 'activo' => 1]
                 );
-
             $correlativo->increment('ultimo_numero');
             $numeroExp = 'EXP-ARB-' . str_pad($correlativo->ultimo_numero, 4, '0', STR_PAD_LEFT) . '-' . $anio;
 
-            $primeraEtapa     = $solicitud->servicio->etapas()->where('activo', 1)->orderBy('orden')->first();
-            $primeraActividad = $primeraEtapa?->actividades()->where('activo', 1)->orderBy('orden')->first();
+            // Primera etapa y actividad configuradas para este servicio
+            $primeraEtapa     = $solicitud->servicio->etapas()->where('activo', true)->orderBy('orden')->first();
+            $primeraActividad = $primeraEtapa?->actividades()->where('activo', true)->orderBy('orden')->first();
 
+            // Crear expediente
             $expediente = ExpedienteArb::create([
                 'solicitud_id'        => $solicitud->id,
                 'servicio_id'         => $solicitud->servicio_id,
@@ -198,7 +387,23 @@ class ExpedienteArbController extends Controller
                 'activo'              => true,
             ]);
 
-            // Vincular demandante al expediente
+            // Transferir movimientos de Etapa 1 (solicitud) al expediente
+            ExpedienteArbMovimiento::where('solicitud_id', $solicitud->id)
+                ->update(['expediente_id' => $expediente->id]);
+
+            // Movimiento de admisión
+            ExpedienteArbMovimiento::create([
+                'expediente_id'        => $expediente->id,
+                'solicitud_id'         => $solicitud->id,
+                'registrado_por'       => Auth::id(),
+                'etapa_destino_id'     => $primeraEtapa?->id,
+                'actividad_destino_id' => $primeraActividad?->id,
+                'tipo'                 => 'admision',
+                'descripcion'          => $request->observacion ?? 'Solicitud admitida a trámite.',
+                'activo'               => true,
+            ]);
+
+            // Vincular demandante
             $demandante = User::where('email', $solicitud->email_demandante)->first();
             if ($demandante) {
                 ExpedienteArbUsuario::create([
@@ -209,41 +414,14 @@ class ExpedienteArbController extends Controller
                 ]);
             }
 
-            // Crear plazo si corresponde
-            if ($primeraActividad?->dias_plazo > 0) {
-                ExpedienteArbPlazo::create([
-                    'expediente_id'     => $expediente->id,
-                    'actividad_id'      => $primeraActividad->id,
-                    'fecha_inicio'      => now()->toDateString(),
-                    'fecha_vencimiento' => now()->addDays($primeraActividad->dias_plazo)->toDateString(),
-                    'dias_plazo'        => $primeraActividad->dias_plazo,
-                    'estado'            => 'pendiente',
-                    'activo'            => true,
-                ]);
+            // Crear plazo de primera actividad
+            if ($primeraActividad) {
+                $this->crearPlazo($expediente->id, $primeraActividad);
             }
 
             $solicitud->update(['estado' => 'admitida']);
 
-            ExpedienteArbMovimiento::create([
-                'expediente_id'        => $expediente->id,
-                'usuario_id'           => Auth::id(),
-                'etapa_destino_id'     => $primeraEtapa?->id,
-                'actividad_destino_id' => $primeraActividad?->id,
-                'accion'               => 'admitir',
-                'observacion'          => $request->observacion ?? 'Solicitud admitida a trámite.',
-                'activo'               => true,
-            ]);
-
-            $this->registrarNotificacion(
-                expedienteId: $expediente->id,
-                solicitudId: $solicitud->id,
-                nombre: $solicitud->nombre_demandante,
-                email: $solicitud->email_demandante,
-                asunto: 'Solicitud admitida: ' . $numeroExp,
-                tipo: 'admision'
-            );
-
-            // Email al demandante
+            // Emails
             Mail::send('emails.arb.admision', [
                 'solicitud'        => $solicitud,
                 'numeroExpediente' => $numeroExp,
@@ -252,264 +430,214 @@ class ExpedienteArbController extends Controller
                 ->subject('Ankawa — Solicitud Admitida: ' . $numeroExp)
             );
 
+            Mail::send('emails.arb.notif-demandado-admision', [
+                'solicitud'        => $solicitud,
+                'numeroExpediente' => $numeroExp,
+            ], fn($m) => $m
+                ->to($solicitud->email_demandado, $solicitud->nombre_demandado)
+                ->subject('Ankawa — Ha sido notificado en proceso arbitral: ' . $numeroExp)
+            );
+
+            $this->registrarNotificacion($solicitud->nombre_demandante, $solicitud->email_demandante, 'Solicitud admitida: ' . $numeroExp, 'admision', $expediente->id, $solicitud->id);
+            $this->registrarNotificacion($solicitud->nombre_demandado,  $solicitud->email_demandado,  'Notificación de demanda: ' . $numeroExp, 'notif_demandado', $expediente->id, $solicitud->id);
+
             DB::commit();
             return back()->with('success', 'Solicitud admitida. Expediente ' . $numeroExp . ' generado.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('admitir: ' . $e->getMessage());
-            return back()->withErrors(['general' => 'Error al procesar.']);
+            \Log::error('admitir: ' . $e->getMessage() . ' | ' . $e->getLine());
+            return back()->withErrors(['general' => $e->getMessage()]);
         }
     }
 
-    // ── ACCIÓN: Observar / Subsanar ──
+    // OBSERVAR — solicita subsanación al demandante
     public function observar(Request $request, SolicitudArbitraje $solicitud)
     {
         $request->validate([
-            'observacion' => 'required|string|max:2000',
+            'descripcion' => 'required|string|max:2000',
             'plazo_dias'  => 'required|integer|min:1|max:30',
+            'documento'   => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
         DB::beginTransaction();
         try {
+            $fechaLimite = now()->addWeekdays($request->plazo_dias);
+
+            // Crear subsanación
             ExpedienteArbSubsanacion::create([
                 'solicitud_id'   => $solicitud->id,
                 'registrado_por' => Auth::id(),
-                'observacion'    => $request->observacion,
+                'observacion'    => $request->descripcion,
                 'plazo_dias'     => $request->plazo_dias,
-                'fecha_limite'   => now()->addDays($request->plazo_dias)->toDateString(),
+                'fecha_limite'   => $fechaLimite->toDateString(),
                 'estado'         => 'pendiente',
                 'activo'         => true,
             ]);
 
-            $solicitud->update(['estado' => 'subsanacion']);
-
-            $this->registrarNotificacion(
+            // Guardar movimiento con documento
+            $this->guardarMovimiento(
+                tipo:        'observacion',
+                descripcion: $request->descripcion,
+                archivo:     $request->file('documento'),
                 solicitudId: $solicitud->id,
-                nombre: $solicitud->nombre_demandante,
-                email: $solicitud->email_demandante,
-                asunto: 'Solicitud requiere subsanación: ' . $solicitud->numero_cargo,
-                tipo: 'subsanacion'
             );
+
+            $solicitud->update(['estado' => 'subsanacion']);
 
             Mail::send('emails.arb.subsanacion', [
                 'solicitud'   => $solicitud,
-                'observacion' => $request->observacion,
+                'observacion' => $request->descripcion,
                 'plazo_dias'  => $request->plazo_dias,
-                'fechaLimite' => now()->addDays($request->plazo_dias)->format('d/m/Y'),
+                'fechaLimite' => $fechaLimite->format('d/m/Y'),
             ], fn($m) => $m
                 ->to($solicitud->email_demandante, $solicitud->nombre_demandante)
                 ->subject('Ankawa — Su solicitud requiere corrección: ' . $solicitud->numero_cargo)
             );
 
+            $this->registrarNotificacion($solicitud->nombre_demandante, $solicitud->email_demandante, 'Solicitud requiere subsanación: ' . $solicitud->numero_cargo, 'subsanacion', null, $solicitud->id);
+
             DB::commit();
-            return back()->with('success', 'Observación enviada al demandante.');
+            return back()->with('success', 'Observación registrada. El demandante tiene ' . $request->plazo_dias . ' días hábiles.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['general' => $e->getMessage()]); // temporal
+            return back()->withErrors(['general' => $e->getMessage()]);
         }
     }
 
-    // ── ACCIÓN: Rechazar ──
+    // RECHAZAR — rechaza la solicitud
     public function rechazar(Request $request, SolicitudArbitraje $solicitud)
     {
-        $request->validate(['motivo' => 'required|string|max:2000']);
+        $request->validate([
+            'descripcion' => 'required|string|max:2000',
+            'documento'   => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+        ]);
 
         DB::beginTransaction();
         try {
-            $solicitud->update(['estado' => 'rechazada']);
-
-            $this->registrarNotificacion(
+            $this->guardarMovimiento(
+                tipo:        'rechazo',
+                descripcion: $request->descripcion,
+                archivo:     $request->file('documento'),
                 solicitudId: $solicitud->id,
-                nombre: $solicitud->nombre_demandante,
-                email: $solicitud->email_demandante,
-                asunto: 'Solicitud rechazada: ' . $solicitud->numero_cargo,
-                tipo: 'rechazo'
             );
+
+            $solicitud->update([
+                'estado'         => 'rechazada',
+                'motivo_rechazo' => $request->descripcion,
+            ]);
 
             Mail::send('emails.arb.rechazo', [
                 'solicitud' => $solicitud,
-                'motivo'    => $request->motivo,
+                'motivo'    => $request->descripcion,
             ], fn($m) => $m
                 ->to($solicitud->email_demandante, $solicitud->nombre_demandante)
                 ->subject('Ankawa — Solicitud no admitida: ' . $solicitud->numero_cargo)
             );
+
+            $this->registrarNotificacion($solicitud->nombre_demandante, $solicitud->email_demandante, 'Solicitud rechazada: ' . $solicitud->numero_cargo, 'rechazo', null, $solicitud->id);
 
             DB::commit();
             return back()->with('success', 'Solicitud rechazada y notificada.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['general' => 'Error al procesar.']);
+            return back()->withErrors(['general' => $e->getMessage()]);
         }
     }
 
-    // ── ACCIÓN: Asignar Secretario Arbitral (Secretario General) ──
-    public function asignarSecretario(Request $request, ExpedienteArb $expediente)
-    {
-        $request->validate(['secretario_id' => 'required|exists:users,id']);
+    // ─────────────────────────────────────────────
+    // ACCIONES SOBRE EXPEDIENTE (desde Show.jsx)
+    // ─────────────────────────────────────────────
 
-        DB::beginTransaction();
-        try {
-            ExpedienteArbUsuario::where('expediente_id', $expediente->id)
-                ->where('rol_en_expediente', 'secretario_arb')
-                ->update(['activo' => false]);
-
-            ExpedienteArbUsuario::create([
-                'expediente_id'     => $expediente->id,
-                'usuario_id'        => $request->secretario_id,
-                'rol_en_expediente' => 'secretario_arb',
-                'activo'            => true,
-            ]);
-
-            $expediente->update(['estado' => 'en_proceso']);
-
-            ExpedienteArbMovimiento::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => Auth::id(),
-                'accion'        => 'avanzar',
-                'observacion'   => 'Secretario Arbitral asignado: ' . User::find($request->secretario_id)->name,
-                'activo'        => true,
-            ]);
-
-            DB::commit();
-            return back()->with('success', 'Secretario Arbitral asignado.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['general' => 'Error al asignar.']);
-        }
-    }
-
-    // ── ACCIÓN: Notificar demandado ──
-    public function notificarDemandado(Request $request, ExpedienteArb $expediente)
-    {
-        $request->validate(['mensaje_adicional' => 'nullable|string|max:1000']);
-
-        $solicitud = $expediente->solicitud;
-
-        DB::beginTransaction();
-        try {
-            $this->registrarNotificacion(
-                expedienteId: $expediente->id,
-                solicitudId: $solicitud->id,
-                nombre: $solicitud->nombre_demandado,
-                email: $solicitud->email_demandado,
-                asunto: 'Notificación de demanda arbitral: ' . $expediente->numero_expediente,
-                tipo: 'notif_demandado'
-            );
-
-            Mail::send('emails.arb.notif-demandado', [
-                'solicitud'        => $solicitud,
-                'expediente'       => $expediente,
-                'mensajeAdicional' => $request->mensaje_adicional,
-            ], fn($m) => $m
-                ->to($solicitud->email_demandado, $solicitud->nombre_demandado)
-                ->subject('Ankawa — Ha sido notificado: ' . $expediente->numero_expediente)
-            );
-
-            ExpedienteArbMovimiento::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => Auth::id(),
-                'accion'        => 'notificar',
-                'observacion'   => 'Demandado notificado. Plazo de 5 días para apersonarse.',
-                'activo'        => true,
-            ]);
-
-            DB::commit();
-            return back()->with('success', 'Demandado notificado.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['general' => 'Error al notificar.']);
-        }
-    }
-
-    // ── ACCIÓN: Avanzar actividad (Secretario Arbitral) ──
-    public function avanzarActividad(Request $request, ExpedienteArb $expediente)
+    // REGISTRAR MOVIMIENTO — subir documento + descripción + avanzar actividad
+    // Esta es la acción principal desde Show.jsx para cualquier rol autorizado
+    public function registrarAccion(Request $request, ExpedienteArb $expediente)
     {
         $request->validate([
-            'actividad_destino_id' => 'required|exists:actividades,id',
-            'observacion'          => 'nullable|string|max:1000',
+            'descripcion'          => 'required|string|max:2000',
+            'documento'            => 'required|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'avanzar'              => 'boolean',            // ¿avanza a siguiente actividad?
+            'actividad_destino_id' => 'nullable|exists:actividades,id',
+            // Subsanación interna del expediente (distinto a la de solicitud)
+            'crear_subsanacion'    => 'boolean',
+            'plazo_dias'           => 'nullable|integer|min:1|max:365',
         ]);
+
+        // Verificar que el rol puede actuar en la actividad actual
+        $user = Auth::user();
+        abort_if(
+            !$expediente->actividadActual?->roles->contains('id', $user->rol_id),
+            403,
+            'Su rol no puede actuar en la actividad actual.'
+        );
 
         abort_if($expediente->tiene_subsanacion, 422, 'El expediente tiene una subsanación pendiente.');
 
         DB::beginTransaction();
         try {
-            $actividadDestino = \App\Models\Actividad::with('etapa')->find($request->actividad_destino_id);
+            $actividadActual = $expediente->actividadActual;
 
-            ExpedienteArbMovimiento::create([
-                'expediente_id'        => $expediente->id,
-                'usuario_id'           => Auth::id(),
-                'etapa_origen_id'      => $expediente->etapa_actual_id,
-                'actividad_origen_id'  => $expediente->actividad_actual_id,
-                'etapa_destino_id'     => $actividadDestino->etapa_id,
-                'actividad_destino_id' => $actividadDestino->id,
-                'accion'               => 'avanzar',
-                'observacion'          => $request->observacion,
-                'activo'               => true,
-            ]);
+            // Guardar movimiento con documento
+            $movimiento = $this->guardarMovimiento(
+                tipo:         'accion',
+                descripcion:  $request->descripcion,
+                archivo:      $request->file('documento'),
+                expedienteId: $expediente->id,
+                etapaId:      $expediente->etapa_actual_id,
+                actividadId:  $expediente->actividad_actual_id,
+            );
 
-            // Completar plazo anterior
-            ExpedienteArbPlazo::where('expediente_id', $expediente->id)
-                ->where('actividad_id', $expediente->actividad_actual_id)
-                ->where('estado', 'pendiente')
-                ->update(['estado' => 'completado', 'fecha_completado' => now()]);
-
-            // Actualizar expediente
-            $expediente->update([
-                'etapa_actual_id'     => $actividadDestino->etapa_id,
-                'actividad_actual_id' => $actividadDestino->id,
-            ]);
-
-            // Crear nuevo plazo si corresponde
-            if ($actividadDestino->dias_plazo > 0) {
-                ExpedienteArbPlazo::create([
-                    'expediente_id'     => $expediente->id,
-                    'actividad_id'      => $actividadDestino->id,
-                    'fecha_inicio'      => now()->toDateString(),
-                    'fecha_vencimiento' => now()->addDays($actividadDestino->dias_plazo)->toDateString(),
-                    'dias_plazo'        => $actividadDestino->dias_plazo,
-                    'estado'            => 'pendiente',
-                    'activo'            => true,
+            // Si se solicita crear subsanación interna
+            if ($request->boolean('crear_subsanacion') && $request->plazo_dias) {
+                ExpedienteArbSubsanacion::create([
+                    'expediente_id'  => $expediente->id,
+                    'actividad_id'   => $actividadActual->id,
+                    'registrado_por' => Auth::id(),
+                    'observacion'    => $request->descripcion,
+                    'plazo_dias'     => $request->plazo_dias,
+                    'fecha_limite'   => now()->addWeekdays($request->plazo_dias)->toDateString(),
+                    'estado'         => 'pendiente',
+                    'activo'         => true,
                 ]);
+                $expediente->update(['tiene_subsanacion' => true]);
+            }
+
+            // Si avanza a siguiente actividad
+            if ($request->boolean('avanzar') && $request->actividad_destino_id) {
+                $actividadDestino = Actividad::with('etapa')->find($request->actividad_destino_id);
+
+                // Cerrar plazo actual
+                $this->cerrarPlazo($expediente->id, $actividadActual->id);
+
+                // Actualizar movimiento con destino
+                $movimiento->update([
+                    'etapa_destino_id'     => $actividadDestino->etapa_id,
+                    'actividad_destino_id' => $actividadDestino->id,
+                ]);
+
+                // Mover expediente a siguiente actividad
+                $expediente->update([
+                    'etapa_actual_id'     => $actividadDestino->etapa_id,
+                    'actividad_actual_id' => $actividadDestino->id,
+                ]);
+
+                // Crear plazo de nueva actividad
+                $this->crearPlazo($expediente->id, $actividadDestino);
             }
 
             DB::commit();
-            return back()->with('success', 'Expediente avanzado a: ' . $actividadDestino->nombre);
+            $msg = $request->boolean('avanzar') ? 'Acción registrada y expediente avanzado.' : 'Acción registrada correctamente.';
+            return back()->with('success', $msg);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['general' => 'Error al avanzar.']);
+            return back()->withErrors(['general' => $e->getMessage()]);
         }
     }
 
-    // ── Helper: registrar notificación ──
-    private function registrarNotificacion(
-        string $nombre,
-        string $email,
-        string $asunto,
-        string $tipo,
-        ?int $expedienteId = null,
-        ?int $solicitudId  = null,
-        ?int $actividadId  = null,
-    ): void {
-        ExpedienteArbNotificacion::create([
-            'expediente_id'      => $expedienteId,
-            'solicitud_id'       => $solicitudId,
-            'actividad_id'       => $actividadId,
-            'enviado_por'        => Auth::id(),
-            'destinatario_nombre'=> $nombre,
-            'destinatario_email' => $email,
-            'asunto'             => $asunto,
-            'tipo'               => $tipo,
-            'estado_envio'       => 'enviado',
-            'activo'             => true,
-        ]);
-    }
-
+    // DESIGNAR ÁRBITRO
     public function designarArbitro(Request $request, ExpedienteArb $expediente)
     {
         $request->validate([
@@ -521,7 +649,7 @@ class ExpedienteArbController extends Controller
 
         DB::beginTransaction();
         try {
-            \App\Models\ExpedienteArbArbitro::create([
+            ExpedienteArbArbitro::create([
                 'expediente_id'     => $expediente->id,
                 'usuario_id'        => $request->usuario_id,
                 'nombre_arbitro'    => $request->nombre_arbitro,
@@ -534,22 +662,15 @@ class ExpedienteArbController extends Controller
             ]);
 
             ExpedienteArbMovimiento::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => Auth::id(),
-                'accion'        => 'designar_arbitro',
-                'observacion'   => 'Árbitro designado: ' . $request->nombre_arbitro . ' (' . $request->tipo_designacion . ')',
-                'activo'        => true,
+                'expediente_id'  => $expediente->id,
+                'usuario_id'     => Auth::id(),
+                'tipo'           => 'designacion_arbitro',
+                'descripcion'    => 'Árbitro designado: ' . $request->nombre_arbitro . ' (' . $request->tipo_designacion . ')',
+                'activo'         => true,
             ]);
 
-            $this->registrarNotificacion(
-                expedienteId: $expediente->id,
-                nombre: $request->nombre_arbitro,
-                email: $request->email_arbitro,
-                asunto: 'Ankawa — Ha sido designado árbitro: ' . $expediente->numero_expediente,
-                tipo: 'designacion_arbitro'
-            );
+            $this->registrarNotificacion($request->nombre_arbitro, $request->email_arbitro, 'Ankawa — Ha sido designado árbitro: ' . $expediente->numero_expediente, 'designacion_arbitro', $expediente->id);
 
-            // Email al árbitro
             Mail::send('emails.arb.designacion-arbitro', [
                 'expediente'    => $expediente,
                 'nombreArbitro' => $request->nombre_arbitro,
@@ -564,8 +685,45 @@ class ExpedienteArbController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['general' => 'Error al designar.']);
+            return back()->withErrors(['general' => $e->getMessage()]);
         }
     }
 
+    // ASIGNAR SECRETARIO ARBITRAL
+    public function asignarSecretario(Request $request, ExpedienteArb $expediente)
+    {
+        $request->validate(['secretario_id' => 'required|exists:users,id']);
+
+        DB::beginTransaction();
+        try {
+            // Desactivar secretario anterior
+            ExpedienteArbUsuario::where('expediente_id', $expediente->id)
+                ->where('rol_en_expediente', 'secretario_arb')
+                ->update(['activo' => false]);
+
+            ExpedienteArbUsuario::create([
+                'expediente_id'     => $expediente->id,
+                'usuario_id'        => $request->secretario_id,
+                'rol_en_expediente' => 'secretario_arb',
+                'activo'            => true,
+            ]);
+
+            $secretario = User::find($request->secretario_id);
+
+            ExpedienteArbMovimiento::create([
+                'expediente_id'  => $expediente->id,
+                'registrado_por' => Auth::id(),
+                'tipo'           => 'asignacion_secretario',
+                'descripcion'    => 'Secretario Arbitral asignado: ' . $secretario->name,
+                'activo'         => true,
+            ]);
+
+            DB::commit();
+            return back()->with('success', 'Secretario Arbitral asignado.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['general' => $e->getMessage()]);
+        }
+    }
 }

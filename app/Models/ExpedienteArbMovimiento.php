@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+
 
 class ExpedienteArbMovimiento extends Model
 {
@@ -48,5 +50,19 @@ class ExpedienteArbMovimiento extends Model
     public function actividadDestino(): BelongsTo
     {
         return $this->belongsTo(Actividad::class, 'actividad_destino_id');
+    }
+
+    public function solicitud(): BelongsTo
+    {
+        return $this->belongsTo(SolicitudArbitraje::class, 'solicitud_id');
+    }
+    public function registradoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'registrado_por');
+    }
+
+    public function documentos(): MorphMany
+    {
+        return $this->morphMany(\App\Models\Documento::class, 'modelo', 'modelo_tipo', 'modelo_id');
     }
 }

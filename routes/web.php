@@ -9,6 +9,8 @@ use App\Http\Controllers\Configuracion\UsuarioController;
 use App\Http\Controllers\Configuracion\CorrelativoController;
 use App\Http\Controllers\Configuracion\ServicioController;
 use App\Http\Controllers\Configuracion\EtapaController;
+use App\Http\Controllers\Configuracion\TipoActorController;
+use App\Http\Controllers\Configuracion\AccionFlujoController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\SecretariaController;
 use App\Http\Controllers\ExpedienteArbController;
@@ -74,6 +76,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/actividades',             [EtapaController::class, 'storeActividad'])  ->name('configuracion.actividades.store')   ->middleware('permiso:configuracion.etapas,crear');
         Route::put('/actividades/{actividad}',  [EtapaController::class, 'updateActividad']) ->name('configuracion.actividades.update')  ->middleware('permiso:configuracion.etapas,editar');
         Route::delete('/actividades/{actividad}',[EtapaController::class,'destroyActividad'])->name('configuracion.actividades.destroy') ->middleware('permiso:configuracion.etapas,eliminar');
+    
+        // Rutas para Tipos de Actor
+        Route::get('tipos-actor', [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');
+        Route::post('tipos-actor', [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store');
+        Route::put('tipos-actor/{tipoActor}', [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
+        Route::delete('tipos-actor/{tipoActor}', [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
+
+        // Rutas para Acciones de Flujo
+        Route::get('acciones', [AccionFlujoController::class, 'index'])->name('configuracion.acciones.index');
+        Route::post('acciones', [AccionFlujoController::class, 'store'])->name('configuracion.acciones.store');
+        Route::put('acciones/{accion}', [AccionFlujoController::class, 'update'])->name('configuracion.acciones.update');
+        Route::delete('acciones/{accion}', [AccionFlujoController::class, 'destroy'])->name('configuracion.acciones.destroy');
     });
     // Vista principal Secretaría
     Route::get('/secretaria', [SecretariaController::class, 'index'])
@@ -121,7 +135,7 @@ Route::post('/expedientes/{expediente}/asignar-secretario',      [ExpedienteArbC
 Route::post('/expedientes/{expediente}/notificar-demandado',     [ExpedienteArbController::class, 'notificarDemandado'])->name('expedientes.notificarDemandado');
 Route::post('/expedientes/{expediente}/avanzar',                 [ExpedienteArbController::class, 'avanzarActividad'])->name('expedientes.avanzar');
 Route::post('/expedientes/{expediente}/designar-arbitro',        [ExpedienteArbController::class, 'designarArbitro'])->name('expedientes.designarArbitro');
-
+Route::post('/expedientes/{expediente}/accion', [ExpedienteArbController::class, 'registrarAccion'])->name('expedientes.accion');
 });
 
 // Mesa de Partes - SIN AUTENTICACIÓN
@@ -129,7 +143,9 @@ Route::get('/mesa-partes', [MesaPartesController::class, 'index'])->name('mesa-p
 Route::post('/mesa-partes/solicitud-arbitraje', [MesaPartesController::class, 'storeSolicitudArbitraje'])->name('mesa-partes.solicitud-arbitraje');
 Route::post('/mesa-partes/apersonamiento', [MesaPartesController::class, 'storeApersonamiento'])->name('mesa-partes.apersonamiento');
 Route::post('/mesa-partes/compress-files', [MesaPartesController::class, 'compressFiles'])->name('mesa-partes.compress-files');
-
+Route::post('/mesa-partes/solicitud/{solicitud}/actualizar',
+    [MesaPartesController::class, 'actualizarSolicitud'])
+    ->name('mesa-partes.actualizar-solicitud');
 // Rutas públicas — sin auth
 // Públicas — sin auth
 Route::get('/solicitud',                     [SolicitudController::class, 'index'])        ->name('solicitud.index');
