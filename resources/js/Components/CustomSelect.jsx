@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
@@ -8,15 +8,22 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
     const buttonRef = useRef(null);
     const menuRef = useRef(null);
 
-    // Calcula la posición exacta del botón para pegar el menú ahí
-    const openMenu = () => {
-        const rect = buttonRef.current.getBoundingClientRect();
-        setCoords({
-            left: rect.left + window.scrollX,
-            top: rect.bottom + window.scrollY + 4, // 4px de separación
-            width: rect.width
-        });
-        setIsOpen(true);
+    // Función para calcular la posición (Memorizada para evitar renders infinitos)
+    const updatePosition = useCallback(() => {
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setCoords({
+                // Sumamos el scroll actual para que la posición sea relativa al body
+                left: rect.left + window.scrollX,
+                top: rect.bottom + window.scrollY + 4, 
+                width: rect.width
+            });
+        }
+    }, []);
+
+    const toggleMenu = () => {
+        if (!isOpen) updatePosition();
+        setIsOpen(!isOpen);
     };
 
     useEffect(() => {
@@ -29,21 +36,19 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
             }
         };
 
-        // Cerrar si hacen scroll o redimensionan para evitar que el menú flote
-        const handleScroll = () => setIsOpen(false);
-
+        // Si el menú está abierto, escuchamos el scroll y el resize
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
-            window.addEventListener('scroll', handleScroll, true);
-            window.addEventListener('resize', handleScroll);
+            window.addEventListener('scroll', updatePosition, true);
+            window.addEventListener('resize', updatePosition);
         }
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
-            window.removeEventListener('scroll', handleScroll, true);
-            window.removeEventListener('resize', handleScroll);
+            window.removeEventListener('scroll', updatePosition, true);
+            window.removeEventListener('resize', updatePosition);
         };
-    }, [isOpen]);
+    }, [isOpen, updatePosition]);
 
     const selectedOption = options.find(opt => opt.id.toString() === value?.toString());
 
@@ -52,7 +57,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
             <div className="relative w-full" ref={buttonRef}>
                 <button
                     type="button"
-                    onClick={() => isOpen ? setIsOpen(false) : openMenu()}
+                    onClick={toggleMenu}
                     className={`w-full px-4 py-2.5 text-sm bg-white border rounded-xl flex items-center justify-between focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all ${
                         error ? 'border-red-400 bg-red-50' : 'border-gray-200'
                     }`}
@@ -67,7 +72,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                 </button>
             </div>
 
-            {/* Portal: El menú se dibuja en el body, superponiendo todo */}
+            {/* Portal: Se renderiza al final del body */}
             {isOpen && createPortal(
                 <ul
                     ref={menuRef}
@@ -76,7 +81,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                         top: `${coords.top}px`,
                         left: `${coords.left}px`,
                         width: `${coords.width}px`,
-                        zIndex: 999999 // Nos aseguramos de ganarle al Modal
+                        zIndex: 999999 
                     }}
                     className="bg-white border border-gray-100 rounded-xl shadow-2xl max-h-60 overflow-auto py-1.5 focus:outline-none"
                 >

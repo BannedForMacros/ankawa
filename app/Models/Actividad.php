@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Actividad extends Model
 {
@@ -17,12 +18,25 @@ class Actividad extends Model
         'es_obligatorio',
         'dias_plazo',
         'orden',
-        'activo'
+        'activo',
     ];
 
     public function etapa(): BelongsTo
     {
         return $this->belongsTo(Etapa::class, 'etapa_id');
+    }
+
+    // Roles que pueden actuar en esta actividad
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Rol::class, 'actividad_roles', 'actividad_id', 'rol_id')
+                    ->withTimestamps();
+    }
+
+    // ¿El usuario actual puede actuar en esta actividad?
+    public function puedeActuar(int $rolId): bool
+    {
+        return $this->roles->pluck('id')->contains($rolId);
     }
 
     public function scopeActivo($query)

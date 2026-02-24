@@ -5,7 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\ExpedienteArbSubsanacion;
+use App\Models\ExpedienteArb;
 
 class SolicitudArbitraje extends Model
 {
@@ -23,18 +25,17 @@ class SolicitudArbitraje extends Model
         'reglas_aplicables', 'estado', 'activo'
     ];
 
+    public function servicio(): BelongsTo
+    {
+        return $this->belongsTo(Servicio::class, 'servicio_id');
+    }
+
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'usuario_id');
     }
 
-    public function expediente(): HasOne
-    {
-        return $this->hasOne(Expediente::class, 'solicitud_id');
-    }
-
-    // RELACIÓN POLIMÓRFICA: Trae los documentos asociados a esta solicitud
-    public function documentos(): MorphMany
+    public function documentos(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(Documento::class, 'modelo', 'modelo_tipo', 'modelo_id');
     }
@@ -43,4 +44,19 @@ class SolicitudArbitraje extends Model
     {
         return $query->where('activo', 1);
     }
+
+    public function expediente(): HasOne
+{
+    return $this->hasOne(ExpedienteArb::class, 'solicitud_id');
+}
+
+public function subsanaciones(): HasMany
+{
+    return $this->hasMany(ExpedienteArbSubsanacion::class, 'solicitud_id');
+}
+
+public function tieneSusanacionPendiente(): bool
+{
+    return $this->subsanaciones()->where('estado', 'pendiente')->where('activo', true)->exists();
+}
 }

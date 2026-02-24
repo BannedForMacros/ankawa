@@ -2,185 +2,206 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SolicitudArbitraje;
+use App\Models\ExpedienteArbSubsanacion;
+use App\Models\ExpedienteArbNotificacion;
+use App\Models\Documento;
+use App\Models\Servicio;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
-use Spatie\PdfToImage\Pdf;
-use Intervention\Image\Facades\Image;
 
 class MesaPartesController extends Controller
 {
+    // ── Página pública — presentar solicitud ──
     public function index()
     {
-        return Inertia::render('MesaPartes/Index');
-    }
+        $servicios = Servicio::where('activo', 1)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'descripcion']);
 
-    public function storeSolicitudArbitraje(Request $request)
-    {
-        $validated = $request->validate([
-            'tipo_persona' => 'required|in:natural,juridica',
-            'nombre_demandante' => 'required_if:tipo_persona,natural|string|max:255',
-            'dni_demandante' => 'required_if:tipo_persona,natural|string|max:8',
-            'razon_social' => 'required_if:tipo_persona,juridica|string|max:255',
-            'ruc' => 'required_if:tipo_persona,juridica|string|max:11',
-            'nombre_representante' => 'nullable|string|max:255',
-            'dni_representante' => 'nullable|string|max:8',
-            'domicilio' => 'required|string',
-            'email' => 'required|email',
-            'telefono' => 'required|string',
-            'celular' => 'nullable|string',
-            'nombre_demandado' => 'required|string',
-            'datos_notificacion_demandado' => 'required|string',
-            'resumen_controversia' => 'required|string',
-            'pretensiones' => 'required|string',
-            'monto' => 'nullable|string',
-            'nombre_arbitro' => 'required|string',
-            'email_arbitro' => 'required|email',
-            'domicilio_arbitro' => 'required|string',
-            'forma_designacion' => 'required|string',
-            'reglas_aplicables' => 'nullable|string',
-            'aceptacion_reglamento' => 'accepted',
-            'convenio_arbitral' => 'required|file|mimes:pdf|max:102400',
-            'poder_representante' => 'nullable|file|mimes:pdf|max:102400',
-            'medida_cautelar' => 'nullable|file|mimes:pdf|max:102400',
-            'comprobante_pago' => 'required|file|mimes:pdf,jpg,jpeg,png|max:102400',
-        ]);
-
-        // Generar número de expediente
-        $numeroExpediente = 'ARB-' . date('Y') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
-
-        // Crear directorio para el expediente
-        $directorio = 'expedientes/' . $numeroExpediente;
-
-        // Guardar archivos
-        if ($request->hasFile('convenio_arbitral')) {
-            $validated['convenio_arbitral_path'] = $request->file('convenio_arbitral')->store($directorio);
-        }
-
-        if ($request->hasFile('poder_representante')) {
-            $validated['poder_representante_path'] = $request->file('poder_representante')->store($directorio);
-        }
-
-        if ($request->hasFile('medida_cautelar')) {
-            $validated['medida_cautelar_path'] = $request->file('medida_cautelar')->store($directorio);
-        }
-
-        if ($request->hasFile('comprobante_pago')) {
-            $validated['comprobante_pago_path'] = $request->file('comprobante_pago')->store($directorio);
-        }
-
-        // Aquí guardarías en la base de datos
-        // SolicitudArbitraje::create([...]);
-
-        return redirect()->route('mesa-partes.index')->with([
-            'success' => 'Solicitud de arbitraje enviada correctamente',
-            'numero_expediente' => $numeroExpediente,
+        return Inertia::render('MesaPartes/Index', [
+            'servicios' => $servicios,
         ]);
     }
 
-    public function storeApersonamiento(Request $request)
+    // ── Bandeja Secretaria Adjunta ──
+    public function bandeja(Request $request)
     {
-        $validated = $request->validate([
-            'numero_expediente' => 'required|string',
-            'razon_social' => 'required|string|max:255',
-            'ruc' => 'required|string|max:11',
-            'datos_registrales' => 'required|string',
-            'nombre_representante' => 'required|string|max:255',
-            'dni_representante' => 'required|string|max:8',
-            'domicilio' => 'required|string',
-            'telefono' => 'required|string',
-            'celular' => 'nullable|string',
-            'email' => 'required|email',
-            'resumen_posicion' => 'required|string',
-            'pretensiones' => 'nullable|string',
-            'monto' => 'nullable|string',
-            'nombre_arbitro' => 'required|string',
-            'email_arbitro' => 'required|email',
-            'domicilio_arbitro' => 'required|string',
-            'forma_designacion' => 'required|string',
-            'reglas_aplicables' => 'nullable|string',
-            'oposicion_inicio' => 'boolean',
-            'motivo_oposicion' => 'required_if:oposicion_inicio,true|nullable|string',
-            'aceptacion_reglamento' => 'accepted',
-            'poder_representante' => 'required|file|mimes:pdf|max:102400',
-            'comprobante_pago' => 'required|file|mimes:pdf,jpg,jpeg,png|max:102400',
+        $filtro = $request->get('filtro', 'todos');
+
+        $query = SolicitudArbitraje::with([
+                'servicio',
+                'subsanaciones' => fn($q) => $q->where('activo', true)->orderByDesc('created_at'),
+                'subsanaciones.registradoPor',
+            ])
+            ->whereDoesntHave('expediente') // Solo las que NO son expediente aún
+            ->orderByDesc('created_at');
+
+        if ($filtro !== 'todos') {
+            $query->where('estado', $filtro);
+        }
+
+        $solicitudes = $query->get()->map(fn($s) => [
+            'id'                  => $s->id,
+            'numero_cargo'        => $s->numero_cargo,
+            'servicio'            => $s->servicio->nombre,
+            'tipo_persona'        => $s->tipo_persona,
+            'nombre_demandante'   => $s->nombre_demandante,
+            'documento_demandante'=> $s->documento_demandante,
+            'email_demandante'    => $s->email_demandante,
+            'telefono_demandante' => $s->telefono_demandante,
+            'nombre_demandado'    => $s->nombre_demandado,
+            'email_demandado'     => $s->email_demandado,
+            'monto_involucrado'   => $s->monto_involucrado,
+            'resumen_controversia'=> $s->resumen_controversia,
+            'estado'              => $s->estado,
+            'created_at'          => $s->created_at->format('d/m/Y H:i'),
+            'subsanacion_activa'  => $s->subsanaciones
+                ->where('estado', 'pendiente')
+                ->first(),
         ]);
 
-        // Crear directorio para el apersonamiento
-        $directorio = 'expedientes/' . $validated['numero_expediente'] . '/apersonamiento';
+        // Contadores para los badges del filtro
+        $contadores = [
+            'todos'       => SolicitudArbitraje::whereDoesntHave('expediente')->count(),
+            'pendiente'   => SolicitudArbitraje::whereDoesntHave('expediente')->where('estado', 'pendiente')->count(),
+            'subsanacion' => SolicitudArbitraje::whereDoesntHave('expediente')->where('estado', 'subsanacion')->count(),
+            'rechazada'   => SolicitudArbitraje::whereDoesntHave('expediente')->where('estado', 'rechazada')->count(),
+        ];
 
-        // Guardar archivos
-        if ($request->hasFile('poder_representante')) {
-            $validated['poder_representante_path'] = $request->file('poder_representante')->store($directorio);
-        }
-
-        if ($request->hasFile('comprobante_pago')) {
-            $validated['comprobante_pago_path'] = $request->file('comprobante_pago')->store($directorio);
-        }
-
-        // Aquí guardarías en la base de datos
-        // Apersonamiento::create([...]);
-
-        return redirect()->route('mesa-partes.index')->with([
-            'success' => 'Respuesta/Apersonamiento enviado correctamente',
-            'numero_expediente' => $validated['numero_expediente'],
+        return Inertia::render('MesaPartes/Bandeja', [
+            'solicitudes' => $solicitudes,
+            'filtroActual'=> $filtro,
+            'contadores'  => $contadores,
         ]);
     }
 
-    public function compressFiles(Request $request)
+    // ── Mis Solicitudes (Cliente) ──
+    public function misSolicitudes()
     {
+        $user = Auth::user();
+
+        $solicitudes = SolicitudArbitraje::with([
+                'servicio',
+                'expediente', // Para saber si ya es expediente
+                'subsanaciones' => fn($q) => $q
+                    ->where('activo', true)
+                    ->orderByDesc('created_at'),
+                'documentos',
+            ])
+            ->where('email_demandante', $user->email)
+            ->orWhere('usuario_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn($s) => [
+                'id'                  => $s->id,
+                'numero_cargo'        => $s->numero_cargo,
+                'servicio'            => $s->servicio->nombre,
+                'nombre_demandado'    => $s->nombre_demandado,
+                'monto_involucrado'   => $s->monto_involucrado,
+                'estado'              => $s->estado,
+                'created_at'          => $s->created_at->format('d/m/Y H:i'),
+                'expediente_id'       => $s->expediente?->id,
+                'numero_expediente'   => $s->expediente?->numero_expediente,
+                'subsanacion_activa'  => $s->subsanaciones
+                    ->where('estado', 'pendiente')
+                    ->first(),
+                'documentos'          => $s->documentos->map(fn($d) => [
+                    'id'             => $d->id,
+                    'nombre_original'=> $d->nombre_original,
+                    'tipo_documento' => $d->tipo_documento,
+                    'ruta_archivo'   => $d->ruta_archivo,
+                    'created_at'     => $d->created_at->format('d/m/Y'),
+                ]),
+            ]);
+
+        return Inertia::render('MesaPartes/MisSolicitudes', [
+            'solicitudes' => $solicitudes,
+        ]);
+    }
+
+    // ── Subsanar (Cliente sube documentos y responde) ──
+    public function subsanar(Request $request, SolicitudArbitraje $solicitud)
+    {
+        // Solo el dueño puede subsanar
+        abort_if(
+            $solicitud->email_demandante !== Auth::user()->email &&
+            $solicitud->usuario_id !== Auth::id(),
+            403
+        );
+
         $request->validate([
-            'file' => 'required|file|mimes:pdf|max:512000', // Máximo 500MB para compresión
+            'respuesta'    => 'required|string|max:2000',
+            'documentos'   => 'nullable|array',
+            'documentos.*' => 'file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+        ], [
+            'respuesta.required'    => 'Debe escribir una respuesta a la observación.',
+            'documentos.*.mimes'    => 'Solo se permiten archivos PDF, imágenes o documentos Word.',
+            'documentos.*.max'      => 'Cada archivo no debe superar 10MB.',
         ]);
 
-        $file = $request->file('file');
-        $tempPath = $file->store('temp');
-        $fullPath = Storage::path($tempPath);
-
+        DB::beginTransaction();
         try {
-            // Usar Ghostscript para comprimir PDF
-            $outputPath = Storage::path('temp/compressed_' . basename($tempPath));
-            
-            $command = sprintf(
-                'gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile=%s %s',
-                escapeshellarg($outputPath),
-                escapeshellarg($fullPath)
-            );
+            // 1. Marcar subsanación como resuelta
+            $subsanacion = ExpedienteArbSubsanacion::where('solicitud_id', $solicitud->id)
+                ->where('estado', 'pendiente')
+                ->where('activo', true)
+                ->first();
 
-            exec($command, $output, $returnVar);
-
-            if ($returnVar !== 0) {
-                throw new \Exception('Error al comprimir PDF');
+            if ($subsanacion) {
+                $subsanacion->update([
+                    'estado'            => 'subsanado',
+                    'subsanado_por'     => Auth::id(),
+                    'fecha_subsanacion' => now(),
+                    'respuesta'         => $request->respuesta,
+                ]);
             }
 
-            // Verificar que el archivo comprimido existe y es más pequeño
-            if (file_exists($outputPath)) {
-                $compressedSize = filesize($outputPath);
-                $originalSize = filesize($fullPath);
+            // 2. Subir documentos si los hay
+            if ($request->hasFile('documentos')) {
+                foreach ($request->file('documentos') as $archivo) {
+                    $ruta = $archivo->store(
+                        'solicitudes/' . $solicitud->id . '/subsanaciones',
+                        'public'
+                    );
 
-                // Si la compresión aumentó el tamaño, usar el original
-                if ($compressedSize >= $originalSize) {
-                    $outputPath = $fullPath;
+                    Documento::create([
+                        'modelo_tipo'     => SolicitudArbitraje::class,
+                        'modelo_id'       => $solicitud->id,
+                        'tipo_documento'  => 'subsanacion',
+                        'ruta_archivo'    => $ruta,
+                        'nombre_original' => $archivo->getClientOriginalName(),
+                        'peso_bytes'      => $archivo->getSize(),
+                        'activo'          => true,
+                    ]);
                 }
-
-                // Limpiar archivos temporales
-                Storage::delete($tempPath);
-
-                return response()->download($outputPath)->deleteFileAfterSend(true);
             }
 
-            throw new \Exception('Archivo comprimido no encontrado');
+            // 3. Volver estado a pendiente para que secretaria lo revise
+            $solicitud->update(['estado' => 'pendiente']);
+
+            // 4. Notificar a secretaria
+            ExpedienteArbNotificacion::create([
+                'solicitud_id'       => $solicitud->id,
+                'enviado_por'        => Auth::id(),
+                'destinatario_nombre'=> 'Secretaría General Adjunta',
+                'destinatario_email' => config('mail.from.address'),
+                'asunto'             => 'Solicitud subsanada: ' . $solicitud->numero_cargo,
+                'tipo'               => 'subsanacion',
+                'estado_envio'       => 'enviado',
+                'activo'             => true,
+            ]);
+
+            DB::commit();
+            return back()->with('success', 'Subsanación enviada correctamente. La secretaría revisará su respuesta.');
 
         } catch (\Exception $e) {
-            // Limpiar archivos temporales en caso de error
-            Storage::delete($tempPath);
-            if (isset($outputPath) && file_exists($outputPath)) {
-                unlink($outputPath);
-            }
-
-            return response()->json([
-                'error' => 'No se pudo comprimir el archivo: ' . $e->getMessage()
-            ], 500);
+            DB::rollBack();
+            \Log::error('Error subsanar: ' . $e->getMessage());
+            return back()->withErrors(['general' => 'Error al enviar la subsanación.']);
         }
     }
 }
