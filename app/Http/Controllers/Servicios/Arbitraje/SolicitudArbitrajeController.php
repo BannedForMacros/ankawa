@@ -4,6 +4,11 @@ namespace App\Http\Controllers\Servicios\Arbitraje;
 
 use App\Http\Controllers\Controller;
 use App\Models\SolicitudArbitraje;
+use App\Models\Expediente;
+use App\Models\ExpedienteActor;
+use App\Models\ExpedienteMovimiento;
+use App\Models\TipoActorExpediente;
+use App\Models\Actividad;
 use App\Models\Documento;
 use App\Models\User;
 use App\Models\Rol;
@@ -17,7 +22,6 @@ use Illuminate\Support\Str;
 
 class SolicitudArbitrajeController extends Controller
 {
-    // ── Guardar solicitud completa (Paso 6 del formulario) ──
     public function store(Request $request)
     {
         // 1. Validaciones
@@ -31,10 +35,12 @@ class SolicitudArbitrajeController extends Controller
             'domicilio_demandante'          => 'required|string|max:500',
             'email_demandante'              => 'required|email|max:255',
             'telefono_demandante'           => 'required|string|max:20',
+            
             'nombre_demandado'              => 'required|string|max:255',
             'domicilio_demandado'           => 'required|string|max:500',
             'email_demandado'               => 'nullable|email|max:255',
             'telefono_demandado'            => 'nullable|string|max:20',
+            
             'resumen_controversia'          => 'required|string',
             'pretensiones'                  => 'required|string',
             'monto_involucrado'             => 'nullable|numeric|min:0',
@@ -44,7 +50,6 @@ class SolicitudArbitrajeController extends Controller
             'domicilio_arbitro_propuesto'   => 'nullable|string|max:500',
             'reglas_aplicables'             => 'nullable|string|max:255',
             
-            // LOS NUEVOS ANEXOS
             'documentos_anexos'             => 'required|array|min:1',
             'documentos_anexos.*'           => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
@@ -52,74 +57,111 @@ class SolicitudArbitrajeController extends Controller
         DB::beginTransaction();
 
         try {
-            // 2. Lógica del Correlativo (Idéntica a la que ya tenías)
+            // 2. Correlativo de Cargo Temporal
             $anio        = now()->year;
-            $correlativo = Correlativo::where('tipo', 'CARGO')
-                ->where('anio', $anio)
-                ->lockForUpdate()
-                ->first();
+            $correlativo = Correlativo::where('tipo', 'CARGO')->where('anio', $anio)->lockForUpdate()->first();
 
             if (!$correlativo) {
-                $correlativo = Correlativo::create([
-                    'tipo'          => 'CARGO',
-                    'anio'          => $anio,
-                    'ultimo_numero' => 0,
-                    'activo'        => 1,
-                ]);
+                $correlativo = Correlativo::create(['tipo' => 'CARGO', 'anio' => $anio, 'ultimo_numero' => 0, 'activo' => 1]);
             }
 
             $correlativo->increment('ultimo_numero');
             $numeroCargo = 'CARGO-' . str_pad($correlativo->ultimo_numero, 4, '0', STR_PAD_LEFT) . '-' . $anio;
 
-            // 3. Crear o buscar usuario cliente
-            $userId = \Illuminate\Support\Facades\Auth::id(); // Sacamos el ID si está logueado
+            // 3. Crear usuario Demandante (si no está logueado)
+            $userId = \Illuminate\Support\Facades\Auth::id();
             $passwordRaw = null;
 
             if (!$userId) {
-                // Si NO está logueado, verificamos que no intente crear un duplicado
-                $userExists = User::where('email', $request->email_demandante)
-                    ->orWhere('numero_documento', $request->documento_demandante)
-                    ->exists();
-
+                $userExists = User::where('email', $request->email_demandante)->orWhere('numero_documento', $request->documento_demandante)->exists();
                 if ($userExists) {
-                    return back()->withErrors(['general' => 'El correo o documento ingresado ya pertenece a un usuario registrado. Por favor, inicie sesión.']);
+                    return back()->withErrors(['general' => 'El correo o documento ya pertenece a un usuario registrado. Por favor, inicie sesión.']);
                 }
 
-                // Si todo está limpio, le creamos la cuenta
-                $rolCliente  = Rol::where('nombre', 'like', '%Cliente%')->first();
                 $passwordRaw = $request->documento_demandante . Str::random(6);
-
                 $usuarioNuevo = User::create([
                     'name'             => $request->nombre_demandante,
                     'email'            => $request->email_demandante,
-                    'password'         => \Illuminate\Support\Facades\Hash::make($passwordRaw),
-                    'rol_id'           => $rolCliente?->id,
+                    'password'         => Hash::make($passwordRaw),
+                    'rol_id'           => Rol::ROL_CLIENTE, // <-- USO DE LA CONSTANTE
                     'tipo_persona'     => $request->tipo_persona,
                     'numero_documento' => $request->documento_demandante,
                     'telefono'         => $request->telefono_demandante,
                     'direccion'        => $request->domicilio_demandante,
                     'activo'           => 1,
                 ]);
-                
-                $userId = $usuarioNuevo->id; // Si era nuevo, ahora $userId ya tiene valor
+                $userId = $usuarioNuevo->id;
             }
 
-            // 4. Crear la solicitud
+            // 4. Crear la Solicitud Inicial
             $solicitud = SolicitudArbitraje::create(array_merge(
-                $request->except('documentos_anexos'), // Quitamos los archivos del request general
+                $request->except('documentos_anexos'),
                 [
                     'numero_cargo' => $numeroCargo,
-                    'usuario_id'   => $userId,     // <--- ¡AQUÍ ESTABA EL ERROR! AHORA USA $userId
+                    'usuario_id'   => $userId,
                     'estado'       => 'pendiente',
                     'activo'       => 1,
                 ]
             ));
 
-            // 5. Guardar los documentos adjuntos
+            // 5. EL NACIMIENTO DEL EXPEDIENTE EN EL MOTOR DE FLUJO
+            // Buscamos la Actividad 1 y 2 según tu imagen
+            $actividad1 = Actividad::whereHas('etapa', fn($q) => $q->where('servicio_id', $request->servicio_id)->where('orden', 1))
+                                   ->orderBy('orden')->firstOrFail();
+                                   
+            $actividad2 = Actividad::whereHas('etapa', fn($q) => $q->where('servicio_id', $request->servicio_id)->where('orden', 1))
+                                   ->where('orden', '>', $actividad1->orden)->orderBy('orden')->firstOrFail();
+
+            // Nace el expediente SIN NÚMERO FORMAL (La secretaria lo pondrá después)
+            $expediente = Expediente::create([
+                'solicitud_id'        => $solicitud->id,
+                'servicio_id'         => $request->servicio_id,
+                'numero_expediente'   => null, 
+                'etapa_actual_id'     => $actividad2->etapa_id, // Lo mandamos a la Bandeja de la Secretaria (Act 2)
+                'actividad_actual_id' => $actividad2->id,
+                'estado'              => 'en_proceso'
+            ]);
+
+            // Asignar Actores (Demandante y Demandado)
+            $tipoActorDemandante = TipoActorExpediente::where('slug', 'demandante')->first();
+            $tipoActorDemandado  = TipoActorExpediente::where('slug', 'demandado')->first();
+
+            if ($tipoActorDemandante) {
+                ExpedienteActor::create(['expediente_id' => $expediente->id, 'usuario_id' => $userId, 'tipo_actor_id' => $tipoActorDemandante->id]);
+            }
+
+            // Crear al Demandado inmediatamente usando la constante
+            $userDemandado = User::where('email', $request->email_demandado)->first();
+            if (!$userDemandado && $request->email_demandado) {
+                $userDemandado = User::create([
+                    'name'      => $request->nombre_demandado,
+                    'email'     => $request->email_demandado,
+                    'password'  => Hash::make(Str::random(10)),
+                    'rol_id'    => Rol::ROL_CLIENTE, // <-- USO DE LA CONSTANTE
+                    'direccion' => $request->domicilio_demandado,
+                    'telefono'  => $request->telefono_demandado,
+                    'activo'    => 1
+                ]);
+            }
+
+            if ($tipoActorDemandado && $userDemandado) {
+                ExpedienteActor::create(['expediente_id' => $expediente->id, 'usuario_id' => $userDemandado->id, 'tipo_actor_id' => $tipoActorDemandado->id]);
+            }
+
+            // Registrar movimiento: De Actividad 1 a Actividad 2
+            ExpedienteMovimiento::create([
+                'expediente_id'        => $expediente->id,
+                'actividad_origen_id'  => $actividad1->id,
+                'actividad_destino_id' => $actividad2->id,
+                'usuario_id'           => $userId,
+                'observaciones'        => 'Presentación de Solicitud de Arbitraje vía Portal Web.',
+                'fecha_movimiento'     => now()
+            ]);
+
+            // 6. Guardar Documentos Adjuntos
             if ($request->hasFile('documentos_anexos')) {
                 foreach ($request->file('documentos_anexos') as $archivo) {
                     $ruta = $archivo->store('solicitudes/' . $solicitud->id . '/anexos', 'public');
-
                     Documento::create([
                         'modelo_tipo'     => SolicitudArbitraje::class,
                         'modelo_id'       => $solicitud->id,
@@ -132,45 +174,23 @@ class SolicitudArbitrajeController extends Controller
                 }
             }
 
-            // 5. Guardar los documentos adjuntos
-            if ($request->hasFile('documentos_anexos')) {
-                foreach ($request->file('documentos_anexos') as $archivo) {
-                    $ruta = $archivo->store('solicitudes/' . $solicitud->id . '/anexos', 'public');
-
-                    Documento::create([
-                        'modelo_tipo'     => SolicitudArbitraje::class,
-                        'modelo_id'       => $solicitud->id,
-                        'tipo_documento'  => 'anexo_inicial',
-                        'ruta_archivo'    => $ruta,
-                        'nombre_original' => $archivo->getClientOriginalName(),
-                        'peso_bytes'      => $archivo->getSize(),
-                        'activo'          => 1,
-                    ]);
-                }
-            }
-
-            // 6. Generar PDF Cargo
+            // 7. Generar PDF Cargo y Enviar Correo
             $pdfPath = $this->generarCargo($solicitud);
-
-            // 7. Enviar email con cargo
             Mail::to($solicitud->email_demandante, $solicitud->nombre_demandante)
                 ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $pdfPath));
 
             DB::commit();
+            @unlink($pdfPath);
 
-            @unlink($pdfPath); // Limpiar PDF temporal
-
-            // 8. Redirigir a la vista de éxito genérica
             return redirect()->route('mesa-partes.confirmacion', $solicitud->numero_cargo);
 
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error solicitud arbitraje: ' . $e->getMessage());
-            return back()->withErrors(['general' => 'Ocurrio un error. Por favor intente nuevamente.']);
+            return back()->withErrors(['general' => 'Ocurrió un error. Por favor intente nuevamente.']);
         }
     }
 
-    // ── Generar PDF cargo (Igual a tu código) ──
     private function generarCargo(SolicitudArbitraje $solicitud): string
     {
         $solicitud->load('servicio');

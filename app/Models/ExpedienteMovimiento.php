@@ -10,7 +10,7 @@ class ExpedienteMovimiento extends Model
     protected $table = 'expediente_movimientos';
 
     public $timestamps = false; // Como usamos CURRENT_TIMESTAMP en pgsql para fecha_movimiento
-
+    protected $guarded = [];
     protected $fillable = [
         'expediente_id',
         'actividad_origen_id',

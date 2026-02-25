@@ -68,38 +68,41 @@ export default function Sidebar() {
     return (
         <aside className={`flex flex-col h-screen bg-white border-r border-gray-200 shadow-sm transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
 
-            {/* ── LOGO ── */}
-            <div className={`flex items-center border-b border-gray-100 ${collapsed ? 'justify-center px-3 py-4' : 'px-5 py-4'}`}>
-                {!collapsed && (
-                    <img
-                        src="/logo.png"
-                        alt="Ankawa Internacional"
-                        className="h-14 w-auto object-contain"
-                    />
-                )}
-                {collapsed && (
+            {/* ── SECCIÓN LOGO ── */}
+            <div className={`relative flex items-center border-b border-gray-100 ${collapsed ? 'justify-center px-3 py-4' : 'px-5 py-6 justify-center'}`}>
+                {!collapsed ? (
+                    <>
+                        {/* Logo centrado y más grande */}
+                        <img
+                            src="/logo.png"
+                            alt="Ankawa Internacional"
+                            className="h-18 w-auto object-contain transition-all"
+                        />
+                        {/* Botón absoluto para no romper el centrado */}
+                        <button
+                            onClick={() => setCollapsed(true)}
+                            className="absolute right-3 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#291136] transition-colors"
+                        >
+                            <Menu size={18} />
+                        </button>
+                    </>
+                ) : (
+                    /* Logo cuando está colapsado */
                     <img
                         src="/logo.png"
                         alt="Ankawa"
                         className="h-8 w-8 object-contain"
                     />
                 )}
-                {!collapsed && (
-                    <button
-                        onClick={() => setCollapsed(true)}
-                        className="ml-auto p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#291136] transition-colors"
-                    >
-                        <Menu size={16} />
-                    </button>
-                )}
             </div>
 
+            {/* Botón para expandir cuando está colapsado */}
             {collapsed && (
                 <button
                     onClick={() => setCollapsed(false)}
-                    className="mx-auto mt-3 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#291136] transition-colors"
+                    className="mx-auto mt-4 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#291136] transition-colors"
                 >
-                    <Menu size={16} />
+                    <Menu size={18} />
                 </button>
             )}
 
@@ -113,8 +116,8 @@ export default function Sidebar() {
             {/* ── FOOTER ── */}
             <div className="border-t border-gray-100 px-3 py-4">
                 {!collapsed && (
-                    <div className="flex items-center gap-3 px-3 mb-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 bg-[#291136]">
+                    <div className="flex items-center gap-3 px-3 mb-4">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 bg-[#291136]">
                             {auth.user.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -130,9 +133,9 @@ export default function Sidebar() {
 
                 <button
                     onClick={handleLogout}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors ${collapsed ? 'justify-center' : ''}`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors ${collapsed ? 'justify-center' : ''}`}
                 >
-                    <LogOut size={17} className="shrink-0" />
+                    <LogOut size={18} className="shrink-0" />
                     {!collapsed && <span>Cerrar sesión</span>}
                 </button>
             </div>

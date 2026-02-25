@@ -13,6 +13,7 @@ use App\Http\Controllers\Servicios\Arbitraje\SolicitudArbitrajeController;
 
 // Controladores Internos
 use App\Http\Controllers\ExpedienteController;
+use App\Http\Controllers\DocumentoController;
 
 // Controladores de Configuración (Mantuvimos los tuyos intactos)
 use App\Http\Controllers\Configuracion\RolController;
@@ -75,7 +76,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
     Route::post('/expedientes/{expediente}/accion', [ExpedienteController::class, 'registrarAccion'])->name('expedientes.accion');
 
-
+    Route::get('/documentos/{documento}/descargar', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
     // ── MÓDULO DE CONFIGURACIÓN (Intacto) ──
     Route::prefix('configuracion')->middleware([])->group(function () {
 

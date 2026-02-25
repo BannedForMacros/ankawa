@@ -13,22 +13,20 @@ use App\Models\User;
 use App\Models\Documento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ExpedienteController extends Controller
 {
-    // ── 1. BANDEJA DE EXPEDIENTES (Para la Secretaría / Árbitros) ──
+    // ── 1. ÍNDICE PRINCIPAL DE EXPEDIENTES EN CURSO ──
     public function index()
     {
-        // Traemos los expedientes con su etapa, actividad actual y actores
         $expedientes = Expediente::with(['servicio', 'etapaActual', 'actividadActual'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function($exp) {
                 return [
                     'id'                => $exp->id,
-                    'numero_expediente' => $exp->numero_expediente,
+                    'numero_expediente' => $exp->numero_expediente ?? $exp->solicitud->numero_cargo, // Si no tiene N° formal, mostramos el cargo
                     'servicio'          => $exp->servicio->nombre,
                     'etapa'             => $exp->etapaActual->nombre,
                     'actividad'         => $exp->actividadActual->nombre,
@@ -42,86 +40,7 @@ class ExpedienteController extends Controller
         ]);
     }
 
-    // ── 2. EL PUENTE: ADMITIR SOLICITUD A TRÁMITE (Nace el Expediente) ──
-    public function admitir(Request $request, SolicitudArbitraje $solicitud)
-    {
-        if ($solicitud->expediente) {
-            return back()->withErrors(['general' => 'Esta solicitud ya tiene un expediente generado.']);
-        }
-
-        DB::beginTransaction();
-
-        try {
-            $tipoActorDemandante = TipoActorExpediente::where('slug', 'demandante')->firstOrFail();
-            $tipoActorDemandado  = TipoActorExpediente::where('slug', 'demandado')->firstOrFail();
-            
-            // Busca la primera actividad de la etapa 1 del servicio de esta solicitud
-            $actividadInicial = Actividad::whereHas('etapa', function($q) use ($solicitud) {
-                $q->where('servicio_id', $solicitud->servicio_id)->where('orden', 1);
-            })->orderBy('orden')->firstOrFail();
-
-            // Generar número: EXP-2026-0001-CARD
-            $correlativo = str_pad($solicitud->id, 4, '0', STR_PAD_LEFT);
-            $numeroExpediente = "EXP-" . date('Y') . "-{$correlativo}-CARD";
-
-            // Nace el Expediente
-            $expediente = Expediente::create([
-                'solicitud_id'        => $solicitud->id,
-                'servicio_id'         => $solicitud->servicio_id,
-                'numero_expediente'   => $numeroExpediente,
-                'etapa_actual_id'     => $actividadInicial->etapa_id,
-                'actividad_actual_id' => $actividadInicial->id,
-                'estado'              => 'en_proceso'
-            ]);
-
-            // Asignar al Demandante
-            ExpedienteActor::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => $solicitud->usuario_id, 
-                'tipo_actor_id' => $tipoActorDemandante->id,
-            ]);
-
-            // Crear cuenta y asignar al Demandado
-            $userDemandado = User::where('email', $solicitud->email_demandado)->first();
-            if (!$userDemandado) {
-                $userDemandado = User::create([
-                    'name'     => $solicitud->nombre_demandado,
-                    'email'    => $solicitud->email_demandado,
-                    'password' => bcrypt(Str::random(10)),
-                    'rol_id'   => 3, // Rol "Cliente" genérico
-                    'activo'   => 1
-                ]);
-            }
-
-            ExpedienteActor::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => $userDemandado->id,
-                'tipo_actor_id' => $tipoActorDemandado->id,
-            ]);
-
-            // Registrar movimiento inicial
-            ExpedienteMovimiento::create([
-                'expediente_id'        => $expediente->id,
-                'actividad_origen_id'  => clone $actividadInicial->id, // Truco temporal inicial
-                'actividad_destino_id' => $actividadInicial->id,
-                'usuario_id'           => auth()->id(),
-                'observaciones'        => 'Admisión a trámite y generación de expediente.',
-                'fecha_movimiento'     => now()
-            ]);
-
-            $solicitud->update(['estado' => 'admitida']);
-
-            DB::commit();
-            return redirect()->route('expedientes.show', $expediente->id)->with('success', "¡Expediente {$numeroExpediente} generado!");
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('Error admitiendo solicitud: ' . $e->getMessage());
-            return back()->withErrors(['general' => 'Ocurrió un error al generar el expediente.']);
-        }
-    }
-
-    // ── 3. VISOR DINÁMICO DEL EXPEDIENTE ──
+    // ── 2. VISOR DINÁMICO DEL EXPEDIENTE ──
     public function show(Expediente $expediente)
     {
         $expediente->load([
@@ -139,8 +58,6 @@ class ExpedienteController extends Controller
         ]);
 
         $rolUsuarioId = auth()->user()->rol_id;
-
-        // ¿Tiene permiso para ver botones en esta actividad?
         $puedeActuar = $expediente->actividadActual->roles->contains('id', $rolUsuarioId);
 
         return Inertia::render('Expedientes/Show', [
@@ -150,22 +67,23 @@ class ExpedienteController extends Controller
         ]);
     }
 
-    // ── 4. EL MOTOR: EJECUTAR LA ACCIÓN DINÁMICA ──
+    // ── 3. EL MOTOR ÚNICO Y DINÁMICO DE ACCIONES ──
     public function registrarAccion(Request $request, Expediente $expediente)
     {
         $request->validate([
             'transicion_id'          => 'required|exists:actividad_transiciones,id',
             'observaciones'          => 'nullable|string',
+            'numero_expediente'      => 'nullable|string|unique:expedientes,numero_expediente,' . $expediente->id, // Para el momento en que se admite manualmente
             'documentos_movimiento'  => 'nullable|array',
             'documentos_movimiento.*'=> 'file|mimes:pdf,doc,docx|max:10240',
             'usuario_designado_id'   => 'nullable|exists:users,id',
-            'notificar_a'            => 'nullable|array' // IDs de expediente_actores a notificar
+            'notificar_a'            => 'nullable|array'
         ]);
 
         $transicion = ActividadTransicion::findOrFail($request->transicion_id);
 
         if ($transicion->requiere_observacion && empty($request->observaciones)) {
-            return back()->withErrors(['observaciones' => 'Esta acción requiere que ingrese un motivo/observación.']);
+            return back()->withErrors(['observaciones' => 'Esta acción requiere que ingrese un motivo u observación (Ej: Motivo de subsanación o rechazo).']);
         }
 
         if ($transicion->requiere_documento && !$request->hasFile('documentos_movimiento')) {
@@ -174,7 +92,7 @@ class ExpedienteController extends Controller
 
         DB::beginTransaction();
         try {
-            // A. Registrar Historial
+            // A. Registrar Historial del Movimiento
             $movimiento = ExpedienteMovimiento::create([
                 'expediente_id'        => $expediente->id,
                 'actividad_origen_id'  => $expediente->actividad_actual_id,
@@ -185,10 +103,12 @@ class ExpedienteController extends Controller
                 'fecha_movimiento'     => now()
             ]);
 
-            // B. Guardar documentos del movimiento
+            // B. Guardar documentos si los hay
             if ($request->hasFile('documentos_movimiento')) {
+                // Usamos el ID del expediente como fallback si aún no tiene número oficial
+                $carpeta = $expediente->numero_expediente ?? 'temporal_' . $expediente->id;
                 foreach ($request->file('documentos_movimiento') as $archivo) {
-                    $ruta = $archivo->store("expedientes/{$expediente->numero_expediente}/movimientos", 'public');
+                    $ruta = $archivo->store("expedientes/{$carpeta}/movimientos", 'public');
                     Documento::create([
                         'modelo_tipo'     => ExpedienteMovimiento::class,
                         'modelo_id'       => $movimiento->id,
@@ -201,7 +121,7 @@ class ExpedienteController extends Controller
                 }
             }
 
-            // C. Designar nuevo actor si aplica
+            // C. Asignar nuevo actor (Ej: Designar Árbitro)
             if ($transicion->designa_tipo_actor_id && $request->usuario_designado_id) {
                 ExpedienteActor::updateOrCreate(
                     [
@@ -212,18 +132,21 @@ class ExpedienteController extends Controller
                 );
             }
 
-            // D. Avanzar el flujo
-            // Buscamos la actividad destino para saber de qué etapa es
+            // D. INYECCIÓN MANUAL DEL NÚMERO DE EXPEDIENTE (Cuando la Secretaria lo admite formalmente)
+            if ($request->filled('numero_expediente') && empty($expediente->numero_expediente)) {
+                $expediente->numero_expediente = $request->numero_expediente;
+                // De forma opcional, si tu lógica de negocio lo requiere, marcamos la solicitud base como admitida
+                if ($expediente->solicitud) {
+                    $expediente->solicitud->update(['estado' => 'admitida']);
+                }
+            }
+
+            // E. Avanzar el flujo a la Actividad de Destino
             $actividadDestino = Actividad::find($transicion->actividad_destino_id);
             $expediente->update([
                 'actividad_actual_id' => $transicion->actividad_destino_id,
                 'etapa_actual_id'     => $actividadDestino->etapa_id
             ]);
-
-            // E. Despachar Correos a los seleccionados (Se implementará el Mail luego)
-            if (!empty($request->notificar_a)) {
-                // Lógica de notificaciones a los IDs que vinieron en el array
-            }
 
             DB::commit();
             return back()->with('success', 'Acción registrada y expediente avanzado correctamente.');
@@ -231,7 +154,7 @@ class ExpedienteController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error motor flujo: ' . $e->getMessage());
-            return back()->withErrors(['general' => 'Error al procesar la acción.']);
+            return back()->withErrors(['general' => 'Error al procesar la acción dinámica.']);
         }
     }
 }

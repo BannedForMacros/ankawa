@@ -11,6 +11,9 @@ class Rol extends Model
 
     protected $fillable = ['nombre', 'descripcion', 'activo'];
 
+    // ── CONSTANTE DE ROL (Evita hardcodear números perdidos en los controladores) ──
+    public const ROL_CLIENTE = 6;
+
     public function usuarios(): HasMany
     {
         return $this->hasMany(User::class, 'rol_id');

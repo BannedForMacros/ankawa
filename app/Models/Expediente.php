@@ -44,8 +44,9 @@ class Expediente extends Model
         return $this->hasMany(ExpedienteActor::class, 'expediente_id');
     }
 
-    public function movimientos(): HasMany
+    public function movimientos()
     {
-        return $this->hasMany(ExpedienteMovimiento::class, 'expediente_id')->orderByDesc('created_at');
+        // ELIMINA EL ->latest() SI LO TIENE
+        return $this->hasMany(ExpedienteMovimiento::class);
     }
 }
