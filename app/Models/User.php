@@ -11,11 +11,16 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    // AÑADIMOS LOS CAMPOS DE IDENTIDAD
     protected $fillable = [
         'name',
         'email',
         'password',
         'rol_id',
+        'tipo_persona',     // NUEVO
+        'numero_documento', // NUEVO (DNI o RUC)
+        'telefono',         // NUEVO
+        'direccion',        // NUEVO
         'activo',
     ];
 
@@ -32,26 +37,16 @@ class User extends Authenticatable
         ];
     }
 
-    // --- RELACIONES ---
-
     public function rol(): BelongsTo
     {
         return $this->belongsTo(Rol::class, 'rol_id');
     }
-
-    // --- SCOPES ---
 
     public function scopeActivo($query)
     {
         return $query->where('activo', 1);
     }
 
-    // --- PERMISOS ---
-
-    /**
-     * Verifica si el usuario puede realizar una acción sobre un módulo.
-     * Uso: auth()->user()->puedeEn('expedientes.bandeja', 'crear')
-     */
     public function puedeEn(string $moduloSlug, string $accion = 'ver'): bool
     {
         if (!$this->rol || $this->rol->activo == 0) {

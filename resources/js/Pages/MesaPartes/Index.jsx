@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
-import Formulario from '@/Pages/Solicitud/Formulario';
+import Formulario from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 import { Shield, CheckCircle, Zap, ArrowLeft, Clock, FileText, ChevronRight } from 'lucide-react';
 
 // ── Requisitos antes del formulario ──

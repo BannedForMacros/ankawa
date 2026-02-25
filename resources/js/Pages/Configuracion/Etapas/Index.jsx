@@ -14,8 +14,11 @@ import {
     GitBranch, Plus, ChevronDown, ChevronRight,
     Pencil, Trash2, ListChecks, AlertCircle,
     CheckCircle2, Circle, Clock, FileText,
-    Bell, Scale, Mic, Bookmark, Users
+    Bell, Scale, Mic, Bookmark, Users, GitCommit
 } from 'lucide-react';
+
+// IMPORTANTE: Asegúrate de tener este archivo creado en la carpeta Partials
+import ModalTransiciones from './Partials/ModalTransiciones';
 
 const opcionesEstado = [
     { id: 1, nombre: 'Activo'   },
@@ -69,7 +72,8 @@ function RolesSelector({ roles, seleccionados, onChange }) {
                             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all
                                 ${activo
                                     ? 'bg-[#291136] text-white border-[#291136]'
-                                    : 'bg-white text-gray-500 border-gray-200 hover:border-[#291136]/30'}`}>
+                                    : 'bg-white text-gray-500 border-gray-200 hover:border-[#291136]/30'}`}
+                        >
                             {rol.nombre}
                         </button>
                     );
@@ -85,7 +89,7 @@ function RolesSelector({ roles, seleccionados, onChange }) {
 }
 
 // ── Fila de Actividad ──
-function FilaActividad({ actividad, onEdit, onDelete }) {
+function FilaActividad({ actividad, onEdit, onDelete, onConfigTransitions }) {
     return (
         <div className="flex items-center justify-between px-4 py-2.5 bg-white border border-gray-100 rounded-lg hover:border-[#BE0F4A]/20 transition-colors group">
             <div className="flex items-center gap-3">
@@ -135,7 +139,17 @@ function FilaActividad({ actividad, onEdit, onDelete }) {
                     status={actividad.activo ? 'activo' : 'inactivo'}
                     text={actividad.activo ? 'Activo' : 'Inactivo'}
                 />
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                
+                {/* BOTONES DE ACCIÓN: Se añade el botón de Flujo/Transiciones */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pl-2 border-l border-gray-200 ml-2">
+                    
+                    <button onClick={() => onConfigTransitions(actividad)}
+                        className="flex items-center gap-1 p-1.5 px-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                        title="Configurar Transiciones">
+                        <GitCommit size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Flujo</span>
+                    </button>
+
                     <button onClick={() => onEdit(actividad)}
                         className="p-1.5 rounded-lg text-[#BE0F4A]/70 hover:bg-[#BE0F4A]/10 hover:text-[#BE0F4A] transition-colors"
                         title="Editar actividad">
@@ -153,7 +167,7 @@ function FilaActividad({ actividad, onEdit, onDelete }) {
 }
 
 // ── Card de Etapa ──
-function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditActividad, onDeleteActividad }) {
+function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditActividad, onDeleteActividad, onConfigTransitions }) {
     const [abierto, setAbierto] = useState(true);
 
     return (
@@ -204,6 +218,7 @@ function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditAc
                                 actividad={act}
                                 onEdit={onEditActividad}
                                 onDelete={onDeleteActividad}
+                                onConfigTransitions={onConfigTransitions}
                             />
                         ))
                     )}
@@ -214,7 +229,8 @@ function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditAc
 }
 
 // ── Página principal ──
-export default function Index({ servicios, roles }) {
+// NUEVO: Se reciben los nuevos catálogos como props
+export default function Index({ servicios, roles, acciones, tiposActor, todasActividades }) {
 
     const [servicioSeleccionado, setServicioSeleccionado] = useState(
         servicios.length > 0 ? servicios[0] : null
@@ -225,6 +241,10 @@ export default function Index({ servicios, roles }) {
     const [modalActividad, setModalActividad]             = useState(false);
     const [editandoActividad, setEditandoActividad]       = useState(null);
     const [etapaParaActividad, setEtapaParaActividad]     = useState(null);
+
+    // NUEVO ESTADO: Para manejar el modal de Transiciones
+    const [modalTransicionesOpen, setModalTransicionesOpen] = useState(false);
+    const [actividadParaTransiciones, setActividadParaTransiciones] = useState(null);
 
     const [confirmEtapa, setConfirmEtapa]         = useState(false);
     const [etapaAEliminar, setEtapaAEliminar]     = useState(null);
@@ -386,6 +406,12 @@ export default function Index({ servicios, roles }) {
         });
     };
 
+    // ── Transiciones ──
+    const abrirTransiciones = (actividad) => {
+        setActividadParaTransiciones(actividad);
+        setModalTransicionesOpen(true);
+    };
+
     const etapasActuales = servicioSeleccionado
         ? (servicios.find(s => s.id === servicioSeleccionado.id)?.etapas ?? [])
         : [];
@@ -464,6 +490,7 @@ export default function Index({ servicios, roles }) {
                                         onNewActividad={abrirCrearActividad}
                                         onEditActividad={abrirEditarActividad}
                                         onDeleteActividad={(a) => { setActividadAEliminar(a); setConfirmActividad(true); }}
+                                        onConfigTransitions={abrirTransiciones}
                                     />
                                 ))}
                             </div>
@@ -578,7 +605,7 @@ export default function Index({ servicios, roles }) {
                                 error={formActividad.errors.orden} />
                         </div>
 
-                        {/* Selector de roles — DIRECTAMENTE CONECTADO */}
+                        {/* Selector de roles */}
                         <div className="mb-5">
                             <RolesSelector
                                 roles={roles}
@@ -606,6 +633,16 @@ export default function Index({ servicios, roles }) {
                     </div>
                 </form>
             </Modal>
+
+            {/* Modal Transiciones */}
+            <ModalTransiciones 
+                show={modalTransicionesOpen}
+                onClose={() => setModalTransicionesOpen(false)}
+                actividad={actividadParaTransiciones}
+                acciones={acciones}
+                tiposActor={tiposActor}
+                todasActividades={todasActividades}
+            />
 
             {/* Confirms */}
             <ConfirmDialog show={confirmEtapa} title="Desactivar Etapa"

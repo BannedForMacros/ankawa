@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany; // <-- Asegúrate de que esto esté importado
 
 class Actividad extends Model
 {
@@ -32,6 +33,14 @@ class Actividad extends Model
         return $this->belongsToMany(Rol::class, 'actividad_roles', 'actividad_id', 'rol_id')
                     ->withTimestamps();
     }
+
+    // --- ¡AQUÍ ESTÁ LO QUE FALTABA! ---
+    // Las transiciones (botones) que nacen desde esta actividad
+    public function transiciones(): HasMany
+    {
+        return $this->hasMany(ActividadTransicion::class, 'actividad_origen_id')->orderBy('orden');
+    }
+    // ----------------------------------
 
     // ¿El usuario actual puede actuar en esta actividad?
     public function puedeActuar(int $rolId): bool

@@ -429,12 +429,12 @@ export default function MisSolicitudes({ solicitudes }) {
                                 Seguimiento de sus solicitudes de arbitraje
                             </p>
                         </div>
-                        <a href="/mesa-partes"
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
-                                bg-[#BE0F4A] text-white hover:bg-[#BC1D35] transition-colors">
-                            Nueva solicitud
-                            <ChevronRight size={15} />
-                        </a>
+                            <Link href={route('mesa-partes.nueva-solicitud')}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
+                                    bg-[#BE0F4A] text-white hover:bg-[#BC1D35] transition-colors">
+                                Crear Nueva Solicitud
+                                <ArrowRight size={15} />
+                            </Link>
                     </div>
 
                     {ordenadas.length === 0 ? (

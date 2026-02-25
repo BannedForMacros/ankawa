@@ -12,23 +12,43 @@ use Inertia\Inertia;
 
 class EtapaController extends Controller
 {
-    public function index(Request $request)
+public function index(Request $request)
     {
         $servicios = Servicio::where('activo', 1)
             ->orderBy('nombre')
             ->with(['etapas' => function ($q) {
                 $q->orderBy('orden')
                   ->with(['actividades' => function ($q2) {
-                      $q2->orderBy('orden')->with('roles');
+                      // AQUÍ AÑADIMOS LAS TRANSICIONES
+                      $q2->orderBy('orden')
+                         ->with(['roles', 'transiciones.actividadDestino', 'transiciones.accionCatalogo', 'transiciones.tipoActorDesignado']);
                   }]);
             }])
             ->get();
 
         $roles = Rol::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre']);
+        
+        // NUEVO: Catálogos para los formularios de Transiciones
+        $acciones = \App\Models\CatalogoAccion::where('activo', 1)->get();
+        $tiposActor = \App\Models\TipoActorExpediente::where('activo', 1)->get();
+        
+        // NUEVO: Lista plana de todas las actividades para el Select de "Actividad Destino"
+        $todasActividades = \App\Models\Actividad::where('activo', 1)
+            ->with('etapa.servicio')
+            ->get()
+            ->map(function($act) {
+                return [
+                    'id' => $act->id,
+                    'nombre_completo' => $act->etapa->servicio->nombre . ' > ' . $act->etapa->nombre . ' > ' . $act->nombre
+                ];
+            });
 
         return Inertia::render('Configuracion/Etapas/Index', [
-            'servicios' => $servicios,
-            'roles'     => $roles,
+            'servicios'        => $servicios,
+            'roles'            => $roles,
+            'acciones'         => $acciones,
+            'tiposActor'       => $tiposActor,
+            'todasActividades' => $todasActividades
         ]);
     }
 
@@ -152,5 +172,65 @@ class EtapaController extends Controller
     {
         $actividad->update(['activo' => 0]);
         return back()->with('success', 'Actividad desactivada correctamente.');
+    }
+
+    // ── TRANSICIONES DE ACTIVIDAD ──
+
+    public function storeTransicion(Request $request, \App\Models\Actividad $actividad)
+    {
+        $request->validate([
+            'catalogo_accion_id'    => 'required|exists:catalogo_acciones,id',
+            'etiqueta_boton'        => 'required|string|max:255',
+            'actividad_destino_id'  => 'required|exists:actividades,id',
+            'designa_tipo_actor_id' => 'nullable|exists:tipos_actor_expediente,id',
+            'requiere_documento'    => 'required|in:0,1',
+            'permite_documento'     => 'required|in:0,1',
+            'requiere_observacion'  => 'required|in:0,1',
+        ]);
+
+        \App\Models\ActividadTransicion::create([
+            'actividad_origen_id'   => $actividad->id,
+            'catalogo_accion_id'    => $request->catalogo_accion_id,
+            'etiqueta_boton'        => $request->etiqueta_boton,
+            'actividad_destino_id'  => $request->actividad_destino_id,
+            'designa_tipo_actor_id' => $request->designa_tipo_actor_id,
+            'requiere_documento'    => $request->requiere_documento,
+            'permite_documento'     => $request->permite_documento,
+            'requiere_observacion'  => $request->requiere_observacion,
+            'activo'                => 1,
+        ]);
+
+        return back()->with('success', 'Transición configurada correctamente.');
+    }
+
+    public function updateTransicion(Request $request, \App\Models\ActividadTransicion $transicion)
+    {
+        $request->validate([
+            'catalogo_accion_id'    => 'required|exists:catalogo_acciones,id',
+            'etiqueta_boton'        => 'required|string|max:255',
+            'actividad_destino_id'  => 'required|exists:actividades,id',
+            'designa_tipo_actor_id' => 'nullable|exists:tipos_actor_expediente,id',
+            'requiere_documento'    => 'required|in:0,1',
+            'permite_documento'     => 'required|in:0,1',
+            'requiere_observacion'  => 'required|in:0,1',
+        ]);
+
+        $transicion->update([
+            'catalogo_accion_id'    => $request->catalogo_accion_id,
+            'etiqueta_boton'        => $request->etiqueta_boton,
+            'actividad_destino_id'  => $request->actividad_destino_id,
+            'designa_tipo_actor_id' => $request->designa_tipo_actor_id,
+            'requiere_documento'    => $request->requiere_documento,
+            'permite_documento'     => $request->permite_documento,
+            'requiere_observacion'  => $request->requiere_observacion,
+        ]);
+
+        return back()->with('success', 'Transición actualizada correctamente.');
+    }
+
+    public function destroyTransicion(\App\Models\ActividadTransicion $transicion)
+    {
+        $transicion->delete(); // Aquí usamos delete real porque es configuración interna
+        return back()->with('success', 'Transición eliminada.');
     }
 }
