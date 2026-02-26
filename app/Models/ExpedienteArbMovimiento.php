@@ -61,8 +61,5 @@ class ExpedienteArbMovimiento extends Model
         return $this->belongsTo(User::class, 'registrado_por');
     }
 
-    public function documentos(): MorphMany
-    {
-        return $this->morphMany(\App\Models\Documento::class, 'modelo', 'modelo_tipo', 'modelo_id');
-    }
+
 }
