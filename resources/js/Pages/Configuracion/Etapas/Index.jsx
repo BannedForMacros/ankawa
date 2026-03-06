@@ -35,6 +35,7 @@ const opcionesTipo = [
     { id: 'notificacion', nombre: 'Notificacion' },
     { id: 'resolucion',   nombre: 'Resolucion'   },
     { id: 'audiencia',    nombre: 'Audiencia'    },
+    { id: 'orden-procesal',    nombre: 'Orden Procesal'    },
     { id: 'otro',         nombre: 'Otro'         },
 ];
 
@@ -43,6 +44,7 @@ const iconoTipo = {
     notificacion: <Bell size={13} />,
     resolucion:   <Scale size={13} />,
     audiencia:    <Mic size={13} />,
+    'orden-procesal': <GitCommit size={13} />,
     otro:         <Bookmark size={13} />,
 };
 
