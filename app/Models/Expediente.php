@@ -49,4 +49,11 @@ class Expediente extends Model
         // ELIMINA EL ->latest() SI LO TIENE
         return $this->hasMany(ExpedienteMovimiento::class);
     }
+
+    // Documentos subidos por slot (versión activa de cada slot)
+    public function documentosRequisito(): HasMany
+    {
+        return $this->hasMany(ExpedienteDocumentoRequisito::class, 'expediente_id')
+                    ->where('activo', true);
+    }
 }

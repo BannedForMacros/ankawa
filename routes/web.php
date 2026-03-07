@@ -112,7 +112,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/actividades',              [EtapaController::class, 'storeActividad'])  ->name('configuracion.actividades.store')   ->middleware('permiso:configuracion.etapas,crear');
         Route::put('/actividades/{actividad}',   [EtapaController::class, 'updateActividad']) ->name('configuracion.actividades.update')  ->middleware('permiso:configuracion.etapas,editar');
         Route::delete('/actividades/{actividad}',[EtapaController::class,'destroyActividad'])->name('configuracion.actividades.destroy') ->middleware('permiso:configuracion.etapas,eliminar');
-        
+        // routes/web.php (dentro del grupo de configuracion)
+        Route::post('/actividades/{actividad}/requisitos',         [EtapaController::class, 'storeRequisito'])  ->name('configuracion.requisitos.store');
+        Route::put('/requisitos/{requisito}',                      [EtapaController::class, 'updateRequisito']) ->name('configuracion.requisitos.update');
+        Route::delete('/requisitos/{requisito}',                   [EtapaController::class, 'destroyRequisito'])->name('configuracion.requisitos.destroy');
+
         // Transiciones
         Route::post('/actividades/{actividad}/transiciones', [EtapaController::class, 'storeTransicion'])->name('transiciones.store');
         Route::put('/transiciones/{transicion}',             [EtapaController::class, 'updateTransicion'])->name('transiciones.update');

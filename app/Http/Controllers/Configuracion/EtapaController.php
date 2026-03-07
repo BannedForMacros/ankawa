@@ -7,6 +7,9 @@ use App\Models\Etapa;
 use App\Models\Actividad;
 use App\Models\Servicio;
 use App\Models\Rol;
+use App\Models\TipoDocumento;
+use App\Models\TransicionActorDesignable;
+use App\Models\ActividadRequisitoDocumento;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,25 +24,31 @@ public function index(Request $request)
                   ->with(['actividades' => function ($q2) {
                       // AQUÍ AÑADIMOS LAS TRANSICIONES
                       $q2->orderBy('orden')
-                         ->with(['roles', 'transiciones.actividadDestino', 'transiciones.accionCatalogo', 'transiciones.tipoActorDesignado']);
+                         ->with([
+                             'roles',
+                             'transiciones.actividadDestino',
+                             'transiciones.accionCatalogo',
+                             'transiciones.tipoDocumento',
+                             'transiciones.actoresDesignables.tipoActor',
+                             'requisitosDocumento.tipoDocumento',
+                         ]);
                   }]);
             }])
             ->get();
 
         $roles = Rol::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre']);
         
-        // NUEVO: Catálogos para los formularios de Transiciones
         $acciones = \App\Models\CatalogoAccion::where('activo', 1)->get();
         $tiposActor = \App\Models\TipoActorExpediente::where('activo', 1)->get();
-        
-        // NUEVO: Lista plana de todas las actividades para el Select de "Actividad Destino"
+        $tiposDocumento = TipoDocumento::where('activo', true)->orderBy('nombre')->get(['id', 'nombre', 'slug', 'aplica_para']);
+
         $todasActividades = \App\Models\Actividad::where('activo', 1)
             ->with('etapa.servicio')
             ->get()
-            ->map(function($act) {
+            ->map(function ($act) {
                 return [
-                    'id' => $act->id,
-                    'nombre_completo' => $act->etapa->servicio->nombre . ' > ' . $act->etapa->nombre . ' > ' . $act->nombre
+                    'id'             => $act->id,
+                    'nombre_completo' => $act->etapa->servicio->nombre . ' > ' . $act->etapa->nombre . ' > ' . $act->nombre,
                 ];
             });
 
@@ -48,7 +57,8 @@ public function index(Request $request)
             'roles'            => $roles,
             'acciones'         => $acciones,
             'tiposActor'       => $tiposActor,
-            'todasActividades' => $todasActividades
+            'tiposDocumento'   => $tiposDocumento,
+            'todasActividades' => $todasActividades,
         ]);
     }
 
@@ -179,26 +189,38 @@ public function index(Request $request)
     public function storeTransicion(Request $request, \App\Models\Actividad $actividad)
     {
         $request->validate([
-            'catalogo_accion_id'    => 'required|exists:catalogo_acciones,id',
-            'etiqueta_boton'        => 'required|string|max:255',
-            'actividad_destino_id'  => 'required|exists:actividades,id',
-            'designa_tipo_actor_id' => 'nullable|exists:tipos_actor_expediente,id',
-            'requiere_documento'    => 'required|in:0,1',
-            'permite_documento'     => 'required|in:0,1',
-            'requiere_observacion'  => 'required|in:0,1',
+            'catalogo_accion_id'                    => 'required|exists:catalogo_acciones,id',
+            'etiqueta_boton'                        => 'required|string|max:255',
+            'actividad_destino_id'                  => 'required|exists:actividades,id',
+            'tipo_documento_id'                     => 'nullable|exists:tipo_documentos,id',
+            'requiere_documento'                    => 'required|in:0,1',
+            'permite_documento'                     => 'required|in:0,1',
+            'requiere_observacion'                  => 'required|in:0,1',
+            'actores_designables'                   => 'nullable|array',
+            'actores_designables.*.tipo_actor_id'   => 'required|exists:tipos_actor_expediente,id',
+            'actores_designables.*.es_obligatorio'  => 'required|boolean',
+            'permite_editar_solicitud'              => 'nullable|boolean',
         ]);
 
-        \App\Models\ActividadTransicion::create([
-            'actividad_origen_id'   => $actividad->id,
-            'catalogo_accion_id'    => $request->catalogo_accion_id,
-            'etiqueta_boton'        => $request->etiqueta_boton,
-            'actividad_destino_id'  => $request->actividad_destino_id,
-            'designa_tipo_actor_id' => $request->designa_tipo_actor_id,
-            'requiere_documento'    => $request->requiere_documento,
-            'permite_documento'     => $request->permite_documento,
-            'requiere_observacion'  => $request->requiere_observacion,
-            'activo'                => 1,
+        $transicion = \App\Models\ActividadTransicion::create([
+            'actividad_origen_id'      => $actividad->id,
+            'catalogo_accion_id'       => $request->catalogo_accion_id,
+            'etiqueta_boton'           => $request->etiqueta_boton,
+            'actividad_destino_id'     => $request->actividad_destino_id,
+            'tipo_documento_id'        => $request->tipo_documento_id,
+            'requiere_documento'       => $request->requiere_documento,
+            'permite_documento'        => $request->permite_documento,
+            'requiere_observacion'     => $request->requiere_observacion,
+            'permite_editar_solicitud' => $request->boolean('permite_editar_solicitud', false),
+            'activo'                   => 1,
         ]);
+
+        foreach ($request->actores_designables ?? [] as $actor) {
+            $transicion->actoresDesignables()->create([
+                'tipo_actor_id'  => $actor['tipo_actor_id'],
+                'es_obligatorio' => $actor['es_obligatorio'],
+            ]);
+        }
 
         return back()->with('success', 'Transición configurada correctamente.');
     }
@@ -206,24 +228,38 @@ public function index(Request $request)
     public function updateTransicion(Request $request, \App\Models\ActividadTransicion $transicion)
     {
         $request->validate([
-            'catalogo_accion_id'    => 'required|exists:catalogo_acciones,id',
-            'etiqueta_boton'        => 'required|string|max:255',
-            'actividad_destino_id'  => 'required|exists:actividades,id',
-            'designa_tipo_actor_id' => 'nullable|exists:tipos_actor_expediente,id',
-            'requiere_documento'    => 'required|in:0,1',
-            'permite_documento'     => 'required|in:0,1',
-            'requiere_observacion'  => 'required|in:0,1',
+            'catalogo_accion_id'                    => 'required|exists:catalogo_acciones,id',
+            'etiqueta_boton'                        => 'required|string|max:255',
+            'actividad_destino_id'                  => 'required|exists:actividades,id',
+            'tipo_documento_id'                     => 'nullable|exists:tipo_documentos,id',
+            'requiere_documento'                    => 'required|in:0,1',
+            'permite_documento'                     => 'required|in:0,1',
+            'requiere_observacion'                  => 'required|in:0,1',
+            'actores_designables'                   => 'nullable|array',
+            'actores_designables.*.tipo_actor_id'   => 'required|exists:tipos_actor_expediente,id',
+            'actores_designables.*.es_obligatorio'  => 'required|boolean',
+            'permite_editar_solicitud'              => 'nullable|boolean',
         ]);
 
         $transicion->update([
-            'catalogo_accion_id'    => $request->catalogo_accion_id,
-            'etiqueta_boton'        => $request->etiqueta_boton,
-            'actividad_destino_id'  => $request->actividad_destino_id,
-            'designa_tipo_actor_id' => $request->designa_tipo_actor_id,
-            'requiere_documento'    => $request->requiere_documento,
-            'permite_documento'     => $request->permite_documento,
-            'requiere_observacion'  => $request->requiere_observacion,
+            'catalogo_accion_id'       => $request->catalogo_accion_id,
+            'etiqueta_boton'           => $request->etiqueta_boton,
+            'actividad_destino_id'     => $request->actividad_destino_id,
+            'tipo_documento_id'        => $request->tipo_documento_id,
+            'requiere_documento'       => $request->requiere_documento,
+            'permite_documento'        => $request->permite_documento,
+            'requiere_observacion'     => $request->requiere_observacion,
+            'permite_editar_solicitud' => $request->boolean('permite_editar_solicitud', false),
         ]);
+
+        // Reemplazar actores designables
+        $transicion->actoresDesignables()->delete();
+        foreach ($request->actores_designables ?? [] as $actor) {
+            $transicion->actoresDesignables()->create([
+                'tipo_actor_id'  => $actor['tipo_actor_id'],
+                'es_obligatorio' => $actor['es_obligatorio'],
+            ]);
+        }
 
         return back()->with('success', 'Transición actualizada correctamente.');
     }
@@ -232,5 +268,56 @@ public function index(Request $request)
     {
         $transicion->delete(); // Aquí usamos delete real porque es configuración interna
         return back()->with('success', 'Transición eliminada.');
+    }
+
+    // ── REQUISITOS DE DOCUMENTO POR ACTIVIDAD ──
+
+    public function storeRequisito(Request $request, Actividad $actividad)
+    {
+        $request->validate([
+            'nombre'            => 'required|string|max:200',
+            'descripcion'       => 'nullable|string',
+            'tipo_documento_id' => 'nullable|exists:tipo_documentos,id',
+            'es_obligatorio'    => 'required|boolean',
+            'orden'             => 'required|integer|min:1',
+        ]);
+
+        $actividad->requisitosDocumento()->create([
+            'nombre'            => $request->nombre,
+            'descripcion'       => $request->descripcion,
+            'tipo_documento_id' => $request->tipo_documento_id,
+            'es_obligatorio'    => $request->boolean('es_obligatorio'),
+            'orden'             => $request->orden,
+            'activo'            => true,
+        ]);
+
+        return back()->with('success', 'Requisito de documento agregado.');
+    }
+
+    public function updateRequisito(Request $request, ActividadRequisitoDocumento $requisito)
+    {
+        $request->validate([
+            'nombre'            => 'required|string|max:200',
+            'descripcion'       => 'nullable|string',
+            'tipo_documento_id' => 'nullable|exists:tipo_documentos,id',
+            'es_obligatorio'    => 'required|boolean',
+            'orden'             => 'required|integer|min:1',
+        ]);
+
+        $requisito->update([
+            'nombre'            => $request->nombre,
+            'descripcion'       => $request->descripcion,
+            'tipo_documento_id' => $request->tipo_documento_id,
+            'es_obligatorio'    => $request->boolean('es_obligatorio'),
+            'orden'             => $request->orden,
+        ]);
+
+        return back()->with('success', 'Requisito actualizado.');
+    }
+
+    public function destroyRequisito(ActividadRequisitoDocumento $requisito)
+    {
+        $requisito->update(['activo' => false]);
+        return back()->with('success', 'Requisito desactivado.');
     }
 }

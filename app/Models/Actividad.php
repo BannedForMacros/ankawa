@@ -40,7 +40,14 @@ class Actividad extends Model
     {
         return $this->hasMany(ActividadTransicion::class, 'actividad_origen_id')->orderBy('orden');
     }
-    // ----------------------------------
+
+    // Slots de documentos requeridos en esta actividad
+    public function requisitosDocumento(): HasMany
+    {
+        return $this->hasMany(ActividadRequisitoDocumento::class, 'actividad_id')
+                    ->where('activo', true)
+                    ->orderBy('orden');
+    }
 
     // ¿El usuario actual puede actuar en esta actividad?
     public function puedeActuar(int $rolId): bool

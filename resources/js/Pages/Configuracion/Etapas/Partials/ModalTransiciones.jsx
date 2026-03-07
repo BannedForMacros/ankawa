@@ -6,43 +6,128 @@ import CustomSelect from '@/Components/CustomSelect';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import toast from 'react-hot-toast';
-import { GitBranch, Trash2, ArrowRight, Pencil, Bell, X, Users, FileText } from 'lucide-react';
+import {
+    GitBranch, Trash2, ArrowRight, Pencil, Bell,
+    X, Users, FileText, Plus, AlertCircle, Edit3
+} from 'lucide-react';
 
 const opcionesSiNo = [
     { id: 1, nombre: 'Sí' },
     { id: 0, nombre: 'No' },
 ];
 
-export default function ModalTransiciones({ 
-    show, 
-    onClose, 
-    actividad, 
-    acciones = [], 
-    tiposActor = [], 
-    todasActividades = [] 
+// ── Sub-componente: configurador de actores a designar ──
+function ActoresDesignablesEditor({ tiposActor, actores, onChange }) {
+    const tiposDisponibles = tiposActor.filter(
+        ta => !actores.some(a => a.tipo_actor_id === ta.id)
+    );
+
+    const agregarActor = () => {
+        if (tiposDisponibles.length === 0) return;
+        onChange([...actores, { tipo_actor_id: tiposDisponibles[0].id, es_obligatorio: true }]);
+    };
+
+    const quitarActor = (idx) => onChange(actores.filter((_, i) => i !== idx));
+
+    const cambiar = (idx, campo, valor) => {
+        const nuevo = actores.map((a, i) => i === idx ? { ...a, [campo]: valor } : a);
+        onChange(nuevo);
+    };
+
+    return (
+        <div className="bg-white p-3 rounded-lg border border-gray-200 space-y-2">
+            <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#BE0F4A] flex items-center gap-1">
+                    <Users size={12} /> Actores a designar al ejecutar esta acción
+                </label>
+                <button
+                    type="button"
+                    onClick={agregarActor}
+                    disabled={tiposDisponibles.length === 0}
+                    className="flex items-center gap-1 text-[10px] font-bold text-[#291136] bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                    <Plus size={11} /> Agregar actor
+                </button>
+            </div>
+
+            {actores.length === 0 ? (
+                <p className="text-[10px] text-gray-400 italic">
+                    Sin actores — la acción no pedirá designar a nadie.
+                </p>
+            ) : (
+                actores.map((actor, idx) => {
+                    const opcionesActor = tiposActor
+                        .filter(ta => ta.id === actor.tipo_actor_id || !actores.some((a, i) => i !== idx && a.tipo_actor_id === ta.id))
+                        .map(ta => ({ id: ta.id, nombre: ta.nombre }));
+
+                    return (
+                        <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                            <div className="flex-1">
+                                <CustomSelect
+                                    value={actor.tipo_actor_id}
+                                    onChange={v => cambiar(idx, 'tipo_actor_id', v)}
+                                    options={opcionesActor}
+                                    placeholder={null}
+                                />
+                            </div>
+                            <div className="shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => cambiar(idx, 'es_obligatorio', !actor.es_obligatorio)}
+                                    className={`text-[10px] font-bold px-2 py-1.5 rounded-lg border transition-colors ${
+                                        actor.es_obligatorio
+                                            ? 'bg-red-100 text-red-700 border-red-200'
+                                            : 'bg-gray-100 text-gray-500 border-gray-200'
+                                    }`}
+                                >
+                                    {actor.es_obligatorio ? 'Obligatorio' : 'Opcional'}
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => quitarActor(idx)}
+                                className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                            >
+                                <X size={13} />
+                            </button>
+                        </div>
+                    );
+                })
+            )}
+        </div>
+    );
+}
+
+export default function ModalTransiciones({
+    show,
+    onClose,
+    actividad,
+    acciones = [],
+    tiposActor = [],
+    tiposDocumento = [],
+    todasActividades = [],
 }) {
-    // 1. TODOS LOS HOOKS ARRIBA (Sin condicionales antes)
     const [transicionEditando, setTransicionEditando] = useState(null);
 
     const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm({
-        catalogo_accion_id: '',
-        etiqueta_boton: '',
-        actividad_destino_id: '',
-        designa_tipo_actor_id: '',
-        requiere_documento: 0,
-        permite_documento: 1,
-        requiere_observacion: 0,
+        catalogo_accion_id:       '',
+        etiqueta_boton:           '',
+        actividad_destino_id:     '',
+        tipo_documento_id:        '',
+        requiere_documento:       0,
+        permite_documento:        1,
+        requiere_observacion:     0,
+        permite_editar_solicitud: false,
+        actores_designables:      [],
     });
 
-    // 2. AHORA SÍ, EL CONDICIONAL PARA DETENER EL RENDERIZADO VISUAL
     if (!actividad) return null;
 
-    // 3. VARIABLES NORMALES
-    const opcionesAcciones = acciones.map(a => ({ id: a.id, nombre: a.nombre }));
-    const opcionesDestino = todasActividades.map(a => ({ id: a.id, nombre: a.nombre_completo }));
-    const opcionesActores = [
-        { id: '', nombre: '-- Ninguno (No designar) --' },
-        ...tiposActor.map(a => ({ id: a.id, nombre: a.nombre }))
+    const opcionesAcciones  = acciones.map(a => ({ id: a.id, nombre: a.nombre }));
+    const opcionesDestino   = todasActividades.map(a => ({ id: a.id, nombre: a.nombre_completo }));
+    const opcionesDocumento = [
+        { id: '', nombre: '-- Sin tipo específico --' },
+        ...tiposDocumento.map(d => ({ id: d.id, nombre: d.nombre })),
     ];
 
     const cancelarEdicion = () => {
@@ -55,26 +140,28 @@ export default function ModalTransiciones({
         clearErrors();
         setTransicionEditando(t);
         setData({
-            catalogo_accion_id: t.catalogo_accion_id,
-            etiqueta_boton: t.etiqueta_boton,
-            actividad_destino_id: t.actividad_destino_id,
-            designa_tipo_actor_id: t.designa_tipo_actor_id ?? '',
-            requiere_documento: t.requiere_documento,
-            permite_documento: t.permite_documento,
-            requiere_observacion: t.requiere_observacion,
+            catalogo_accion_id:       t.catalogo_accion_id,
+            etiqueta_boton:           t.etiqueta_boton,
+            actividad_destino_id:     t.actividad_destino_id,
+            tipo_documento_id:        t.tipo_documento_id ?? '',
+            requiere_documento:       t.requiere_documento,
+            permite_documento:        t.permite_documento,
+            requiere_observacion:     t.requiere_observacion,
+            permite_editar_solicitud: t.permite_editar_solicitud ?? false,
+            actores_designables:      (t.actores_designables ?? []).map(a => ({
+                tipo_actor_id:  a.tipo_actor_id,
+                es_obligatorio: !!a.es_obligatorio,
+            })),
         });
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        const route_name = transicionEditando 
+        const routeName = transicionEditando
             ? route('transiciones.update', transicionEditando.id)
             : route('transiciones.store', actividad.id);
-
         const method = transicionEditando ? put : post;
-        
-        method(route_name, {
+        method(routeName, {
             preserveScroll: true,
             onSuccess: (page) => {
                 cancelarEdicion();
@@ -86,7 +173,6 @@ export default function ModalTransiciones({
 
     const handleDelete = (transicionId) => {
         if (!confirm('¿Eliminar este botón? Los expedientes no podrán usarlo más.')) return;
-        
         router.delete(route('transiciones.destroy', transicionId), {
             preserveScroll: true,
             onSuccess: (page) => {
@@ -99,6 +185,7 @@ export default function ModalTransiciones({
     return (
         <Modal show={show} onClose={() => { cancelarEdicion(); onClose(); }} maxWidth="2xl">
             <div className="p-7 max-h-[90vh] overflow-y-auto">
+
                 {/* Cabecera */}
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
                     <div className="flex items-center gap-4">
@@ -122,46 +209,85 @@ export default function ModalTransiciones({
                     <h3 className="text-sm font-bold text-[#291136] uppercase tracking-wide opacity-80 mb-3">
                         Botones Configurados
                     </h3>
-                    
+
                     {(!actividad.transiciones || actividad.transiciones.length === 0) ? (
-                        <div className="p-4 bg-gray-50 rounded-xl text-center text-sm text-gray-400 border border-dashed border-gray-200">
-                            No hay transiciones configuradas. El expediente se detendrá aquí.
+                        <div className="p-4 bg-gray-50 rounded-xl text-center text-sm text-gray-400 border border-dashed border-gray-200 flex items-center justify-center gap-2">
+                            <AlertCircle size={15} />
+                            No hay botones. El expediente se detendrá aquí.
                         </div>
                     ) : (
                         <div className="space-y-2">
                             {actividad.transiciones.map(t => (
-                                <div key={t.id} className={`flex items-center justify-between p-3 border rounded-xl shadow-sm transition-all
-                                    ${transicionEditando?.id === t.id ? 'border-[#BE0F4A] bg-[#BE0F4A]/5' : 'bg-white border-gray-200'}`}>
-                                    
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <span className="px-2 py-1 rounded text-xs font-bold text-white shadow-sm" style={{ backgroundColor: t.accion_catalogo?.color_hex || '#291136' }}>
+                                <div key={t.id} className={`flex items-start justify-between p-3 border rounded-xl shadow-sm transition-all
+                                    ${transicionEditando?.id === t.id
+                                        ? 'border-[#BE0F4A] bg-[#BE0F4A]/5'
+                                        : 'bg-white border-gray-200'}`}>
+
+                                    <div className="flex-1 min-w-0">
+                                        {/* Botón → Destino */}
+                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                            <span className="px-2 py-1 rounded text-xs font-bold text-white shadow-sm"
+                                                style={{ backgroundColor: t.accion_catalogo?.color_hex || '#291136' }}>
                                                 {t.etiqueta_boton}
                                             </span>
-                                            <ArrowRight size={14} className="text-gray-400" />
-                                            <span className="text-xs font-semibold text-gray-700 truncate max-w-[200px]" title={t.actividad_destino?.nombre}>
+                                            <ArrowRight size={14} className="text-gray-400 shrink-0" />
+                                            <span className="text-xs font-semibold text-gray-700 truncate max-w-[180px]"
+                                                title={t.actividad_destino?.nombre}>
                                                 {t.actividad_destino?.nombre}
                                             </span>
                                         </div>
-                                        <div className="flex gap-2 text-[10px] text-gray-500 mt-1.5 flex-wrap">
-                                            {t.designa_tipo_actor_id && <span className="bg-blue-50 border border-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1"><Users size={10}/> Designa: {t.tipo_actor_designado?.nombre}</span>}
-                                            {t.requiere_documento === 1 && <span className="bg-red-50 border border-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1"><FileText size={10}/> Exige PDF</span>}
-                                            {t.requiere_observacion === 1 && <span className="bg-amber-50 border border-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Exige Texto</span>}
+
+                                        {/* Badges de configuración */}
+                                        <div className="flex gap-1.5 text-[10px] flex-wrap">
+                                            {t.actores_designables?.length > 0 && (
+                                                <span className="bg-blue-50 border border-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                    <Users size={10} />
+                                                    {t.actores_designables.length} actor{t.actores_designables.length > 1 ? 'es' : ''}
+                                                </span>
+                                            )}
+                                            {t.tipo_documento && (
+                                                <span className="bg-purple-50 border border-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                    <FileText size={10} /> {t.tipo_documento.nombre}
+                                                </span>
+                                            )}
+                                            {t.requiere_documento === 1 && (
+                                                <span className="bg-red-50 border border-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                    <FileText size={10} /> Exige PDF
+                                                </span>
+                                            )}
+                                            {t.requiere_observacion === 1 && (
+                                                <span className="bg-amber-50 border border-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                                                    Exige Texto
+                                                </span>
+                                            )}
+                                            {t.permite_editar_solicitud && (
+                                                <span className="bg-green-50 border border-green-100 text-green-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                    <Edit3 size={10} /> Edita Solicitud
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
-                                    
+
                                     <div className="flex items-center gap-1 border-l border-gray-200 pl-2 ml-2 shrink-0">
-                                        {/* BOTÓN PREPARADO PARA NOTIFICACIONES */}
-                                        <button onClick={() => alert("¡Pronto! Aquí configuraremos los emails automáticos.")} 
-                                            className="p-1.5 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors flex items-center gap-1"
-                                            title="Configurar Notificaciones de Correo">
+                                        <button
+                                            onClick={() => alert('Pronto: configurar emails automáticos.')}
+                                            className="p-1.5 text-amber-500 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+                                            title="Configurar Notificaciones"
+                                        >
                                             <Bell size={14} />
                                         </button>
-                                        
-                                        <button type="button" onClick={() => abrirEditar(t)} className="p-1.5 text-[#291136] bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                                        <button
+                                            type="button"
+                                            onClick={() => abrirEditar(t)}
+                                            className="p-1.5 text-[#291136] bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                        >
                                             <Pencil size={14} />
                                         </button>
-                                        <button type="button" onClick={() => handleDelete(t.id)} className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(t.id)}
+                                            className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                        >
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
@@ -183,49 +309,58 @@ export default function ModalTransiciones({
                             </button>
                         )}
                     </div>
-                    
+
                     <form onSubmit={handleSubmit} className="space-y-4">
+
+                        {/* Acción + Etiqueta */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-[#291136] mb-1">Tipo de Acción (Color base)</label>
-                                <CustomSelect 
-                                    value={data.catalogo_accion_id} 
-                                    onChange={v => setData('catalogo_accion_id', v)} 
-                                    options={opcionesAcciones} placeholder="-- Seleccione --" />
+                                <label className="block text-xs font-bold text-[#291136] mb-1">Tipo de Acción</label>
+                                <CustomSelect
+                                    value={data.catalogo_accion_id}
+                                    onChange={v => setData('catalogo_accion_id', v)}
+                                    options={opcionesAcciones}
+                                    placeholder="-- Seleccione --"
+                                />
                                 {errors.catalogo_accion_id && <p className="text-xs text-red-500 mt-1">{errors.catalogo_accion_id}</p>}
                             </div>
                             <div>
-                                <Input label="Etiqueta del Botón (Texto visible)" required type="text" 
-                                    value={data.etiqueta_boton} 
-                                    onChange={e => setData('etiqueta_boton', e.target.value)} 
-                                    placeholder="Ej: Aprobar Solicitud" className="!mb-0" />
+                                <Input
+                                    label="Etiqueta del Botón"
+                                    required
+                                    type="text"
+                                    value={data.etiqueta_boton}
+                                    onChange={e => setData('etiqueta_boton', e.target.value)}
+                                    placeholder="Ej: Aprobar Solicitud"
+                                    className="!mb-0"
+                                />
                                 {errors.etiqueta_boton && <p className="text-xs text-red-500 mt-1">{errors.etiqueta_boton}</p>}
                             </div>
                         </div>
 
+                        {/* Destino */}
                         <div>
-                            <label className="block text-xs font-bold text-[#291136] mb-1">Destino (¿A qué actividad se mueve el caso?)</label>
-                            <CustomSelect 
-                                value={data.actividad_destino_id} 
-                                onChange={v => setData('actividad_destino_id', v)} 
-                                options={opcionesDestino} placeholder="-- Siguiente Actividad --" />
+                            <label className="block text-xs font-bold text-[#291136] mb-1">
+                                Destino (¿A qué actividad se mueve el expediente?)
+                            </label>
+                            <CustomSelect
+                                value={data.actividad_destino_id}
+                                onChange={v => setData('actividad_destino_id', v)}
+                                options={opcionesDestino}
+                                placeholder="-- Siguiente Actividad --"
+                            />
                             {errors.actividad_destino_id && <p className="text-xs text-red-500 mt-1">{errors.actividad_destino_id}</p>}
                         </div>
 
-                        <div className="bg-white p-3 rounded-lg border border-gray-200">
-                            <label className="block text-xs font-bold text-[#BE0F4A] mb-1 flex items-center gap-1">
-                                <Users size={12}/> Designación de Actor (Opcional)
-                            </label>
-                            <p className="text-[10px] text-gray-500 mb-2">
-                                Si eliges uno, al presionar este botón el sistema pedirá seleccionar qué usuario tomará este rol en el expediente actual.
-                            </p>
-                            <CustomSelect 
-                                value={data.designa_tipo_actor_id} 
-                                onChange={v => setData('designa_tipo_actor_id', v)} 
-                                options={opcionesActores} placeholder={null} />
-                        </div>
+                        {/* Actores a designar */}
+                        <ActoresDesignablesEditor
+                            tiposActor={tiposActor}
+                            actores={data.actores_designables}
+                            onChange={v => setData('actores_designables', v)}
+                        />
 
-                        <div className="grid grid-cols-3 gap-4 pt-2 mt-4">
+                        {/* Documentos */}
+                        <div className="grid grid-cols-3 gap-3">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">¿Exige Subir PDF?</label>
                                 <CustomSelect value={data.requiere_documento} onChange={v => setData('requiere_documento', v)} options={opcionesSiNo} placeholder={null} />
@@ -240,13 +375,49 @@ export default function ModalTransiciones({
                             </div>
                         </div>
 
-                        <div className="flex justify-end pt-4 border-t border-gray-200 mt-4">
+                        {/* Tipo de documento esperado */}
+                        <div>
+                            <label className="block text-xs font-bold text-[#291136] mb-1">
+                                Tipo de documento esperado (si aplica)
+                            </label>
+                            <CustomSelect
+                                value={data.tipo_documento_id}
+                                onChange={v => setData('tipo_documento_id', v)}
+                                options={opcionesDocumento}
+                                placeholder={null}
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">
+                                Clasifica automáticamente el PDF que se adjunte en este paso.
+                            </p>
+                        </div>
+
+                        {/* Permite editar solicitud */}
+                        <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                            <input
+                                id="permite_editar_solicitud"
+                                type="checkbox"
+                                checked={!!data.permite_editar_solicitud}
+                                onChange={e => setData('permite_editar_solicitud', e.target.checked)}
+                                className="mt-0.5 w-4 h-4 rounded accent-[#291136] cursor-pointer"
+                            />
+                            <label htmlFor="permite_editar_solicitud" className="cursor-pointer flex-1">
+                                <span className="text-xs font-bold text-[#291136] flex items-center gap-1">
+                                    <Edit3 size={12} /> Permite editar datos de la solicitud
+                                </span>
+                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                    Al ejecutar esta acción (Ej: Subsanar), el usuario podrá modificar los datos del demandante, demandado y documentos originales del expediente.
+                                </p>
+                            </label>
+                        </div>
+
+                        <div className="flex justify-end pt-4 border-t border-gray-200">
                             <PrimaryButton type="submit" disabled={processing}>
                                 {processing ? 'Guardando...' : transicionEditando ? 'Guardar Cambios' : 'Agregar Botón'}
                             </PrimaryButton>
                         </div>
                     </form>
                 </div>
+
             </div>
         </Modal>
     );

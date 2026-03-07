@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Documento extends Model
 {
@@ -16,10 +16,11 @@ class Documento extends Model
         'modelo_id',
         'etapa_id',
         'tipo_documento',
+        'tipo_documento_id',
         'ruta_archivo',
         'nombre_original',
         'peso_bytes',
-        'activo'
+        'activo',
     ];
 
     // Magia Polimórfica: Permite que el documento pertenezca a una Solicitud o a un Expediente
@@ -32,6 +33,11 @@ class Documento extends Model
     public function etapa(): BelongsTo
     {
         return $this->belongsTo(Etapa::class, 'etapa_id');
+    }
+
+    public function tipoDocumento(): BelongsTo
+    {
+        return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
     }
 
     public function scopeActivo($query)

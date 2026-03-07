@@ -6,6 +6,8 @@ use App\Models\SolicitudArbitraje;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteMovimiento;
+use App\Models\ExpedienteDocumentoRequisito;
+use App\Models\ActividadRequisitoDocumento;
 use App\Models\TipoActorExpediente;
 use App\Models\ActividadTransicion;
 use App\Models\Actividad;
@@ -44,26 +46,55 @@ class ExpedienteController extends Controller
     public function show(Expediente $expediente)
     {
         $expediente->load([
-            'solicitud.documentos', 
-            'etapaActual', 
-            'actividadActual.roles', 
-            'actividadActual.transiciones.accionCatalogo', 
-            'actores.usuario', 
+            'solicitud.documentos',
+            'etapaActual',
+            'actividadActual.roles',
+            'actividadActual.transiciones.accionCatalogo',
+            'actividadActual.transiciones.tipoDocumento',
+            'actividadActual.transiciones.actoresDesignables.tipoActor',
+            'actividadActual.requisitosDocumento.tipoDocumento',
+            'actores.usuario',
             'actores.tipoActor',
             'movimientos.usuario',
             'movimientos.actividadDestino',
-            'movimientos' => function($q) {
+            'movimientos' => function ($q) {
                 $q->orderByDesc('fecha_movimiento');
-            }
+            },
         ]);
 
+        // Documentos activos por slot para esta actividad en este expediente
+        $requisitosConArchivos = $expediente->actividadActual->requisitosDocumento
+            ->map(function ($req) use ($expediente) {
+                $docActual = ExpedienteDocumentoRequisito::where([
+                    'expediente_id' => $expediente->id,
+                    'requisito_id'  => $req->id,
+                    'activo'        => true,
+                ])->latest()->first();
+
+                return [
+                    'id'              => $req->id,
+                    'nombre'          => $req->nombre,
+                    'descripcion'     => $req->descripcion,
+                    'es_obligatorio'  => $req->es_obligatorio,
+                    'orden'           => $req->orden,
+                    'tipo_documento'  => $req->tipoDocumento?->nombre,
+                    'archivo_actual'  => $docActual ? [
+                        'id'             => $docActual->id,
+                        'nombre_original' => $docActual->nombre_original,
+                        'ruta_archivo'   => $docActual->ruta_archivo,
+                        'peso_bytes'     => $docActual->peso_bytes,
+                    ] : null,
+                ];
+            });
+
         $rolUsuarioId = auth()->user()->rol_id;
-        $puedeActuar = $expediente->actividadActual->roles->contains('id', $rolUsuarioId);
+        $puedeActuar  = $expediente->actividadActual->roles->contains('id', $rolUsuarioId);
 
         return Inertia::render('Expedientes/Show', [
-            'expediente'   => $expediente,
-            'puedeActuar'  => $puedeActuar,
-            'transiciones' => $puedeActuar ? $expediente->actividadActual->transiciones : []
+            'expediente'             => $expediente,
+            'puedeActuar'            => $puedeActuar,
+            'transiciones'           => $puedeActuar ? $expediente->actividadActual->transiciones : [],
+            'requisitosConArchivos'  => $requisitosConArchivos,
         ]);
     }
 
@@ -71,23 +102,60 @@ class ExpedienteController extends Controller
     public function registrarAccion(Request $request, Expediente $expediente)
     {
         $request->validate([
-            'transicion_id'          => 'required|exists:actividad_transiciones,id',
-            'observaciones'          => 'nullable|string',
-            'numero_expediente'      => 'nullable|string|unique:expedientes,numero_expediente,' . $expediente->id, // Para el momento en que se admite manualmente
-            'documentos_movimiento'  => 'nullable|array',
-            'documentos_movimiento.*'=> 'file|mimes:pdf,doc,docx|max:10240',
-            'usuario_designado_id'   => 'nullable|exists:users,id',
-            'notificar_a'            => 'nullable|array'
+            'transicion_id'              => 'required|exists:actividad_transiciones,id',
+            'observaciones'              => 'nullable|string',
+            'numero_expediente'          => 'nullable|string|unique:expedientes,numero_expediente,' . $expediente->id,
+            'documentos_movimiento'      => 'nullable|array',
+            'documentos_movimiento.*'    => 'file|mimes:pdf,doc,docx|max:10240',
+            // actores_designados: [tipo_actor_id => usuario_id]
+            'actores_designados'         => 'nullable|array',
+            'actores_designados.*'       => 'nullable|integer|exists:users,id',
+            // documentos_requisito: [requisito_id => file] — slots configurados por actividad
+            'documentos_requisito'       => 'nullable|array',
+            'documentos_requisito.*'     => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+            'notificar_a'                => 'nullable|array',
         ]);
 
-        $transicion = ActividadTransicion::findOrFail($request->transicion_id);
+        $transicion = ActividadTransicion::with('actoresDesignables')->findOrFail($request->transicion_id);
+
+        // Validar que los slots obligatorios estén cubiertos (archivo existente o nuevo)
+        $requisitosActividad = ActividadRequisitoDocumento::where('actividad_id', $expediente->actividad_actual_id)
+            ->where('activo', true)->get();
+
+        foreach ($requisitosActividad as $req) {
+            if ($req->es_obligatorio) {
+                $tieneArchivo = ExpedienteDocumentoRequisito::where([
+                    'expediente_id' => $expediente->id,
+                    'requisito_id'  => $req->id,
+                    'activo'        => true,
+                ])->exists();
+                $subiendoNuevo = $request->hasFile("documentos_requisito.{$req->id}");
+                if (!$tieneArchivo && !$subiendoNuevo) {
+                    return back()->withErrors([
+                        "documentos_requisito.{$req->id}" => "El documento \"{$req->nombre}\" es obligatorio.",
+                    ]);
+                }
+            }
+        }
 
         if ($transicion->requiere_observacion && empty($request->observaciones)) {
-            return back()->withErrors(['observaciones' => 'Esta acción requiere que ingrese un motivo u observación (Ej: Motivo de subsanación o rechazo).']);
+            return back()->withErrors(['observaciones' => 'Esta acción requiere que ingrese un motivo u observación.']);
         }
 
         if ($transicion->requiere_documento && !$request->hasFile('documentos_movimiento')) {
             return back()->withErrors(['documentos_movimiento' => 'Esta acción exige adjuntar un documento.']);
+        }
+
+        // Validar actores obligatorios antes de iniciar la transacción
+        foreach ($transicion->actoresDesignables as $actorDesignable) {
+            if ($actorDesignable->es_obligatorio) {
+                $usuarioId = ($request->actores_designados[$actorDesignable->tipo_actor_id] ?? null);
+                if (!$usuarioId) {
+                    return back()->withErrors([
+                        'actores_designados' => 'Debe designar al actor: ' . $actorDesignable->tipoActor->nombre,
+                    ]);
+                }
+            }
         }
 
         DB::beginTransaction();
@@ -105,34 +173,58 @@ class ExpedienteController extends Controller
 
             // B. Guardar documentos si los hay
             if ($request->hasFile('documentos_movimiento')) {
-                // Usamos el ID del expediente como fallback si aún no tiene número oficial
                 $carpeta = $expediente->numero_expediente ?? 'temporal_' . $expediente->id;
                 foreach ($request->file('documentos_movimiento') as $archivo) {
                     $ruta = $archivo->store("expedientes/{$carpeta}/movimientos", 'public');
                     Documento::create([
-                        'modelo_tipo'     => ExpedienteMovimiento::class,
-                        'modelo_id'       => $movimiento->id,
-                        'tipo_documento'  => 'anexo_movimiento',
-                        'nombre_original' => $archivo->getClientOriginalName(),
-                        'ruta_archivo'    => $ruta,
-                        'peso_bytes'      => $archivo->getSize(),
-                        'activo'          => 1,
+                        'modelo_tipo'       => ExpedienteMovimiento::class,
+                        'modelo_id'         => $movimiento->id,
+                        'tipo_documento'    => 'anexo_movimiento',
+                        'tipo_documento_id' => $transicion->tipo_documento_id,
+                        'nombre_original'   => $archivo->getClientOriginalName(),
+                        'ruta_archivo'      => $ruta,
+                        'peso_bytes'        => $archivo->getSize(),
+                        'activo'            => 1,
                     ]);
                 }
             }
 
-            // C. Asignar nuevo actor (Ej: Designar Árbitro)
-            if ($transicion->designa_tipo_actor_id && $request->usuario_designado_id) {
-                ExpedienteActor::updateOrCreate(
-                    [
+            // C. Documentos por slot (requisitos configurados en la actividad)
+            if ($request->documentos_requisito) {
+                $carpeta = $expediente->numero_expediente ?? 'temporal_' . $expediente->id;
+                foreach ($request->file('documentos_requisito') as $requisitoId => $archivo) {
+                    // Desactivar versión anterior del mismo slot
+                    ExpedienteDocumentoRequisito::where([
                         'expediente_id' => $expediente->id,
-                        'tipo_actor_id' => $transicion->designa_tipo_actor_id
-                    ],
-                    ['usuario_id' => $request->usuario_designado_id, 'activo' => 1]
-                );
+                        'requisito_id'  => $requisitoId,
+                        'activo'        => true,
+                    ])->update(['activo' => false]);
+
+                    $ruta = $archivo->store("expedientes/{$carpeta}/requisitos", 'public');
+                    ExpedienteDocumentoRequisito::create([
+                        'expediente_id'  => $expediente->id,
+                        'requisito_id'   => $requisitoId,
+                        'movimiento_id'  => $movimiento->id,
+                        'nombre_original' => $archivo->getClientOriginalName(),
+                        'ruta_archivo'   => $ruta,
+                        'peso_bytes'     => $archivo->getSize(),
+                        'activo'         => true,
+                    ]);
+                }
             }
 
-            // D. INYECCIÓN MANUAL DEL NÚMERO DE EXPEDIENTE (Cuando la Secretaria lo admite formalmente)
+            // D. Designar actores (uno o varios según configuración de la transición)
+            foreach ($transicion->actoresDesignables as $actorDesignable) {
+                $usuarioId = $request->actores_designados[$actorDesignable->tipo_actor_id] ?? null;
+                if ($usuarioId) {
+                    ExpedienteActor::updateOrCreate(
+                        ['expediente_id' => $expediente->id, 'tipo_actor_id' => $actorDesignable->tipo_actor_id],
+                        ['usuario_id' => $usuarioId, 'activo' => 1]
+                    );
+                }
+            }
+
+            // E. INYECCIÓN MANUAL DEL NÚMERO DE EXPEDIENTE (Cuando la Secretaria lo admite formalmente)
             if ($request->filled('numero_expediente') && empty($expediente->numero_expediente)) {
                 $expediente->numero_expediente = $request->numero_expediente;
                 // De forma opcional, si tu lógica de negocio lo requiere, marcamos la solicitud base como admitida
@@ -141,7 +233,7 @@ class ExpedienteController extends Controller
                 }
             }
 
-            // E. Avanzar el flujo a la Actividad de Destino
+            // F. Avanzar el flujo a la Actividad de Destino
             $actividadDestino = Actividad::find($transicion->actividad_destino_id);
             $expediente->update([
                 'actividad_actual_id' => $transicion->actividad_destino_id,

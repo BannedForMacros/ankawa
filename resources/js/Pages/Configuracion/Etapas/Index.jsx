@@ -14,11 +14,11 @@ import {
     GitBranch, Plus, ChevronDown, ChevronRight,
     Pencil, Trash2, ListChecks, AlertCircle,
     CheckCircle2, Circle, Clock, FileText,
-    Bell, Scale, Mic, Bookmark, Users, GitCommit
+    Bell, Scale, Mic, Bookmark, Users, GitCommit, FolderOpen
 } from 'lucide-react';
 
-// IMPORTANTE: Asegúrate de tener este archivo creado en la carpeta Partials
 import ModalTransiciones from './Partials/ModalTransiciones';
+import ModalRequisitos from './Partials/ModalRequisitos';
 
 const opcionesEstado = [
     { id: 1, nombre: 'Activo'   },
@@ -91,7 +91,7 @@ function RolesSelector({ roles, seleccionados, onChange }) {
 }
 
 // ── Fila de Actividad ──
-function FilaActividad({ actividad, onEdit, onDelete, onConfigTransitions }) {
+function FilaActividad({ actividad, onEdit, onDelete, onConfigTransitions, onConfigRequisitos }) {
     return (
         <div className="flex items-center justify-between px-4 py-2.5 bg-white border border-gray-100 rounded-lg hover:border-[#BE0F4A]/20 transition-colors group">
             <div className="flex items-center gap-3">
@@ -142,9 +142,16 @@ function FilaActividad({ actividad, onEdit, onDelete, onConfigTransitions }) {
                     text={actividad.activo ? 'Activo' : 'Inactivo'}
                 />
                 
-                {/* BOTONES DE ACCIÓN: Se añade el botón de Flujo/Transiciones */}
+                {/* BOTONES DE ACCIÓN */}
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pl-2 border-l border-gray-200 ml-2">
-                    
+
+                    <button onClick={() => onConfigRequisitos(actividad)}
+                        className="flex items-center gap-1 p-1.5 px-2 rounded-lg text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors"
+                        title="Configurar Documentos Requeridos">
+                        <FolderOpen size={14} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Docs</span>
+                    </button>
+
                     <button onClick={() => onConfigTransitions(actividad)}
                         className="flex items-center gap-1 p-1.5 px-2 rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
                         title="Configurar Transiciones">
@@ -169,7 +176,7 @@ function FilaActividad({ actividad, onEdit, onDelete, onConfigTransitions }) {
 }
 
 // ── Card de Etapa ──
-function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditActividad, onDeleteActividad, onConfigTransitions }) {
+function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditActividad, onDeleteActividad, onConfigTransitions, onConfigRequisitos }) {
     const [abierto, setAbierto] = useState(true);
 
     return (
@@ -221,6 +228,7 @@ function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditAc
                                 onEdit={onEditActividad}
                                 onDelete={onDeleteActividad}
                                 onConfigTransitions={onConfigTransitions}
+                                onConfigRequisitos={onConfigRequisitos}
                             />
                         ))
                     )}
@@ -232,7 +240,7 @@ function CardEtapa({ etapa, onEditEtapa, onDeleteEtapa, onNewActividad, onEditAc
 
 // ── Página principal ──
 // NUEVO: Se reciben los nuevos catálogos como props
-export default function Index({ servicios, roles, acciones, tiposActor, todasActividades }) {
+export default function Index({ servicios, roles, acciones, tiposActor, tiposDocumento, todasActividades }) {
 
     const [servicioSeleccionado, setServicioSeleccionado] = useState(
         servicios.length > 0 ? servicios[0] : null
@@ -244,9 +252,11 @@ export default function Index({ servicios, roles, acciones, tiposActor, todasAct
     const [editandoActividad, setEditandoActividad]       = useState(null);
     const [etapaParaActividad, setEtapaParaActividad]     = useState(null);
 
-    // NUEVO ESTADO: Para manejar el modal de Transiciones
     const [modalTransicionesOpen, setModalTransicionesOpen] = useState(false);
     const [actividadParaTransiciones, setActividadParaTransiciones] = useState(null);
+
+    const [modalRequisitosOpen, setModalRequisitosOpen] = useState(false);
+    const [actividadParaRequisitos, setActividadParaRequisitos] = useState(null);
 
     const [confirmEtapa, setConfirmEtapa]         = useState(false);
     const [etapaAEliminar, setEtapaAEliminar]     = useState(null);
@@ -414,6 +424,12 @@ export default function Index({ servicios, roles, acciones, tiposActor, todasAct
         setModalTransicionesOpen(true);
     };
 
+    // ── Requisitos de Documento ──
+    const abrirRequisitos = (actividad) => {
+        setActividadParaRequisitos(actividad);
+        setModalRequisitosOpen(true);
+    };
+
     const etapasActuales = servicioSeleccionado
         ? (servicios.find(s => s.id === servicioSeleccionado.id)?.etapas ?? [])
         : [];
@@ -493,6 +509,7 @@ export default function Index({ servicios, roles, acciones, tiposActor, todasAct
                                         onEditActividad={abrirEditarActividad}
                                         onDeleteActividad={(a) => { setActividadAEliminar(a); setConfirmActividad(true); }}
                                         onConfigTransitions={abrirTransiciones}
+                                        onConfigRequisitos={abrirRequisitos}
                                     />
                                 ))}
                             </div>
@@ -636,13 +653,22 @@ export default function Index({ servicios, roles, acciones, tiposActor, todasAct
                 </form>
             </Modal>
 
+            {/* Modal Requisitos de Documento */}
+            <ModalRequisitos
+                show={modalRequisitosOpen}
+                onClose={() => setModalRequisitosOpen(false)}
+                actividad={actividadParaRequisitos}
+                tiposDocumento={tiposDocumento}
+            />
+
             {/* Modal Transiciones */}
-            <ModalTransiciones 
+            <ModalTransiciones
                 show={modalTransicionesOpen}
                 onClose={() => setModalTransicionesOpen(false)}
                 actividad={actividadParaTransiciones}
                 acciones={acciones}
                 tiposActor={tiposActor}
+                tiposDocumento={tiposDocumento}
                 todasActividades={todasActividades}
             />
 
