@@ -13,8 +13,11 @@ use App\Models\ActividadTransicion;
 use App\Models\Actividad;
 use App\Models\User;
 use App\Models\Documento;
+use App\Mail\ExpedienteNotificacionMail;
+use App\Services\PlazoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class ExpedienteController extends Controller
@@ -51,14 +54,20 @@ class ExpedienteController extends Controller
             'actividadActual.roles',
             'actividadActual.transiciones.accionCatalogo',
             'actividadActual.transiciones.tipoDocumento',
+            'actividadActual.transiciones.requisitoDocumento',
             'actividadActual.transiciones.actoresDesignables.tipoActor',
             'actividadActual.requisitosDocumento.tipoDocumento',
             'actores.usuario',
             'actores.tipoActor',
-            'movimientos.usuario',
-            'movimientos.actividadDestino',
             'movimientos' => function ($q) {
-                $q->orderByDesc('fecha_movimiento');
+                $q->orderByDesc('fecha_movimiento')
+                  ->with([
+                      'usuario',
+                      'actividadOrigen',
+                      'actividadDestino',
+                      'documentos',
+                      'requisitosDocumento.requisito',
+                  ]);
             },
         ]);
 
@@ -90,11 +99,45 @@ class ExpedienteController extends Controller
         $rolUsuarioId = auth()->user()->rol_id;
         $puedeActuar  = $expediente->actividadActual->roles->contains('id', $rolUsuarioId);
 
+        $slugsGestores = ['administrador_ti', 'director', 'secretaria_general', 'secretaria_general_adjunta'];
+        $puedeGestionarActores = in_array(auth()->user()->rol?->slug, $slugsGestores);
+
+        $tiposActor = TipoActorExpediente::whereNotIn('slug', ['demandante', 'demandado'])
+            ->where('activo', 1)
+            ->get(['id', 'nombre', 'slug']);
+
+        $usuariosAsignables = User::where('activo', 1)
+            ->whereHas('rol', fn($q) => $q->whereNotIn('slug', ['usuario']))
+            ->with('rol:id,nombre,slug')
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'rol_id']);
+
+        $plazoService = app(PlazoService::class);
+
         return Inertia::render('Expedientes/Show', [
-            'expediente'             => $expediente,
-            'puedeActuar'            => $puedeActuar,
-            'transiciones'           => $puedeActuar ? $expediente->actividadActual->transiciones : [],
-            'requisitosConArchivos'  => $requisitosConArchivos,
+            'expediente'            => $expediente,
+            'puedeActuar'           => $puedeActuar,
+            'transiciones'          => $puedeActuar
+                ? $expediente->actividadActual->transiciones->map(function ($t) use ($expediente) {
+                    $slotCubierto = true;
+                    if ($t->requisito_documento_id) {
+                        $slotCubierto = ExpedienteDocumentoRequisito::where([
+                            'expediente_id' => $expediente->id,
+                            'requisito_id'  => $t->requisito_documento_id,
+                            'activo'        => true,
+                        ])->exists();
+                    }
+                    return array_merge($t->toArray(), [
+                        'slot_cubierto'    => $slotCubierto,
+                        'requisito_nombre' => $t->requisitoDocumento?->nombre,
+                    ]);
+                })
+                : [],
+            'requisitosConArchivos' => $requisitosConArchivos,
+            'puedeGestionarActores' => $puedeGestionarActores,
+            'tiposActor'            => $tiposActor,
+            'usuariosAsignables'    => $usuariosAsignables,
+            'plazo'                 => $plazoService->resumen($expediente),
         ]);
     }
 
@@ -114,6 +157,7 @@ class ExpedienteController extends Controller
             'documentos_requisito'       => 'nullable|array',
             'documentos_requisito.*'     => 'nullable|file|mimes:pdf,doc,docx|max:10240',
             'notificar_a'                => 'nullable|array',
+            'notificar_a.*'              => 'integer|exists:expediente_actores,id',
         ]);
 
         $transicion = ActividadTransicion::with('actoresDesignables')->findOrFail($request->transicion_id);
@@ -237,10 +281,46 @@ class ExpedienteController extends Controller
             $actividadDestino = Actividad::find($transicion->actividad_destino_id);
             $expediente->update([
                 'actividad_actual_id' => $transicion->actividad_destino_id,
-                'etapa_actual_id'     => $actividadDestino->etapa_id
+                'etapa_actual_id'     => $actividadDestino->etapa_id,
             ]);
 
+            // G. Rotar instancia: cerrar la activa y abrir la nueva con su fecha de vencimiento
+            app(PlazoService::class)->avanzarInstancia($expediente, $actividadDestino, $movimiento->id);
+
             DB::commit();
+
+            // H. Enviar notificaciones por correo (fuera de la transacción)
+            if ($transicion->permite_notificar && !empty($request->notificar_a)) {
+                $expediente->load(['solicitud', 'actividadActual']);
+
+                $actoresANotificar = ExpedienteActor::with('usuario')
+                    ->whereIn('id', $request->notificar_a)
+                    ->where('expediente_id', $expediente->id)
+                    ->where('activo', 1)
+                    ->get();
+
+                foreach ($actoresANotificar as $actor) {
+                    $email  = $actor->usuario?->email ?? $actor->email_externo;
+                    $nombre = $actor->usuario?->name  ?? $actor->nombre_externo ?? 'Participante';
+
+                    if (!$email) {
+                        continue;
+                    }
+
+                    try {
+                        Mail::to($email, $nombre)->send(new ExpedienteNotificacionMail(
+                            $expediente,
+                            $movimiento,
+                            $transicion,
+                            $actividadDestino,
+                            $nombre,
+                        ));
+                    } catch (\Exception $mailEx) {
+                        \Log::warning("Fallo envío notificación actor {$actor->id}: " . $mailEx->getMessage());
+                    }
+                }
+            }
+
             return back()->with('success', 'Acción registrada y expediente avanzado correctamente.');
 
         } catch (\Exception $e) {

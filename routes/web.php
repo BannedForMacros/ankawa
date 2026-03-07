@@ -12,7 +12,10 @@ use App\Http\Controllers\MesaPartesController;
 use App\Http\Controllers\Servicios\Arbitraje\SolicitudArbitrajeController;
 
 // Controladores Internos
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpedienteController;
+use App\Http\Controllers\ExpedienteActorController;
+use App\Http\Controllers\ExpedientePlazoController;
 use App\Http\Controllers\DocumentoController;
 
 // Controladores de Configuración (Mantuvimos los tuyos intactos)
@@ -49,9 +52,7 @@ Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::c
 // =========================================================================
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Perfil de Usuario ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -69,12 +70,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ── EL MOTOR DE EXPEDIENTES (Nuevo Cerebro) ──
     Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
     
-    // El puente vital: De Solicitud a Expediente
-    Route::post('/expedientes/admitir/{solicitud}', [ExpedienteController::class, 'admitir'])->name('expedientes.admitir');
-    
     // Visor dinámico y motor de ejecución de botones
     Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
     Route::post('/expedientes/{expediente}/accion', [ExpedienteController::class, 'registrarAccion'])->name('expedientes.accion');
+    Route::post('/expedientes/{expediente}/actores', [ExpedienteActorController::class, 'store'])->name('expedientes.actores.store');
+    Route::delete('/expedientes/{expediente}/actores/{actor}', [ExpedienteActorController::class, 'destroy'])->name('expedientes.actores.destroy');
+    Route::post('/expedientes/{expediente}/plazo', [ExpedientePlazoController::class, 'store'])->name('expedientes.plazo.store');
+    Route::delete('/expedientes/{expediente}/plazo', [ExpedientePlazoController::class, 'destroy'])->name('expedientes.plazo.destroy');
 
     Route::get('/documentos/{documento}/descargar', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
     // ── MÓDULO DE CONFIGURACIÓN (Intacto) ──

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\TransicionActorDesignable;
 use App\Models\TipoDocumento;
+use App\Models\ActividadRequisitoDocumento;
 
 class ActividadTransicion extends Model
 {
@@ -18,6 +19,7 @@ class ActividadTransicion extends Model
         'etiqueta_boton',
         'actividad_destino_id',
         'tipo_documento_id',
+        'requisito_documento_id',
         'requiere_documento',
         'permite_documento',
         'requiere_observacion',
@@ -48,14 +50,15 @@ class ActividadTransicion extends Model
         return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
     }
 
+    public function requisitoDocumento(): BelongsTo
+    {
+        return $this->belongsTo(ActividadRequisitoDocumento::class, 'requisito_documento_id');
+    }
+
     // Actores que deben designarse al ejecutar esta transición
     public function actoresDesignables(): HasMany
     {
         return $this->hasMany(TransicionActorDesignable::class, 'transicion_id');
     }
 
-    public function notificaciones(): HasMany
-    {
-        return $this->hasMany(TransicionNotificacion::class, 'transicion_id');
-    }
 }

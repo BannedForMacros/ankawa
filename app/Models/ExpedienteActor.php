@@ -13,7 +13,9 @@ class ExpedienteActor extends Model
         'expediente_id',
         'usuario_id',
         'tipo_actor_id',
-        'activo'
+        'nombre_externo',
+        'email_externo',
+        'activo',
     ];
 
     // --- RELACIONES ---

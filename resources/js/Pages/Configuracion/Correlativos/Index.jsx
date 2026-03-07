@@ -21,23 +21,31 @@ const opcionesAnio = Array.from({ length: 6 }, (_, i) => ({
 }));
 
 const opcionesEstado = [
-    { id: 1, nombre: '✅ Activo'   },
-    { id: 0, nombre: '❌ Inactivo' },
+    { id: true,  nombre: '✅ Activo'   },
+    { id: false, nombre: '❌ Inactivo' },
 ];
 
-export default function Index({ correlativos }) {
+export default function Index({ correlativos, tiposCorrelativo = [], servicios = [] }) {
 
-    const [showModal, setShowModal]                   = useState(false);
-    const [editando, setEditando]                     = useState(null);
-    const [confirmOpen, setConfirmOpen]               = useState(false);
+    const [showModal, setShowModal]                       = useState(false);
+    const [editando, setEditando]                         = useState(null);
+    const [confirmOpen, setConfirmOpen]                   = useState(false);
     const [correlativoAEliminar, setCorrelativoAEliminar] = useState(null);
-    const [deleting, setDeleting]                     = useState(false);
+    const [deleting, setDeleting]                         = useState(false);
+
+    const opcionesTipo     = tiposCorrelativo.map(t => ({ id: t.id, nombre: `${t.nombre} (${t.codigo})` }));
+    const opcionesServicio = [
+        { id: '', nombre: '— Global (sin servicio) —' },
+        ...servicios.map(s => ({ id: s.id, nombre: s.nombre })),
+    ];
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
-        tipo:          '',
-        anio:          anioActual,
-        ultimo_numero: 0,
-        activo:        1,
+        tipo_correlativo_id: '',
+        servicio_id:         '',
+        codigo_servicio:     '',
+        anio:                anioActual,
+        ultimo_numero:       0,
+        activo:              true,
     });
 
     const abrirCrear = () => {
@@ -48,10 +56,12 @@ export default function Index({ correlativos }) {
 
     const abrirEditar = (correlativo) => {
         setData({
-            tipo:          correlativo.tipo,
-            anio:          correlativo.anio,
-            ultimo_numero: correlativo.ultimo_numero,
-            activo:        correlativo.activo,
+            tipo_correlativo_id: correlativo.tipo_correlativo_id,
+            servicio_id:         correlativo.servicio_id ?? '',
+            codigo_servicio:     correlativo.codigo_servicio,
+            anio:                correlativo.anio,
+            ultimo_numero:       correlativo.ultimo_numero,
+            activo:              correlativo.activo,
         });
         setEditando(correlativo);
         setShowModal(true);
@@ -65,25 +75,27 @@ export default function Index({ correlativos }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        const payload = { ...data, servicio_id: data.servicio_id || null };
+
         if (editando) {
             put(route('configuracion.correlativos.update', editando.id), {
+                data: payload,
                 preserveScroll: true,
                 onSuccess: (page) => {
                     cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
+                    if (page.props.flash?.success) toast.success(page.props.flash.success);
                 },
-                onError: () => toast.error('Error al actualizar el correlativo.'),
+                onError: () => toast.error('Revise los campos requeridos.'),
             });
         } else {
             post(route('configuracion.correlativos.store'), {
+                data: payload,
                 preserveScroll: true,
                 onSuccess: (page) => {
                     cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
+                    if (page.props.flash?.success) toast.success(page.props.flash.success);
                 },
-                onError: () => toast.error('Error al crear el correlativo.'),
+                onError: () => toast.error('Revise los campos requeridos.'),
             });
         }
     };
@@ -101,21 +113,64 @@ export default function Index({ correlativos }) {
                 setConfirmOpen(false);
                 setCorrelativoAEliminar(null);
                 setDeleting(false);
-                const msg = page.props.flash?.success;
-                if (msg) toast.success(msg);
+                if (page.props.flash?.success) toast.success(page.props.flash.success);
             },
-            onError: () => {
-                setDeleting(false);
-                toast.error('Error al desactivar el correlativo.');
-            },
+            onError: () => { setDeleting(false); toast.error('Error al desactivar.'); },
         });
     };
 
     const columns = [
-        { key: 'id',            label: '#',             sortable: true  },
-        { key: 'tipo',          label: 'Tipo',          sortable: true  },
-        { key: 'anio',          label: 'Año',           sortable: true  },
-        { key: 'ultimo_numero', label: 'Último Número', sortable: true  },
+        {
+            key: 'tipo_correlativo',
+            label: 'Tipo',
+            sortable: false,
+            render: (row) => (
+                <div>
+                    <div className="font-bold text-[#291136] text-sm">{row.tipo_correlativo?.nombre}</div>
+                    <div className="text-xs text-gray-400 font-mono">{row.tipo_correlativo?.codigo}</div>
+                </div>
+            ),
+        },
+        {
+            key: 'servicio',
+            label: 'Servicio',
+            sortable: false,
+            render: (row) => (
+                <span className="text-sm text-gray-600">
+                    {row.servicio?.nombre ?? <span className="italic text-gray-400">Global</span>}
+                </span>
+            ),
+        },
+        {
+            key: 'codigo_servicio',
+            label: 'Código',
+            sortable: false,
+            render: (row) => (
+                <span className="font-mono text-xs font-bold bg-[#291136]/5 text-[#291136] px-2 py-1 rounded-lg">
+                    {row.codigo_servicio}
+                </span>
+            ),
+        },
+        { key: 'anio',          label: 'Año',           sortable: true },
+        { key: 'ultimo_numero', label: 'Último N°',     sortable: true },
+        {
+            key: 'ejemplo',
+            label: 'Formato Generado',
+            sortable: false,
+            render: (row) => {
+                const tipo   = row.tipo_correlativo;
+                const num    = String(row.ultimo_numero + 1).padStart(3, '0');
+                const partes = [num, row.anio, row.codigo_servicio];
+                if (tipo?.aplica_sufijo_centro) partes.push('CARD ANKAWA');
+                const cuerpo  = partes.join('-');
+                const prefijo = tipo?.prefijo ? `${tipo.prefijo} ` : '';
+                return (
+                    <span className="font-mono text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">
+                        {prefijo}{cuerpo}
+                    </span>
+                );
+            },
+        },
         {
             key: 'activo',
             label: 'Estado',
@@ -142,7 +197,7 @@ export default function Index({ correlativos }) {
 
     return (
         <AuthenticatedLayout>
-            <div className="p-6 max-w-5xl mx-auto">
+            <div className="p-6 max-w-7xl mx-auto">
 
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
@@ -153,7 +208,7 @@ export default function Index({ correlativos }) {
                         </div>
                         <div>
                             <h1 className="text-2xl font-extrabold text-[#291136] tracking-tight">Correlativos</h1>
-                            <p className="text-sm text-gray-400 font-medium">Numeración automática por tipo y año</p>
+                            <p className="text-sm text-gray-400 font-medium">Numeración automática por tipo, servicio y año</p>
                         </div>
                     </div>
                     <PrimaryButton onClick={abrirCrear}>
@@ -167,12 +222,12 @@ export default function Index({ correlativos }) {
                     data={correlativos.data}
                     meta={correlativos.meta}
                     routeName="configuracion.correlativos.index"
-                    searchPlaceholder="Buscar por tipo o año..."
+                    searchPlaceholder="Buscar por tipo, servicio o código..."
                 />
             </div>
 
-            {/* Modal */}
-            <Modal show={showModal} onClose={cerrarModal} maxWidth="sm">
+            {/* Modal Crear / Editar */}
+            <Modal show={showModal} onClose={cerrarModal} maxWidth="md">
                 <form onSubmit={handleSubmit}>
                     <div className="p-7">
 
@@ -187,16 +242,52 @@ export default function Index({ correlativos }) {
                             </h2>
                         </div>
 
-                        {/* Tipo */}
+                        {/* Tipo de correlativo */}
+                        <div className="mb-5">
+                            <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
+                                Tipo de Correlativo <span className="text-[#BE0F4A]">*</span>
+                            </label>
+                            <CustomSelect
+                                value={data.tipo_correlativo_id}
+                                onChange={(val) => setData('tipo_correlativo_id', val)}
+                                options={opcionesTipo}
+                                placeholder="— Seleccione un tipo —"
+                                error={errors.tipo_correlativo_id}
+                            />
+                            {errors.tipo_correlativo_id && (
+                                <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.tipo_correlativo_id}</p>
+                            )}
+                        </div>
+
+                        {/* Servicio (opcional) */}
+                        <div className="mb-5">
+                            <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
+                                Servicio
+                            </label>
+                            <CustomSelect
+                                value={data.servicio_id}
+                                onChange={(val) => setData('servicio_id', val)}
+                                options={opcionesServicio}
+                                placeholder={null}
+                            />
+                            <p className="text-xs text-gray-400 mt-1">
+                                Deja en "Global" si el correlativo aplica a todo el centro, no a un servicio específico.
+                            </p>
+                        </div>
+
+                        {/* Código de servicio */}
                         <Input
-                            label="Tipo"
+                            label="Código de Servicio"
                             required
                             type="text"
-                            value={data.tipo}
-                            onChange={e => setData('tipo', e.target.value.toUpperCase())}
-                            placeholder="Ej: EXP, SOL, LAUDO"
-                            error={errors.tipo}
+                            value={data.codigo_servicio}
+                            onChange={e => setData('codigo_servicio', e.target.value.toUpperCase())}
+                            placeholder="Ej: ARB, JPRD, ARB EMERG"
+                            error={errors.codigo_servicio}
                         />
+                        <p className="text-xs text-gray-400 -mt-3 mb-5">
+                            Aparece en el número generado: <span className="font-mono text-emerald-600">Exp. N° 001-2026-<strong>{data.codigo_servicio || 'ARB'}</strong>-CARD ANKAWA</span>
+                        </p>
 
                         {/* Año */}
                         <div className="mb-5">
@@ -217,7 +308,7 @@ export default function Index({ correlativos }) {
 
                         {/* Último número */}
                         <Input
-                            label="Último número"
+                            label="Último número emitido"
                             required
                             type="number"
                             min="0"
@@ -226,8 +317,11 @@ export default function Index({ correlativos }) {
                             placeholder="0"
                             error={errors.ultimo_numero}
                         />
+                        <p className="text-xs text-gray-400 -mt-3 mb-5">
+                            El próximo número generado será el siguiente a este valor.
+                        </p>
 
-                        {/* Estado — solo editar */}
+                        {/* Estado — solo en edición */}
                         {editando && (
                             <div className="mb-2">
                                 <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
@@ -259,7 +353,7 @@ export default function Index({ correlativos }) {
             <ConfirmDialog
                 show={confirmOpen}
                 title="Desactivar Correlativo"
-                message={`¿Desactivar el correlativo "${correlativoAEliminar?.tipo} - ${correlativoAEliminar?.anio}"?`}
+                message={`¿Desactivar el correlativo "${correlativoAEliminar?.tipo_correlativo?.nombre} — ${correlativoAEliminar?.codigo_servicio} ${correlativoAEliminar?.anio}"?`}
                 confirmText="Sí, desactivar"
                 processing={deleting}
                 onConfirm={handleDelete}

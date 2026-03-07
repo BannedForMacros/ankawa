@@ -9,10 +9,7 @@ class Rol extends Model
 {
     protected $table = 'roles';
 
-    protected $fillable = ['nombre', 'descripcion', 'activo'];
-
-    // ── CONSTANTE DE ROL (Evita hardcodear números perdidos en los controladores) ──
-    public const ROL_CLIENTE = 6;
+    protected $fillable = ['nombre', 'slug', 'descripcion', 'activo'];
 
     public function usuarios(): HasMany
     {

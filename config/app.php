@@ -17,6 +17,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sufijo del Centro Arbitral
+    |--------------------------------------------------------------------------
+    | Se agrega al final del número de correlativo cuando el tipo lo requiere.
+    | Ejemplo: Exp. N° 001-2026-ARB-CARD ANKAWA
+    */
+    'sufijo_centro' => env('SUFIJO_CENTRO', 'CARD ANKAWA'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

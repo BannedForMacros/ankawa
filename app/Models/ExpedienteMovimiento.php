@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ExpedienteMovimiento extends Model
 {
@@ -34,5 +35,24 @@ class ExpedienteMovimiento extends Model
     public function actividadDestino(): BelongsTo
     {
         return $this->belongsTo(Actividad::class, 'actividad_destino_id');
+    }
+
+    public function actividadOrigen(): BelongsTo
+    {
+        return $this->belongsTo(Actividad::class, 'actividad_origen_id');
+    }
+
+    // Documentos adjuntos al movimiento (anexos sueltos)
+    public function documentos(): HasMany
+    {
+        return $this->hasMany(Documento::class, 'modelo_id')
+                    ->where('modelo_tipo', self::class)
+                    ->where('activo', 1);
+    }
+
+    // Documentos de slot (requisitos) subidos en este movimiento
+    public function requisitosDocumento(): HasMany
+    {
+        return $this->hasMany(ExpedienteDocumentoRequisito::class, 'movimiento_id');
     }
 }

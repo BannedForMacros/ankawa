@@ -8,7 +8,7 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import toast from 'react-hot-toast';
 import {
     GitBranch, Trash2, ArrowRight, Pencil, Bell,
-    X, Users, FileText, Plus, AlertCircle, Edit3
+    X, Users, FileText, Plus, AlertCircle, Edit3, Lock
 } from 'lucide-react';
 
 const opcionesSiNo = [
@@ -114,6 +114,7 @@ export default function ModalTransiciones({
         etiqueta_boton:           '',
         actividad_destino_id:     '',
         tipo_documento_id:        '',
+        requisito_documento_id:   '',
         requiere_documento:       0,
         permite_documento:        1,
         requiere_observacion:     0,
@@ -144,6 +145,7 @@ export default function ModalTransiciones({
             etiqueta_boton:           t.etiqueta_boton,
             actividad_destino_id:     t.actividad_destino_id,
             tipo_documento_id:        t.tipo_documento_id ?? '',
+            requisito_documento_id:   t.requisito_documento_id ?? '',
             requiere_documento:       t.requiere_documento,
             permite_documento:        t.permite_documento,
             requiere_observacion:     t.requiere_observacion,
@@ -248,6 +250,11 @@ export default function ModalTransiciones({
                                             {t.tipo_documento && (
                                                 <span className="bg-purple-50 border border-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex items-center gap-1">
                                                     <FileText size={10} /> {t.tipo_documento.nombre}
+                                                </span>
+                                            )}
+                                            {t.requisito_documento && (
+                                                <span className="bg-orange-50 border border-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                    <Lock size={10} /> Bloqueado por: {t.requisito_documento.nombre}
                                                 </span>
                                             )}
                                             {t.requiere_documento === 1 && (
@@ -390,6 +397,27 @@ export default function ModalTransiciones({
                                 Clasifica automáticamente el PDF que se adjunte en este paso.
                             </p>
                         </div>
+
+                        {/* Requisito de documento que desbloquea este botón */}
+                        {actividad.requisitos_documento?.length > 0 && (
+                            <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                                <label className="block text-xs font-bold text-orange-800 mb-1 flex items-center gap-1">
+                                    <Lock size={11} /> Bloquear botón hasta subir documento
+                                </label>
+                                <CustomSelect
+                                    value={data.requisito_documento_id}
+                                    onChange={v => setData('requisito_documento_id', v)}
+                                    options={[
+                                        { id: '', nombre: '— Sin bloqueo —' },
+                                        ...actividad.requisitos_documento.map(r => ({ id: r.id, nombre: r.nombre })),
+                                    ]}
+                                    placeholder={null}
+                                />
+                                <p className="text-[10px] text-orange-700 mt-1">
+                                    El botón aparecerá deshabilitado hasta que el slot seleccionado tenga un archivo subido.
+                                </p>
+                            </div>
+                        )}
 
                         {/* Permite editar solicitud */}
                         <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">

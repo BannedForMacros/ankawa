@@ -6,9 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\ExpedienteArbSubsanacion;
-use App\Models\ExpedienteArb;
-
 class SolicitudArbitraje extends Model
 {
     protected $table = 'solicitudes_arbitraje';
@@ -47,7 +44,7 @@ class SolicitudArbitraje extends Model
 
     public function expediente(): HasOne
     {
-        return $this->hasOne(ExpedienteArb::class, 'solicitud_id');
+        return $this->hasOne(Expediente::class, 'solicitud_id');
     }
 
     public function subsanaciones(): HasMany
@@ -60,9 +57,4 @@ class SolicitudArbitraje extends Model
         return $this->subsanaciones()->where('estado', 'pendiente')->where('activo', true)->exists();
     }
 
-    public function movimientos(): HasMany
-    {
-        return $this->hasMany(ExpedienteArbMovimiento::class, 'solicitud_id')
-                    ->orderBy('created_at', 'asc');
-    }
 }

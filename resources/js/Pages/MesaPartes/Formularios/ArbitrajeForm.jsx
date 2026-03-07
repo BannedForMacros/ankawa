@@ -45,6 +45,7 @@ export default function ArbitrajeForm({ servicio }) {
     const [otpEnviado, setOtpEnviado]       = useState(false);
     const [codigoOtp, setCodigoOtp]         = useState('');
     const [verificando, setVerificando]     = useState(false);
+    const [otpVerificado, setOtpVerificado] = useState(false);
     const [otpError, setOtpError]           = useState('');
     const [errorGeneral, setErrorGeneral]   = useState('');
 
@@ -144,7 +145,8 @@ export default function ArbitrajeForm({ servicio }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         post(route('solicitud.arbitraje.store'), {
-            preserveScroll: true,
+            preserveScroll:  true,
+            forceFormData:   true,
             onError: () => toast.error('Revise los errores marcados en el formulario', { position: 'top-center' }),
         });
     };
