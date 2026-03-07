@@ -8,6 +8,7 @@ use App\Models\Expediente;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteMovimiento;
 use App\Models\TipoActorExpediente;
+use App\Models\ServicioTipoActor;
 use App\Models\TipoCorrelativo;
 use App\Models\Actividad;
 use App\Models\Documento;
@@ -169,8 +170,8 @@ class SolicitudArbitrajeController extends Controller
                 ]);
             }
 
-            // 5c. Secretaria General Adjunta — asignación automática con balanceo de carga
-            $this->asignarSecretariaAdjunta($expediente);
+            // 5c. Auto-asignar actores configurados para este servicio (excepto demandante/demandado que ya se manejaron)
+            $this->autoAsignarActores($expediente, $request->servicio_id);
 
             // ── 6. Registrar movimiento inicial ──────────────────────────────
             $movimientoInicial = ExpedienteMovimiento::create([
@@ -229,42 +230,52 @@ class SolicitudArbitrajeController extends Controller
     }
 
     /**
-     * Asigna automáticamente la Secretaria General Adjunta al expediente.
-     * Si hay varias con ese rol, se asigna la que tenga menos expedientes activos (balanceo).
+     * Auto-asigna los actores configurados en servicio_tipos_actor para el servicio dado.
+     * Excluye slugs 'demandante' y 'demandado' (ya asignados directamente del formulario).
+     * Para cada entrada con es_automatico=true y rol_auto_slug, busca el usuario con menor carga.
      */
-    private function asignarSecretariaAdjunta(Expediente $expediente): void
+    private function autoAsignarActores(Expediente $expediente, int $servicioId): void
     {
-        $tipoActor = TipoActorExpediente::where('slug', 'secretaria_general_adjunta')->first();
-        if (!$tipoActor) {
-            return;
-        }
+        $slugsExcluir = ['demandante', 'demandado'];
 
-        // Buscar usuarios activos con rol secretaria_general_adjunta
-        $rolId = Rol::where('slug', 'secretaria_general_adjunta')->value('id');
-        if (!$rolId) {
-            return;
-        }
-
-        // Balanceo: la que tenga menos expedientes activos asignados
-        $secretaria = User::where('rol_id', $rolId)
+        $configuraciones = ServicioTipoActor::where('servicio_id', $servicioId)
+            ->where('es_automatico', true)
+            ->whereNotNull('rol_auto_slug')
             ->where('activo', 1)
-            ->withCount([
-                'expedienteActoresActivos' => fn($q) =>
-                    $q->whereHas('expediente', fn($q2) => $q2->where('estado', 'en_proceso'))
-            ])
-            ->orderBy('expediente_actores_activos_count', 'asc')
-            ->first();
+            ->with('tipoActor')
+            ->get();
 
-        if (!$secretaria) {
-            return;
+        foreach ($configuraciones as $config) {
+            if (!$config->tipoActor || in_array($config->tipoActor->slug, $slugsExcluir)) {
+                continue;
+            }
+
+            $rolSlug = $config->rol_auto_slug;
+            $rolId   = Rol::where('slug', $rolSlug)->value('id');
+
+            if (!$rolId) {
+                continue;
+            }
+
+            // Balanceo de carga: asignar al usuario con menos expedientes activos
+            $usuario = User::where('rol_id', $rolId)
+                ->where('activo', 1)
+                ->withCount([
+                    'expedienteActoresActivos' => fn($q) =>
+                        $q->whereHas('expediente', fn($q2) => $q2->where('estado', 'en_proceso'))
+                ])
+                ->orderBy('expediente_actores_activos_count', 'asc')
+                ->first();
+
+            if (!$usuario) {
+                continue;
+            }
+
+            ExpedienteActor::updateOrCreate(
+                ['expediente_id' => $expediente->id, 'tipo_actor_id' => $config->tipo_actor_id],
+                ['usuario_id' => $usuario->id, 'activo' => 1]
+            );
         }
-
-        ExpedienteActor::create([
-            'expediente_id' => $expediente->id,
-            'usuario_id'    => $secretaria->id,
-            'tipo_actor_id' => $tipoActor->id,
-            'activo'        => 1,
-        ]);
     }
 
     private function generarCargo(SolicitudArbitraje $solicitud): string

@@ -125,10 +125,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/transiciones/{transicion}',          [EtapaController::class, 'destroyTransicion'])->name('transiciones.destroy');
         
         // Tipos de Actor
-        Route::get('tipos-actor',                 [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');
-        Route::post('tipos-actor',                [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store');
-        Route::put('tipos-actor/{tipoActor}',     [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
-        Route::delete('tipos-actor/{tipoActor}',  [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
+        Route::get('tipos-actor',                              [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');
+        Route::post('tipos-actor',                             [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store');
+        Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
+        Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
+        Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios');
 
         // Acciones de Flujo
         Route::get('acciones',              [AccionFlujoController::class, 'index'])->name('configuracion.acciones.index');

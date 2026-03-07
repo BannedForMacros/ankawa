@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class TipoActorExpediente extends Model
 {
@@ -25,6 +26,17 @@ class TipoActorExpediente extends Model
     public function actoresExpediente(): HasMany
     {
         return $this->hasMany(ExpedienteActor::class, 'tipo_actor_id');
+    }
+
+    // Servicios donde este tipo de actor está configurado
+    public function servicios(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Servicio::class,
+            'servicio_tipos_actor',
+            'tipo_actor_id',
+            'servicio_id'
+        )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo');
     }
 
     // Para saber qué transiciones configuran designar este tipo de actor

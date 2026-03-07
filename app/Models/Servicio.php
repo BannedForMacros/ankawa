@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Servicio extends Model
@@ -18,6 +19,17 @@ class Servicio extends Model
     public function etapas(): HasMany
     {
         return $this->hasMany(Etapa::class, 'servicio_id')->orderBy('orden');
+    }
+
+    public function tiposActor(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            TipoActorExpediente::class,
+            'servicio_tipos_actor',
+            'servicio_id',
+            'tipo_actor_id'
+        )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo')
+         ->orderByPivot('orden');
     }
 
     public function scopeActivo($query)

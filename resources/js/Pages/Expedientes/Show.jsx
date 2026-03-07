@@ -105,7 +105,6 @@ export default function Show({
     const { data, setData, post, processing, errors, reset } = useForm({
         transicion_id:         '',
         observaciones:         '',
-        numero_expediente:     '',
         documentos_movimiento: [],
         documentos_requisito:  {},
         notificar_a:           [],
@@ -129,7 +128,6 @@ export default function Show({
         setData({
             transicion_id:         transicion.id,
             observaciones:         '',
-            numero_expediente:     '',
             documentos_movimiento: [],
             documentos_requisito:  {},
             notificar_a:           preseleccionados,
@@ -653,24 +651,7 @@ export default function Show({
 
                         <form onSubmit={ejecutarAccion} className="space-y-5">
 
-                            {/* ① Número oficial (solo cuando aplica) */}
-                            {!expediente.numero_expediente && (
-                                modalAction.etiqueta_boton.toLowerCase().includes('aceptar') ||
-                                modalAction.etiqueta_boton.toLowerCase().includes('admitir')
-                            ) && (
-                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-                                    <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wide mb-2">
-                                        N° Oficial de Expediente <span className="text-[#BE0F4A]">*</span>
-                                    </label>
-                                    <input type="text" required placeholder="Ej: EXP-001-2026-CARD"
-                                        value={data.numero_expediente}
-                                        onChange={e => setData('numero_expediente', e.target.value)}
-                                        className="w-full border border-emerald-300 rounded-xl px-4 py-2 text-sm font-mono font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"/>
-                                    <p className="text-[10px] text-emerald-700 mt-1">Este número será el identificador oficial del caso.</p>
-                                </div>
-                            )}
-
-                            {/* ② Documento de slot requerido para ESTA acción */}
+                            {/* ① Documento de slot requerido para ESTA acción */}
                             {slotGate && (
                                 <div className={`rounded-xl border p-4 ${slotGatePendiente ? 'bg-amber-50 border-amber-300' : 'bg-purple-50 border-purple-200'}`}>
                                     <div className={`flex items-center gap-2 mb-3 font-bold text-sm ${slotGatePendiente ? 'text-amber-800' : 'text-purple-800'}`}>

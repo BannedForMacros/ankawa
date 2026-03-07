@@ -9,6 +9,7 @@ use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteDocumentoRequisito;
 use App\Models\ActividadRequisitoDocumento;
 use App\Models\TipoActorExpediente;
+use App\Models\ServicioTipoActor;
 use App\Models\ActividadTransicion;
 use App\Models\Actividad;
 use App\Models\User;
@@ -102,7 +103,14 @@ class ExpedienteController extends Controller
         $slugsGestores = ['administrador_ti', 'director', 'secretaria_general', 'secretaria_general_adjunta'];
         $puedeGestionarActores = in_array(auth()->user()->rol?->slug, $slugsGestores);
 
-        $tiposActor = TipoActorExpediente::whereNotIn('slug', ['demandante', 'demandado'])
+        // Solo los tipos de actor configurados para el servicio de este expediente
+        // (excluye demandante/demandado que son inmutables)
+        $tiposActorIds = ServicioTipoActor::where('servicio_id', $expediente->servicio_id)
+            ->where('activo', 1)
+            ->pluck('tipo_actor_id');
+
+        $tiposActor = TipoActorExpediente::whereIn('id', $tiposActorIds)
+            ->whereNotIn('slug', ['demandante', 'demandado'])
             ->where('activo', 1)
             ->get(['id', 'nombre', 'slug']);
 
@@ -147,7 +155,6 @@ class ExpedienteController extends Controller
         $request->validate([
             'transicion_id'              => 'required|exists:actividad_transiciones,id',
             'observaciones'              => 'nullable|string',
-            'numero_expediente'          => 'nullable|string|unique:expedientes,numero_expediente,' . $expediente->id,
             'documentos_movimiento'      => 'nullable|array',
             'documentos_movimiento.*'    => 'file|mimes:pdf,doc,docx|max:10240',
             // actores_designados: [tipo_actor_id => usuario_id]
@@ -268,16 +275,7 @@ class ExpedienteController extends Controller
                 }
             }
 
-            // E. INYECCIÓN MANUAL DEL NÚMERO DE EXPEDIENTE (Cuando la Secretaria lo admite formalmente)
-            if ($request->filled('numero_expediente') && empty($expediente->numero_expediente)) {
-                $expediente->numero_expediente = $request->numero_expediente;
-                // De forma opcional, si tu lógica de negocio lo requiere, marcamos la solicitud base como admitida
-                if ($expediente->solicitud) {
-                    $expediente->solicitud->update(['estado' => 'admitida']);
-                }
-            }
-
-            // F. Avanzar el flujo a la Actividad de Destino
+            // E. Avanzar el flujo a la Actividad de Destino
             $actividadDestino = Actividad::find($transicion->actividad_destino_id);
             $expediente->update([
                 'actividad_actual_id' => $transicion->actividad_destino_id,
