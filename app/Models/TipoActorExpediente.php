@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TipoActorExpediente extends Model
@@ -26,10 +27,15 @@ class TipoActorExpediente extends Model
         return $this->hasMany(ExpedienteActor::class, 'tipo_actor_id');
     }
 
-    // Para saber qué transiciones configuran designar este rol
-    public function transicionesQueLoDesignan(): HasMany
+    // Para saber qué transiciones configuran designar este tipo de actor
+    public function transicionesQueLoDesignan(): BelongsToMany
     {
-        return $this->hasMany(ActividadTransicion::class, 'designa_tipo_actor_id');
+        return $this->belongsToMany(
+            ActividadTransicion::class,
+            'transicion_actores_designables',
+            'tipo_actor_id',
+            'transicion_id'
+        );
     }
 
     // --- SCOPES ---

@@ -75,7 +75,7 @@ class TipoActorController extends Controller
         }
 
         // Protección 2: ¿Hay transiciones configuradas para designar este rol?
-        if ($tipoActor->transicionesQueLoDesignan()->where('activo', 1)->exists()) {
+        if ($tipoActor->transicionesQueLoDesignan()->where('actividad_transiciones.activo', 1)->exists()) {
             return back()->with('error', 'No se puede desactivar: Hay transiciones activas configuradas para designar este actor.');
         }
 
