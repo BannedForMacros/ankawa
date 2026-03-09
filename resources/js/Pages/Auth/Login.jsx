@@ -96,6 +96,20 @@ export default function Login({ status, canResetPassword }) {
                             <InputError message={errors.password} className="mt-2" />
                         </div>
 
+                        {/* Checkbox de Recordarme */}
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center cursor-pointer">
+                                <Checkbox
+                                    name="remember"
+                                    checked={data.remember}
+                                    onChange={(e) => setData('remember', e.target.checked)}
+                                    className="rounded border-gray-300 text-rose-700 shadow-sm focus:ring-rose-700"
+                                />
+                                <span className="ms-2 text-sm text-gray-700">
+                                    Recordarme
+                                </span>
+                            </label>
+                        </div>
 
                         {/* Botón de Submit */}
                         <div className="pt-4">
