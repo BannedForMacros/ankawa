@@ -12,13 +12,19 @@ class DashboardController extends Controller
     public function index()
     {
         $user  = auth()->user();
-        $rolId = $user->rol_id;
 
-        // ── Expedientes donde el rol del usuario puede actuar ──
+
+        // ── Expedientes donde el usuario es actor del tipo requerido por la actividad actual ──
         // Usamos leftJoin con expediente_instancias para ordenar en DB sin N+1
         $pendientes = Expediente::query()
             ->with(['solicitud', 'servicio', 'etapaActual', 'actividadActual'])
-            ->whereHas('actividadActual.roles', fn($q) => $q->where('roles.id', $rolId))
+            ->whereHas('actividadActual.tiposActor', function ($q) use ($user) {
+                $q->whereHas('actoresExpediente', function ($q2) use ($user) {
+                    $q2->where('usuario_id', $user->id)
+                       ->where('activo', 1)
+                       ->whereColumn('expediente_actores.expediente_id', 'expedientes.id');
+                });
+            })
             ->where('expedientes.estado', '!=', 'cerrado')
             ->leftJoinSub(
                 ExpedienteInstancia::select('expediente_id', 'fecha_vencimiento')

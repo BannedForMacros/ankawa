@@ -257,11 +257,7 @@ export default function ModalTransiciones({
                                                     <Lock size={10} /> Bloqueado por: {t.requisito_documento.nombre}
                                                 </span>
                                             )}
-                                            {t.requiere_documento === 1 && (
-                                                <span className="bg-red-50 border border-red-100 text-red-700 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                                    <FileText size={10} /> Exige PDF
-                                                </span>
-                                            )}
+
                                             {t.requiere_observacion === 1 && (
                                                 <span className="bg-amber-50 border border-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
                                                     Exige Texto
@@ -366,20 +362,10 @@ export default function ModalTransiciones({
                             onChange={v => setData('actores_designables', v)}
                         />
 
-                        {/* Documentos */}
-                        <div className="grid grid-cols-3 gap-3">
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">¿Exige Subir PDF?</label>
-                                <CustomSelect value={data.requiere_documento} onChange={v => setData('requiere_documento', v)} options={opcionesSiNo} placeholder={null} />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">¿Permite Subir PDF?</label>
-                                <CustomSelect value={data.permite_documento} onChange={v => setData('permite_documento', v)} options={opcionesSiNo} placeholder={null} />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">¿Exige Motivo/Texto?</label>
-                                <CustomSelect value={data.requiere_observacion} onChange={v => setData('requiere_observacion', v)} options={opcionesSiNo} placeholder={null} />
-                            </div>
+                        {/* Solo exige texto — los documentos se manejan en la sección DOCS */}
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">¿Exige Motivo / Observación al ejecutar?</label>
+                            <CustomSelect value={data.requiere_observacion} onChange={v => setData('requiere_observacion', v)} options={opcionesSiNo} placeholder={null} />
                         </div>
 
                         {/* Tipo de documento esperado */}

@@ -46,13 +46,40 @@ class ExpedienteController extends Controller
         ]);
     }
 
+    // ── 1b. MIS EXPEDIENTES (donde el usuario es actor) ──
+    public function misExpedientes()
+    {
+        $user = auth()->user();
+
+        $expedientes = Expediente::with(['servicio', 'etapaActual', 'actividadActual'])
+            ->whereHas('actores', fn($q) => $q->where('usuario_id', $user->id)->where('activo', 1))
+            ->where('estado', '!=', 'cerrado')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function($exp) {
+                return [
+                    'id'                => $exp->id,
+                    'numero_expediente' => $exp->numero_expediente ?? $exp->solicitud?->numero_cargo ?? 'EXP-' . $exp->id,
+                    'servicio'          => $exp->servicio?->nombre,
+                    'etapa'             => $exp->etapaActual?->nombre,
+                    'actividad'         => $exp->actividadActual?->nombre,
+                    'estado'            => $exp->estado,
+                    'created_at'        => $exp->created_at->format('d/m/Y'),
+                ];
+            });
+
+        return Inertia::render('Expedientes/Index', [
+            'expedientes' => $expedientes
+        ]);
+    }
+
     // ── 2. VISOR DINÁMICO DEL EXPEDIENTE ──
     public function show(Expediente $expediente)
     {
         $expediente->load([
             'solicitud.documentos',
             'etapaActual',
-            'actividadActual.roles',
+            'actividadActual.tiposActor',
             'actividadActual.transiciones.accionCatalogo',
             'actividadActual.transiciones.tipoDocumento',
             'actividadActual.transiciones.requisitoDocumento',
@@ -97,8 +124,15 @@ class ExpedienteController extends Controller
                 ];
             });
 
-        $rolUsuarioId = auth()->user()->rol_id;
-        $puedeActuar  = $expediente->actividadActual->roles->contains('id', $rolUsuarioId);
+        // Verificar si el usuario autenticado es un actor del tipo requerido en este expediente
+        $tiposActorActividad = $expediente->actividadActual->tiposActor->pluck('id');
+        $puedeActuar = $tiposActorActividad->isEmpty()
+            ? false
+            : $expediente->actores
+                ->where('usuario_id', auth()->id())
+                ->where('activo', 1)
+                ->whereIn('tipo_actor_id', $tiposActorActividad)
+                ->isNotEmpty();
 
         $slugsGestores = ['administrador_ti', 'director', 'secretaria_general', 'secretaria_general_adjunta'];
         $puedeGestionarActores = in_array(auth()->user()->rol?->slug, $slugsGestores);

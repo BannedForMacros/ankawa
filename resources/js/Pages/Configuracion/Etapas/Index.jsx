@@ -48,8 +48,8 @@ const iconoTipo = {
     otro:         <Bookmark size={13} />,
 };
 
-// ── Selector múltiple de roles ──
-function RolesSelector({ roles, seleccionados, onChange }) {
+// ── Selector múltiple de tipos de actor ──
+function TiposActorSelector({ tiposActor, seleccionados, onChange }) {
     const toggle = (id) => {
         if (seleccionados.includes(id)) {
             onChange(seleccionados.filter(r => r !== id));
@@ -61,29 +61,29 @@ function RolesSelector({ roles, seleccionados, onChange }) {
     return (
         <div>
             <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
-                Roles que pueden actuar
+                Actores que pueden actuar
             </label>
             <div className="flex flex-wrap gap-2">
-                {roles.map(rol => {
-                    const activo = seleccionados.includes(rol.id);
+                {tiposActor.map(actor => {
+                    const activo = seleccionados.includes(actor.id);
                     return (
                         <button
-                            key={rol.id}
+                            key={actor.id}
                             type="button"
-                            onClick={() => toggle(rol.id)}
+                            onClick={() => toggle(actor.id)}
                             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all
                                 ${activo
                                     ? 'bg-[#291136] text-white border-[#291136]'
                                     : 'bg-white text-gray-500 border-gray-200 hover:border-[#291136]/30'}`}
                         >
-                            {rol.nombre}
+                            {actor.nombre}
                         </button>
                     );
                 })}
             </div>
             {seleccionados.length === 0 && (
                 <p className="text-xs text-gray-400 mt-1.5 italic">
-                    Sin roles asignados — cualquiera puede actuar.
+                    Sin actores asignados — nadie podrá actuar.
                 </p>
             )}
         </div>
@@ -107,12 +107,12 @@ function FilaActividad({ actividad, onEdit, onDelete, onConfigTransitions, onCon
                                 {actividad.tipo}
                             </span>
                         )}
-                        {/* Roles asignados */}
-                        {actividad.roles?.map(r => (
-                            <span key={r.id}
+                        {/* Actores que pueden actuar */}
+                        {actividad.tipos_actor?.map(a => (
+                            <span key={a.id}
                                 className="inline-flex items-center gap-1 text-xs text-[#291136] bg-[#291136]/10 px-2 py-0.5 rounded-full font-semibold">
                                 <Users size={10} />
-                                {r.nombre}
+                                {a.nombre}
                             </span>
                         ))}
                     </div>
@@ -367,7 +367,7 @@ export default function Index({ servicios, roles, acciones, tiposActor, tiposDoc
     };
 
     const abrirEditarActividad = (actividad) => {
-        const rolesIds = actividad.roles?.map(r => r.id) ?? [];
+        const rolesIds = actividad.tipos_actor?.map(r => r.id) ?? [];
         formActividad.setData({
             etapa_id:       actividad.etapa_id,
             nombre:         actividad.nombre,
@@ -624,12 +624,12 @@ export default function Index({ servicios, roles, acciones, tiposActor, tiposDoc
                                 error={formActividad.errors.orden} />
                         </div>
 
-                        {/* Selector de roles */}
+                        {/* Selector de actores */}
                         <div className="mb-5">
-                            <RolesSelector
-                                roles={roles}
+                            <TiposActorSelector
+                                tiposActor={roles}
                                 seleccionados={formActividad.data.roles}
-                                onChange={(nuevosRoles) => formActividad.setData('roles', nuevosRoles)}
+                                onChange={(nuevos) => formActividad.setData('roles', nuevos)}
                             />
                         </div>
 

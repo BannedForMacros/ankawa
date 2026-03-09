@@ -5,7 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany; // <-- Asegúrate de que esto esté importado
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\TipoActorExpediente;
 
 class Actividad extends Model
 {
@@ -27,10 +28,10 @@ class Actividad extends Model
         return $this->belongsTo(Etapa::class, 'etapa_id');
     }
 
-    // Roles que pueden actuar en esta actividad
-    public function roles(): BelongsToMany
+    // Tipos de actor que pueden actuar en esta actividad
+    public function tiposActor(): BelongsToMany
     {
-        return $this->belongsToMany(Rol::class, 'actividad_roles', 'actividad_id', 'rol_id')
+        return $this->belongsToMany(TipoActorExpediente::class, 'actividad_tipos_actor', 'actividad_id', 'tipo_actor_id')
                     ->withTimestamps();
     }
 
@@ -49,10 +50,10 @@ class Actividad extends Model
                     ->orderBy('orden');
     }
 
-    // ¿El usuario actual puede actuar en esta actividad?
-    public function puedeActuar(int $rolId): bool
+    // ¿El tipo de actor dado puede actuar en esta actividad?
+    public function puedeActuar(int $tipoActorId): bool
     {
-        return $this->roles->pluck('id')->contains($rolId);
+        return $this->tiposActor->pluck('id')->contains($tipoActorId);
     }
 
     public function scopeActivo($query)

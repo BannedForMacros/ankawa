@@ -69,7 +69,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ── EL MOTOR DE EXPEDIENTES (Nuevo Cerebro) ──
     Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
-    
+    Route::get('/expedientes/mis', [ExpedienteController::class, 'misExpedientes'])->name('expedientes.mis');
+
     // Visor dinámico y motor de ejecución de botones
     Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
     Route::post('/expedientes/{expediente}/accion', [ExpedienteController::class, 'registrarAccion'])->name('expedientes.accion');

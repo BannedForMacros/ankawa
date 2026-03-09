@@ -53,7 +53,9 @@ class SolicitudArbitrajeController extends Controller
             'domicilio_arbitro_propuesto'   => 'nullable|string|max:500',
             'reglas_aplicables'             => 'nullable|string|max:255',
 
-            'documentos_anexos'             => 'required|array|min:1',
+            'documentos_controversia'        => 'nullable|array',
+            'documentos_controversia.*'      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_anexos'             => 'nullable|array',
             'documentos_anexos.*'           => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
@@ -90,7 +92,7 @@ class SolicitudArbitrajeController extends Controller
 
             // ── 3. Crear solicitud ───────────────────────────────────────────
             $solicitud = SolicitudArbitraje::create(array_merge(
-                $request->except('documentos_anexos'),
+                $request->except('documentos_anexos', 'documentos_controversia'),
                 [
                     'usuario_id' => $userId,
                     'estado'     => 'pendiente',
@@ -196,8 +198,24 @@ class SolicitudArbitrajeController extends Controller
             ]);
 
             // ── 7. Guardar documentos adjuntos ───────────────────────────────
+            $carpeta = "expedientes/{$expediente->id}/solicitud";
+
+            if ($request->hasFile('documentos_controversia')) {
+                foreach ($request->file('documentos_controversia') as $archivo) {
+                    $ruta = $archivo->store($carpeta, 'public');
+                    Documento::create([
+                        'modelo_tipo'     => SolicitudArbitraje::class,
+                        'modelo_id'       => $solicitud->id,
+                        'tipo_documento'  => 'doc_controversia',
+                        'ruta_archivo'    => $ruta,
+                        'nombre_original' => $archivo->getClientOriginalName(),
+                        'peso_bytes'      => $archivo->getSize(),
+                        'activo'          => 1,
+                    ]);
+                }
+            }
+
             if ($request->hasFile('documentos_anexos')) {
-                $carpeta = "expedientes/{$expediente->id}/solicitud";
                 foreach ($request->file('documentos_anexos') as $archivo) {
                     $ruta = $archivo->store($carpeta, 'public');
                     Documento::create([

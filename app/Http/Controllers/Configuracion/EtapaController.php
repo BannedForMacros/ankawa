@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Etapa;
 use App\Models\Actividad;
 use App\Models\Servicio;
-use App\Models\Rol;
+use App\Models\TipoActorExpediente;
 use App\Models\TipoDocumento;
 use App\Models\TransicionActorDesignable;
 use App\Models\ActividadRequisitoDocumento;
@@ -25,7 +25,7 @@ public function index(Request $request)
                       // AQUÍ AÑADIMOS LAS TRANSICIONES
                       $q2->orderBy('orden')
                          ->with([
-                             'roles',
+                             'tiposActor',
                              'transiciones.actividadDestino',
                              'transiciones.accionCatalogo',
                              'transiciones.tipoDocumento',
@@ -37,7 +37,7 @@ public function index(Request $request)
             }])
             ->get();
 
-        $roles = Rol::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre']);
+        $roles = TipoActorExpediente::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre']);
         
         $acciones = \App\Models\CatalogoAccion::where('activo', 1)->get();
         $tiposActor = \App\Models\TipoActorExpediente::where('activo', 1)->get();
@@ -127,7 +127,7 @@ public function index(Request $request)
             'dias_plazo'     => 'nullable|integer|min:1',
             'orden'          => 'required|integer|min:1',
             'roles'          => 'nullable|array',
-            'roles.*'        => 'exists:roles,id',
+            'roles.*'        => 'exists:tipos_actor_expediente,id',
         ]);
 
         $actividad = Actividad::create([
@@ -141,9 +141,9 @@ public function index(Request $request)
             'activo'         => 1,
         ]);
 
-        // Sincronizar roles
+        // Sincronizar tipos de actor
         if ($request->roles) {
-            $actividad->roles()->sync($request->roles);
+            $actividad->tiposActor()->sync($request->roles);
         }
 
         return back()->with('success', 'Actividad creada correctamente.');
@@ -173,8 +173,8 @@ public function index(Request $request)
             'activo'         => $request->activo,
         ]);
 
-        // Sincronizar roles (sync elimina los anteriores y pone los nuevos)
-        $actividad->roles()->sync($request->roles ?? []);
+        // Sincronizar tipos de actor (sync elimina los anteriores y pone los nuevos)
+        $actividad->tiposActor()->sync($request->roles ?? []);
 
         return back()->with('success', 'Actividad actualizada correctamente.');
     }
