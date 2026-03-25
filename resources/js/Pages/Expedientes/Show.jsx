@@ -142,7 +142,7 @@ export default function Show({
                             expediente={expediente}
                             esGestor={esGestor}
                             puedeDesignarGestor={puedeDesignarGestor}
-                            tiposActor={tiposActor}
+                            tiposActorConfig={tiposActor}
                             usuariosAsignables={usuariosAsignables}
                         />
                     )}

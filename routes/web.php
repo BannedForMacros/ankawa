@@ -24,6 +24,7 @@ use App\Http\Controllers\Configuracion\RolController;
 use App\Http\Controllers\Configuracion\UsuarioController;
 use App\Http\Controllers\Configuracion\CorrelativoController;
 use App\Http\Controllers\Configuracion\ServicioController;
+use App\Http\Controllers\Configuracion\EtapaController;
 use App\Http\Controllers\Configuracion\TipoActorController;
 
 
@@ -65,7 +66,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mesa-partes/nueva-solicitud', [MesaPartesController::class, 'nuevaSolicitudAuth'])->name('mesa-partes.nueva-solicitud');
 
     // ── MOTOR DE EXPEDIENTES ──
-    Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
+    Route::get('/expedientes/todos', [ExpedienteController::class, 'index'])->name('expedientes.index');
     Route::get('/expedientes/mis', [ExpedienteController::class, 'misExpedientes'])->name('expedientes.mis');
     Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
 
@@ -110,6 +111,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/servicios',              [ServicioController::class, 'store'])  ->name('configuracion.servicios.store')  ->middleware('permiso:configuracion.servicios,crear');
         Route::put('/servicios/{servicio}',    [ServicioController::class, 'update']) ->name('configuracion.servicios.update') ->middleware('permiso:configuracion.servicios,editar');
         Route::delete('/servicios/{servicio}', [ServicioController::class, 'destroy'])->name('configuracion.servicios.destroy')->middleware('permiso:configuracion.servicios,eliminar');
+
+        // Etapas y Sub-etapas
+        Route::get('/etapas', [EtapaController::class, 'index'])->name('configuracion.etapas.index')->middleware('permiso:configuracion.etapas,ver');
+        Route::post('/etapas', [EtapaController::class, 'storeEtapa'])->name('configuracion.etapas.store')->middleware('permiso:configuracion.etapas,crear');
+        Route::put('/etapas/{etapa}', [EtapaController::class, 'updateEtapa'])->name('configuracion.etapas.update')->middleware('permiso:configuracion.etapas,editar');
+        Route::delete('/etapas/{etapa}', [EtapaController::class, 'destroyEtapa'])->name('configuracion.etapas.destroy')->middleware('permiso:configuracion.etapas,eliminar');
+        Route::post('/etapas/{etapa}/sub-etapas', [EtapaController::class, 'storeSubEtapa'])->name('configuracion.sub-etapas.store')->middleware('permiso:configuracion.etapas,crear');
+        Route::put('/sub-etapas/{subEtapa}', [EtapaController::class, 'updateSubEtapa'])->name('configuracion.sub-etapas.update')->middleware('permiso:configuracion.etapas,editar');
+        Route::delete('/sub-etapas/{subEtapa}', [EtapaController::class, 'destroySubEtapa'])->name('configuracion.sub-etapas.destroy')->middleware('permiso:configuracion.etapas,eliminar');
 
         // Tipos de Actor
         Route::get('tipos-actor',                              [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');

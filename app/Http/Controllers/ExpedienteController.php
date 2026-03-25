@@ -85,7 +85,7 @@ class ExpedienteController extends Controller
             'solicitud.documentos',
             'servicio',
             'etapaActual',
-            'actores.usuario',
+            'actores.usuario.rol:id,nombre,slug',
             'actores.tipoActor',
             'movimientos' => fn($q) => $q->where('activo', true)
                 ->orderByDesc('created_at')
@@ -110,16 +110,23 @@ class ExpedienteController extends Controller
         // Etapas y sub-etapas del servicio (para el form de nuevo movimiento)
         $etapas = $this->etapaService->etapasDelServicio($expediente->servicio_id);
 
-        // Tipos de actor del servicio (para asignar responsable)
-        $tiposActorIds = ServicioTipoActor::where('servicio_id', $expediente->servicio_id)
+        // Tipos de actor del servicio con config (para asignar responsable y para TabActores)
+        $servicioTiposActor = ServicioTipoActor::where('servicio_id', $expediente->servicio_id)
             ->where('activo', 1)
-            ->pluck('tipo_actor_id');
+            ->with('tipoActor:id,nombre,slug')
+            ->orderBy('orden')
+            ->get();
 
-        $tiposActor = TipoActorExpediente::whereIn('id', $tiposActorIds)
-            ->where('activo', 1)
-            ->get(['id', 'nombre', 'slug']);
+        $tiposActor = $servicioTiposActor->map(fn($sta) => [
+            'id'              => $sta->tipo_actor_id,
+            'nombre'          => $sta->tipoActor?->nombre,
+            'slug'            => $sta->tipoActor?->slug,
+            'rol_auto_slug'   => $sta->rol_auto_slug,
+            'permite_externo' => $sta->permite_externo ?? false,
+            'es_automatico'   => $sta->es_automatico,
+        ])->values();
 
-        // Usuarios asignables (no-usuarios)
+        // Usuarios asignables agrupados por rol slug (excluir rol "usuario")
         $usuariosAsignables = User::where('activo', 1)
             ->whereHas('rol', fn($q) => $q->whereNotIn('slug', ['usuario']))
             ->with('rol:id,nombre,slug')

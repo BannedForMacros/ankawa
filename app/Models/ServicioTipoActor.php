@@ -16,10 +16,12 @@ class ServicioTipoActor extends Model
         'rol_auto_slug',
         'orden',
         'activo',
+        'permite_externo',
     ];
 
     protected $casts = [
-        'es_automatico' => 'boolean',
+        'es_automatico'  => 'boolean',
+        'permite_externo' => 'boolean',
     ];
 
     public function servicio(): BelongsTo
