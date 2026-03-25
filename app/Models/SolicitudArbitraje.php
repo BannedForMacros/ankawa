@@ -12,10 +12,11 @@ class SolicitudArbitraje extends Model
 
     protected $fillable = [
         'servicio_id', 'numero_cargo', 'usuario_id',
-        'tipo_persona', 'nombre_demandante', 'documento_demandante',
+        'tipo_persona', 'tipo_documento', 'nombre_demandante', 'documento_demandante',
         'nombre_representante', 'documento_representante', 'domicilio_demandante',
         'email_demandante', 'telefono_demandante',
-        'nombre_demandado', 'domicilio_demandado', 'email_demandado', 'telefono_demandado',
+        'tipo_persona_demandado', 'tipo_documento_demandado',
+        'nombre_demandado', 'documento_demandado', 'domicilio_demandado', 'email_demandado', 'telefono_demandado',
         'resumen_controversia', 'pretensiones', 'monto_involucrado',
         'solicita_designacion_director', 'nombre_arbitro_propuesto',
         'email_arbitro_propuesto', 'domicilio_arbitro_propuesto',
