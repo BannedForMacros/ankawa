@@ -24,6 +24,7 @@ class ExpedienteMovimiento extends Model
         'fecha_limite',
         'fecha_respuesta',
         'respondido_por',
+        'tipo_documento_requerido_id',
         'estado',
         'activo',
     ];
@@ -72,6 +73,11 @@ class ExpedienteMovimiento extends Model
     public function documentos(): HasMany
     {
         return $this->hasMany(MovimientoDocumento::class, 'movimiento_id');
+    }
+
+    public function tipoDocumentoRequerido(): BelongsTo
+    {
+        return $this->belongsTo(TipoDocumento::class, 'tipo_documento_requerido_id');
     }
 
     public function notificaciones(): HasMany
