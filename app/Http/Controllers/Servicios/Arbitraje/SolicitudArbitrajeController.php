@@ -38,6 +38,9 @@ class SolicitudArbitrajeController extends Controller
             'telefono_demandante'           => 'required|string|max:20',
 
             'nombre_demandado'              => 'required|string|max:255',
+            'documento_demandado'           => 'nullable|string|max:20',
+            'tipo_persona_demandado'        => 'nullable|in:natural,juridica',
+            'tipo_documento_demandado'      => 'nullable|in:dni,ruc,ce',
             'domicilio_demandado'           => 'required|string|max:500',
             'email_demandado'               => 'nullable|email|max:255',
             'telefono_demandado'            => 'nullable|string|max:20',

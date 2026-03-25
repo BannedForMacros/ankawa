@@ -39,6 +39,9 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 Route::get('/mesa-partes', [MesaPartesController::class, 'index'])->name('mesa-partes.index');
 Route::get('/mesa-partes/confirmacion/{numeroCargo}', [MesaPartesController::class, 'confirmacion'])->name('mesa-partes.confirmacion');
 
+// Consulta de documentos (proxy Decolecta — público, sin auth)
+Route::get('/consulta-documento', [\App\Http\Controllers\ConsultaDocumentoController::class, 'consultar'])->name('consulta.documento');
+
 // OTP (Autenticación para firmas/formularios)
 Route::post('/mesa-partes/enviar-codigo', [MesaPartesController::class, 'enviarCodigo'])->name('mesa-partes.enviarCodigo');
 Route::post('/mesa-partes/verificar-codigo', [MesaPartesController::class, 'verificarCodigo'])->name('mesa-partes.verificarCodigo');

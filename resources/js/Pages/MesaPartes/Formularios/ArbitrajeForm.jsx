@@ -1,25 +1,33 @@
 import { useForm, usePage } from '@inertiajs/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import axios from 'axios';
 import Input from '@/Components/Input';
 import Textarea from '@/Components/Textarea';
 import CustomSelect from '@/Components/CustomSelect';
 import PrimaryButton from '@/Components/PrimaryButton';
 import {
     User, Users, Scale, FileText, Paperclip,
-    CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck
+    CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
+    Loader2, X, Lock, Unlock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const opcionesTipoPersona = [
+/* ─── Constantes ─── */
+const TIPOS_PERSONA = [
     { id: 'natural',  nombre: 'Persona Natural'  },
-    { id: 'juridica', nombre: 'Persona Juridica' },
+    { id: 'juridica', nombre: 'Persona Jurídica' },
 ];
-
-const opcionesSiNo = [
-    { id: 1, nombre: 'Si, solicito designacion por el Director' },
-    { id: 0, nombre: 'No, propongo arbitro'                     },
+const OPCIONES_ARBITRO = [
+    { id: 1, nombre: 'Sí, solicito designación por el Director' },
+    { id: 0, nombre: 'No, propongo árbitro'                     },
 ];
+const LONG_DOC = { dni: 8, ruc: 11, ce: null };
 
+function docDefaultPorPersona(tipo) {
+    return tipo === 'juridica' ? 'ruc' : 'dni';
+}
+
+/* ─── Sección visual ─── */
 function Seccion({ icono: Icono, titulo, children }) {
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
@@ -34,88 +42,316 @@ function Seccion({ icono: Icono, titulo, children }) {
     );
 }
 
+/* ─── Multi-archivo con append/remove ─── */
+function MultiArchivoInput({ label, value = [], onChange, accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png' }) {
+    const inputRef = useRef();
+
+    function agregar(e) {
+        const nuevos = Array.from(e.target.files).filter(
+            n => !value.some(a => a.name === n.name && a.size === n.size)
+        );
+        onChange([...value, ...nuevos]);
+        e.target.value = '';
+    }
+
+    return (
+        <div>
+            {label && <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">{label}</label>}
+            <button type="button" onClick={() => inputRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#291136] hover:text-[#291136] transition-colors w-full justify-center">
+                <Paperclip size={15}/> Agregar archivos
+            </button>
+            <input ref={inputRef} type="file" multiple accept={accept} onChange={agregar} className="hidden" />
+            {value.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                    {value.map((f, i) => (
+                        <li key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                            <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
+                            <span className="truncate flex-1 text-[#291136] font-medium">{f.name}</span>
+                            <span className="text-xs text-gray-400 shrink-0">{(f.size/1024/1024).toFixed(2)} MB</span>
+                            <button type="button" onClick={() => onChange(value.filter((_,j) => j !== i))}
+                                className="text-gray-300 hover:text-red-500 transition-colors"><X size={14}/></button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+/* ─── Bloque de Persona (demandante o demandado) ─── */
+function BloquePersona({ titulo, icono: Icono, campos, setCampos, errors, deshabilitado, conRepresentante }) {
+    const [tipoPersona,   setTipoPersona]   = useState(campos.tipo_persona   || 'natural');
+    const [tipoDoc,       setTipoDoc]       = useState(campos.tipo_documento  || 'dni');
+    const [cargando,      setCargando]      = useState(false);
+    const [bloqueado,     setBloqueado]     = useState(false);
+    const [modoManual,    setModoManual]    = useState(false);
+    const timerRef = useRef();
+
+    const opcionesDoc = tipoPersona === 'juridica'
+        ? [{ id: 'ruc', nombre: 'RUC (11 dígitos)' }]
+        : [{ id: 'dni', nombre: 'DNI (8 dígitos)' }, { id: 'ce', nombre: 'Carné de Extranjería' }];
+
+    function cambiarPersona(val) {
+        const nuevoDoc = docDefaultPorPersona(val);
+        setTipoPersona(val);
+        setTipoDoc(nuevoDoc);
+        setBloqueado(false); setModoManual(false);
+        setCampos({ tipo_persona: val, tipo_documento: nuevoDoc, documento: '', nombre: '', domicilio: '' });
+    }
+
+    function cambiarTipoDoc(val) {
+        setTipoDoc(val);
+        setBloqueado(false); setModoManual(false);
+        setCampos({ tipo_documento: val, documento: '', nombre: '', domicilio: '' });
+    }
+
+    function onDocChange(val) {
+        const clean = val.replace(/\D/g, '');
+        // Auto-detectar: 11 dígitos empezando con 2 = RUC
+        if (clean.length === 11 && clean.startsWith('2') && tipoDoc !== 'ruc') {
+            setTipoDoc('ruc'); setTipoPersona('juridica');
+            setCampos({ tipo_persona: 'juridica', tipo_documento: 'ruc', documento: clean });
+            consultarAPI('ruc', clean);
+            return;
+        }
+        setCampos({ documento: clean });
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => consultarAPI(tipoDoc, clean), 500);
+    }
+
+    async function consultarAPI(tipo, numero) {
+        const lon = LONG_DOC[tipo];
+        if (lon && numero.length !== lon) return;
+        if (tipo === 'ce' && numero.length < 6) return;
+
+        setCargando(true); setModoManual(false);
+        try {
+            const { data } = await axios.get(route('consulta.documento'), { params: { tipo, numero } });
+            setCampos({ nombre: data.nombre ?? '', domicilio: data.domicilio ?? '' });
+            setBloqueado(true);
+        } catch (err) {
+            if (err.response?.status === 404) {
+                toast('Documento no encontrado. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
+            } else {
+                toast('Consulta no disponible. Complete manualmente.', { icon: '⚠️', duration: 3000 });
+            }
+            setModoManual(true); setBloqueado(false);
+        } finally {
+            setCargando(false);
+        }
+    }
+
+    function limpiarDoc() {
+        setBloqueado(false); setModoManual(false);
+        setCampos({ documento: '', nombre: '', domicilio: '' });
+    }
+
+    const lon       = LONG_DOC[tipoDoc];
+    const docValido = lon ? campos.documento?.length === lon : (campos.documento?.length ?? 0) >= 6;
+    const esLocked  = bloqueado && !modoManual && !deshabilitado;
+
+    return (
+        <Seccion icono={Icono} titulo={titulo}>
+            <div className="space-y-4">
+                {/* Tipo persona */}
+                <div>
+                    <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                        Tipo de persona <span className="text-[#BE0F4A]">*</span>
+                    </label>
+                    <CustomSelect value={tipoPersona} onChange={cambiarPersona}
+                        options={TIPOS_PERSONA} placeholder={null} disabled={deshabilitado} />
+                </div>
+
+                {/* Tipo doc + Número */}
+                <div className="grid grid-cols-5 gap-3">
+                    <div className="col-span-2">
+                        <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                            Tipo doc. <span className="text-[#BE0F4A]">*</span>
+                        </label>
+                        <CustomSelect value={tipoDoc} onChange={cambiarTipoDoc}
+                            options={opcionesDoc} placeholder={null}
+                            disabled={deshabilitado || tipoPersona === 'juridica'} />
+                    </div>
+                    <div className="col-span-3">
+                        <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                            N° documento <span className="text-[#BE0F4A]">*</span>
+                            {lon && <span className="text-gray-400 font-normal ml-1">({lon} díg.)</span>}
+                        </label>
+                        <div className="relative">
+                            <input type="text" value={campos.documento ?? ''}
+                                onChange={e => onDocChange(e.target.value)}
+                                disabled={deshabilitado}
+                                maxLength={lon ?? 20}
+                                placeholder={tipoDoc === 'ruc' ? '20xxxxxxxxx' : tipoDoc === 'dni' ? '12345678' : ''}
+                                className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 transition-colors ${
+                                    errors?.documento ? 'border-red-400 bg-red-50' :
+                                    docValido && bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
+                                }`}
+                            />
+                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
+                                {cargando && <Loader2 size={14} className="animate-spin text-gray-400"/>}
+                                {!cargando && bloqueado && !deshabilitado &&
+                                    <button type="button" onClick={limpiarDoc} title="Limpiar">
+                                        <X size={14} className="text-gray-400 hover:text-red-500"/>
+                                    </button>}
+                                {!cargando && !bloqueado && docValido &&
+                                    <CheckCircle2 size={14} className="text-emerald-500"/>}
+                            </div>
+                        </div>
+                        {errors?.documento && <p className="text-xs text-red-500 mt-1">{errors.documento}</p>}
+                    </div>
+                </div>
+
+                {bloqueado && (
+                    <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                        <Lock size={12}/> Datos verificados automáticamente vía RENIEC/SUNAT
+                    </div>
+                )}
+                {modoManual && (
+                    <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        <Unlock size={12}/> Complete los datos manualmente
+                    </div>
+                )}
+
+                {/* Nombre */}
+                <Input label={tipoPersona === 'juridica' ? 'Razón Social' : 'Nombre completo'} required
+                    type="text" value={campos.nombre ?? ''}
+                    onChange={e => setCampos({ nombre: e.target.value })}
+                    disabled={deshabilitado || esLocked}
+                    placeholder={tipoPersona === 'juridica' ? 'Empresa S.A.C.' : 'Juan Pérez López'}
+                    error={errors?.nombre} />
+
+                {/* Representante legal */}
+                {tipoPersona === 'juridica' && conRepresentante && (
+                    <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <Input label="Representante Legal" type="text"
+                            value={campos.nombre_representante ?? ''}
+                            onChange={e => setCampos({ nombre_representante: e.target.value })} />
+                        <Input label="DNI del Representante" type="text"
+                            value={campos.documento_representante ?? ''}
+                            onChange={e => setCampos({ documento_representante: e.target.value })} />
+                    </div>
+                )}
+
+                {/* Domicilio */}
+                <Input label="Domicilio de notificación" required type="text"
+                    value={campos.domicilio ?? ''}
+                    onChange={e => setCampos({ domicilio: e.target.value })}
+                    disabled={deshabilitado || esLocked}
+                    placeholder="Dirección completa"
+                    error={errors?.domicilio} />
+            </div>
+        </Seccion>
+    );
+}
+
+/* ─── Formulario principal ─── */
 export default function ArbitrajeForm({ servicio }) {
     const { auth } = usePage().props;
     const isAuth = !!auth?.user;
     const user   = auth?.user;
 
-    const [aceptoLegal, setAceptoLegal]   = useState(isAuth); // Auth ya aceptó al registrarse
-    const [modalLegal, setModalLegal]     = useState(false);
+    const tipoPersInicial = isAuth ? (user.tipo_persona || 'natural') : 'natural';
+
+    const [aceptoLegal, setAceptoLegal] = useState(isAuth);
+    const [modalLegal, setModalLegal]   = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
-        servicio_id:                    servicio.id,
-        tipo_persona:                   isAuth ? (user.tipo_persona || 'natural') : 'natural',
-        nombre_demandante:              isAuth ? user.name : '',
-        documento_demandante:           isAuth ? (user.numero_documento || '') : '',
-        nombre_representante:           '',
-        documento_representante:        '',
-        domicilio_demandante:           isAuth ? (user.direccion || '') : '',
-        email_demandante:               isAuth ? user.email : '',
-        telefono_demandante:            isAuth ? (user.telefono || '') : '',
-        nombre_demandado:               '',
-        domicilio_demandado:            '',
-        email_demandado:                '',
-        telefono_demandado:             '',
-        resumen_controversia:           '',
-        pretensiones:                   '',
-        monto_involucrado:              '',
-        solicita_designacion_director:  1,
-        nombre_arbitro_propuesto:       '',
-        email_arbitro_propuesto:        '',
-        domicilio_arbitro_propuesto:    '',
-        reglas_aplicables:              '',
-        documentos_controversia:        [],
-        documentos_anexos:              [],
+        servicio_id:                   servicio.id,
+        // Demandante
+        tipo_persona:                  tipoPersInicial,
+        tipo_documento:                docDefaultPorPersona(tipoPersInicial),
+        nombre_demandante:             isAuth ? user.name : '',
+        documento_demandante:          isAuth ? (user.numero_documento || '') : '',
+        nombre_representante:          '',
+        documento_representante:       '',
+        domicilio_demandante:          isAuth ? (user.direccion || '') : '',
+        email_demandante:              isAuth ? user.email : '',
+        telefono_demandante:           isAuth ? (user.telefono || '') : '',
+        // Demandado
+        tipo_persona_demandado:        'natural',
+        tipo_documento_demandado:      'dni',
+        nombre_demandado:              '',
+        documento_demandado:           '',
+        domicilio_demandado:           '',
+        email_demandado:               '',
+        telefono_demandado:            '',
+        // Controversia
+        resumen_controversia:          '',
+        pretensiones:                  '',
+        monto_involucrado:             '',
+        documentos_controversia:       [],
+        // Árbitro
+        solicita_designacion_director: 1,
+        nombre_arbitro_propuesto:      '',
+        email_arbitro_propuesto:       '',
+        domicilio_arbitro_propuesto:   '',
+        reglas_aplicables:             '',
+        // Adjuntos
+        documentos_anexos:             [],
     });
 
-    // Mostrar toast cuando llegan errores del servidor
+    // Helpers para sub-objetos de demandante/demandado
+    const setCamposDem  = useCallback((cambios) => setData(d => ({
+        ...d,
+        ...(cambios.tipo_persona   !== undefined ? { tipo_persona:         cambios.tipo_persona }   : {}),
+        ...(cambios.tipo_documento !== undefined ? { tipo_documento:        cambios.tipo_documento }  : {}),
+        ...(cambios.documento      !== undefined ? { documento_demandante:  cambios.documento }       : {}),
+        ...(cambios.nombre         !== undefined ? { nombre_demandante:     cambios.nombre }          : {}),
+        ...(cambios.domicilio      !== undefined ? { domicilio_demandante:  cambios.domicilio }       : {}),
+        ...(cambios.nombre_representante      !== undefined ? { nombre_representante:     cambios.nombre_representante }     : {}),
+        ...(cambios.documento_representante   !== undefined ? { documento_representante:  cambios.documento_representante }  : {}),
+    })), [setData]);
+
+    const setCamposDado = useCallback((cambios) => setData(d => ({
+        ...d,
+        ...(cambios.tipo_persona   !== undefined ? { tipo_persona_demandado:   cambios.tipo_persona }   : {}),
+        ...(cambios.tipo_documento !== undefined ? { tipo_documento_demandado: cambios.tipo_documento }  : {}),
+        ...(cambios.documento      !== undefined ? { documento_demandado:      cambios.documento }       : {}),
+        ...(cambios.nombre         !== undefined ? { nombre_demandado:         cambios.nombre }          : {}),
+        ...(cambios.domicilio      !== undefined ? { domicilio_demandado:      cambios.domicilio }       : {}),
+    })), [setData]);
+
     const prevErrors = useRef({});
     useEffect(() => {
         if (errors.general && errors.general !== prevErrors.current.general) {
             toast.error(errors.general, { position: 'top-center', duration: 6000 });
-            // Scroll al mensaje de error
-            document.getElementById('error-general')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         prevErrors.current = errors;
     }, [errors]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!aceptoLegal) { setModalLegal(true); return; }
 
-        if (!aceptoLegal) {
-            setModalLegal(true);
-            return;
-        }
-
-        // Validación mínima antes de enviar
-        const requeridos = {
-            nombre_demandante:   'Nombre del demandante',
-            documento_demandante:'Documento del demandante',
-            domicilio_demandante:'Domicilio del demandante',
-            email_demandante:    'Correo del demandante',
-            telefono_demandante: 'Teléfono del demandante',
-            nombre_demandado:    'Nombre del demandado',
-            domicilio_demandado: 'Domicilio del demandado',
-            resumen_controversia:'Resumen de la controversia',
-            pretensiones:        'Pretensiones',
+        const reqs = {
+            nombre_demandante:    'Nombre del demandante',
+            documento_demandante: 'Documento del demandante',
+            domicilio_demandante: 'Domicilio del demandante',
+            email_demandante:     'Correo del demandante',
+            telefono_demandante:  'Teléfono del demandante',
+            nombre_demandado:     'Nombre del demandado',
+            domicilio_demandado:  'Domicilio del demandado',
+            resumen_controversia: 'Resumen de la controversia',
+            pretensiones:         'Pretensiones',
         };
-
-        for (const [campo, etiqueta] of Object.entries(requeridos)) {
+        for (const [campo, label] of Object.entries(reqs)) {
             if (!data[campo]?.trim()) {
-                toast.error(`El campo "${etiqueta}" es obligatorio`, { position: 'top-center' });
-                document.getElementById(campo)?.focus();
+                toast.error(`"${label}" es obligatorio`, { position: 'top-center' });
                 return;
             }
         }
-
+        const lon = LONG_DOC[data.tipo_documento];
+        if (lon && data.documento_demandante.length !== lon) {
+            toast.error(`Documento del demandante debe tener ${lon} dígitos`, { position: 'top-center' });
+            return;
+        }
 
         post(route('solicitud.arbitraje.store'), {
             preserveScroll: true,
             forceFormData:  true,
-            onError: (errs) => {
-                const primero = Object.values(errs)[0];
-                toast.error(primero || 'Revise los campos marcados', { position: 'top-center' });
-            },
+            onError: (errs) => toast.error(Object.values(errs)[0] || 'Revise los campos', { position: 'top-center' }),
         });
     };
 
@@ -123,193 +359,99 @@ export default function ArbitrajeForm({ servicio }) {
         <>
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
-            {/* ── Demandante ── */}
-            <Seccion icono={User} titulo="Sus Datos (Demandante)">
+            <BloquePersona
+                icono={User} titulo="Sus Datos (Demandante)"
+                campos={{
+                    tipo_persona: data.tipo_persona,
+                    tipo_documento: data.tipo_documento,
+                    documento: data.documento_demandante,
+                    nombre: data.nombre_demandante,
+                    domicilio: data.domicilio_demandante,
+                    nombre_representante: data.nombre_representante,
+                    documento_representante: data.documento_representante,
+                }}
+                setCampos={setCamposDem}
+                errors={{ documento: errors.documento_demandante, nombre: errors.nombre_demandante, domicilio: errors.domicilio_demandante }}
+                deshabilitado={isAuth}
+                conRepresentante={true}
+            >
                 {isAuth && (
                     <div className="flex items-center gap-2 mb-5 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-xs font-semibold text-green-700">
-                        <CheckCircle2 size={14} />
-                        Identidad verificada — sus datos se han cargado automáticamente
+                        <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
                     </div>
                 )}
+            </BloquePersona>
 
-                <div className="mb-5">
-                    <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                        Tipo de persona <span className="text-[#BE0F4A]">*</span>
-                    </label>
-                    <CustomSelect
-                        value={data.tipo_persona}
-                        onChange={val => setData('tipo_persona', val)}
-                        options={opcionesTipoPersona}
-                        placeholder={null}
-                        disabled={isAuth}
-                    />
-                </div>
-
+            {/* Email y teléfono del demandante fuera del bloque persona */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <Input
-                            id="nombre_demandante"
-                            label={data.tipo_persona === 'juridica' ? 'Razón Social' : 'Nombre completo'}
-                            required type="text"
-                            value={data.nombre_demandante}
-                            onChange={e => setData('nombre_demandante', e.target.value)}
-                            disabled={isAuth}
-                            placeholder="Juan Pérez López"
-                            error={errors.nombre_demandante}
-                        />
-                    </div>
-                    <Input
-                        id="documento_demandante"
-                        label={data.tipo_persona === 'juridica' ? 'RUC' : 'DNI / CE'}
-                        required type="text"
-                        value={data.documento_demandante}
-                        onChange={e => setData('documento_demandante', e.target.value)}
-                        disabled={isAuth}
-                        placeholder="12345678"
-                        error={errors.documento_demandante}
-                    />
-                    <Input
-                        id="email_demandante"
-                        label="Correo electrónico" required type="email"
-                        value={data.email_demandante}
-                        onChange={e => setData('email_demandante', e.target.value)}
-                        disabled={isAuth}
-                        placeholder="correo@ejemplo.com"
-                        error={errors.email_demandante}
-                    />
+                    <Input id="email_demandante" label="Correo electrónico" required type="email"
+                        value={data.email_demandante} onChange={e => setData('email_demandante', e.target.value)}
+                        disabled={isAuth} placeholder="correo@ejemplo.com" error={errors.email_demandante} />
+                    <Input id="telefono_demandante" label="Teléfono" required type="text"
+                        value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
+                        disabled={isAuth} placeholder="987654321" error={errors.telefono_demandante} />
                 </div>
+            </div>
 
-                {data.tipo_persona === 'juridica' && (
-                    <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200 mb-4">
-                        <Input label="Representante Legal" type="text"
-                            value={data.nombre_representante}
-                            onChange={e => setData('nombre_representante', e.target.value)} />
-                        <Input label="DNI del Representante" type="text"
-                            value={data.documento_representante}
-                            onChange={e => setData('documento_representante', e.target.value)} />
-                    </div>
-                )}
+            <BloquePersona
+                icono={Users} titulo="Datos del Demandado"
+                campos={{
+                    tipo_persona: data.tipo_persona_demandado,
+                    tipo_documento: data.tipo_documento_demandado,
+                    documento: data.documento_demandado,
+                    nombre: data.nombre_demandado,
+                    domicilio: data.domicilio_demandado,
+                }}
+                setCampos={setCamposDado}
+                errors={{ documento: errors.documento_demandado, nombre: errors.nombre_demandado, domicilio: errors.domicilio_demandado }}
+                deshabilitado={false}
+                conRepresentante={false}
+            />
 
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-2">
-                        <Input
-                            id="domicilio_demandante"
-                            label="Domicilio de notificación" required type="text"
-                            value={data.domicilio_demandante}
-                            onChange={e => setData('domicilio_demandante', e.target.value)}
-                            disabled={isAuth}
-                            placeholder="Dirección completa"
-                            error={errors.domicilio_demandante}
-                        />
-                    </div>
-                    <Input
-                        id="telefono_demandante"
-                        label="Teléfono" required type="text"
-                        value={data.telefono_demandante}
-                        onChange={e => setData('telefono_demandante', e.target.value)}
-                        disabled={isAuth}
-                        placeholder="987654321"
-                        error={errors.telefono_demandante}
-                    />
-                </div>
-            </Seccion>
-
-            {/* ── Demandado ── */}
-            <Seccion icono={Users} titulo="Datos del Demandado">
-                <div className="col-span-2">
-                    <Input
-                        id="nombre_demandado"
-                        label="Nombre completo / Razón Social" required type="text"
-                        value={data.nombre_demandado}
-                        onChange={e => setData('nombre_demandado', e.target.value)}
-                        placeholder="Nombre o razón social de a quién demanda"
-                        error={errors.nombre_demandado}
-                    />
-                </div>
-                <Input
-                    id="domicilio_demandado"
-                    label="Domicilio de notificación" required type="text"
-                    value={data.domicilio_demandado}
-                    onChange={e => setData('domicilio_demandado', e.target.value)}
-                    placeholder="Dirección exacta del demandado"
-                    error={errors.domicilio_demandado}
-                />
+            {/* Email y teléfono del demandado */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <Input label="Correo electrónico" type="email"
-                        value={data.email_demandado}
-                        onChange={e => setData('email_demandado', e.target.value)}
+                    <Input label="Correo electrónico del demandado" type="email"
+                        value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
                         placeholder="correo@ejemplo.com" />
-                    <Input label="Teléfono" type="text"
-                        value={data.telefono_demandado}
-                        onChange={e => setData('telefono_demandado', e.target.value)}
+                    <Input label="Teléfono del demandado" type="text"
+                        value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
                         placeholder="987654321" />
                 </div>
-            </Seccion>
+            </div>
 
-            {/* ── Controversia ── */}
+            {/* Controversia */}
             <Seccion icono={Scale} titulo="Materia de la Controversia">
-                <Textarea
-                    id="resumen_controversia"
-                    label="Resumen de la controversia" required
-                    value={data.resumen_controversia}
-                    onChange={e => setData('resumen_controversia', e.target.value)}
-                    placeholder="Describa brevemente los hechos y el origen del conflicto..."
-                    rows={4}
-                    error={errors.resumen_controversia}
-                />
-                <Textarea
-                    id="pretensiones"
-                    label="Pretensiones" required
-                    value={data.pretensiones}
-                    onChange={e => setData('pretensiones', e.target.value)}
-                    placeholder="Indique qué solicita al tribunal arbitral..."
-                    rows={4}
-                    error={errors.pretensiones}
-                />
+                <Textarea id="resumen_controversia" label="Resumen de la controversia" required
+                    value={data.resumen_controversia} onChange={e => setData('resumen_controversia', e.target.value)}
+                    placeholder="Describa brevemente los hechos y el origen del conflicto..." rows={4}
+                    error={errors.resumen_controversia} />
+                <Textarea id="pretensiones" label="Pretensiones" required
+                    value={data.pretensiones} onChange={e => setData('pretensiones', e.target.value)}
+                    placeholder="Indique qué solicita al tribunal arbitral..." rows={4}
+                    error={errors.pretensiones} />
                 <Input label="Monto involucrado (S/)" type="number" min="0" step="0.01"
-                    value={data.monto_involucrado}
-                    onChange={e => setData('monto_involucrado', e.target.value)}
-                    placeholder="Ej: 50000.00"
-                    error={errors.monto_involucrado}
-                />
-
+                    value={data.monto_involucrado} onChange={e => setData('monto_involucrado', e.target.value)}
+                    placeholder="Ej: 50000.00" error={errors.monto_involucrado} />
                 <div className="mt-4">
-                    <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
-                        Documentos de la Controversia <span className="text-gray-400 font-normal">(contratos, evidencias — opcional)</span>
-                    </label>
-                    <input
-                        type="file" multiple
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        onChange={e => setData('documentos_controversia', Array.from(e.target.files))}
-                        className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#291136]/5 file:text-[#291136] hover:file:bg-[#291136]/10 cursor-pointer border border-gray-200 rounded-xl"
-                    />
-                    {data.documentos_controversia.length > 0 && (
-                        <ul className="mt-2 space-y-1">
-                            {data.documentos_controversia.map((f, i) => (
-                                <li key={i} className="text-xs text-gray-600 flex items-center gap-1.5">
-                                    <FileText size={12} className="text-[#BE0F4A]" /> {f.name}
-                                    <span className="text-gray-400">({(f.size/1024/1024).toFixed(2)} MB)</span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                    <MultiArchivoInput
+                        label="Documentos de la Controversia (contratos, evidencias — opcional)"
+                        value={data.documentos_controversia}
+                        onChange={v => setData('documentos_controversia', v)} />
                 </div>
             </Seccion>
 
-            {/* ── Arbitraje ── */}
+            {/* Árbitro */}
             <Seccion icono={FileText} titulo="Conformación del Tribunal">
                 <div className="mb-5">
                     <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
                         Designación de Árbitro <span className="text-[#BE0F4A]">*</span>
                     </label>
-                    <CustomSelect
-                        value={data.solicita_designacion_director}
+                    <CustomSelect value={data.solicita_designacion_director}
                         onChange={val => setData('solicita_designacion_director', val)}
-                        options={opcionesSiNo}
-                        placeholder={null}
-                    />
+                        options={OPCIONES_ARBITRO} placeholder={null} />
                 </div>
-
                 {data.solicita_designacion_director === 0 && (
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 gap-4">
                         <div className="col-span-2">
@@ -325,101 +467,59 @@ export default function ArbitrajeForm({ servicio }) {
                             onChange={e => setData('domicilio_arbitro_propuesto', e.target.value)} />
                     </div>
                 )}
-
                 <Input label="Reglas aplicables" type="text"
-                    value={data.reglas_aplicables}
-                    onChange={e => setData('reglas_aplicables', e.target.value)}
+                    value={data.reglas_aplicables} onChange={e => setData('reglas_aplicables', e.target.value)}
                     placeholder="Ej: Reglamento Ankawa, UNCITRAL..." />
             </Seccion>
 
-
-            {/* ── Documentos Adjuntos ── */}
+            {/* Adjuntos */}
             <Seccion icono={Paperclip} titulo="Documentos Adjuntos (opcional)">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
                     <p className="text-sm text-blue-800">
-                        Puede adjuntar documentos de respaldo como DNI, poderes notariales, comprobantes de pago, etc.
-                        Estos quedarán registrados junto a su solicitud.
+                        Adjunte DNI, poderes notariales, comprobantes u otros documentos de respaldo.
+                        Puede agregar varios archivos uno a uno.
                     </p>
                 </div>
-                <div>
-                    <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                        Subir Archivos
-                    </label>
-                    <input
-                        type="file" multiple
-                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                        onChange={e => setData('documentos_anexos', Array.from(e.target.files))}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-[#291136]/5 file:text-[#291136] hover:file:bg-[#291136]/10 cursor-pointer border border-gray-200 rounded-xl"
-                    />
-                    {data.documentos_anexos.length > 0 && (
-                        <ul className="mt-4 space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            {data.documentos_anexos.map((file, idx) => (
-                                <li key={idx} className="text-sm text-gray-700 flex items-center gap-2 font-medium">
-                                    <FileText size={15} className="text-[#BE0F4A] shrink-0" />
-                                    <span className="truncate">{file.name}</span>
-                                    <span className="text-xs text-gray-400 shrink-0">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
+                <MultiArchivoInput value={data.documentos_anexos} onChange={v => setData('documentos_anexos', v)} />
             </Seccion>
 
-            {/* ── Aviso legal + Enviar ── */}
+            {/* Aviso legal */}
             {!aceptoLegal && (
-                <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 text-sm text-blue-800">
-                        <ShieldCheck size={20} className="text-blue-500 shrink-0" />
-                        <span>Al enviar declara bajo juramento que la información es verídica (Ley N° 29733 — Protección de Datos).</span>
-                    </div>
+                <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-sm text-blue-800">
+                    <ShieldCheck size={20} className="text-blue-500 shrink-0"/>
+                    <span>Al enviar declara bajo juramento que la información es verídica (Ley N° 29733).</span>
                 </div>
             )}
-
             {errors.general && (
                 <div id="error-general" className="mb-5 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-sm text-red-800 font-medium">
-                    <AlertTriangle size={18} className="text-red-500 shrink-0" />
-                    {errors.general}
+                    <AlertTriangle size={18} className="text-red-500 shrink-0"/>{errors.general}
                 </div>
             )}
-
             <div className="flex justify-end">
                 <PrimaryButton type="submit" disabled={processing} className="px-8 py-3 text-base shadow-lg">
                     {processing ? 'Enviando solicitud...' : 'Enviar Solicitud'}
                 </PrimaryButton>
             </div>
-
         </form>
 
-        {/* Modal Legal (solo para no autenticados) */}
+        {/* Modal Legal */}
         {modalLegal && (
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
                     <div className="bg-[#291136] px-6 py-4 flex items-center gap-3">
-                        <ShieldCheck size={22} className="text-[#BE0F4A]" />
+                        <ShieldCheck size={22} className="text-[#BE0F4A]"/>
                         <h3 className="text-white font-bold">Declaración Jurada y Protección de Datos</h3>
                     </div>
                     <div className="p-6 max-h-80 overflow-y-auto text-sm text-gray-600 leading-relaxed space-y-3">
-                        <p>
-                            De conformidad con la <strong>Ley N° 29733 — Ley de Protección de Datos Personales</strong>
-                            y su Reglamento (D.S. 003-2013-JUS), el Centro de Arbitraje Ankawa Internacional le informa que:
-                        </p>
+                        <p>De conformidad con la <strong>Ley N° 29733</strong> y D.S. 003-2013-JUS:</p>
                         <ul className="space-y-2 pl-4">
-                            <li className="flex gap-2"><ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5" />
-                                Sus datos serán tratados exclusivamente para la gestión del proceso arbitral.
-                            </li>
-                            <li className="flex gap-2"><ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5" />
-                                No serán transferidos a terceros sin su consentimiento, salvo mandato legal.
-                            </li>
-                            <li className="flex gap-2"><ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5" />
-                                Tiene derecho de acceso, rectificación, cancelación y oposición (derechos ARCO).
-                            </li>
+                            <li className="flex gap-2"><ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>Sus datos serán usados exclusivamente para la gestión del proceso arbitral.</li>
+                            <li className="flex gap-2"><ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>No serán transferidos a terceros sin su consentimiento, salvo mandato legal.</li>
+                            <li className="flex gap-2"><ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>Tiene derechos ARCO (Acceso, Rectificación, Cancelación, Oposición).</li>
                         </ul>
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-3">
                             <p className="font-bold text-amber-800 mb-1">Declaración Jurada</p>
-                            <p className="text-amber-700">
-                                El suscrito declara bajo juramento que la información proporcionada es
-                                verídica conforme al D.L. 1071.
-                            </p>
+                            <p className="text-amber-700">Declaro bajo juramento que la información es verídica conforme al D.L. 1071.</p>
                         </div>
                     </div>
                     <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
@@ -429,8 +529,7 @@ export default function ArbitrajeForm({ servicio }) {
                         </button>
                         <button onClick={() => { setAceptoLegal(true); setModalLegal(false); setTimeout(() => document.querySelector('form')?.requestSubmit(), 50); }}
                             className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#9c0a3b]">
-                            <CheckCircle2 size={16} />
-                            Acepto y Envío
+                            <CheckCircle2 size={16}/> Acepto y Envío
                         </button>
                     </div>
                 </div>
