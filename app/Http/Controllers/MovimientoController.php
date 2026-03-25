@@ -50,7 +50,10 @@ class MovimientoController extends Controller
         $archivos = $request->file('documentos') ?? [];
         $notificarA = $request->notificar_a ?? [];
 
-        $this->movimientoService->crear($expediente, $datos, $archivos, $notificarA);
+        // Si no hay responsable, es una "Actuación Propia" → se crea ya como respondido
+        $estadoInicial = empty($datos['usuario_responsable_id']) ? 'respondido' : 'pendiente';
+
+        $this->movimientoService->crear($expediente, $datos, $archivos, $notificarA, $estadoInicial);
 
         return back()->with('success', 'Movimiento registrado correctamente.');
     }
@@ -146,6 +149,42 @@ class MovimientoController extends Controller
         );
 
         return back()->with('success', 'Respuesta registrada y nuevo movimiento creado.');
+    }
+
+    /**
+     * Resolver un movimiento respondido (solo Gestor).
+     * Aprueba, observa, rechaza, valida, etc. según tipos_resolucion_movimiento.
+     */
+    public function resolver(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
+    {
+        abort_unless($movimiento->expediente_id === $expediente->id, 404);
+        abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403);
+        abort_unless($movimiento->puedeSerResuelto(), 422, 'Este movimiento no puede ser resuelto.');
+
+        $tipoResolucion = \App\Models\TipoResolucionMovimiento::findOrFail($request->resolucion_tipo_id);
+
+        $request->validate([
+            'resolucion_tipo_id' => 'required|exists:tipos_resolucion_movimiento,id',
+            'resolucion_nota'    => ($tipoResolucion->requiere_nota ? 'required' : 'nullable') . '|string|max:2000',
+        ]);
+
+        $movimiento->update([
+            'resolucion_tipo_id' => $request->resolucion_tipo_id,
+            'resolucion_nota'    => $request->resolucion_nota,
+            'resuelto_por'       => auth()->id(),
+            'fecha_resolucion'   => now(),
+        ]);
+
+        \App\Models\ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => auth()->id(),
+            'tipo_evento'   => 'movimiento_resuelto',
+            'descripcion'   => "Movimiento resuelto como «{$tipoResolucion->nombre}»: {$movimiento->instruccion}",
+            'datos_extra'   => ['movimiento_id' => $movimiento->id, 'resolucion' => $tipoResolucion->nombre],
+            'created_at'    => now(),
+        ]);
+
+        return back()->with('success', "Movimiento marcado como «{$tipoResolucion->nombre}».");
     }
 
     /**

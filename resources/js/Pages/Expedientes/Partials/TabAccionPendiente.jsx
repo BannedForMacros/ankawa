@@ -28,7 +28,7 @@ export default function TabAccionPendiente({
         nuevo_dias_plazo: '',
         nuevo_tipo_documento_requerido_id: '',
         documentos_nuevo: [],
-        notificar_a: [],
+        notificar_a: actoresNotificables.map(a => a.id),
     });
 
     // Sub-etapas del nuevo movimiento

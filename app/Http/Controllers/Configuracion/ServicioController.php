@@ -34,17 +34,21 @@ class ServicioController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nombre'      => 'required|string|max:255|unique:servicios,nombre',
-            'descripcion' => 'nullable|string',
+            'nombre'                   => 'required|string|max:255|unique:servicios,nombre',
+            'descripcion'              => 'nullable|string',
+            'plazo_subsanacion_dias'   => 'nullable|integer|min:1|max:365',
+            'plazo_apersonamiento_dias'=> 'nullable|integer|min:1|max:365',
         ], [
             'nombre.required' => 'El nombre del servicio es obligatorio.',
             'nombre.unique'   => 'Ya existe un servicio con ese nombre.',
         ]);
 
         Servicio::create([
-            'nombre'      => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'activo'      => 1,
+            'nombre'                   => $request->nombre,
+            'descripcion'              => $request->descripcion,
+            'plazo_subsanacion_dias'   => $request->plazo_subsanacion_dias ?? 5,
+            'plazo_apersonamiento_dias'=> $request->plazo_apersonamiento_dias ?? 5,
+            'activo'                   => 1,
         ]);
 
         return back()->with('success', 'Servicio creado correctamente.');
@@ -53,18 +57,22 @@ class ServicioController extends Controller
     public function update(Request $request, Servicio $servicio)
     {
         $request->validate([
-            'nombre'      => 'required|string|max:255|unique:servicios,nombre,' . $servicio->id,
-            'descripcion' => 'nullable|string',
-            'activo'      => 'required|in:0,1',
+            'nombre'                   => 'required|string|max:255|unique:servicios,nombre,' . $servicio->id,
+            'descripcion'              => 'nullable|string',
+            'activo'                   => 'required|in:0,1',
+            'plazo_subsanacion_dias'   => 'nullable|integer|min:1|max:365',
+            'plazo_apersonamiento_dias'=> 'nullable|integer|min:1|max:365',
         ], [
             'nombre.required' => 'El nombre del servicio es obligatorio.',
             'nombre.unique'   => 'Ya existe un servicio con ese nombre.',
         ]);
 
         $servicio->update([
-            'nombre'      => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'activo'      => $request->activo,
+            'nombre'                   => $request->nombre,
+            'descripcion'              => $request->descripcion,
+            'activo'                   => $request->activo,
+            'plazo_subsanacion_dias'   => $request->plazo_subsanacion_dias ?? $servicio->plazo_subsanacion_dias,
+            'plazo_apersonamiento_dias'=> $request->plazo_apersonamiento_dias ?? $servicio->plazo_apersonamiento_dias,
         ]);
 
         return back()->with('success', 'Servicio actualizado correctamente.');

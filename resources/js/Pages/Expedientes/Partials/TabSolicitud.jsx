@@ -1,10 +1,13 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Pencil, X, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
 
 export default function TabSolicitud({ expediente, solicitud, esGestor = false }) {
     const [editando, setEditando] = useState(false);
     const [showNoConforme, setShowNoConforme] = useState(false);
+    const [motivoNoConforme, setMotivoNoConforme] = useState('');
+    const [procesando, setProcesando] = useState(false);
+    const [errores, setErrores] = useState({});
 
     // ── Form para editar datos de la solicitud ──
     const formEdit = useForm({
@@ -24,12 +27,6 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false }
         monto_involucrado: solicitud.monto_involucrado ?? '',
     });
 
-    // ── Form para conformidad ──
-    const formConformidad = useForm({
-        resultado: '',
-        motivo_no_conformidad: '',
-    });
-
     function guardarEdicion(e) {
         e.preventDefault();
         formEdit.put(route('expedientes.solicitud.update', expediente.id), {
@@ -39,18 +36,30 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false }
 
     function declararConforme() {
         if (!confirm('¿Está seguro de declarar la solicitud como CONFORME? Se notificará al demandado.')) return;
-        formConformidad.transform(() => ({
-            resultado: 'conforme',
-            motivo_no_conformidad: '',
-        })).post(route('expedientes.conformidad', expediente.id));
+        setProcesando(true);
+        router.post(
+            route('expedientes.conformidad', expediente.id),
+            { resultado: 'conforme', motivo_no_conformidad: '' },
+            { onFinish: () => setProcesando(false) }
+        );
     }
 
     function declararNoConforme(e) {
         e.preventDefault();
-        formConformidad.transform(data => ({
-            ...data,
-            resultado: 'no_conforme',
-        })).post(route('expedientes.conformidad', expediente.id));
+        setErrores({});
+        if (!motivoNoConforme.trim()) {
+            setErrores({ motivo_no_conformidad: 'El motivo es obligatorio.' });
+            return;
+        }
+        setProcesando(true);
+        router.post(
+            route('expedientes.conformidad', expediente.id),
+            { resultado: 'no_conforme', motivo_no_conformidad: motivoNoConforme },
+            {
+                onFinish: () => setProcesando(false),
+                onError: (errs) => setErrores(errs),
+            }
+        );
     }
 
     const campo = (label, value) => (
@@ -265,27 +274,27 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false }
                             <div>
                                 <label className="block text-xs font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
                                 <textarea
-                                    value={formConformidad.data.motivo_no_conformidad}
-                                    onChange={e => formConformidad.setData('motivo_no_conformidad', e.target.value)}
+                                    value={motivoNoConforme}
+                                    onChange={e => setMotivoNoConforme(e.target.value)}
                                     rows={3}
                                     className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                                     placeholder="Indique los motivos por los que la solicitud no es conforme..."
                                 />
-                                {formConformidad.errors.motivo_no_conformidad && (
-                                    <p className="text-xs text-red-500 mt-1">{formConformidad.errors.motivo_no_conformidad}</p>
+                                {errores.motivo_no_conformidad && (
+                                    <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>
                                 )}
                             </div>
                             <div className="flex gap-2">
                                 <button
                                     type="submit"
-                                    disabled={formConformidad.processing}
+                                    disabled={procesando}
                                     className="px-4 py-2 text-xs font-bold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                                 >
                                     Confirmar No Conforme
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setShowNoConforme(false)}
+                                    onClick={() => { setShowNoConforme(false); setErrores({}); }}
                                     className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-gray-600"
                                 >
                                     Cancelar
@@ -296,7 +305,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false }
                         <div className="flex gap-3">
                             <button
                                 onClick={declararConforme}
-                                disabled={formConformidad.processing}
+                                disabled={procesando}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                             >
                                 <CheckCircle size={16}/> Declarar Conforme

@@ -66,7 +66,7 @@ class MovimientoService
                 'expediente_id' => $expediente->id,
                 'usuario_id'    => $datos['creado_por'],
                 'tipo_evento'   => 'movimiento_creado',
-                'descripcion'   => "Nuevo movimiento: {$datos['instruccion']}",
+                'descripcion'   => "[{$expediente->numero_expediente}] Nuevo movimiento: {$datos['instruccion']}",
                 'datos_extra'   => ['movimiento_id' => $movimiento->id],
                 'created_at'    => now(),
             ]);

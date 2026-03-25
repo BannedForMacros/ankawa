@@ -25,14 +25,19 @@ class ExpedienteMovimiento extends Model
         'fecha_respuesta',
         'respondido_por',
         'tipo_documento_requerido_id',
+        'resolucion_tipo_id',
+        'resolucion_nota',
+        'resuelto_por',
+        'fecha_resolucion',
         'estado',
         'activo',
     ];
 
     protected $casts = [
-        'fecha_limite'    => 'date',
-        'fecha_respuesta' => 'datetime',
-        'activo'          => 'boolean',
+        'fecha_limite'     => 'date',
+        'fecha_respuesta'  => 'datetime',
+        'fecha_resolucion' => 'datetime',
+        'activo'           => 'boolean',
     ];
 
     public function expediente(): BelongsTo
@@ -78,6 +83,23 @@ class ExpedienteMovimiento extends Model
     public function tipoDocumentoRequerido(): BelongsTo
     {
         return $this->belongsTo(TipoDocumento::class, 'tipo_documento_requerido_id');
+    }
+
+    public function resolucionTipo(): BelongsTo
+    {
+        return $this->belongsTo(TipoResolucionMovimiento::class, 'resolucion_tipo_id');
+    }
+
+    public function resueltoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resuelto_por');
+    }
+
+    public function puedeSerResuelto(): bool
+    {
+        return $this->estado === 'respondido'
+            && $this->usuario_responsable_id !== null
+            && $this->resolucion_tipo_id === null;
     }
 
     public function notificaciones(): HasMany

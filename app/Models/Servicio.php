@@ -13,7 +13,14 @@ class Servicio extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
-        'activo'
+        'activo',
+        'plazo_subsanacion_dias',
+        'plazo_apersonamiento_dias',
+    ];
+
+    protected $casts = [
+        'plazo_subsanacion_dias'    => 'integer',
+        'plazo_apersonamiento_dias' => 'integer',
     ];
 
     public function etapas(): HasMany

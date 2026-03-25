@@ -10,6 +10,8 @@ use App\Models\TipoDocumento;
 use App\Models\ServicioTipoActor;
 use App\Models\SolicitudArbitraje;
 use App\Models\SolicitudSubsanacion;
+use App\Models\TipoResolucionMovimiento;
+use App\Models\ExpedienteActor;
 use App\Models\ExpedienteHistorial;
 use App\Models\User;
 use App\Services\GestorExpedienteService;
@@ -18,6 +20,8 @@ use App\Services\VencimientoService;
 use App\Services\EtapaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ExpedienteController extends Controller
@@ -101,6 +105,7 @@ class ExpedienteController extends Controller
                     'creadoPor', 'respondidoPor',
                     'documentos.subidoPor',
                     'tipoDocumentoRequerido',
+                    'resolucionTipo', 'resueltoPor',
                 ]),
         ]);
 
@@ -142,6 +147,10 @@ class ExpedienteController extends Controller
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
 
+        $tiposResolucion = TipoResolucionMovimiento::where('activo', true)
+            ->orderBy('id')
+            ->get(['id', 'nombre', 'color', 'requiere_nota']);
+
         return Inertia::render('Expedientes/Show', [
             'expediente'           => $expediente,
             'esGestor'             => $esGestor,
@@ -153,6 +162,7 @@ class ExpedienteController extends Controller
             'actoresNotificables'  => $actoresNotificables,
             'plazo'                => $plazo,
             'tiposDocumento'       => $tiposDocumento,
+            'tiposResolucion'      => $tiposResolucion,
         ]);
     }
 
@@ -200,6 +210,32 @@ class ExpedienteController extends Controller
 
         $solicitud->update($request->only($camposEditables));
 
+        // Sincronizar datos en el usuario del demandante (si tiene cuenta)
+        $actorDemandante = ExpedienteActor::where('expediente_id', $expediente->id)
+            ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandante'))
+            ->with('usuario')
+            ->first();
+
+        if ($actorDemandante?->usuario) {
+            $actorDemandante->usuario->update(array_filter([
+                'name'  => $request->nombre_demandante,
+                'email' => $request->email_demandante,
+            ]));
+        }
+
+        // Sincronizar datos en el usuario del demandado (si tiene cuenta)
+        $actorDemandado = ExpedienteActor::where('expediente_id', $expediente->id)
+            ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandado'))
+            ->with('usuario')
+            ->first();
+
+        if ($actorDemandado?->usuario && $request->filled('email_demandado')) {
+            $actorDemandado->usuario->update(array_filter([
+                'name'  => $request->nombre_demandado,
+                'email' => $request->email_demandado,
+            ]));
+        }
+
         ExpedienteHistorial::create([
             'expediente_id' => $expediente->id,
             'usuario_id'    => $user->id,
@@ -235,6 +271,11 @@ class ExpedienteController extends Controller
             'motivo_no_conformidad' => $request->resultado === 'no_conforme' ? $request->motivo_no_conformidad : null,
         ]);
 
+        // Plazos configurables desde el servicio
+        $expediente->loadMissing('servicio');
+        $plazoApersonamiento = $expediente->servicio->plazo_apersonamiento_dias ?? 5;
+        $plazoSubsanacion    = $expediente->servicio->plazo_subsanacion_dias    ?? 5;
+
         if ($request->resultado === 'conforme') {
             $solicitud->update(['estado' => 'admitida']);
 
@@ -253,22 +294,31 @@ class ExpedienteController extends Controller
                 ->with('usuario')
                 ->first();
 
-            $emailDemandado = $demandado?->usuario?->email ?? $solicitud->email_demandado;
-            $nombreDemandado = $demandado?->usuario?->name ?? $solicitud->nombre_demandado;
+            $emailDemandado  = $demandado?->usuario?->email ?? $solicitud->email_demandado;
+            $nombreDemandado = $demandado?->usuario?->name  ?? $solicitud->nombre_demandado;
 
             if ($emailDemandado) {
+                // Generar nueva contraseña temporal para el demandado
+                $passwordRaw = null;
+                if ($demandado?->usuario) {
+                    $passwordRaw = \Str::random(10);
+                    $demandado->usuario->update(['password' => \Hash::make($passwordRaw)]);
+                }
+
                 try {
+                    $credencialesTexto = $passwordRaw
+                        ? "\n\nSus credenciales de acceso a la plataforma:\n  Usuario: {$emailDemandado}\n  Contraseña temporal: {$passwordRaw}\n  (Le recomendamos cambiarla al ingresar)"
+                        : "\n\nIngrese a la plataforma ANKAWA con el correo con el que fue registrado.";
+
                     Mail::raw(
                         "Estimado(a) {$nombreDemandado},\n\n" .
                         "Se le notifica que la solicitud de arbitraje N° {$solicitud->numero_cargo} " .
                         "en el expediente {$expediente->numero_expediente} ha sido declarada CONFORME.\n\n" .
-                        "Se le concede un plazo de 5 días hábiles para apersonarse al proceso.\n\n" .
-                        "Por favor ingrese a la plataforma ANKAWA para más detalles.\n\n" .
-                        "Saludos cordiales.",
-                        function ($message) use ($emailDemandado, $nombreDemandado) {
-                            $message->to($emailDemandado, $nombreDemandado)
-                                    ->subject('Notificación de Apersonamiento - ANKAWA');
-                        }
+                        "Se le concede un plazo de {$plazoApersonamiento} días hábiles para apersonarse al proceso." .
+                        $credencialesTexto .
+                        "\n\nSaludos cordiales.\nCentro de Arbitraje CARD ANKAWA",
+                        fn($msg) => $msg->to($emailDemandado, $nombreDemandado)
+                                        ->subject('Notificación de Apersonamiento - ANKAWA')
                     );
                 } catch (\Exception $e) {
                     \Log::warning("No se pudo enviar email de apersonamiento: " . $e->getMessage());
@@ -285,8 +335,8 @@ class ExpedienteController extends Controller
             'solicitud_id'   => $solicitud->id,
             'registrado_por' => $user->id,
             'observacion'    => $request->motivo_no_conformidad,
-            'plazo_dias'     => 5,
-            'fecha_limite'   => now()->addDays(5)->toDateString(),
+            'plazo_dias'     => $plazoSubsanacion,
+            'fecha_limite'   => now()->addDays($plazoSubsanacion)->toDateString(),
             'estado'         => 'pendiente',
         ]);
 

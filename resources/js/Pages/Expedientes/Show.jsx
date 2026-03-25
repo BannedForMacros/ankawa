@@ -25,13 +25,15 @@ export default function Show({
     actoresNotificables,
     plazo,
     tiposDocumento,
+    tiposResolucion,
 }) {
     const tabs = [];
 
     tabs.push({ id: 'historial', label: 'Historial', Icon: Clock });
 
     if (expediente.solicitud) {
-        tabs.push({ id: 'solicitud', label: 'Solicitud', Icon: ClipboardList });
+        const pendienteRevision = esGestor && !expediente.solicitud.resultado_revision;
+        tabs.push({ id: 'solicitud', label: 'Solicitud', Icon: ClipboardList, alerta: pendienteRevision });
     }
 
     if (esGestor && expediente.estado === 'activo') {
@@ -98,7 +100,7 @@ export default function Show({
 
                     {/* ── Tabs ── */}
                     <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
-                        {tabs.map(({ id, label, Icon }) => (
+                        {tabs.map(({ id, label, Icon, alerta }) => (
                             <button
                                 key={id}
                                 onClick={() => setActiveTab(id)}
@@ -110,7 +112,7 @@ export default function Show({
                             >
                                 <Icon size={15}/>
                                 {label}
-                                {id === 'accion' && (
+                                {(id === 'accion' || alerta) && (
                                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
                                 )}
                             </button>
@@ -124,6 +126,7 @@ export default function Show({
                             solicitud={expediente.solicitud}
                             esGestor={esGestor}
                             expedienteId={expediente.id}
+                            tiposResolucion={tiposResolucion ?? []}
                         />
                     )}
 

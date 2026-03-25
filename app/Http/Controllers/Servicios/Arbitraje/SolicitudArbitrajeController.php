@@ -126,12 +126,12 @@ class SolicitudArbitrajeController extends Controller
                 $expediente,
                 [
                     'etapa_id'    => $etapaInicial?->id,
-                    'instruccion' => 'Envío de solicitud de arbitraje',
+                    'instruccion' => "Envío de solicitud de arbitraje. Expediente asignado: {$numeroExpediente}",
                     'creado_por'  => $userId,
                 ],
                 [],
                 [],
-                'respondido' // estado inicial: ya respondido (informativo)
+                'respondido'
             );
 
             // ── 5. Registrar actores del expediente ──────────────────────────
@@ -215,7 +215,7 @@ class SolicitudArbitrajeController extends Controller
             // ── 7. Generar PDF cargo y enviar correo ─────────────────────────
             $pdfPath = $this->generarCargo($solicitud);
             Mail::to($solicitud->email_demandante, $solicitud->nombre_demandante)
-                ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $pdfPath));
+                ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $pdfPath, $expediente));
 
             DB::commit();
             @unlink($pdfPath);

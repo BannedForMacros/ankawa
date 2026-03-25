@@ -20,7 +20,7 @@ class MovimientoNotificacionMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $this->movimiento->loadMissing('expediente');
+        $this->movimiento->loadMissing(['expediente', 'etapa', 'subEtapa', 'tipoDocumentoRequerido']);
         $numExp = $this->movimiento->expediente->numero_expediente ?? 'S/N';
 
         return new Envelope(

@@ -28,9 +28,11 @@ export default function Index({ servicios }) {
     const [deleting, setDeleting]                 = useState(false);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
-        nombre:      '',
-        descripcion: '',
-        activo:      1,
+        nombre:                    '',
+        descripcion:               '',
+        activo:                    1,
+        plazo_subsanacion_dias:    5,
+        plazo_apersonamiento_dias: 5,
     });
 
     const abrirCrear = () => {
@@ -41,9 +43,11 @@ export default function Index({ servicios }) {
 
     const abrirEditar = (servicio) => {
         setData({
-            nombre:      servicio.nombre,
-            descripcion: servicio.descripcion ?? '',
-            activo:      servicio.activo,
+            nombre:                    servicio.nombre,
+            descripcion:               servicio.descripcion ?? '',
+            activo:                    servicio.activo,
+            plazo_subsanacion_dias:    servicio.plazo_subsanacion_dias ?? 5,
+            plazo_apersonamiento_dias: servicio.plazo_apersonamiento_dias ?? 5,
         });
         setEditando(servicio);
         setShowModal(true);
@@ -199,6 +203,28 @@ export default function Index({ servicios }) {
                             rows={3}
                             error={errors.descripcion}
                         />
+
+                        {/* Plazos configurables */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <Input
+                                label="Plazo subsanación (días)"
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={data.plazo_subsanacion_dias}
+                                onChange={e => setData('plazo_subsanacion_dias', e.target.value)}
+                                error={errors.plazo_subsanacion_dias}
+                            />
+                            <Input
+                                label="Plazo apersonamiento (días)"
+                                type="number"
+                                min="1"
+                                max="365"
+                                value={data.plazo_apersonamiento_dias}
+                                onChange={e => setData('plazo_apersonamiento_dias', e.target.value)}
+                                error={errors.plazo_apersonamiento_dias}
+                            />
+                        </div>
 
                         {/* Estado — solo editar */}
                         {editando && (

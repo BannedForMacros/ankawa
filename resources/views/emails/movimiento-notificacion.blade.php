@@ -5,30 +5,40 @@
     <style>
         body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #1a365d; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header { background: #291136; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .body { background: #f7fafc; padding: 20px; border: 1px solid #e2e8f0; }
         .footer { padding: 15px; text-align: center; font-size: 12px; color: #718096; }
         .info-row { padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
         .label { font-weight: bold; color: #2d3748; }
+        .alert { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 12px; margin: 12px 0; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h2>Notificación de Movimiento</h2>
+            <h2>{{ $movimiento->usuario_responsable_id ? 'Nuevo Requerimiento' : 'Acción Registrada' }}</h2>
+            <p style="margin:0; font-size:13px; opacity:0.85;">
+                Expediente: {{ $movimiento->expediente->numero_expediente ?? 'S/N' }}
+            </p>
         </div>
         <div class="body">
             <p>Estimado(a) <strong>{{ $nombreDestinatario }}</strong>,</p>
 
-            <p>Se ha registrado un nuevo movimiento en el expediente:</p>
+            @if($movimiento->usuario_responsable_id)
+                <p>Se ha registrado un <strong>requerimiento</strong> que requiere su atención:</p>
+            @else
+                <p>Se informa que se ha registrado la siguiente acción en el expediente:</p>
+            @endif
 
+            @if($movimiento->etapa)
             <div class="info-row">
-                <span class="label">Expediente:</span>
-                {{ $movimiento->expediente->numero_expediente ?? 'S/N' }}
+                <span class="label">Etapa:</span>
+                {{ $movimiento->etapa->nombre }}{{ $movimiento->subEtapa ? ' — ' . $movimiento->subEtapa->nombre : '' }}
             </div>
+            @endif
 
             <div class="info-row">
-                <span class="label">Instrucción:</span>
+                <span class="label">{{ $movimiento->usuario_responsable_id ? 'Instrucción' : 'Acción realizada' }}:</span>
                 {{ $movimiento->instruccion }}
             </div>
 
@@ -39,19 +49,26 @@
             </div>
             @endif
 
-            @if($movimiento->fecha_limite)
-            <div class="info-row">
-                <span class="label">Fecha límite:</span>
-                {{ $movimiento->fecha_limite->format('d/m/Y') }}
+            @if($movimiento->usuario_responsable_id && $movimiento->tipoDocumentoRequerido)
+            <div class="alert">
+                <strong>📄 Documento requerido:</strong> {{ $movimiento->tipoDocumentoRequerido->nombre }}
             </div>
             @endif
 
-            <p style="margin-top: 20px;">
-                Ingrese a la plataforma para revisar los detalles del movimiento.
+            @if($movimiento->fecha_limite)
+            <div class="info-row">
+                <span class="label">⏰ Fecha límite:</span>
+                <strong>{{ \Carbon\Carbon::parse($movimiento->fecha_limite)->format('d/m/Y') }}</strong>
+            </div>
+            @endif
+
+            <p style="margin-top:20px;">
+                Ingrese a la plataforma <strong>ANKAWA</strong> para revisar los detalles.
             </p>
         </div>
         <div class="footer">
             <p>Este es un mensaje automático. No responda a este correo.</p>
+            <p>Centro de Arbitraje CARD ANKAWA</p>
         </div>
     </div>
 </body>

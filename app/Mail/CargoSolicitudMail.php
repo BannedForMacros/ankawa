@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\SolicitudArbitraje;
+use App\Models\Expediente;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -18,6 +19,7 @@ class CargoSolicitudMail extends Mailable
         public SolicitudArbitraje $solicitud,
         public ?string $passwordRaw,
         public string $pdfPath,
+        public ?Expediente $expediente = null,
     ) {}
 
     public function envelope(): Envelope

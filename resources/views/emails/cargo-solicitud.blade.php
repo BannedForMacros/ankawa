@@ -40,6 +40,14 @@
                 <p style="color:#999; font-size:12px; margin:8px 0 0;">Guarde este numero para hacer seguimiento</p>
             </div>
 
+            @if($expediente?->numero_expediente)
+            <div style="background:#291136; border-radius:10px; padding:16px; text-align:center; margin: 0 0 20px;">
+                <p style="color:rgba(255,255,255,0.6); font-size:11px; margin:0 0 4px; text-transform:uppercase; letter-spacing:1px;">Expediente Asignado</p>
+                <div style="font-size:20px; font-weight:900; color:#fff; letter-spacing:2px; font-family:monospace;">{{ $expediente->numero_expediente }}</div>
+                <p style="color:rgba(255,255,255,0.5); font-size:11px; margin:6px 0 0;">Use este número para todas las comunicaciones oficiales</p>
+            </div>
+            @endif
+
             <div style="margin: 24px 0;">
                 <div class="dato">
                     <span class="dato-label">Servicio</span>
