@@ -121,6 +121,19 @@ class SolicitudArbitrajeController extends Controller
                 'estado'            => 'activo',
             ]);
 
+            // ── 4b. Crear movimiento inicial automático ────────────────────────
+            app(\App\Services\MovimientoService::class)->crear(
+                $expediente,
+                [
+                    'etapa_id'    => $etapaInicial?->id,
+                    'instruccion' => 'Envío de solicitud de arbitraje',
+                    'creado_por'  => $userId,
+                ],
+                [],
+                [],
+                'respondido' // estado inicial: ya respondido (informativo)
+            );
+
             // ── 5. Registrar actores del expediente ──────────────────────────
 
             // 5a. Demandante (usuario que crea la solicitud)

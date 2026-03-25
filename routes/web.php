@@ -73,7 +73,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Movimientos
     Route::post('/expedientes/{expediente}/movimientos', [MovimientoController::class, 'store'])->name('expedientes.movimientos.store');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/responder', [MovimientoController::class, 'responder'])->name('expedientes.movimientos.responder');
+    Route::post('/expedientes/{expediente}/movimientos/{movimiento}/responder-y-crear', [MovimientoController::class, 'responderYCrear'])->name('expedientes.movimientos.responder-y-crear');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/omitir', [MovimientoController::class, 'omitir'])->name('expedientes.movimientos.omitir');
+
+    // Solicitud del expediente (actualizar datos)
+    Route::put('/expedientes/{expediente}/solicitud', [ExpedienteController::class, 'updateSolicitud'])->name('expedientes.solicitud.update');
+    // Conformidad de la solicitud
+    Route::post('/expedientes/{expediente}/conformidad', [ExpedienteController::class, 'registrarConformidad'])->name('expedientes.conformidad');
 
     // Actores
     Route::post('/expedientes/{expediente}/actores', [ExpedienteActorController::class, 'store'])->name('expedientes.actores.store');

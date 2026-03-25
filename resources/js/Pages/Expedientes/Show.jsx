@@ -1,11 +1,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import { Clock, FileText, Users, PlusCircle, AlertCircle } from 'lucide-react';
+import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList } from 'lucide-react';
 import TabHistorial from './Partials/TabHistorial';
 import TabNuevoMovimiento from './Partials/TabNuevoMovimiento';
 import TabAccionPendiente from './Partials/TabAccionPendiente';
 import TabActores from './Partials/TabActores';
+import TabSolicitud from './Partials/TabSolicitud';
 
 const estadoColors = {
     activo:     'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -23,10 +24,15 @@ export default function Show({
     usuariosAsignables,
     actoresNotificables,
     plazo,
+    tiposDocumento,
 }) {
     const tabs = [];
 
     tabs.push({ id: 'historial', label: 'Historial', Icon: Clock });
+
+    if (expediente.solicitud) {
+        tabs.push({ id: 'solicitud', label: 'Solicitud', Icon: ClipboardList });
+    }
 
     if (esGestor && expediente.estado === 'activo') {
         tabs.push({ id: 'nuevo', label: 'Nuevo Movimiento', Icon: PlusCircle });
@@ -91,12 +97,12 @@ export default function Show({
                     </div>
 
                     {/* ── Tabs ── */}
-                    <div className="flex gap-1 border-b border-gray-200">
+                    <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
                         {tabs.map(({ id, label, Icon }) => (
                             <button
                                 key={id}
                                 onClick={() => setActiveTab(id)}
-                                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
                                     activeTab === id
                                         ? 'border-[#291136] text-[#291136]'
                                         : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -116,6 +122,16 @@ export default function Show({
                         <TabHistorial
                             movimientos={expediente.movimientos ?? []}
                             solicitud={expediente.solicitud}
+                            esGestor={esGestor}
+                            expedienteId={expediente.id}
+                        />
+                    )}
+
+                    {activeTab === 'solicitud' && expediente.solicitud && (
+                        <TabSolicitud
+                            expediente={expediente}
+                            solicitud={expediente.solicitud}
+                            esGestor={esGestor}
                         />
                     )}
 
@@ -126,6 +142,7 @@ export default function Show({
                             tiposActor={tiposActor}
                             usuariosAsignables={usuariosAsignables}
                             actoresNotificables={actoresNotificables}
+                            tiposDocumento={tiposDocumento}
                         />
                     )}
 
@@ -134,6 +151,11 @@ export default function Show({
                             expediente={expediente}
                             movimiento={miAccionPendiente}
                             actoresNotificables={actoresNotificables}
+                            esGestor={esGestor}
+                            etapas={etapas}
+                            tiposActor={tiposActor}
+                            usuariosAsignables={usuariosAsignables}
+                            tiposDocumento={tiposDocumento}
                         />
                     )}
 

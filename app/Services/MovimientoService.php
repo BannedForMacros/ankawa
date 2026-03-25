@@ -17,33 +17,44 @@ class MovimientoService
 
     /**
      * Crear un nuevo movimiento en el expediente.
-     * Solo el Gestor puede crear movimientos.
      */
-    public function crear(Expediente $expediente, array $datos, array $archivos = [], array $notificarActorIds = []): ExpedienteMovimiento
-    {
-        return DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds) {
+    public function crear(
+        Expediente $expediente,
+        array $datos,
+        array $archivos = [],
+        array $notificarActorIds = [],
+        string $estadoInicial = 'pendiente'
+    ): ExpedienteMovimiento {
+        return DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds, $estadoInicial) {
 
-            // Calcular fecha límite si hay plazo
             $fechaLimite = null;
             if (!empty($datos['dias_plazo'])) {
                 $fechaLimite = now()->addDays((int) $datos['dias_plazo'])->toDateString();
             }
 
             $movimiento = ExpedienteMovimiento::create([
-                'expediente_id'             => $expediente->id,
-                'etapa_id'                  => $datos['etapa_id'] ?? $expediente->etapa_actual_id,
-                'sub_etapa_id'              => $datos['sub_etapa_id'] ?? null,
-                'tipo_actor_responsable_id' => $datos['tipo_actor_responsable_id'] ?? null,
-                'usuario_responsable_id'    => $datos['usuario_responsable_id'] ?? null,
-                'creado_por'                => $datos['creado_por'],
-                'instruccion'               => $datos['instruccion'],
-                'observaciones'             => $datos['observaciones'] ?? null,
-                'dias_plazo'                => $datos['dias_plazo'] ?? null,
-                'fecha_limite'              => $fechaLimite,
-                'estado'                    => 'pendiente',
+                'expediente_id'              => $expediente->id,
+                'etapa_id'                   => $datos['etapa_id'] ?? $expediente->etapa_actual_id,
+                'sub_etapa_id'               => $datos['sub_etapa_id'] ?? null,
+                'tipo_actor_responsable_id'  => $datos['tipo_actor_responsable_id'] ?? null,
+                'usuario_responsable_id'     => $datos['usuario_responsable_id'] ?? null,
+                'creado_por'                 => $datos['creado_por'],
+                'instruccion'                => $datos['instruccion'],
+                'observaciones'              => $datos['observaciones'] ?? null,
+                'dias_plazo'                 => $datos['dias_plazo'] ?? null,
+                'fecha_limite'               => $fechaLimite,
+                'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
+                'estado'                     => $estadoInicial,
             ]);
 
-            // Guardar documentos adjuntos (momento: creacion)
+            // Si el estado inicial es respondido, marcar fecha_respuesta
+            if ($estadoInicial === 'respondido') {
+                $movimiento->update([
+                    'fecha_respuesta' => now(),
+                    'respondido_por'  => $datos['creado_por'],
+                ]);
+            }
+
             $this->guardarDocumentos($movimiento, $archivos, $datos['creado_por'], 'creacion');
 
             // Actualizar etapa actual del expediente si cambió
@@ -51,7 +62,6 @@ class MovimientoService
                 $expediente->update(['etapa_actual_id' => $datos['etapa_id']]);
             }
 
-            // Registrar en historial
             ExpedienteHistorial::create([
                 'expediente_id' => $expediente->id,
                 'usuario_id'    => $datos['creado_por'],
@@ -61,7 +71,6 @@ class MovimientoService
                 'created_at'    => now(),
             ]);
 
-            // Enviar notificaciones
             if (!empty($notificarActorIds)) {
                 $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
             }
@@ -72,7 +81,6 @@ class MovimientoService
 
     /**
      * Responder a un movimiento pendiente.
-     * Solo el actor responsable puede responder.
      */
     public function responder(ExpedienteMovimiento $movimiento, array $datos, array $archivos = [], array $notificarActorIds = []): ExpedienteMovimiento
     {
@@ -85,10 +93,8 @@ class MovimientoService
                 'estado'          => 'respondido',
             ]);
 
-            // Guardar documentos de respuesta
             $this->guardarDocumentos($movimiento, $archivos, $datos['respondido_por'], 'respuesta');
 
-            // Registrar en historial
             ExpedienteHistorial::create([
                 'expediente_id' => $movimiento->expediente_id,
                 'usuario_id'    => $datos['respondido_por'],
@@ -98,12 +104,32 @@ class MovimientoService
                 'created_at'    => now(),
             ]);
 
-            // Enviar notificaciones
             if (!empty($notificarActorIds)) {
                 $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
             }
 
             return $movimiento;
+        });
+    }
+
+    /**
+     * Responder un movimiento Y crear el siguiente en una sola transacción.
+     */
+    public function responderYCrear(
+        ExpedienteMovimiento $movimiento,
+        array $datosRespuesta,
+        array $archivosRespuesta,
+        Expediente $expediente,
+        array $datosNuevo,
+        array $archivosNuevo,
+        array $notificarActorIds = []
+    ): ExpedienteMovimiento {
+        return DB::transaction(function () use ($movimiento, $datosRespuesta, $archivosRespuesta, $expediente, $datosNuevo, $archivosNuevo, $notificarActorIds) {
+            // 1. Responder el movimiento actual
+            $this->responder($movimiento, $datosRespuesta, $archivosRespuesta);
+
+            // 2. Crear el siguiente movimiento
+            return $this->crear($expediente, $datosNuevo, $archivosNuevo, $notificarActorIds);
         });
     }
 
