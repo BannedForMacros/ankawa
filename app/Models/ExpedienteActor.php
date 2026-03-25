@@ -15,10 +15,13 @@ class ExpedienteActor extends Model
         'tipo_actor_id',
         'nombre_externo',
         'email_externo',
+        'es_gestor',
         'activo',
     ];
 
-    // --- RELACIONES ---
+    protected $casts = [
+        'es_gestor' => 'boolean',
+    ];
 
     public function expediente(): BelongsTo
     {
@@ -33,5 +36,15 @@ class ExpedienteActor extends Model
     public function tipoActor(): BelongsTo
     {
         return $this->belongsTo(TipoActorExpediente::class, 'tipo_actor_id');
+    }
+
+    public function scopeActivo($query)
+    {
+        return $query->where('activo', 1);
+    }
+
+    public function scopeGestores($query)
+    {
+        return $query->where('es_gestor', true)->where('activo', 1);
     }
 }

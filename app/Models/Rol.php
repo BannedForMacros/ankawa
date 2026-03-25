@@ -9,7 +9,15 @@ class Rol extends Model
 {
     protected $table = 'roles';
 
-    protected $fillable = ['nombre', 'slug', 'descripcion', 'activo'];
+    protected $fillable = [
+        'nombre', 'slug', 'descripcion', 'activo',
+        'puede_designar_gestor', 'puede_ver_todos_expedientes',
+    ];
+
+    protected $casts = [
+        'puede_designar_gestor'        => 'boolean',
+        'puede_ver_todos_expedientes'  => 'boolean',
+    ];
 
     public function usuarios(): HasMany
     {

@@ -47,4 +47,13 @@ class SolicitudArbitraje extends Model
         return $this->hasOne(Expediente::class, 'solicitud_id');
     }
 
+    public function subsanaciones(): HasMany
+    {
+        return $this->hasMany(SolicitudSubsanacion::class, 'solicitud_id');
+    }
+
+    public function tieneSubsanacionPendiente(): bool
+    {
+        return $this->subsanaciones()->where('estado', 'pendiente')->where('activo', true)->exists();
+    }
 }

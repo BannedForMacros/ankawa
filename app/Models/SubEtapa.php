@@ -6,26 +6,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Etapa extends Model
+class SubEtapa extends Model
 {
-    protected $table = 'etapas';
+    protected $table = 'sub_etapas';
 
     protected $fillable = [
-        'servicio_id',
+        'etapa_id',
         'nombre',
         'descripcion',
         'orden',
         'activo',
     ];
 
-    public function servicio(): BelongsTo
+    public function etapa(): BelongsTo
     {
-        return $this->belongsTo(Servicio::class, 'servicio_id');
+        return $this->belongsTo(Etapa::class, 'etapa_id');
     }
 
-    public function subEtapas(): HasMany
+    public function movimientos(): HasMany
     {
-        return $this->hasMany(SubEtapa::class, 'etapa_id')->orderBy('orden');
+        return $this->hasMany(ExpedienteMovimiento::class, 'sub_etapa_id');
     }
 
     public function scopeActivo($query)

@@ -14,6 +14,8 @@ class TipoDocumento extends Model
         'slug',
         'descripcion',
         'aplica_para',
+        'formatos_permitidos',
+        'tamanio_maximo_mb',
         'activo',
     ];
 

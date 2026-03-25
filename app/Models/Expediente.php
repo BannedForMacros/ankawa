@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Expediente extends Model
 {
@@ -15,7 +16,7 @@ class Expediente extends Model
         'servicio_id',
         'numero_expediente',
         'etapa_actual_id',
-        'estado'
+        'estado',
     ];
 
     public function solicitud(): BelongsTo
@@ -36,5 +37,39 @@ class Expediente extends Model
     public function actores(): HasMany
     {
         return $this->hasMany(ExpedienteActor::class, 'expediente_id');
+    }
+
+    public function actoresActivos(): HasMany
+    {
+        return $this->hasMany(ExpedienteActor::class, 'expediente_id')->where('activo', 1);
+    }
+
+    public function gestor(): HasOne
+    {
+        return $this->hasOne(ExpedienteActor::class, 'expediente_id')
+                    ->where('es_gestor', true)
+                    ->where('activo', 1);
+    }
+
+    public function movimientos(): HasMany
+    {
+        return $this->hasMany(ExpedienteMovimiento::class, 'expediente_id');
+    }
+
+    public function movimientosPendientes(): HasMany
+    {
+        return $this->hasMany(ExpedienteMovimiento::class, 'expediente_id')
+                    ->where('estado', 'pendiente')
+                    ->where('activo', true);
+    }
+
+    public function historial(): HasMany
+    {
+        return $this->hasMany(ExpedienteHistorial::class, 'expediente_id');
+    }
+
+    public function scopeActivo($query)
+    {
+        return $query->where('estado', 'activo');
     }
 }

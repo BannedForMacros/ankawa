@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Servicio;
 use App\Models\SolicitudArbitraje;
+use App\Models\SolicitudSubsanacion;
 use App\Models\Documento;
 use App\Models\VerificationCode;
 use Illuminate\Http\Request;
@@ -207,10 +208,62 @@ class MesaPartesController extends Controller
     }
 
     // ── Subsanar (Cliente sube documentos y responde) ──
-    // TODO: Reconstruir con la nueva arquitectura de movimientos
     public function subsanar(Request $request, SolicitudArbitraje $solicitud)
     {
-        return back()->withErrors(['general' => 'Funcionalidad en reconstrucción.']);
+        abort_if(
+            $solicitud->email_demandante !== Auth::user()->email &&
+            $solicitud->usuario_id !== Auth::id(),
+            403
+        );
+
+        $request->validate([
+            'respuesta'    => 'required|string|max:2000',
+            'documentos'   => 'nullable|array',
+            'documentos.*' => 'file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $subsanacion = SolicitudSubsanacion::where('solicitud_id', $solicitud->id)
+                ->where('estado', 'pendiente')
+                ->where('activo', true)
+                ->first();
+
+            if ($subsanacion) {
+                $subsanacion->update([
+                    'estado'            => 'subsanado',
+                    'subsanado_por'     => Auth::id(),
+                    'fecha_subsanacion' => now(),
+                    'respuesta'         => $request->respuesta,
+                ]);
+            }
+
+            if ($request->hasFile('documentos')) {
+                foreach ($request->file('documentos') as $archivo) {
+                    $ruta = $archivo->store('solicitudes/' . $solicitud->id . '/subsanaciones', 'public');
+
+                    Documento::create([
+                        'modelo_tipo'     => SolicitudArbitraje::class,
+                        'modelo_id'       => $solicitud->id,
+                        'tipo_documento'  => 'subsanacion',
+                        'ruta_archivo'    => $ruta,
+                        'nombre_original' => $archivo->getClientOriginalName(),
+                        'peso_bytes'      => $archivo->getSize(),
+                        'activo'          => 1,
+                    ]);
+                }
+            }
+
+            $solicitud->update(['estado' => 'pendiente']);
+
+            DB::commit();
+            return back()->with('success', 'Subsanación enviada correctamente. La secretaría revisará su respuesta.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error subsanar: ' . $e->getMessage());
+            return back()->withErrors(['general' => 'Error al enviar la subsanación.']);
+        }
     }
 
     // ── Nueva Solicitud (Cliente Logueado) ──
