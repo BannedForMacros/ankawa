@@ -39,17 +39,6 @@ class TipoActorExpediente extends Model
         )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo');
     }
 
-    // Para saber qué transiciones configuran designar este tipo de actor
-    public function transicionesQueLoDesignan(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            ActividadTransicion::class,
-            'transicion_actores_designables',
-            'tipo_actor_id',
-            'transicion_id'
-        );
-    }
-
     // --- SCOPES ---
     public function scopeActivo($query)
     {

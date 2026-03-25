@@ -22,11 +22,6 @@ class TipoDocumento extends Model
         return $this->hasMany(Documento::class, 'tipo_documento_id');
     }
 
-    public function transiciones(): HasMany
-    {
-        return $this->hasMany(ActividadTransicion::class, 'tipo_documento_id');
-    }
-
     public function scopeActivo($query)
     {
         return $query->where('activo', true);

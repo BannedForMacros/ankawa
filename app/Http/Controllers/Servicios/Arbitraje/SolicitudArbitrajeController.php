@@ -6,15 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\SolicitudArbitraje;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
-use App\Models\ExpedienteMovimiento;
 use App\Models\TipoActorExpediente;
 use App\Models\ServicioTipoActor;
 use App\Models\TipoCorrelativo;
-use App\Models\Actividad;
 use App\Models\Documento;
 use App\Models\User;
 use App\Models\Rol;
-use App\Models\ExpedienteInstancia;
+use App\Models\Etapa;
 use App\Services\CorrelativoService;
 use App\Mail\CargoSolicitudMail;
 use Illuminate\Http\Request;
@@ -97,7 +95,6 @@ class SolicitudArbitrajeController extends Controller
                     'usuario_id' => $userId,
                     'estado'     => 'pendiente',
                     'activo'     => 1,
-                    // numero_cargo se asigna abajo para poder usar el ID de la solicitud como fallback
                 ]
             ));
 
@@ -106,28 +103,22 @@ class SolicitudArbitrajeController extends Controller
             $solicitud->update(['numero_cargo' => $numeroCargo]);
 
             // ── 4. Crear expediente con número correlativo automático ─────────
-            // Buscar actividad inicial del servicio (etapa 1, actividad 1)
-            $actividadInicial = Actividad::whereHas('etapa', fn($q) =>
-                $q->where('servicio_id', $request->servicio_id)->where('orden', 1)
-            )->orderBy('orden')->firstOrFail();
-
-            // Buscar actividad de revisión secretaría (etapa 1, actividad 2)
-            $actividadSecretaria = Actividad::whereHas('etapa', fn($q) =>
-                $q->where('servicio_id', $request->servicio_id)->where('orden', 1)
-            )->where('orden', '>', $actividadInicial->orden)->orderBy('orden')->firstOrFail();
-
-            // Generar número de expediente usando CorrelativoService
             $tipoExpId = TipoCorrelativo::where('codigo', 'EXP')->value('id');
             $numeroExpediente = app(CorrelativoService::class)
                 ->generarNumero($request->servicio_id, $tipoExpId);
 
+            // Etapa inicial del servicio (la de menor orden)
+            $etapaInicial = Etapa::where('servicio_id', $request->servicio_id)
+                ->where('activo', 1)
+                ->orderBy('orden')
+                ->first();
+
             $expediente = Expediente::create([
-                'solicitud_id'        => $solicitud->id,
-                'servicio_id'         => $request->servicio_id,
-                'numero_expediente'   => $numeroExpediente,
-                'etapa_actual_id'     => $actividadSecretaria->etapa_id,
-                'actividad_actual_id' => $actividadSecretaria->id,
-                'estado'              => 'en_proceso',
+                'solicitud_id'      => $solicitud->id,
+                'servicio_id'       => $request->servicio_id,
+                'numero_expediente' => $numeroExpediente,
+                'etapa_actual_id'   => $etapaInicial?->id,
+                'estado'            => 'activo',
             ]);
 
             // ── 5. Registrar actores del expediente ──────────────────────────
@@ -164,7 +155,7 @@ class SolicitudArbitrajeController extends Controller
 
                 ExpedienteActor::create([
                     'expediente_id'  => $expediente->id,
-                    'usuario_id'     => $userDemandado?->id,          // null si no tiene email
+                    'usuario_id'     => $userDemandado?->id,
                     'tipo_actor_id'  => $tipoActorDemandado->id,
                     'nombre_externo' => $userDemandado ? null : $request->nombre_demandado,
                     'email_externo'  => $userDemandado ? null : $request->email_demandado,
@@ -172,32 +163,10 @@ class SolicitudArbitrajeController extends Controller
                 ]);
             }
 
-            // 5c. Auto-asignar actores configurados para este servicio (excepto demandante/demandado que ya se manejaron)
+            // 5c. Auto-asignar actores configurados para este servicio
             $this->autoAsignarActores($expediente, $request->servicio_id);
 
-            // ── 6. Registrar movimiento inicial ──────────────────────────────
-            $movimientoInicial = ExpedienteMovimiento::create([
-                'expediente_id'        => $expediente->id,
-                'actividad_origen_id'  => $actividadInicial->id,
-                'actividad_destino_id' => $actividadSecretaria->id,
-                'usuario_id'           => $userId,
-                'observaciones'        => 'Presentación de Solicitud de Arbitraje vía Portal Web.',
-                'fecha_movimiento'     => now(),
-            ]);
-
-            // ── 6b. Crear instancia inicial del expediente ────────────────────
-            $diasInicial      = $actividadSecretaria->dias_plazo;
-            $fechaVencimiento = $diasInicial ? now()->addDays($diasInicial) : null;
-            ExpedienteInstancia::create([
-                'expediente_id'     => $expediente->id,
-                'actividad_id'      => $actividadSecretaria->id,
-                'movimiento_id'     => $movimientoInicial->id,
-                'fecha_inicio'      => now(),
-                'fecha_vencimiento' => $fechaVencimiento,
-                'activa'            => true,
-            ]);
-
-            // ── 7. Guardar documentos adjuntos ───────────────────────────────
+            // ── 6. Guardar documentos adjuntos ───────────────────────────────
             $carpeta = "expedientes/{$expediente->id}/solicitud";
 
             if ($request->hasFile('documentos_controversia')) {
@@ -230,7 +199,7 @@ class SolicitudArbitrajeController extends Controller
                 }
             }
 
-            // ── 8. Generar PDF cargo y enviar correo ─────────────────────────
+            // ── 7. Generar PDF cargo y enviar correo ─────────────────────────
             $pdfPath = $this->generarCargo($solicitud);
             Mail::to($solicitud->email_demandante, $solicitud->nombre_demandante)
                 ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $pdfPath));
@@ -280,7 +249,7 @@ class SolicitudArbitrajeController extends Controller
                 ->where('activo', 1)
                 ->withCount([
                     'expedienteActoresActivos' => fn($q) =>
-                        $q->whereHas('expediente', fn($q2) => $q2->where('estado', 'en_proceso'))
+                        $q->whereHas('expediente', fn($q2) => $q2->where('estado', 'activo'))
                 ])
                 ->orderBy('expediente_actores_activos_count', 'asc')
                 ->first();
