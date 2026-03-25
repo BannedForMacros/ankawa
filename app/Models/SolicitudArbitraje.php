@@ -19,7 +19,8 @@ class SolicitudArbitraje extends Model
         'resumen_controversia', 'pretensiones', 'monto_involucrado',
         'solicita_designacion_director', 'nombre_arbitro_propuesto',
         'email_arbitro_propuesto', 'domicilio_arbitro_propuesto',
-        'reglas_aplicables', 'estado', 'activo'
+        'reglas_aplicables', 'estado', 'activo',
+        'resultado_revision', 'fecha_revision', 'revisado_por', 'motivo_no_conformidad',
     ];
 
     public function servicio(): BelongsTo

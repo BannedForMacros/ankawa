@@ -1,6 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { useState } from 'react';
-import { Send, Paperclip, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
 
 export default function TabNuevoMovimiento({
     expediente,
@@ -8,8 +7,9 @@ export default function TabNuevoMovimiento({
     tiposActor = [],
     usuariosAsignables = [],
     actoresNotificables = [],
+    tiposDocumento = [],
 }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const form = useForm({
         etapa_id: expediente.etapa_actual_id ?? '',
         sub_etapa_id: '',
         tipo_actor_responsable_id: '',
@@ -17,68 +17,66 @@ export default function TabNuevoMovimiento({
         instruccion: '',
         observaciones: '',
         dias_plazo: '',
+        tipo_documento_requerido_id: '',
         documentos: [],
-        notificar_a: actoresNotificables.map(a => a.id), // todos preseleccionados
+        notificar_a: [],
     });
 
-    const etapaSeleccionada = etapas.find(e => e.id == data.etapa_id);
-    const subEtapas = etapaSeleccionada?.sub_etapas ?? [];
+    const subEtapas = useMemo(() => {
+        const etapa = etapas.find(e => String(e.id) === String(form.data.etapa_id));
+        return etapa?.sub_etapas ?? [];
+    }, [form.data.etapa_id, etapas]);
 
-    // Filtrar usuarios por tipo de actor si se seleccionó uno
-    const actorConfig = tiposActor.find(t => t.id == data.tipo_actor_responsable_id);
-    const actoresDelExpediente = expediente.actores?.filter(a =>
-        a.activo && a.tipo_actor_id == data.tipo_actor_responsable_id
-    ) ?? [];
+    // Filtrar usuarios por tipo de actor seleccionado
+    const tipoActorSel = useMemo(() => {
+        return tiposActor.find(t => String(t.id) === String(form.data.tipo_actor_responsable_id));
+    }, [form.data.tipo_actor_responsable_id, tiposActor]);
+
+    const usuariosFiltrados = useMemo(() => {
+        if (!tipoActorSel?.rol_auto_slug) return usuariosAsignables;
+        return usuariosAsignables.filter(u => u.rol?.slug === tipoActorSel.rol_auto_slug);
+    }, [tipoActorSel, usuariosAsignables]);
 
     function handleSubmit(e) {
         e.preventDefault();
-        post(route('expedientes.movimientos.store', expediente.id), {
+        form.post(route('expedientes.movimientos.store', expediente.id), {
             forceFormData: true,
-            onSuccess: () => reset(),
+            onSuccess: () => form.reset(),
         });
     }
 
-    function toggleNotificar(actorId) {
-        setData('notificar_a',
-            data.notificar_a.includes(actorId)
-                ? data.notificar_a.filter(id => id !== actorId)
-                : [...data.notificar_a, actorId]
-        );
-    }
-
     return (
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
             <h3 className="text-sm font-bold text-[#291136]">Crear Nuevo Movimiento</h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Etapa */}
                 <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Etapa</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Etapa *</label>
                     <select
-                        value={data.etapa_id}
-                        onChange={e => { setData('etapa_id', e.target.value); setData('sub_etapa_id', ''); }}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
+                        value={form.data.etapa_id}
+                        onChange={e => { form.setData(d => ({ ...d, etapa_id: e.target.value, sub_etapa_id: '' })); }}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                     >
-                        <option value="">Seleccionar etapa</option>
-                        {etapas.map(e => (
-                            <option key={e.id} value={e.id}>{e.nombre}</option>
+                        <option value="">Seleccionar...</option>
+                        {etapas.map(et => (
+                            <option key={et.id} value={et.id}>{et.orden}. {et.nombre}</option>
                         ))}
                     </select>
-                    {errors.etapa_id && <p className="text-xs text-red-500 mt-1">{errors.etapa_id}</p>}
+                    {form.errors.etapa_id && <p className="text-xs text-red-500 mt-1">{form.errors.etapa_id}</p>}
                 </div>
 
                 {/* Sub-etapa */}
                 <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Sub-etapa (opcional)</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Sub-etapa</label>
                     <select
-                        value={data.sub_etapa_id}
-                        onChange={e => setData('sub_etapa_id', e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
-                        disabled={subEtapas.length === 0}
+                        value={form.data.sub_etapa_id}
+                        onChange={e => form.setData('sub_etapa_id', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                     >
-                        <option value="">Sin sub-etapa</option>
+                        <option value="">Ninguna</option>
                         {subEtapas.map(se => (
-                            <option key={se.id} value={se.id}>{se.nombre}</option>
+                            <option key={se.id} value={se.id}>{se.orden}. {se.nombre}</option>
                         ))}
                     </select>
                 </div>
@@ -87,130 +85,137 @@ export default function TabNuevoMovimiento({
                 <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de Actor Responsable</label>
                     <select
-                        value={data.tipo_actor_responsable_id}
-                        onChange={e => { setData('tipo_actor_responsable_id', e.target.value); setData('usuario_responsable_id', ''); }}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
+                        value={form.data.tipo_actor_responsable_id}
+                        onChange={e => form.setData(d => ({ ...d, tipo_actor_responsable_id: e.target.value, usuario_responsable_id: '' }))}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                     >
-                        <option value="">Sin responsable específico</option>
-                        {tiposActor.map(t => (
-                            <option key={t.id} value={t.id}>{t.nombre}</option>
+                        <option value="">Ninguno (informativo)</option>
+                        {tiposActor.map(ta => (
+                            <option key={ta.id} value={ta.id}>{ta.nombre}</option>
                         ))}
                     </select>
                 </div>
 
                 {/* Usuario Responsable */}
                 <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Usuario Responsable</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                        Usuario Responsable
+                        {tipoActorSel?.rol_auto_slug && <span className="text-gray-400 font-normal ml-1">({tipoActorSel.rol_auto_slug})</span>}
+                    </label>
                     <select
-                        value={data.usuario_responsable_id}
-                        onChange={e => setData('usuario_responsable_id', e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
+                        value={form.data.usuario_responsable_id}
+                        onChange={e => form.setData('usuario_responsable_id', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                     >
-                        <option value="">Seleccionar usuario</option>
-                        {(actoresDelExpediente.length > 0
-                            ? actoresDelExpediente.map(a => ({ id: a.usuario_id, name: a.usuario?.name }))
-                            : usuariosAsignables
-                        ).map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
+                        <option value="">Seleccionar...</option>
+                        {usuariosFiltrados.map(u => (
+                            <option key={u.id} value={u.id}>{u.name} — {u.rol?.nombre}</option>
                         ))}
                     </select>
-                    {errors.usuario_responsable_id && <p className="text-xs text-red-500 mt-1">{errors.usuario_responsable_id}</p>}
+                    {form.errors.usuario_responsable_id && <p className="text-xs text-red-500 mt-1">{form.errors.usuario_responsable_id}</p>}
                 </div>
 
                 {/* Plazo */}
                 <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días)</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días hábiles)</label>
                     <input
                         type="number"
-                        value={data.dias_plazo}
-                        onChange={e => setData('dias_plazo', e.target.value)}
                         min="1"
                         max="365"
-                        placeholder="Sin plazo"
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
+                        value={form.data.dias_plazo}
+                        onChange={e => form.setData('dias_plazo', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                        placeholder="Ej: 5"
                     />
+                </div>
+
+                {/* Tipo de documento requerido */}
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Documento que debe presentar</label>
+                    <select
+                        value={form.data.tipo_documento_requerido_id}
+                        onChange={e => form.setData('tipo_documento_requerido_id', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                    >
+                        <option value="">Ninguno</option>
+                        {tiposDocumento.map(td => (
+                            <option key={td.id} value={td.id}>{td.nombre}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
             {/* Instrucción */}
             <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Instrucción *</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Instrucción / Descripción *</label>
                 <textarea
-                    value={data.instruccion}
-                    onChange={e => setData('instruccion', e.target.value)}
+                    value={form.data.instruccion}
+                    onChange={e => form.setData('instruccion', e.target.value)}
                     rows={3}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                     placeholder="Describa la instrucción o acción a realizar..."
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
                 />
-                {errors.instruccion && <p className="text-xs text-red-500 mt-1">{errors.instruccion}</p>}
+                {form.errors.instruccion && <p className="text-xs text-red-500 mt-1">{form.errors.instruccion}</p>}
             </div>
 
             {/* Observaciones */}
             <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones (opcional)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
                 <textarea
-                    value={data.observaciones}
-                    onChange={e => setData('observaciones', e.target.value)}
+                    value={form.data.observaciones}
+                    onChange={e => form.setData('observaciones', e.target.value)}
                     rows={2}
-                    placeholder="Observaciones adicionales..."
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                    placeholder="Observaciones adicionales (opcional)"
                 />
             </div>
 
             {/* Documentos */}
             <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Documentos (opcional)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Documentos adjuntos</label>
                 <input
                     type="file"
                     multiple
-                    onChange={e => setData('documentos', Array.from(e.target.files))}
-                    className="text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-gray-200 file:text-xs file:font-semibold file:bg-gray-50 hover:file:bg-gray-100"
+                    onChange={e => form.setData('documentos', Array.from(e.target.files))}
+                    className="text-xs"
                 />
             </div>
 
-            {/* Notificaciones */}
+            {/* Notificar a */}
             {actoresNotificables.length > 0 && (
                 <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-2">Notificar a (todos preseleccionados)</label>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Notificar a (email)</label>
                     <div className="flex flex-wrap gap-2">
-                        {actoresNotificables.map(actor => {
-                            const nombre = actor.usuario?.name ?? actor.nombre_externo ?? 'Actor';
-                            const checked = data.notificar_a.includes(actor.id);
-                            return (
-                                <label
-                                    key={actor.id}
-                                    className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
-                                        checked
-                                            ? 'bg-[#291136]/5 border-[#291136]/20 text-[#291136]'
-                                            : 'bg-gray-50 border-gray-200 text-gray-400'
-                                    }`}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={checked}
-                                        onChange={() => toggleNotificar(actor.id)}
-                                        className="sr-only"
-                                    />
-                                    {checked ? <span className="w-3 h-3 rounded-sm bg-[#291136] flex items-center justify-center"><span className="text-white text-[8px]">✓</span></span> : <span className="w-3 h-3 rounded-sm border border-gray-300"/>}
-                                    {nombre}
-                                    {actor.tipo_actor && <span className="text-gray-300">({actor.tipo_actor.nombre})</span>}
-                                </label>
-                            );
-                        })}
+                        {actoresNotificables.map(actor => (
+                            <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
+                                <input
+                                    type="checkbox"
+                                    value={actor.id}
+                                    checked={form.data.notificar_a.includes(actor.id)}
+                                    onChange={e => {
+                                        const id = parseInt(e.target.value);
+                                        form.setData('notificar_a',
+                                            e.target.checked
+                                                ? [...form.data.notificar_a, id]
+                                                : form.data.notificar_a.filter(x => x !== id)
+                                        );
+                                    }}
+                                    className="rounded border-gray-300 text-[#291136]"
+                                />
+                                {actor.usuario?.name} ({actor.tipo_actor?.nombre})
+                            </label>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {errors.general && <p className="text-xs text-red-500">{errors.general}</p>}
-
             <div className="flex justify-end">
                 <button
                     type="submit"
-                    disabled={processing}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#291136] text-white text-sm font-bold rounded-xl hover:bg-[#3d1a52] transition-colors disabled:opacity-50"
+                    disabled={form.processing}
+                    className="px-5 py-2.5 text-sm font-bold bg-[#291136] text-white rounded-lg hover:bg-[#3d1a52] disabled:opacity-50"
                 >
-                    <Send size={14}/>
-                    {processing ? 'Registrando...' : 'Registrar Movimiento'}
+                    Registrar Movimiento
                 </button>
             </div>
         </form>
