@@ -15,7 +15,6 @@ class Expediente extends Model
         'servicio_id',
         'numero_expediente',
         'etapa_actual_id',
-        'actividad_actual_id',
         'estado'
     ];
 
@@ -34,26 +33,8 @@ class Expediente extends Model
         return $this->belongsTo(Etapa::class, 'etapa_actual_id');
     }
 
-    public function actividadActual(): BelongsTo
-    {
-        return $this->belongsTo(Actividad::class, 'actividad_actual_id');
-    }
-
     public function actores(): HasMany
     {
         return $this->hasMany(ExpedienteActor::class, 'expediente_id');
-    }
-
-    public function movimientos()
-    {
-        // ELIMINA EL ->latest() SI LO TIENE
-        return $this->hasMany(ExpedienteMovimiento::class);
-    }
-
-    // Documentos subidos por slot (versión activa de cada slot)
-    public function documentosRequisito(): HasMany
-    {
-        return $this->hasMany(ExpedienteDocumentoRequisito::class, 'expediente_id')
-                    ->where('activo', true);
     }
 }

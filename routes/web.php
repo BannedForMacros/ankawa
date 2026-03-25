@@ -12,20 +12,14 @@ use App\Http\Controllers\MesaPartesController;
 use App\Http\Controllers\Servicios\Arbitraje\SolicitudArbitrajeController;
 
 // Controladores Internos
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ExpedienteController;
-use App\Http\Controllers\ExpedienteActorController;
-use App\Http\Controllers\ExpedientePlazoController;
 use App\Http\Controllers\DocumentoController;
 
-// Controladores de Configuración (Mantuvimos los tuyos intactos)
+// Controladores de Configuración
 use App\Http\Controllers\Configuracion\RolController;
 use App\Http\Controllers\Configuracion\UsuarioController;
 use App\Http\Controllers\Configuracion\CorrelativoController;
 use App\Http\Controllers\Configuracion\ServicioController;
-use App\Http\Controllers\Configuracion\EtapaController;
 use App\Http\Controllers\Configuracion\TipoActorController;
-use App\Http\Controllers\Configuracion\AccionFlujoController;
 
 
 // =========================================================================
@@ -52,7 +46,9 @@ Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::c
 // =========================================================================
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', function () {
+        return Inertia::render('Dashboard');
+    })->name('dashboard');
 
     // ── Perfil de Usuario ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -60,27 +56,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // ── Bandejas Iniciales (Solicitudes antes de ser Expediente) ──
-    // Vista de la Secretaria (Para revisar y admitir)
     Route::get('/mesa-partes/bandeja', [MesaPartesController::class, 'bandeja'])->name('mesa-partes.bandeja');
-    // Vista del Cliente
     Route::get('/mesa-partes/mis-solicitudes', [MesaPartesController::class, 'misSolicitudes'])->name('mesa-partes.mis-solicitudes');
     Route::post('/mesa-partes/solicitud/{solicitud}/subsanar', [MesaPartesController::class, 'subsanar'])->name('mesa-partes.subsanar');
     Route::get('/mesa-partes/nueva-solicitud', [MesaPartesController::class, 'nuevaSolicitudAuth'])->name('mesa-partes.nueva-solicitud');
 
-    // ── EL MOTOR DE EXPEDIENTES (Nuevo Cerebro) ──
-    Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
-    Route::get('/expedientes/mis', [ExpedienteController::class, 'misExpedientes'])->name('expedientes.mis');
-
-    // Visor dinámico y motor de ejecución de botones
-    Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
-    Route::post('/expedientes/{expediente}/accion', [ExpedienteController::class, 'registrarAccion'])->name('expedientes.accion');
-    Route::post('/expedientes/{expediente}/actores', [ExpedienteActorController::class, 'store'])->name('expedientes.actores.store');
-    Route::delete('/expedientes/{expediente}/actores/{actor}', [ExpedienteActorController::class, 'destroy'])->name('expedientes.actores.destroy');
-    Route::post('/expedientes/{expediente}/plazo', [ExpedientePlazoController::class, 'store'])->name('expedientes.plazo.store');
-    Route::delete('/expedientes/{expediente}/plazo', [ExpedientePlazoController::class, 'destroy'])->name('expedientes.plazo.destroy');
+    // ── EXPEDIENTES (se reconstruirán en Entregable 7) ──
+    // Rutas pendientes: index, show, movimientos, actores
 
     Route::get('/documentos/{documento}/descargar', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
-    // ── MÓDULO DE CONFIGURACIÓN (Intacto) ──
+
+    // ── MÓDULO DE CONFIGURACIÓN ──
     Route::prefix('configuracion')->middleware([])->group(function () {
 
         Route::get('/roles',        [RolController::class, 'index'])  ->name('configuracion.roles.index')  ->middleware('permiso:configuracion.roles,ver');
@@ -93,50 +79,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/usuarios',            [UsuarioController::class, 'store'])  ->name('configuracion.usuarios.store')  ->middleware('permiso:configuracion.usuarios,crear');
         Route::put('/usuarios/{usuario}',   [UsuarioController::class, 'update']) ->name('configuracion.usuarios.update') ->middleware('permiso:configuracion.usuarios,editar');
         Route::delete('/usuarios/{usuario}',[UsuarioController::class, 'destroy'])->name('configuracion.usuarios.destroy')->middleware('permiso:configuracion.usuarios,eliminar');
-    
+
         Route::get('/correlativos',                [CorrelativoController::class, 'index'])  ->name('configuracion.correlativos.index')  ->middleware('permiso:configuracion.correlativos,ver');
         Route::post('/correlativos',               [CorrelativoController::class, 'store'])  ->name('configuracion.correlativos.store')  ->middleware('permiso:configuracion.correlativos,crear');
         Route::put('/correlativos/{correlativo}',  [CorrelativoController::class, 'update']) ->name('configuracion.correlativos.update') ->middleware('permiso:configuracion.correlativos,editar');
         Route::delete('/correlativos/{correlativo}',[CorrelativoController::class,'destroy'])->name('configuracion.correlativos.destroy')->middleware('permiso:configuracion.correlativos,eliminar');
-        
+
         Route::get('/servicios',               [ServicioController::class, 'index'])  ->name('configuracion.servicios.index')  ->middleware('permiso:configuracion.servicios,ver');
         Route::post('/servicios',              [ServicioController::class, 'store'])  ->name('configuracion.servicios.store')  ->middleware('permiso:configuracion.servicios,crear');
         Route::put('/servicios/{servicio}',    [ServicioController::class, 'update']) ->name('configuracion.servicios.update') ->middleware('permiso:configuracion.servicios,editar');
         Route::delete('/servicios/{servicio}', [ServicioController::class, 'destroy'])->name('configuracion.servicios.destroy')->middleware('permiso:configuracion.servicios,eliminar');
-            
-        Route::get('/etapas', [EtapaController::class, 'index'])->name('configuracion.etapas.index')->middleware('permiso:configuracion.etapas,ver');
 
-        // Etapas
-        Route::post('/etapas',              [EtapaController::class, 'storeEtapa'])  ->name('configuracion.etapas.store')   ->middleware('permiso:configuracion.etapas,crear');
-        Route::put('/etapas/{etapa}',       [EtapaController::class, 'updateEtapa']) ->name('configuracion.etapas.update')  ->middleware('permiso:configuracion.etapas,editar');
-        Route::delete('/etapas/{etapa}',    [EtapaController::class, 'destroyEtapa'])->name('configuracion.etapas.destroy') ->middleware('permiso:configuracion.etapas,eliminar');
-
-        // Actividades
-        Route::post('/actividades',              [EtapaController::class, 'storeActividad'])  ->name('configuracion.actividades.store')   ->middleware('permiso:configuracion.etapas,crear');
-        Route::put('/actividades/{actividad}',   [EtapaController::class, 'updateActividad']) ->name('configuracion.actividades.update')  ->middleware('permiso:configuracion.etapas,editar');
-        Route::delete('/actividades/{actividad}',[EtapaController::class,'destroyActividad'])->name('configuracion.actividades.destroy') ->middleware('permiso:configuracion.etapas,eliminar');
-        // routes/web.php (dentro del grupo de configuracion)
-        Route::post('/actividades/{actividad}/requisitos',         [EtapaController::class, 'storeRequisito'])  ->name('configuracion.requisitos.store');
-        Route::put('/requisitos/{requisito}',                      [EtapaController::class, 'updateRequisito']) ->name('configuracion.requisitos.update');
-        Route::delete('/requisitos/{requisito}',                   [EtapaController::class, 'destroyRequisito'])->name('configuracion.requisitos.destroy');
-
-        // Transiciones
-        Route::post('/actividades/{actividad}/transiciones', [EtapaController::class, 'storeTransicion'])->name('transiciones.store');
-        Route::put('/transiciones/{transicion}',             [EtapaController::class, 'updateTransicion'])->name('transiciones.update');
-        Route::delete('/transiciones/{transicion}',          [EtapaController::class, 'destroyTransicion'])->name('transiciones.destroy');
-        
         // Tipos de Actor
         Route::get('tipos-actor',                              [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');
         Route::post('tipos-actor',                             [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store');
         Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
         Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
         Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios');
-
-        // Acciones de Flujo
-        Route::get('acciones',              [AccionFlujoController::class, 'index'])->name('configuracion.acciones.index');
-        Route::post('acciones',             [AccionFlujoController::class, 'store'])->name('configuracion.acciones.store');
-        Route::put('acciones/{accion}',     [AccionFlujoController::class, 'update'])->name('configuracion.acciones.update');
-        Route::delete('acciones/{accion}',  [AccionFlujoController::class, 'destroy'])->name('configuracion.acciones.destroy');
     });
 
 });
