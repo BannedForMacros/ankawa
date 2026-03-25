@@ -26,7 +26,7 @@ class MovimientoService
             // Calcular fecha límite si hay plazo
             $fechaLimite = null;
             if (!empty($datos['dias_plazo'])) {
-                $fechaLimite = now()->addDays($datos['dias_plazo'])->toDateString();
+                $fechaLimite = now()->addDays((int) $datos['dias_plazo'])->toDateString();
             }
 
             $movimiento = ExpedienteMovimiento::create([
