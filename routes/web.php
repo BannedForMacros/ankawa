@@ -12,6 +12,11 @@ use App\Http\Controllers\MesaPartesController;
 use App\Http\Controllers\Servicios\Arbitraje\SolicitudArbitrajeController;
 
 // Controladores Internos
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpedienteController;
+use App\Http\Controllers\MovimientoController;
+use App\Http\Controllers\ExpedienteActorController;
+use App\Http\Controllers\ExpedienteEstadoController;
 use App\Http\Controllers\DocumentoController;
 
 // Controladores de Configuración
@@ -46,9 +51,7 @@ Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::c
 // =========================================================================
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Perfil de Usuario ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -61,8 +64,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/mesa-partes/solicitud/{solicitud}/subsanar', [MesaPartesController::class, 'subsanar'])->name('mesa-partes.subsanar');
     Route::get('/mesa-partes/nueva-solicitud', [MesaPartesController::class, 'nuevaSolicitudAuth'])->name('mesa-partes.nueva-solicitud');
 
-    // ── EXPEDIENTES (se reconstruirán en Entregable 7) ──
-    // Rutas pendientes: index, show, movimientos, actores
+    // ── MOTOR DE EXPEDIENTES ──
+    Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
+    Route::get('/expedientes/mis', [ExpedienteController::class, 'misExpedientes'])->name('expedientes.mis');
+    Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
+
+    // Movimientos
+    Route::post('/expedientes/{expediente}/movimientos', [MovimientoController::class, 'store'])->name('expedientes.movimientos.store');
+    Route::post('/expedientes/{expediente}/movimientos/{movimiento}/responder', [MovimientoController::class, 'responder'])->name('expedientes.movimientos.responder');
+    Route::post('/expedientes/{expediente}/movimientos/{movimiento}/omitir', [MovimientoController::class, 'omitir'])->name('expedientes.movimientos.omitir');
+
+    // Actores
+    Route::post('/expedientes/{expediente}/actores', [ExpedienteActorController::class, 'store'])->name('expedientes.actores.store');
+    Route::delete('/expedientes/{expediente}/actores/{actor}', [ExpedienteActorController::class, 'destroy'])->name('expedientes.actores.destroy');
+    Route::post('/expedientes/{expediente}/gestor', [ExpedienteActorController::class, 'designarGestor'])->name('expedientes.gestor.designar');
+
+    // Estado del expediente
+    Route::post('/expedientes/{expediente}/suspender', [ExpedienteEstadoController::class, 'suspender'])->name('expedientes.suspender');
+    Route::post('/expedientes/{expediente}/reactivar', [ExpedienteEstadoController::class, 'reactivar'])->name('expedientes.reactivar');
+    Route::post('/expedientes/{expediente}/concluir', [ExpedienteEstadoController::class, 'concluir'])->name('expedientes.concluir');
+    Route::post('/expedientes/{expediente}/cambiar-etapa', [ExpedienteEstadoController::class, 'cambiarEtapa'])->name('expedientes.cambiar-etapa');
 
     Route::get('/documentos/{documento}/descargar', [DocumentoController::class, 'descargar'])->name('documentos.descargar');
 
