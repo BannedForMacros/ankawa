@@ -138,43 +138,40 @@ function ContinuarPanel({ mov, expedienteId, onContinuar }) {
     );
 }
 
-// ── Tarjeta de respuesta (sub-nodo visible) ──────────────────────────────────
+// ── Tarjeta de respuesta (limpia, la línea se dibuja en el componente padre) ──
 function RespuestaCard({ mov }) {
     const [verDocs, setVerDocs] = useState(false);
     const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
 
     return (
-        <div className="ml-4 mt-1.5 relative">
-            <div className="absolute -left-3 top-3 w-3 h-px bg-emerald-300"/>
-            <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-3.5">
-                <div className="flex items-start gap-2">
-                    <CornerDownRight size={13} className="text-emerald-500 mt-0.5 shrink-0"/>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="text-[11px] font-bold text-emerald-700">Respuesta</span>
-                            <span className="text-[11px] text-gray-400">
-                                {mov.respondido_por?.name}
-                                {mov.fecha_respuesta && ` · ${new Date(mov.fecha_respuesta).toLocaleDateString('es-PE')}`}
-                            </span>
-                            {docsRespuesta.length > 0 && (
-                                <button onClick={() => setVerDocs(v => !v)}
-                                    className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-800">
-                                    <FileText size={10}/> {docsRespuesta.length} doc(s) {verDocs ? '▲' : '▼'}
-                                </button>
-                            )}
-                        </div>
-                        <p className="text-xs text-gray-700 whitespace-pre-wrap">{mov.respuesta}</p>
-                        {verDocs && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                                {docsRespuesta.map(doc => (
-                                    <a key={doc.id} href={route('documentos.descargar', doc.id)}
-                                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-colors">
-                                        <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
-                                    </a>
-                                ))}
-                            </div>
+        <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-3 shadow-sm">
+            <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Respuesta</span>
+                        <span className="text-[11px] text-gray-400">
+                            {mov.respondido_por?.name}
+                            {mov.fecha_respuesta && ` · ${new Date(mov.fecha_respuesta).toLocaleDateString('es-PE')}`}
+                        </span>
+                        {docsRespuesta.length > 0 && (
+                            <button onClick={() => setVerDocs(v => !v)}
+                                className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-800 font-bold">
+                                <FileText size={10}/> {docsRespuesta.length} doc(s) {verDocs ? '▲' : '▼'}
+                            </button>
                         )}
                     </div>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{mov.respuesta}</p>
+                    
+                    {verDocs && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                            {docsRespuesta.map(doc => (
+                                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                    className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                                    <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
+                                </a>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -195,119 +192,121 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
     const tipoMov = TIPO_LABELS[mov.tipo] ?? TIPO_LABELS.requerimiento;
 
     return (
-        <div className="relative flex gap-3">
-            {/* Línea de timeline */}
-            <div className="flex flex-col items-center shrink-0" style={{ width: '28px' }}>
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 ${tipoMov.iconBg}`}>
+        <div className="relative flex gap-3 pb-4">
+            
+            {/* 1. COLUMNA TIMELINE (Izquierda - Línea Principal) */}
+            <div className="flex flex-col items-center shrink-0 relative" style={{ width: '28px' }}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 relative ${tipoMov.iconBg}`}>
                     <tipoMov.Icon size={14}/>
                 </div>
+                
+                {/* La línea principal SOLO conecta movimientos principales */}
                 {!esUltimo && (
-                    <div className="flex-1 w-px bg-gray-200 mt-1"/>
+                    <div className="flex-1 w-px bg-gray-200 mt-1" />
                 )}
             </div>
 
-            {/* Tarjeta del movimiento */}
-            <div className="flex-1 min-w-0 pb-3">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-3.5">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-[#291136] mb-1.5">{mov.instruccion}</p>
-                            <div className="flex items-center gap-1.5 text-[11px] text-gray-400 flex-wrap">
-                                {mov.sub_etapa && (
-                                    <span className="bg-[#291136]/5 text-[#291136] px-1.5 py-0.5 rounded font-semibold text-[10px]">
-                                        {mov.sub_etapa.nombre}
+            {/* 2. COLUMNA CONTENIDO (Derecha) */}
+            <div className="flex-1 min-w-0">
+                
+                {/* Tarjeta del Movimiento Principal (Blanca) */}
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden z-10 relative">
+                    <div className="p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-[#291136] mb-1.5">{mov.instruccion}</p>
+                                <div className="flex items-center gap-1.5 text-[11px] text-gray-400 flex-wrap">
+                                    {mov.sub_etapa && (
+                                        <span className="bg-[#291136]/5 text-[#291136] px-1.5 py-0.5 rounded font-semibold text-[10px]">
+                                            {mov.sub_etapa.nombre}
+                                        </span>
+                                    )}
+                                    <span>{new Date(mov.created_at).toLocaleDateString('es-PE')}</span>
+                                    <span className="text-gray-300">·</span>
+                                    <span>{mov.creado_por?.name}</span>
+                                    {mov.usuario_responsable && (
+                                        <>
+                                            <span className="text-gray-300">·</span>
+                                            <span>→ <strong className="text-[#291136]">{mov.usuario_responsable.name}</strong></span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${tipoMov.badge}`}>
+                                    {tipoMov.label}
+                                </span>
+                                {resolucion && (
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorMap[resolucion.color] ?? colorMap.gray}`}>
+                                        {resolucion.nombre}
                                     </span>
                                 )}
-                                <span>{new Date(mov.created_at).toLocaleDateString('es-PE')}</span>
-                                <span className="text-gray-300">·</span>
-                                <span>{mov.creado_por?.name}</span>
-                                {mov.usuario_responsable && (
-                                    <>
-                                        <span className="text-gray-300">·</span>
-                                        <span>→ <strong className="text-[#291136]">{mov.usuario_responsable.name}</strong></span>
-                                    </>
-                                )}
-                                {mov.fecha_limite && (
-                                    <>
-                                        <span className="text-gray-300">·</span>
-                                        <span className={mov.estado === 'vencido' ? 'text-red-500 font-bold' : 'text-amber-500'}>
-                                            límite: {new Date(mov.fecha_limite).toLocaleDateString('es-PE')}
-                                        </span>
-                                    </>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.color}`}>
+                                    {cfg.label}
+                                </span>
+                                {(tieneExtras || puedeResolver || puedeContinuar) && (
+                                    <button onClick={() => toggleExpandir(mov.id)}
+                                        className="text-gray-300 hover:text-gray-500 transition-colors">
+                                        {expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                    </button>
                                 )}
                             </div>
                         </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${tipoMov.badge}`}>
-                                {tipoMov.label}
-                            </span>
-                            {resolucion && (
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorMap[resolucion.color] ?? colorMap.gray}`}>
-                                    {resolucion.nombre}
-                                </span>
-                            )}
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.color}`}>
-                                {cfg.label}
-                            </span>
-                            {(tieneExtras || puedeResolver || puedeContinuar) && (
-                                <button onClick={() => toggleExpandir(mov.id)}
-                                    className="text-gray-300 hover:text-gray-500 transition-colors">
-                                    {expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
-                                </button>
-                            )}
-                        </div>
                     </div>
 
-                    {mov.tipo_documento_requerido && (
-                        <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-[#BE0F4A] bg-red-50 px-2.5 py-1 rounded-lg border border-red-200">
-                            <FileText size={11}/> Requiere: {mov.tipo_documento_requerido.nombre}
+                    {/* Contenido Expandido */}
+                    {expandido && (
+                        <div className="px-3.5 pb-3.5 border-t border-gray-50 space-y-3 pt-3">
+                            {mov.observaciones && (
+                                <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
+                            )}
+                            {todosDocsMov.length > 0 && (
+                                <div>
+                                    <p className="text-[11px] font-semibold text-gray-400 mb-1.5">Documentos adjuntos</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {todosDocsMov.map(doc => (
+                                            <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
+                                                <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {(puedeResolver || puedeContinuar) && (
+                                <div className="pt-2 border-t border-gray-100 space-y-2">
+                                    {puedeResolver && <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>}
+                                    {puedeContinuar && <ContinuarPanel mov={mov} expedienteId={expedienteId} onContinuar={onIrANuevo}/>}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
-                {expandido && (
-                    <div className="px-3.5 pb-3.5 border-t border-gray-50 space-y-3 pt-3">
-                        {mov.observaciones && (
-                            <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
-                        )}
-                        {todosDocsMov.length > 0 && (
-                            <div>
-                                <p className="text-[11px] font-semibold text-gray-400 mb-1.5">Documentos adjuntos</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {todosDocsMov.map(doc => (
-                                        <a key={doc.id} href={route('documentos.descargar', doc.id)}
-                                            className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
-                                            <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
-                                        </a>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {resolucion && (
-                            <div className={`rounded-lg p-3 border ${colorMap[resolucion.color] ?? colorMap.gray}`}>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <CheckSquare size={12}/>
-                                    <span className="text-[11px] font-bold">{resolucion.nombre}</span>
-                                    <span className="text-[11px] opacity-70">
-                                        {mov.resuelto_por?.name} · {mov.fecha_resolucion && new Date(mov.fecha_resolucion).toLocaleDateString('es-PE')}
-                                    </span>
-                                </div>
-                                {mov.resolucion_nota && <p className="text-xs">{mov.resolucion_nota}</p>}
-                            </div>
-                        )}
-                        {(puedeResolver || puedeContinuar) && (
-                            <div className="pt-2 border-t border-gray-100 space-y-2">
-                                {puedeResolver && <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>}
-                                {puedeContinuar && <ContinuarPanel mov={mov} expedienteId={expedienteId} onContinuar={onIrANuevo}/>}
-                            </div>
-                        )}
+                {/* 3. SUB-NODO DE RESPUESTA (Alineado con la tarjeta, no con el timeline) */}
+                {tieneRespuesta && (
+                    <div className="relative mt-2 pl-8"> {/* pl-8 = 32px de sangría a la derecha */}
+                        
+                        {/* La curva conectora en "L" */}
+                        <div 
+                            className="absolute border-l-2 border-b-2 border-gray-200 rounded-bl-xl pointer-events-none"
+                            style={{
+                                left: '16px',   /* Inicia exactamente 16px adentro del margen de la tarjeta blanca */
+                                top: '-8px',    /* Sube 8px para esconderse detrás o tocar la tarjeta blanca */
+                                width: '16px',  /* Avanza 16px a la derecha para empalmar justo donde empieza pl-8 */
+                                height: '24px', /* Baja hasta tocar la tarjeta de respuesta verde */
+                                zIndex: 0
+                            }}
+                        />
+                        
+                        {/* Tarjeta de Respuesta */}
+                        <div className="relative z-10">
+                            <RespuestaCard mov={mov} />
+                        </div>
                     </div>
                 )}
-            </div>
 
-            {tieneRespuesta && <RespuestaCard mov={mov}/>}
             </div>
         </div>
     );
