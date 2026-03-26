@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info } from 'lucide-react';
 import TabHistorial from './Partials/TabHistorial';
 import TabNuevoMovimiento from './Partials/TabNuevoMovimiento';
@@ -47,6 +47,13 @@ export default function Show({
     tabs.push({ id: 'actores', label: 'Actores', Icon: Users });
 
     const [activeTab, setActiveTab] = useState(miAccionPendiente ? 'accion' : 'historial');
+
+    // Cuando se responde una acción, miAccionPendiente pasa a null → redirigir al historial
+    useEffect(() => {
+        if (!miAccionPendiente && activeTab === 'accion') {
+            setActiveTab('historial');
+        }
+    }, [miAccionPendiente]);
 
     const gestor = expediente.actores?.find(a => a.es_gestor && a.activo);
     const solicitud = expediente.solicitud;

@@ -261,20 +261,19 @@ class ExpedienteController extends Controller
         abort_if($solicitud->resultado_revision === 'conforme', 422, 'La solicitud ya fue declarada conforme.');
         abort_if($solicitud->estado === 'subsanacion', 422, 'Hay una subsanación pendiente de respuesta por el demandante.');
 
-        $crearMovimiento = filter_var($request->input('crear_movimiento', false), FILTER_VALIDATE_BOOLEAN);
-
         $request->validate([
-            'resultado'                    => 'required|in:conforme,no_conforme',
-            'motivo_no_conformidad'        => 'required_if:resultado,no_conforme|nullable|string|max:2000',
-            'mov_etapa_id'                 => $crearMovimiento ? 'required|exists:etapas,id' : 'nullable',
-            'mov_sub_etapa_id'             => 'nullable|exists:sub_etapas,id',
-            'mov_instruccion'              => $crearMovimiento ? 'required|string|max:2000' : 'nullable',
-            'mov_tipo_actor_responsable_id'=> 'nullable|exists:tipos_actor_expediente,id',
-            'mov_usuario_responsable_id'   => 'nullable|exists:users,id',
-            'mov_dias_plazo'               => 'nullable|integer|min:1|max:365',
+            'resultado'                            => 'required|in:conforme,no_conforme',
+            'motivo_no_conformidad'                => 'required_if:resultado,no_conforme|nullable|string|max:2000',
+            'movimientos'                          => 'nullable|array|max:10',
+            'movimientos.*.etapa_id'               => 'required|exists:etapas,id',
+            'movimientos.*.sub_etapa_id'           => 'nullable|exists:sub_etapas,id',
+            'movimientos.*.instruccion'            => 'required|string|max:2000',
+            'movimientos.*.tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
+            'movimientos.*.usuario_responsable_id' => 'nullable|exists:users,id',
+            'movimientos.*.dias_plazo'             => 'nullable|integer|min:1|max:365',
         ]);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $solicitud, $user, $crearMovimiento) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $solicitud, $user) {
 
             $solicitud->update([
                 'resultado_revision'    => $request->resultado,
@@ -353,18 +352,18 @@ class ExpedienteController extends Controller
                 ]);
             }
 
-            // Crear movimiento de seguimiento si el gestor lo indicó
-            if ($crearMovimiento) {
+            // Crear los movimientos indicados por el gestor
+            foreach ($request->input('movimientos', []) as $datos) {
                 $this->movimientoService->crear(
                     $expediente,
                     [
-                        'etapa_id'                   => $request->mov_etapa_id,
-                        'sub_etapa_id'               => $request->mov_sub_etapa_id ?: null,
-                        'tipo_actor_responsable_id'  => $request->mov_tipo_actor_responsable_id ?: null,
-                        'usuario_responsable_id'     => $request->mov_usuario_responsable_id ?: null,
-                        'instruccion'                => $request->mov_instruccion,
-                        'dias_plazo'                 => $request->mov_dias_plazo ?: null,
-                        'creado_por'                 => $user->id,
+                        'etapa_id'                  => $datos['etapa_id'],
+                        'sub_etapa_id'              => $datos['sub_etapa_id'] ?: null,
+                        'tipo_actor_responsable_id' => $datos['tipo_actor_responsable_id'] ?: null,
+                        'usuario_responsable_id'    => $datos['usuario_responsable_id'] ?: null,
+                        'instruccion'               => $datos['instruccion'],
+                        'dias_plazo'                => $datos['dias_plazo'] ?: null,
+                        'creado_por'                => $user->id,
                     ],
                     [],
                     []
@@ -372,9 +371,10 @@ class ExpedienteController extends Controller
             }
         });
 
+        $cantMov = count($request->input('movimientos', []));
         $msg = $request->resultado === 'conforme'
-            ? 'Solicitud declarada CONFORME.' . ($crearMovimiento ? ' Se creó el movimiento de seguimiento.' : '')
-            : 'Solicitud declarada NO CONFORME.' . ($crearMovimiento ? ' Se creó el movimiento de subsanación.' : '');
+            ? 'Solicitud declarada CONFORME.' . ($cantMov ? " Se crearon {$cantMov} movimiento(s)." : '')
+            : 'Solicitud declarada NO CONFORME.' . ($cantMov ? " Se crearon {$cantMov} movimiento(s)." : '');
 
         return back()->with('success', $msg);
     }

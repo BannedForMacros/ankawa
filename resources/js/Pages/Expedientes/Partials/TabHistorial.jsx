@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import {
     FileText, Download, ChevronRight, ChevronDown, ChevronUp,
-    Clock, CheckCircle, AlertTriangle,
-    Eye, CheckSquare, ArrowRight
+    Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
+    ArrowRight, MessageSquare, CornerDownRight
 } from 'lucide-react';
 
 const estadoConfig = {
-    recibido:   { Icon: Eye,            color: 'bg-purple-50 text-purple-600 border-purple-200',  label: 'Recibido' },
-    pendiente:  { Icon: Clock,          color: 'bg-blue-50 text-blue-600 border-blue-200',        label: 'Pendiente' },
-    respondido: { Icon: CheckCircle,    color: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'Respondido' },
-    vencido:    { Icon: AlertTriangle,  color: 'bg-red-50 text-red-600 border-red-200',           label: 'Vencido' },
+    recibido:   { Icon: Eye,           color: 'bg-purple-50 text-purple-600 border-purple-200',   label: 'Recibido' },
+    pendiente:  { Icon: Clock,         color: 'bg-blue-50 text-blue-600 border-blue-200',         label: 'Pendiente' },
+    respondido: { Icon: CheckCircle,   color: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'Respondido' },
+    vencido:    { Icon: AlertTriangle, color: 'bg-red-50 text-red-600 border-red-200',             label: 'Vencido' },
 };
 
 const colorMap = {
@@ -62,7 +62,6 @@ function ResolverPanel({ mov, expedienteId, tiposResolucion }) {
                     </button>
                 ))}
             </div>
-
             {tipoSel?.requiere_nota && (
                 <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Nota de resolución *</label>
@@ -71,11 +70,9 @@ function ResolverPanel({ mov, expedienteId, tiposResolucion }) {
                         onChange={e => form.setData('resolucion_nota', e.target.value)}
                         rows={2}
                         className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2"
-                        placeholder="Describa las observaciones o motivo..."
                     />
                 </div>
             )}
-
             <div className="flex gap-2">
                 <button
                     type="submit"
@@ -92,7 +89,6 @@ function ResolverPanel({ mov, expedienteId, tiposResolucion }) {
     );
 }
 
-
 function ContinuarPanel({ mov, expedienteId, onContinuar }) {
     const [open, setOpen] = useState(false);
     const [dias, setDias] = useState('');
@@ -105,11 +101,7 @@ function ContinuarPanel({ mov, expedienteId, onContinuar }) {
             { dias_plazo: dias || null },
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    setOpen(false);
-                    setProcesando(false);
-                    onContinuar?.();
-                },
+                onSuccess: () => { setOpen(false); setProcesando(false); onContinuar?.(); },
                 onError: () => setProcesando(false),
             }
         );
@@ -129,36 +121,76 @@ function ContinuarPanel({ mov, expedienteId, onContinuar }) {
     return (
         <div className="mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
             <p className="text-xs text-amber-800 font-semibold">
-                Este movimiento quedará <strong>pendiente</strong>. Si deseas ampliar el plazo al actor, ingresa los nuevos días (opcional).
+                Este movimiento quedará <strong>pendiente</strong>. Puedes ampliar el plazo al actor si lo deseas.
             </p>
             <div className="flex items-center gap-3">
                 <div>
                     <label className="block text-[11px] font-semibold text-amber-700 mb-1">Nuevo plazo (días)</label>
                     <input
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={dias}
-                        onChange={e => setDias(e.target.value)}
+                        type="number" min="1" max="365"
+                        value={dias} onChange={e => setDias(e.target.value)}
                         placeholder="Ej: 5"
-                        className="w-24 text-xs border border-amber-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                        className="w-24 text-xs border border-amber-300 rounded-lg px-2 py-1.5 bg-white"
                     />
                 </div>
                 <p className="text-[11px] text-amber-600 mt-4">
-                    {dias ? `Nueva fecha límite: +${dias} días desde hoy` : 'Sin cambio de plazo'}
+                    {dias ? `+${dias} días desde hoy` : 'Sin cambio de plazo'}
                 </p>
             </div>
             <div className="flex gap-2">
                 <button
-                    onClick={confirmar}
-                    disabled={procesando}
-                    className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                    onClick={confirmar} disabled={procesando}
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
                 >
-                    <ArrowRight size={12}/> Confirmar y crear siguiente movimiento
+                    <ArrowRight size={12}/> Confirmar y crear siguiente
                 </button>
-                <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">
-                    Cancelar
-                </button>
+                <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
+            </div>
+        </div>
+    );
+}
+
+// ── Tarjeta de respuesta (sub-nodo visible) ──────────────────────────────────
+function RespuestaCard({ mov }) {
+    const [verDocs, setVerDocs] = useState(false);
+    const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
+
+    return (
+        <div className="ml-8 mt-1.5 relative">
+            {/* Conector visual */}
+            <div className="absolute -left-4 top-3 w-4 h-px bg-gray-300"/>
+            <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-3.5">
+                <div className="flex items-start gap-2">
+                    <CornerDownRight size={13} className="text-emerald-500 mt-0.5 shrink-0"/>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-[11px] font-bold text-emerald-700">Respuesta</span>
+                            <span className="text-[11px] text-gray-400">
+                                {mov.respondido_por?.name}
+                                {mov.fecha_respuesta && ` · ${new Date(mov.fecha_respuesta).toLocaleDateString('es-PE')}`}
+                            </span>
+                            {docsRespuesta.length > 0 && (
+                                <button
+                                    onClick={() => setVerDocs(v => !v)}
+                                    className="inline-flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-800"
+                                >
+                                    <FileText size={10}/> {docsRespuesta.length} doc(s) {verDocs ? '▲' : '▼'}
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap">{mov.respuesta}</p>
+                        {verDocs && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {docsRespuesta.map(doc => (
+                                    <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-colors">
+                                        <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -219,41 +251,40 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
             ) : (
                 <div className="relative">
                     <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-200"/>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                         {movimientos.map(mov => {
                             const cfg = estadoConfig[mov.estado] ?? estadoConfig.pendiente;
                             const expandido = expandidos.has(mov.id);
                             const resolucion = mov.resolucion_tipo;
+                            const tieneRespuesta = !!mov.respuesta;
+                            const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
+                            const tieneExtras = docsCreacion.length > 0 || mov.observaciones || resolucion;
                             const puedeResolver = esGestor && mov.estado === 'respondido' && mov.usuario_responsable_id && !mov.resolucion_tipo_id;
                             const puedeContinuar = esGestor && mov.estado === 'pendiente' && mov.usuario_responsable_id && onIrANuevo;
 
                             return (
                                 <div key={mov.id} className="relative pl-12">
+                                    {/* Dot en la línea de tiempo */}
                                     <div className={`absolute left-3 top-3.5 w-5 h-5 rounded-full border-2 flex items-center justify-center ${cfg.color}`}>
                                         <cfg.Icon size={10}/>
                                     </div>
 
+                                    {/* Tarjeta del movimiento */}
                                     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                                        {/* Cabecera compacta */}
-                                        <button onClick={() => toggleExpandir(mov.id)} className="w-full text-left p-4">
+
+                                        {/* Cabecera siempre visible */}
+                                        <div className="p-4">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1.5 mb-1">
-                                                        <p className="text-sm font-bold text-[#291136] truncate">{mov.instruccion}</p>
-                                                    </div>
-                                                    {/* Etapa y sub-etapa visibles en compacto */}
+                                                    <p className="text-sm font-bold text-[#291136] mb-1">{mov.instruccion}</p>
                                                     <div className="flex items-center gap-1.5 text-[11px] text-gray-400 flex-wrap">
                                                         {mov.etapa && (
-                                                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">
-                                                                {mov.etapa.nombre}
-                                                            </span>
+                                                            <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium">{mov.etapa.nombre}</span>
                                                         )}
                                                         {mov.sub_etapa && (
                                                             <>
                                                                 <ChevronRight size={9}/>
-                                                                <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                                                                    {mov.sub_etapa.nombre}
-                                                                </span>
+                                                                <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{mov.sub_etapa.nombre}</span>
                                                             </>
                                                         )}
                                                         <span className="text-gray-300">·</span>
@@ -266,11 +297,18 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                                                 <span>→ <strong className="text-[#291136]">{mov.usuario_responsable.name}</strong></span>
                                                             </>
                                                         )}
+                                                        {mov.fecha_limite && (
+                                                            <>
+                                                                <span className="text-gray-300">·</span>
+                                                                <span className={mov.estado === 'vencido' ? 'text-red-500 font-bold' : 'text-amber-500'}>
+                                                                    límite: {new Date(mov.fecha_limite).toLocaleDateString('es-PE')}
+                                                                </span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    {/* Badge resolución */}
                                                     {resolucion && (
                                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorMap[resolucion.color] ?? colorMap.gray}`}>
                                                             {resolucion.nombre}
@@ -279,94 +317,69 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.color}`}>
                                                         {cfg.label}
                                                     </span>
-                                                    <span className="text-gray-300 text-xs">{expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+                                                    {/* Botón expandir solo si hay extras */}
+                                                    {(tieneExtras || puedeResolver || puedeContinuar) && (
+                                                        <button
+                                                            onClick={() => toggleExpandir(mov.id)}
+                                                            className="text-gray-300 hover:text-gray-500 transition-colors"
+                                                        >
+                                                            {expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
-                                        </button>
 
-                                        {/* Detalle expandido */}
+                                            {/* Tipo de documento requerido (visible siempre si existe) */}
+                                            {mov.tipo_documento_requerido && (
+                                                <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold text-[#BE0F4A] bg-red-50 px-2.5 py-1 rounded-lg border border-red-200">
+                                                    <FileText size={11}/> Requiere: {mov.tipo_documento_requerido.nombre}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Detalle expandido (docs, observaciones, acciones) */}
                                         {expandido && (
                                             <div className="px-4 pb-4 border-t border-gray-50 space-y-3 pt-3">
-                                                {/* Grid de metadatos */}
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                                                    {mov.fecha_limite && (
-                                                        <div>
-                                                            <span className="text-gray-400 block">Fecha límite</span>
-                                                            <span className={`font-bold ${mov.estado === 'vencido' ? 'text-red-600' : 'text-gray-700'}`}>
-                                                                {new Date(mov.fecha_limite).toLocaleDateString('es-PE')}
-                                                                {mov.dias_plazo && <span className="font-normal text-gray-400 ml-1">({mov.dias_plazo}d)</span>}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {mov.tipo_documento_requerido && (
-                                                        <div className="col-span-2">
-                                                            <span className="text-gray-400 block">Documento requerido</span>
-                                                            <span className="font-bold text-[#BE0F4A]">{mov.tipo_documento_requerido.nombre}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
                                                 {mov.observaciones && (
                                                     <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
                                                 )}
-
-                                                {/* Docs de creación */}
-                                                {mov.documentos?.filter(d => d.momento === 'creacion').length > 0 && (
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {mov.documentos.filter(d => d.momento === 'creacion').map(doc => (
-                                                            <span key={doc.id} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200">
-                                                                <FileText size={10}/> {doc.nombre_original}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {/* Respuesta */}
-                                                {mov.respuesta && (
-                                                    <div className="bg-emerald-50 rounded-lg p-3">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-[11px] font-bold text-emerald-700">Respuesta</span>
-                                                            <span className="text-[11px] text-gray-400">
-                                                                {mov.respondido_por?.name} — {new Date(mov.fecha_respuesta).toLocaleDateString('es-PE')}
-                                                            </span>
+                                                {docsCreacion.length > 0 && (
+                                                    <div>
+                                                        <p className="text-[11px] font-semibold text-gray-400 mb-1.5">Documentos adjuntos</p>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {docsCreacion.map(doc => (
+                                                                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                                    className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
+                                                                    <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
+                                                                </a>
+                                                            ))}
                                                         </div>
-                                                        <p className="text-xs text-gray-700">{mov.respuesta}</p>
-                                                        {mov.documentos?.filter(d => d.momento === 'respuesta').map(doc => (
-                                                            <span key={doc.id} className="inline-flex items-center gap-1 text-[11px] px-2 py-1 mt-2 rounded bg-emerald-100 text-emerald-700 border border-emerald-200 mr-1">
-                                                                <FileText size={10}/> {doc.nombre_original}
-                                                            </span>
-                                                        ))}
                                                     </div>
                                                 )}
-
-                                                {/* Resolución existente */}
                                                 {resolucion && (
                                                     <div className={`rounded-lg p-3 border ${colorMap[resolucion.color] ?? colorMap.gray}`}>
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <CheckSquare size={12}/>
                                                             <span className="text-[11px] font-bold">{resolucion.nombre}</span>
                                                             <span className="text-[11px] opacity-70">
-                                                                {mov.resuelto_por?.name} — {new Date(mov.fecha_resolucion).toLocaleDateString('es-PE')}
+                                                                {mov.resuelto_por?.name} · {mov.fecha_resolucion && new Date(mov.fecha_resolucion).toLocaleDateString('es-PE')}
                                                             </span>
                                                         </div>
                                                         {mov.resolucion_nota && <p className="text-xs">{mov.resolucion_nota}</p>}
                                                     </div>
                                                 )}
-
-                                                {/* Acciones del gestor */}
                                                 {(puedeResolver || puedeContinuar) && (
                                                     <div className="pt-2 border-t border-gray-100 space-y-2">
-                                                        {puedeResolver && (
-                                                            <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>
-                                                        )}
-                                                        {puedeContinuar && (
-                                                            <ContinuarPanel mov={mov} expedienteId={expedienteId} onContinuar={onIrANuevo}/>
-                                                        )}
+                                                        {puedeResolver && <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>}
+                                                        {puedeContinuar && <ContinuarPanel mov={mov} expedienteId={expedienteId} onContinuar={onIrANuevo}/>}
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Respuesta como sub-nodo siempre visible */}
+                                    {tieneRespuesta && <RespuestaCard mov={mov}/>}
                                 </div>
                             );
                         })}

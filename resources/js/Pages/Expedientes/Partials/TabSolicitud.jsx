@@ -1,6 +1,6 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle } from 'lucide-react';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Trash2 } from 'lucide-react';
 
 // ── Formulario de movimiento de seguimiento (inline) ────────────────────────
 function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange }) {
@@ -93,35 +93,59 @@ function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange })
     );
 }
 
+const movDataVacio = (expediente) => ({
+    etapa_id:                  String(expediente.etapa_actual_id ?? ''),
+    sub_etapa_id:              '',
+    instruccion:               '',
+    tipo_actor_responsable_id: '',
+    usuario_responsable_id:    '',
+    dias_plazo:                '',
+});
+
 export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [] }) {
     const [editando, setEditando]           = useState(false);
     const [paso, setPaso]                   = useState('idle'); // idle | conforme | no_conforme
     const [motivoNoConforme, setMotivoNoConforme] = useState('');
-    const [crearMovimiento, setCrearMovimiento]   = useState(true);
-    const [movData, setMovData] = useState({
-        etapa_id:                   String(expediente.etapa_actual_id ?? ''),
-        sub_etapa_id:               '',
-        instruccion:                '',
-        tipo_actor_responsable_id:  '',
-        usuario_responsable_id:     '',
-        dias_plazo:                 '',
-    });
-    const [procesando, setProcesando] = useState(false);
-    const [errores, setErrores]       = useState({});
+    const [movimientos, setMovimientos]     = useState([]);  // lista de movimientos a crear
+    const [procesando, setProcesando]       = useState(false);
+    const [errores, setErrores]             = useState({});
 
-    // Pre-cargar sugerencia según el resultado elegido
+    function agregarMovimiento(sugerencia = {}) {
+        setMovimientos(prev => [...prev, { ...movDataVacio(expediente), ...sugerencia }]);
+    }
+
+    function actualizarMovimiento(idx, field, value) {
+        setMovimientos(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
+    }
+
+    function quitarMovimiento(idx) {
+        setMovimientos(prev => prev.filter((_, i) => i !== idx));
+    }
+
     function iniciarConforme() {
-        const demandado = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandado');
-        const plazo = expediente.servicio?.plazo_apersonamiento_dias ?? '';
-        setMovData({
-            etapa_id:                  String(expediente.etapa_actual_id ?? ''),
-            sub_etapa_id:              '',
-            instruccion:               'Apersonamiento requerido: Se le notifica que la solicitud ha sido admitida y debe apersonarse al proceso.',
-            tipo_actor_responsable_id: String(demandado?.tipo_actor_id ?? ''),
-            usuario_responsable_id:    String(demandado?.usuario_id ?? ''),
-            dias_plazo:                String(plazo),
-        });
-        setCrearMovimiento(true);
+        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
+        const demandado  = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandado');
+        const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
+        setMovimientos([
+            // 1. Conformidad notificada al demandante
+            {
+                etapa_id:                  String(expediente.etapa_actual_id ?? ''),
+                sub_etapa_id:              '',
+                instruccion:               'Conformidad de la solicitud: La solicitud ha sido revisada y declarada CONFORME.',
+                tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
+                usuario_responsable_id:    String(demandante?.usuario_id ?? ''),
+                dias_plazo:                '',
+            },
+            // 2. Traslado al demandado
+            {
+                etapa_id:                  String(expediente.etapa_actual_id ?? ''),
+                sub_etapa_id:              '',
+                instruccion:               'Traslado al demandado: Se le notifica que debe apersonarse al proceso.',
+                tipo_actor_responsable_id: String(demandado?.tipo_actor_id ?? ''),
+                usuario_responsable_id:    String(demandado?.usuario_id ?? ''),
+                dias_plazo:                String(plazoApers),
+            },
+        ]);
         setPaso('conforme');
         setErrores({});
     }
@@ -129,39 +153,33 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     function iniciarNoConforme() {
         const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
         const plazo = expediente.servicio?.plazo_subsanacion_dias ?? '';
-        setMovData({
-            etapa_id:                  String(expediente.etapa_actual_id ?? ''),
-            sub_etapa_id:              '',
-            instruccion:               '',
-            tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
-            usuario_responsable_id:    String(demandante?.usuario_id ?? ''),
-            dias_plazo:                String(plazo),
-        });
-        setCrearMovimiento(true);
+        setMovimientos([
+            {
+                etapa_id:                  String(expediente.etapa_actual_id ?? ''),
+                sub_etapa_id:              '',
+                instruccion:               '',
+                tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
+                usuario_responsable_id:    String(demandante?.usuario_id ?? ''),
+                dias_plazo:                String(plazo),
+            },
+        ]);
         setPaso('no_conforme');
         setErrores({});
     }
 
-    function handleMovChange(field, value) {
-        setMovData(prev => ({ ...prev, [field]: value }));
-    }
-
     function buildPayload(resultado) {
-        const payload = {
-            resultado,
-            crear_movimiento: crearMovimiento ? '1' : '0',
-        };
+        const payload = { resultado };
         if (resultado === 'no_conforme') {
             payload.motivo_no_conformidad = motivoNoConforme;
         }
-        if (crearMovimiento) {
-            payload.mov_etapa_id                  = movData.etapa_id;
-            payload.mov_sub_etapa_id              = movData.sub_etapa_id || null;
-            payload.mov_instruccion               = movData.instruccion;
-            payload.mov_tipo_actor_responsable_id = movData.tipo_actor_responsable_id || null;
-            payload.mov_usuario_responsable_id    = movData.usuario_responsable_id || null;
-            payload.mov_dias_plazo                = movData.dias_plazo || null;
-        }
+        payload.movimientos = movimientos.map(m => ({
+            etapa_id:                   m.etapa_id || null,
+            sub_etapa_id:               m.sub_etapa_id || null,
+            instruccion:                m.instruccion,
+            tipo_actor_responsable_id:  m.tipo_actor_responsable_id || null,
+            usuario_responsable_id:     m.usuario_responsable_id || null,
+            dias_plazo:                 m.dias_plazo || null,
+        }));
         return payload;
     }
 
@@ -170,13 +188,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             setErrores({ motivo_no_conformidad: 'El motivo es obligatorio.' });
             return;
         }
-        if (crearMovimiento && !movData.instruccion.trim()) {
-            setErrores({ mov_instruccion: 'La instrucción del movimiento es obligatoria.' });
-            return;
-        }
-        if (crearMovimiento && !movData.etapa_id) {
-            setErrores({ mov_etapa_id: 'Selecciona una etapa para el movimiento.' });
-            return;
+        for (let i = 0; i < movimientos.length; i++) {
+            if (!movimientos[i].instruccion.trim()) {
+                setErrores({ [`mov_${i}_instruccion`]: `Movimiento ${i + 1}: La instrucción es obligatoria.` });
+                return;
+            }
+            if (!movimientos[i].etapa_id) {
+                setErrores({ [`mov_${i}_etapa`]: `Movimiento ${i + 1}: Selecciona una etapa.` });
+                return;
+            }
         }
         setProcesando(true);
         setErrores({});
@@ -184,8 +204,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             route('expedientes.conformidad', expediente.id),
             buildPayload(resultado),
             {
-                onFinish: () => setProcesando(false),
-                onError:  errs => setErrores(errs),
+                onFinish:  () => setProcesando(false),
+                onError:   errs => setErrores(errs),
                 onSuccess: () => setPaso('idle'),
             }
         );
@@ -434,30 +454,37 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 </p>
                             </div>
 
-                            {/* Toggle movimiento */}
-                            <label className="flex items-center gap-2.5 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={crearMovimiento}
-                                    onChange={e => setCrearMovimiento(e.target.checked)}
-                                    className="w-4 h-4 rounded accent-[#291136]"
-                                />
-                                <span className="text-sm font-semibold text-[#291136] flex items-center gap-1.5">
-                                    <PlusCircle size={14}/> Crear movimiento de seguimiento
-                                </span>
-                            </label>
+                            {/* Lista de movimientos */}
+                            {movimientos.map((mov, idx) => (
+                                <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-1 relative">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
+                                            Movimiento {idx + 1}
+                                        </span>
+                                        {movimientos.length > 1 && (
+                                            <button onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
+                                                <Trash2 size={13}/>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <MovimientoSeguimientoForm
+                                        expediente={expediente}
+                                        etapas={etapas}
+                                        sugerencia={mov}
+                                        onChange={(field, value) => actualizarMovimiento(idx, field, value)}
+                                    />
+                                    {errores[`mov_${idx}_instruccion`] && <p className="text-xs text-red-500">{errores[`mov_${idx}_instruccion`]}</p>}
+                                    {errores[`mov_${idx}_etapa`]       && <p className="text-xs text-red-500">{errores[`mov_${idx}_etapa`]}</p>}
+                                </div>
+                            ))}
 
-                            {crearMovimiento && (
-                                <MovimientoSeguimientoForm
-                                    expediente={expediente}
-                                    etapas={etapas}
-                                    sugerencia={movData}
-                                    onChange={handleMovChange}
-                                />
-                            )}
-
-                            {errores.mov_instruccion && <p className="text-xs text-red-500">{errores.mov_instruccion}</p>}
-                            {errores.mov_etapa_id    && <p className="text-xs text-red-500">{errores.mov_etapa_id}</p>}
+                            <button
+                                type="button"
+                                onClick={() => agregarMovimiento()}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#291136] border-2 border-dashed border-[#291136]/20 rounded-xl hover:border-[#291136]/40 hover:bg-[#291136]/5 transition-colors"
+                            >
+                                <PlusCircle size={14}/> Agregar otro movimiento
+                            </button>
 
                             <div className="flex gap-2 pt-2">
                                 <button
@@ -465,7 +492,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     disabled={procesando}
                                     className="px-5 py-2 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
                                 >
-                                    {procesando ? 'Procesando...' : 'Confirmar'}
+                                    {procesando ? 'Procesando...' : `Confirmar${movimientos.length > 0 ? ` y crear ${movimientos.length} movimiento(s)` : ''}`}
                                 </button>
                                 <button onClick={() => setPaso('idle')} className="px-4 py-2 text-xs text-gray-400 hover:text-gray-600">
                                     Cancelar
@@ -484,51 +511,53 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 </p>
                             </div>
 
-                            {/* Motivo */}
                             <div>
                                 <label className="block text-xs font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
                                 <textarea
                                     value={motivoNoConforme}
                                     onChange={e => {
                                         setMotivoNoConforme(e.target.value);
-                                        // Pre-rellenar instrucción del movimiento con el motivo
-                                        if (crearMovimiento) {
-                                            handleMovChange('instruccion', `Subsanación requerida: ${e.target.value}`);
+                                        if (movimientos.length > 0) {
+                                            actualizarMovimiento(0, 'instruccion', `Subsanación requerida: ${e.target.value}`);
                                         }
                                     }}
                                     rows={3}
                                     className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                                     placeholder="Indique los motivos por los que la solicitud no es conforme..."
                                 />
-                                {errores.motivo_no_conformidad && (
-                                    <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>
-                                )}
+                                {errores.motivo_no_conformidad && <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>}
                             </div>
 
-                            {/* Toggle movimiento */}
-                            <label className="flex items-center gap-2.5 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={crearMovimiento}
-                                    onChange={e => setCrearMovimiento(e.target.checked)}
-                                    className="w-4 h-4 rounded accent-[#291136]"
-                                />
-                                <span className="text-sm font-semibold text-[#291136] flex items-center gap-1.5">
-                                    <PlusCircle size={14}/> Crear movimiento de subsanación para el demandante
-                                </span>
-                            </label>
+                            {movimientos.map((mov, idx) => (
+                                <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-1 relative">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
+                                            Movimiento {idx + 1}
+                                        </span>
+                                        {movimientos.length > 1 && (
+                                            <button onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
+                                                <Trash2 size={13}/>
+                                            </button>
+                                        )}
+                                    </div>
+                                    <MovimientoSeguimientoForm
+                                        expediente={expediente}
+                                        etapas={etapas}
+                                        sugerencia={mov}
+                                        onChange={(field, value) => actualizarMovimiento(idx, field, value)}
+                                    />
+                                    {errores[`mov_${idx}_instruccion`] && <p className="text-xs text-red-500">{errores[`mov_${idx}_instruccion`]}</p>}
+                                    {errores[`mov_${idx}_etapa`]       && <p className="text-xs text-red-500">{errores[`mov_${idx}_etapa`]}</p>}
+                                </div>
+                            ))}
 
-                            {crearMovimiento && (
-                                <MovimientoSeguimientoForm
-                                    expediente={expediente}
-                                    etapas={etapas}
-                                    sugerencia={movData}
-                                    onChange={handleMovChange}
-                                />
-                            )}
-
-                            {errores.mov_instruccion && <p className="text-xs text-red-500">{errores.mov_instruccion}</p>}
-                            {errores.mov_etapa_id    && <p className="text-xs text-red-500">{errores.mov_etapa_id}</p>}
+                            <button
+                                type="button"
+                                onClick={() => agregarMovimiento()}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#291136] border-2 border-dashed border-[#291136]/20 rounded-xl hover:border-[#291136]/40 hover:bg-[#291136]/5 transition-colors"
+                            >
+                                <PlusCircle size={14}/> Agregar otro movimiento
+                            </button>
 
                             <div className="flex gap-2 pt-2">
                                 <button
@@ -536,7 +565,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     disabled={procesando}
                                     className="px-5 py-2 text-sm font-bold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                                 >
-                                    {procesando ? 'Procesando...' : 'Confirmar No Conforme'}
+                                    {procesando ? 'Procesando...' : `Confirmar No Conforme${movimientos.length > 0 ? ` y crear ${movimientos.length} movimiento(s)` : ''}`}
                                 </button>
                                 <button onClick={() => setPaso('idle')} className="px-4 py-2 text-xs text-gray-400 hover:text-gray-600">
                                     Cancelar
