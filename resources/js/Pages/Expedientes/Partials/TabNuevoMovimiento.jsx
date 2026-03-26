@@ -75,7 +75,10 @@ function MovimientoCard({
                 <div className="flex flex-wrap gap-1.5">
                     {Object.entries(TIPOS).map(([key, info]) => (
                         <button key={key} type="button"
-                            onClick={() => onChange('tipo', key)}
+                            onClick={() => {
+                                onChange('tipo', key);
+                                if (key !== 'requerimiento') onChange('dias_plazo', '');
+                            }}
                             className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
                                 tipo === key ? info.badge + ' ring-1 ring-current' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                             }`}
@@ -143,26 +146,38 @@ function MovimientoCard({
                             </select>
                         </div>
                         {!esNotificacion && (
-                            <>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días)</label>
-                                    <input type="number" min="1" max="365" value={mov.dias_plazo}
-                                        onChange={e => onChange('dias_plazo', e.target.value)}
-                                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" placeholder="Ej: 5"/>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Documento requerido</label>
-                                    <select value={mov.tipo_documento_requerido_id}
-                                        onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}
-                                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-                                        <option value="">Ninguno</option>
-                                        {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                                    </select>
-                                </div>
-                            </>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días)</label>
+                                <input type="number" min="1" max="365" value={mov.dias_plazo}
+                                    onChange={e => onChange('dias_plazo', e.target.value)}
+                                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" placeholder="Ej: 5"/>
+                            </div>
                         )}
                     </div>
                 )}
+
+                {/* Tipo documento requerido + Enviar credenciales */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de documento requerido</label>
+                        <select value={mov.tipo_documento_requerido_id}
+                            onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+                            <option value="">— Ninguno —</option>
+                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
+                        </select>
+                    </div>
+                    {!esPropia && mov.usuario_responsable_id && (
+                        <div className="flex items-end pb-1">
+                            <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                                <input type="checkbox" checked={!!mov.enviar_credenciales}
+                                    onChange={e => onChange('enviar_credenciales', e.target.checked)}
+                                    className="rounded border-gray-300 accent-[#291136]"/>
+                                <span className="font-semibold text-gray-600">Enviar credenciales de acceso</span>
+                            </label>
+                        </div>
+                    )}
+                </div>
 
                 {/* Observaciones */}
                 <div>
@@ -186,6 +201,7 @@ const movVacio = (expediente) => ({
     usuario_responsable_id: '',
     dias_plazo: '',
     tipo_documento_requerido_id: '',
+    enviar_credenciales: false,
 });
 
 export default function TabNuevoMovimiento({
@@ -237,6 +253,7 @@ export default function TabNuevoMovimiento({
             form.append('usuario_responsable_id', mov.usuario_responsable_id ?? '');
             form.append('dias_plazo', mov.dias_plazo ?? '');
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
+            form.append('enviar_credenciales', mov.enviar_credenciales ? '1' : '0');
             archivos.forEach(f => form.append('documentos[]', f));
             notificarA.forEach(id => form.append('notificar_a[]', id));
 
@@ -258,6 +275,7 @@ export default function TabNuevoMovimiento({
                     usuario_responsable_id:     m.usuario_responsable_id || null,
                     dias_plazo:                 m.dias_plazo || null,
                     tipo_documento_requerido_id: m.tipo_documento_requerido_id || null,
+                    enviar_credenciales:         !!m.enviar_credenciales,
                 })),
                 notificar_a: notificarA,
             }, {

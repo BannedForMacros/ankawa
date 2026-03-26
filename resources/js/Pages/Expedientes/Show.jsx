@@ -217,6 +217,7 @@ export default function Show({
                             esGestor={esGestor}
                             etapas={etapas}
                             actoresNotificables={actoresNotificables}
+                            tiposDocumento={tiposDocumento ?? []}
                         />
                     )}
 

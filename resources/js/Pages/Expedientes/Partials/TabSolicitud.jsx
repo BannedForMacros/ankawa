@@ -9,7 +9,7 @@ const TIPO_LABELS = {
 };
 
 // ── Formulario de movimiento de seguimiento (inline) ────────────────────────
-function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange }) {
+function MovimientoSeguimientoForm({ expediente, etapas, tiposDocumento, sugerencia, onChange }) {
     const actoresActivos = expediente.actores?.filter(a => a.activo && a.usuario) ?? [];
     const etapaSel = etapas.find(e => String(e.id) === String(sugerencia.etapa_id));
     const subEtapas = etapaSel?.sub_etapas ?? [];
@@ -28,7 +28,10 @@ function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange })
                         <button
                             key={key}
                             type="button"
-                            onClick={() => onChange('tipo', key)}
+                            onClick={() => {
+                                onChange('tipo', key);
+                                if (key !== 'requerimiento') onChange('dias_plazo', '');
+                            }}
                             className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
                                 tipo === key ? info.color + ' ring-1 ring-current' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                             }`}
@@ -121,21 +124,53 @@ function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange })
                     )}
                 </div>
             )}
+
+            {/* Tipo de documento requerido + Enviar credenciales */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de documento requerido</label>
+                    <select
+                        value={sugerencia.tipo_documento_requerido_id ?? ''}
+                        onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                    >
+                        <option value="">— Ninguno —</option>
+                        {(tiposDocumento ?? []).map(td => (
+                            <option key={td.id} value={td.id}>{td.nombre}</option>
+                        ))}
+                    </select>
+                </div>
+                {!esPropia && sugerencia.usuario_responsable_id && (
+                    <div className="flex items-end pb-1">
+                        <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={!!sugerencia.enviar_credenciales}
+                                onChange={e => onChange('enviar_credenciales', e.target.checked)}
+                                className="rounded border-gray-300 accent-[#291136]"
+                            />
+                            <span className="font-semibold text-gray-600">Enviar credenciales de acceso</span>
+                        </label>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
 
 const movDataVacio = (expediente) => ({
-    tipo:                      'requerimiento',
-    etapa_id:                  String(expediente.etapa_actual_id ?? ''),
-    sub_etapa_id:              '',
-    instruccion:               '',
-    tipo_actor_responsable_id: '',
-    usuario_responsable_id:    '',
-    dias_plazo:                '',
+    tipo:                        'requerimiento',
+    etapa_id:                    String(expediente.etapa_actual_id ?? ''),
+    sub_etapa_id:                '',
+    instruccion:                 '',
+    tipo_actor_responsable_id:   '',
+    usuario_responsable_id:      '',
+    dias_plazo:                  '',
+    tipo_documento_requerido_id: '',
+    enviar_credenciales:         false,
 });
 
-export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [] }) {
+export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [], tiposDocumento = [] }) {
     const [editando, setEditando]           = useState(false);
     const [paso, setPaso]                   = useState('idle'); // idle | conforme | no_conforme
     const [motivoNoConforme, setMotivoNoConforme] = useState('');
@@ -172,22 +207,26 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
         setMovimientos([
             {
-                tipo:                      'notificacion',
-                etapa_id:                  String(expediente.etapa_actual_id ?? ''),
-                sub_etapa_id:              '',
-                instruccion:               'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
-                tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
-                usuario_responsable_id:    String(demandante?.usuario_id ?? ''),
-                dias_plazo:                '',
+                tipo:                        'notificacion',
+                etapa_id:                    String(expediente.etapa_actual_id ?? ''),
+                sub_etapa_id:                '',
+                instruccion:                 'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
+                tipo_actor_responsable_id:   String(demandante?.tipo_actor_id ?? ''),
+                usuario_responsable_id:      String(demandante?.usuario_id ?? ''),
+                dias_plazo:                  '',
+                tipo_documento_requerido_id: '',
+                enviar_credenciales:         false,
             },
             {
-                tipo:                      'requerimiento',
-                etapa_id:                  String(expediente.etapa_actual_id ?? ''),
-                sub_etapa_id:              '',
-                instruccion:               'Traslado al demandado: Debe apersonarse al proceso en el plazo indicado.',
-                tipo_actor_responsable_id: String(demandado?.tipo_actor_id ?? ''),
-                usuario_responsable_id:    String(demandado?.usuario_id ?? ''),
-                dias_plazo:                String(plazoApers),
+                tipo:                        'requerimiento',
+                etapa_id:                    String(expediente.etapa_actual_id ?? ''),
+                sub_etapa_id:                '',
+                instruccion:                 'Traslado al demandado: Debe apersonarse al proceso en el plazo indicado.',
+                tipo_actor_responsable_id:   String(demandado?.tipo_actor_id ?? ''),
+                usuario_responsable_id:      String(demandado?.usuario_id ?? ''),
+                dias_plazo:                  String(plazoApers),
+                tipo_documento_requerido_id: '',
+                enviar_credenciales:         true,
             },
         ]);
         setNotificarA(actoresNotificables.map(a => a.id));
@@ -200,13 +239,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const plazo = expediente.servicio?.plazo_subsanacion_dias ?? '';
         setMovimientos([
             {
-                tipo:                      'requerimiento',
-                etapa_id:                  String(expediente.etapa_actual_id ?? ''),
-                sub_etapa_id:              '',
-                instruccion:               '',
-                tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
-                usuario_responsable_id:    String(demandante?.usuario_id ?? ''),
-                dias_plazo:                String(plazo),
+                tipo:                        'requerimiento',
+                etapa_id:                    String(expediente.etapa_actual_id ?? ''),
+                sub_etapa_id:                '',
+                instruccion:                 '',
+                tipo_actor_responsable_id:   String(demandante?.tipo_actor_id ?? ''),
+                usuario_responsable_id:      String(demandante?.usuario_id ?? ''),
+                dias_plazo:                  String(plazo),
+                tipo_documento_requerido_id: '',
+                enviar_credenciales:         false,
             },
         ]);
         setNotificarA(actoresNotificables.map(a => a.id));
@@ -220,13 +261,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             payload.motivo_no_conformidad = motivoNoConforme;
         }
         payload.movimientos = movimientos.map(m => ({
-            tipo:                       m.tipo || 'requerimiento',
-            etapa_id:                   m.etapa_id || null,
-            sub_etapa_id:               m.sub_etapa_id || null,
-            instruccion:                m.instruccion,
-            tipo_actor_responsable_id:  m.tipo_actor_responsable_id || null,
-            usuario_responsable_id:     m.usuario_responsable_id || null,
-            dias_plazo:                 m.dias_plazo || null,
+            tipo:                        m.tipo || 'requerimiento',
+            etapa_id:                    m.etapa_id || null,
+            sub_etapa_id:                m.sub_etapa_id || null,
+            instruccion:                 m.instruccion,
+            tipo_actor_responsable_id:   m.tipo_actor_responsable_id || null,
+            usuario_responsable_id:      m.usuario_responsable_id || null,
+            dias_plazo:                  m.dias_plazo || null,
+            tipo_documento_requerido_id: m.tipo_documento_requerido_id || null,
+            enviar_credenciales:         !!m.enviar_credenciales,
         }));
         return payload;
     }
@@ -532,6 +575,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     <MovimientoSeguimientoForm
                                         expediente={expediente}
                                         etapas={etapas}
+                                        tiposDocumento={tiposDocumento}
                                         sugerencia={mov}
                                         onChange={(field, value) => actualizarMovimiento(idx, field, value)}
                                     />
@@ -640,6 +684,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     <MovimientoSeguimientoForm
                                         expediente={expediente}
                                         etapas={etapas}
+                                        tiposDocumento={tiposDocumento}
                                         sugerencia={mov}
                                         onChange={(field, value) => actualizarMovimiento(idx, field, value)}
                                     />

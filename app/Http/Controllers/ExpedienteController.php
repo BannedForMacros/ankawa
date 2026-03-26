@@ -272,6 +272,8 @@ class ExpedienteController extends Controller
             'movimientos.*.tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
             'movimientos.*.usuario_responsable_id'    => 'nullable|exists:users,id',
             'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
+            'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'movimientos.*.enviar_credenciales'       => 'nullable|boolean',
             'notificar_a'                             => 'nullable|array',
             'notificar_a.*'                           => 'integer|exists:expediente_actores,id',
         ]);
@@ -296,39 +298,6 @@ class ExpedienteController extends Controller
                     'datos_extra'   => [],
                     'created_at'    => now(),
                 ]);
-
-                // Email al demandado con credenciales
-                $expediente->loadMissing('servicio');
-                $demandado = $expediente->actores()
-                    ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandado'))
-                    ->with('usuario')
-                    ->first();
-
-                $emailDemandado  = $demandado?->usuario?->email ?? $solicitud->email_demandado;
-                $nombreDemandado = $demandado?->usuario?->name  ?? $solicitud->nombre_demandado;
-
-                if ($emailDemandado) {
-                    $passwordRaw = null;
-                    if ($demandado?->usuario) {
-                        $passwordRaw = Str::random(10);
-                        $demandado->usuario->update(['password' => Hash::make($passwordRaw)]);
-                    }
-                    $credencialesTexto = $passwordRaw
-                        ? "\n\nSus credenciales:\n  Usuario: {$emailDemandado}\n  Contraseña temporal: {$passwordRaw}"
-                        : "\n\nIngrese con el correo con el que fue registrado.";
-                    try {
-                        Mail::raw(
-                            "Estimado(a) {$nombreDemandado},\n\n" .
-                            "La solicitud N° {$solicitud->numero_cargo} del expediente {$expediente->numero_expediente} " .
-                            "ha sido declarada CONFORME." . $credencialesTexto .
-                            "\n\nSaludos,\nCentro de Arbitraje CARD ANKAWA",
-                            fn($msg) => $msg->to($emailDemandado, $nombreDemandado)
-                                            ->subject('Solicitud Conforme - ANKAWA')
-                        );
-                    } catch (\Exception $e) {
-                        \Log::warning("Email conformidad: " . $e->getMessage());
-                    }
-                }
             } else {
                 // No conforme
                 $solicitud->update(['estado' => 'subsanacion']);
@@ -369,13 +338,16 @@ class ExpedienteController extends Controller
                 $this->movimientoService->crear(
                     $expediente,
                     [
-                        'etapa_id'                  => $datos['etapa_id'],
-                        'sub_etapa_id'              => $datos['sub_etapa_id'] ?: null,
-                        'tipo_actor_responsable_id' => $datos['tipo_actor_responsable_id'] ?: null,
-                        'usuario_responsable_id'    => $datos['usuario_responsable_id'] ?: null,
-                        'instruccion'               => $datos['instruccion'],
-                        'dias_plazo'                => $datos['dias_plazo'] ?: null,
-                        'creado_por'                => $user->id,
+                        'tipo'                       => $tipo,
+                        'etapa_id'                   => $datos['etapa_id'],
+                        'sub_etapa_id'               => $datos['sub_etapa_id'] ?: null,
+                        'tipo_actor_responsable_id'  => $datos['tipo_actor_responsable_id'] ?: null,
+                        'usuario_responsable_id'     => $datos['usuario_responsable_id'] ?: null,
+                        'instruccion'                => $datos['instruccion'],
+                        'dias_plazo'                 => $datos['dias_plazo'] ?: null,
+                        'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
+                        'enviar_credenciales'        => !empty($datos['enviar_credenciales']),
+                        'creado_por'                 => $user->id,
                     ],
                     [],
                     $notificarA,

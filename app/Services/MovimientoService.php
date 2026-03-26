@@ -38,6 +38,7 @@ class MovimientoService
 
             $movimiento = ExpedienteMovimiento::create([
                 'expediente_id'              => $expediente->id,
+                'tipo'                       => $datos['tipo'] ?? 'requerimiento',
                 'etapa_id'                   => $datos['etapa_id'] ?? $expediente->etapa_actual_id,
                 'sub_etapa_id'               => $datos['sub_etapa_id'] ?? null,
                 'tipo_actor_responsable_id'  => $datos['tipo_actor_responsable_id'] ?? null,
@@ -49,6 +50,7 @@ class MovimientoService
                 'fecha_limite'               => $fechaLimite,
                 'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
                 'estado'                     => $estadoInicial,
+                'enviar_credenciales'        => !empty($datos['enviar_credenciales']),
             ]);
 
             // Si el estado inicial es respondido o recibido, marcar fecha_respuesta
@@ -75,12 +77,51 @@ class MovimientoService
                 'created_at'    => now(),
             ]);
 
+            // Enviar credenciales de acceso al actor si se marcó
+            if (!empty($datos['enviar_credenciales']) && $movimiento->usuario_responsable_id) {
+                $this->enviarCredenciales($movimiento, $expediente);
+            }
+
             if (!empty($notificarActorIds)) {
                 $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
             }
 
             return $movimiento;
         });
+    }
+
+    /**
+     * Generar/resetear credenciales del actor responsable y enviar email.
+     */
+    private function enviarCredenciales(ExpedienteMovimiento $movimiento, Expediente $expediente): void
+    {
+        $usuario = User::find($movimiento->usuario_responsable_id);
+        if (!$usuario?->email) return;
+
+        $expediente->loadMissing('solicitud');
+        $solicitud = $expediente->solicitud;
+
+        $passwordRaw = Str::random(10);
+        $usuario->update(['password' => Hash::make($passwordRaw)]);
+
+        $credencialesTexto = "\n\nSus credenciales de acceso:\n  Usuario: {$usuario->email}\n  Contraseña temporal: {$passwordRaw}";
+
+        try {
+            Mail::raw(
+                "Estimado(a) {$usuario->name},\n\n" .
+                "Se le ha notificado en el expediente {$expediente->numero_expediente}" .
+                ($solicitud ? " (Solicitud N° {$solicitud->numero_cargo})" : '') .
+                ".\n\nMovimiento: {$movimiento->instruccion}" .
+                $credencialesTexto .
+                "\n\nSaludos,\nCentro de Arbitraje CARD ANKAWA",
+                fn($msg) => $msg->to($usuario->email, $usuario->name)
+                                ->subject("Notificación - Expediente {$expediente->numero_expediente}")
+            );
+
+            $movimiento->update(['credenciales_enviadas' => true]);
+        } catch (\Exception $e) {
+            \Log::warning("Error enviando credenciales movimiento #{$movimiento->id}: " . $e->getMessage());
+        }
     }
 
     /**

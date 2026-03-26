@@ -35,6 +35,7 @@ class MovimientoController extends Controller
             'observaciones'              => 'nullable|string|max:2000',
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
             'tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'enviar_credenciales'        => 'nullable|boolean',
             'documentos'                 => 'nullable|array',
             'documentos.*'               => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             'notificar_a'                => 'nullable|array',
@@ -45,7 +46,11 @@ class MovimientoController extends Controller
             'etapa_id', 'sub_etapa_id', 'tipo_actor_responsable_id',
             'usuario_responsable_id', 'instruccion', 'observaciones',
             'dias_plazo', 'tipo_documento_requerido_id',
-        ]), ['creado_por' => auth()->id()]);
+        ]), [
+            'creado_por'          => auth()->id(),
+            'tipo'                => $request->input('tipo', 'requerimiento'),
+            'enviar_credenciales' => $request->boolean('enviar_credenciales'),
+        ]);
 
         $archivos = $request->file('documentos') ?? [];
         $notificarA = $request->notificar_a ?? [];
@@ -84,6 +89,7 @@ class MovimientoController extends Controller
             'movimientos.*.usuario_responsable_id'   => 'nullable|exists:users,id',
             'movimientos.*.dias_plazo'               => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'movimientos.*.enviar_credenciales'      => 'nullable|boolean',
             'notificar_a'                            => 'nullable|array',
             'notificar_a.*'                          => 'integer|exists:expediente_actores,id',
         ]);
@@ -109,7 +115,11 @@ class MovimientoController extends Controller
                             'usuario_responsable_id', 'instruccion', 'observaciones',
                             'dias_plazo', 'tipo_documento_requerido_id',
                         ]),
-                        ['creado_por' => auth()->id()]
+                        [
+                            'creado_por'          => auth()->id(),
+                            'tipo'                => $tipo,
+                            'enviar_credenciales' => !empty($item['enviar_credenciales']),
+                        ]
                     ),
                     [],
                     $notificarA,
