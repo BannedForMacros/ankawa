@@ -17,7 +17,7 @@ export default function TabAccionPendiente({
     const form = useForm({
         // Respuesta
         respuesta: '',
-        documentos_respuesta: [],
+        documentos: [],
         // Nuevo movimiento (solo si crearSiguiente)
         nuevo_etapa_id: expediente.etapa_actual_id ?? '',
         nuevo_sub_etapa_id: '',
@@ -56,7 +56,7 @@ export default function TabAccionPendiente({
         // Para la ruta simple, solo enviar campos de respuesta
         const submitData = crearSiguiente ? form.data : {
             respuesta: form.data.respuesta,
-            documentos: form.data.documentos_respuesta,
+            documentos: form.data.documentos,
         };
 
         form.post(route(routeName, [expediente.id, movimiento.id]), {
@@ -154,7 +154,7 @@ export default function TabAccionPendiente({
                     <input
                         type="file"
                         multiple
-                        onChange={e => form.setData('documentos_respuesta', Array.from(e.target.files))}
+                        onChange={e => form.setData('documentos', Array.from(e.target.files))}
                         className="text-xs"
                     />
                 </div>

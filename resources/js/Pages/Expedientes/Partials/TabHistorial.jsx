@@ -3,8 +3,7 @@ import { router, useForm } from '@inertiajs/react';
 import {
     FileText, Download, ChevronRight, ChevronDown, ChevronUp,
     Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
-    ArrowRight, ArrowDown, MessageSquare, CornerDownRight,
-    Layers, MoveDown
+    ArrowRight, CornerDownRight, Send, Bell, UserCheck
 } from 'lucide-react';
 
 const estadoConfig = {
@@ -23,9 +22,9 @@ const colorMap = {
 };
 
 const TIPO_LABELS = {
-    requerimiento: { label: 'Requerimiento', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
-    notificacion:  { label: 'Notificación',  badge: 'bg-purple-50 text-purple-600 border-purple-200' },
-    propia:        { label: 'Act. Propia',   badge: 'bg-amber-50 text-amber-600 border-amber-200' },
+    requerimiento: { label: 'Requerimiento', badge: 'bg-blue-50 text-blue-600 border-blue-200',     Icon: Send,      iconBg: 'bg-blue-100 text-blue-600' },
+    notificacion:  { label: 'Notificación',  badge: 'bg-purple-50 text-purple-600 border-purple-200', Icon: Bell,      iconBg: 'bg-purple-100 text-purple-600' },
+    propia:        { label: 'Act. Propia',   badge: 'bg-amber-50 text-amber-600 border-amber-200',   Icon: UserCheck, iconBg: 'bg-amber-100 text-amber-600' },
 };
 
 // ── Resolver Panel ───────────────────────────────────────────────────────────
@@ -183,20 +182,32 @@ function RespuestaCard({ mov }) {
 }
 
 // ── Tarjeta de movimiento ────────────────────────────────────────────────────
-function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir }) {
+function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo }) {
     const cfg = estadoConfig[mov.estado] ?? estadoConfig.pendiente;
     const expandido = expandidos.has(mov.id);
     const resolucion = mov.resolucion_tipo;
     const tieneRespuesta = !!mov.respuesta;
     const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
-    const tieneExtras = docsCreacion.length > 0 || mov.observaciones || resolucion;
+    const todosDocsMov = [...docsCreacion, ...(docsSolicitud ?? [])];
+    const tieneExtras = todosDocsMov.length > 0 || mov.observaciones || resolucion;
     const puedeResolver = esGestor && mov.estado === 'respondido' && mov.usuario_responsable_id && !mov.resolucion_tipo_id;
     const puedeContinuar = esGestor && mov.estado === 'pendiente' && mov.usuario_responsable_id && onIrANuevo;
     const tipoMov = TIPO_LABELS[mov.tipo] ?? TIPO_LABELS.requerimiento;
 
     return (
-        <div className="relative">
+        <div className="relative flex gap-3">
+            {/* Línea de timeline */}
+            <div className="flex flex-col items-center shrink-0" style={{ width: '28px' }}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center z-10 ${tipoMov.iconBg}`}>
+                    <tipoMov.Icon size={14}/>
+                </div>
+                {!esUltimo && (
+                    <div className="flex-1 w-px bg-gray-200 mt-1"/>
+                )}
+            </div>
+
             {/* Tarjeta del movimiento */}
+            <div className="flex-1 min-w-0 pb-3">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-3.5">
                     <div className="flex items-start justify-between gap-3">
@@ -261,11 +272,11 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                         {mov.observaciones && (
                             <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
                         )}
-                        {docsCreacion.length > 0 && (
+                        {todosDocsMov.length > 0 && (
                             <div>
                                 <p className="text-[11px] font-semibold text-gray-400 mb-1.5">Documentos adjuntos</p>
                                 <div className="flex flex-wrap gap-1.5">
-                                    {docsCreacion.map(doc => (
+                                    {todosDocsMov.map(doc => (
                                         <a key={doc.id} href={route('documentos.descargar', doc.id)}
                                             className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
                                             <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
@@ -297,31 +308,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
             </div>
 
             {tieneRespuesta && <RespuestaCard mov={mov}/>}
-        </div>
-    );
-}
-
-// ── Separador de transición entre etapas ─────────────────────────────────────
-function TransicionEtapa({ subEtapaAnterior, etapaNueva, subEtapaNueva }) {
-    return (
-        <div className="flex items-center gap-3 py-3 px-2">
-            <div className="flex-1 h-px bg-gradient-to-r from-gray-200 via-[#BE0F4A]/30 to-transparent"/>
-            <div className="flex items-center gap-2 text-[11px] font-bold">
-                {subEtapaAnterior && (
-                    <span className="text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{subEtapaAnterior}</span>
-                )}
-                <MoveDown size={14} className="text-[#BE0F4A]"/>
-                <span className="text-[#BE0F4A] bg-[#BE0F4A]/10 px-2.5 py-0.5 rounded-lg border border-[#BE0F4A]/20">
-                    {etapaNueva}
-                </span>
-                {subEtapaNueva && (
-                    <>
-                        <ChevronRight size={10} className="text-gray-400"/>
-                        <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{subEtapaNueva}</span>
-                    </>
-                )}
             </div>
-            <div className="flex-1 h-px bg-gradient-to-l from-gray-200 via-[#BE0F4A]/30 to-transparent"/>
         </div>
     );
 }
@@ -407,14 +394,10 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                             </span>
                         </div>
                     </div>
-                    {solicitud.documentos?.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-                            {solicitud.documentos.map(doc => (
-                                <a key={doc.id} href={route('documentos.descargar', doc.id)}
-                                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 transition-colors">
-                                    <FileText size={11}/>{doc.nombre_original}<Download size={10} className="text-gray-400"/>
-                                </a>
-                            ))}
+                    {solicitud.resumen_controversia && (
+                        <div className="col-span-2 sm:col-span-4 mt-1">
+                            <span className="text-gray-400 block text-xs">Controversia</span>
+                            <p className="text-xs font-semibold text-[#291136] line-clamp-2">{solicitud.resumen_controversia}</p>
                         </div>
                     )}
                 </div>
@@ -427,52 +410,31 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                     <p className="text-sm text-gray-400">Aún no se han registrado movimientos.</p>
                 </div>
             ) : (
-                <div className="space-y-0">
+                <div className="space-y-4">
                     {grupos.map((grupo, gi) => (
-                        <div key={`${grupo.etapaId}-${gi}`}>
-                            {/* Transición entre etapas */}
-                            {grupo.esTransicion && (
-                                <TransicionEtapa
-                                    subEtapaAnterior={grupo.subEtapaAnterior}
-                                    etapaNueva={grupo.etapaNombre}
-                                    subEtapaNueva={grupo.primeraSubEtapa}
-                                />
-                            )}
-
-                            {/* Grupo de etapa */}
-                            <div className="flex gap-0">
-                                {/* Barra vertical con nombre de etapa */}
-                                <div className="relative flex flex-col items-center w-10 shrink-0">
-                                    {/* Línea vertical */}
-                                    <div className="absolute inset-y-0 w-0.5 bg-[#BE0F4A]/20 rounded-full"/>
-                                    {/* Nombre de etapa rotado */}
-                                    <div className="sticky top-20 z-10 mt-3">
-                                        <div className="relative flex items-center justify-center">
-                                            <div className="w-3 h-3 rounded-full bg-[#BE0F4A] border-2 border-white shadow-sm"/>
-                                        </div>
-                                        <div className="absolute left-1/2 top-5 -translate-x-1/2 origin-center"
-                                            style={{ writingMode: 'vertical-lr', textOrientation: 'mixed' }}>
-                                            <span className="text-[10px] font-bold text-[#BE0F4A]/70 tracking-wider uppercase whitespace-nowrap">
-                                                {grupo.etapaNombre}
-                                            </span>
-                                        </div>
-                                    </div>
+                        <div key={`${grupo.etapaId}-${gi}`} className="flex">
+                            {/* Header vertical de etapa */}
+                            <div className="relative shrink-0 flex items-stretch" style={{ width: '32px' }}>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="h-full w-px bg-[#BE0F4A]/20"/>
                                 </div>
+                                <div className="relative flex items-center justify-center w-full">
+                                    <span
+                                        className="text-[10px] font-bold text-[#BE0F4A] uppercase tracking-widest whitespace-nowrap bg-white px-1"
+                                        style={{ transform: 'rotate(-90deg)' }}
+                                    >
+                                        {grupo.etapaNombre}
+                                    </span>
+                                </div>
+                            </div>
 
-                                {/* Movimientos de esta etapa */}
-                                <div className="flex-1 space-y-2 py-2 min-w-0">
-                                    {/* Chip de etapa como header */}
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#BE0F4A]/5 border border-[#BE0F4A]/15">
-                                            <Layers size={12} className="text-[#BE0F4A]"/>
-                                            <span className="text-xs font-bold text-[#BE0F4A]">{grupo.etapaNombre}</span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-400">
-                                            {grupo.movimientos.length} movimiento{grupo.movimientos.length > 1 ? 's' : ''}
-                                        </span>
-                                    </div>
-
-                                    {grupo.movimientos.map(mov => (
+                            {/* Movimientos de esta etapa */}
+                            <div className="flex-1 space-y-2 py-2 min-w-0 border-l-2 border-[#BE0F4A]/20 pl-3">
+                                {grupo.movimientos.map((mov, mi) => {
+                                    // El primer mov del primer grupo es el envío de solicitud → le pasamos los docs
+                                    const esPrimerMov = gi === 0 && mi === 0;
+                                    const esUltimoMov = mi === grupo.movimientos.length - 1;
+                                    return (
                                         <MovimientoCard
                                             key={mov.id}
                                             mov={mov}
@@ -482,9 +444,11 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                             onIrANuevo={onIrANuevo}
                                             expandidos={expandidos}
                                             toggleExpandir={toggleExpandir}
+                                            docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
+                                            esUltimo={esUltimoMov}
                                         />
-                                    ))}
-                                </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}
