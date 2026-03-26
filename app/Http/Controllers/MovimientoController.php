@@ -188,22 +188,41 @@ class MovimientoController extends Controller
     }
 
     /**
-     * Omitir un movimiento pendiente (solo Gestor).
+     * Extender el plazo de un movimiento pendiente y continuar el proceso.
      */
-    public function omitir(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
+    public function extenderPlazo(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
     {
         abort_unless($movimiento->expediente_id === $expediente->id, 404);
-        abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403,
-            'Solo el Gestor puede omitir movimientos.');
-        abort_unless($movimiento->estado === 'pendiente', 422,
-            'Solo se pueden omitir movimientos pendientes.');
+        abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403);
+        abort_unless($movimiento->estado === 'pendiente', 422, 'Solo se puede extender el plazo de movimientos pendientes.');
 
         $request->validate([
-            'motivo' => 'required|string|max:1000',
+            'dias_plazo' => 'nullable|integer|min:1|max:365',
         ]);
 
-        $this->movimientoService->omitir($movimiento, auth()->id(), $request->motivo);
+        $updates = [];
+        if (!empty($request->dias_plazo)) {
+            $updates['dias_plazo']    = $request->dias_plazo;
+            $updates['fecha_limite']  = now()->addDays((int) $request->dias_plazo)->toDateString();
+            // Si estaba vencido, volver a pendiente
+            if ($movimiento->estado === 'vencido') {
+                $updates['estado'] = 'pendiente';
+            }
+        }
 
-        return back()->with('success', 'Movimiento omitido.');
+        if (!empty($updates)) {
+            $movimiento->update($updates);
+
+            \App\Models\ExpedienteHistorial::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id'    => auth()->id(),
+                'tipo_evento'   => 'plazo_extendido',
+                'descripcion'   => "Plazo extendido a {$request->dias_plazo} días: {$movimiento->instruccion}",
+                'datos_extra'   => ['movimiento_id' => $movimiento->id, 'nuevos_dias' => $request->dias_plazo],
+                'created_at'    => now(),
+            ]);
+        }
+
+        return back()->with('success', 'Proceso continuado.' . (!empty($updates) ? ' Plazo actualizado.' : ''));
     }
 }

@@ -128,7 +128,10 @@ function BloquePersona({ titulo, icono: Icono, campos, setCampos, errors, deshab
         setCargando(true); setModoManual(false);
         try {
             const { data } = await axios.get(route('consulta.documento'), { params: { tipo, numero } });
-            setCampos({ nombre: data.nombre ?? '', domicilio: data.domicilio ?? '' });
+            // DNI/CE: RENIEC no devuelve domicilio → solo bloquear nombre
+            const cambios = { nombre: data.nombre ?? '' };
+            if (tipo === 'ruc' && data.domicilio) cambios.domicilio = data.domicilio;
+            setCampos(cambios);
             setBloqueado(true);
         } catch (err) {
             if (err.response?.status === 404) {
@@ -147,9 +150,11 @@ function BloquePersona({ titulo, icono: Icono, campos, setCampos, errors, deshab
         setCampos({ documento: '', nombre: '', domicilio: '' });
     }
 
-    const lon       = LONG_DOC[tipoDoc];
-    const docValido = lon ? campos.documento?.length === lon : (campos.documento?.length ?? 0) >= 6;
-    const esLocked  = bloqueado && !modoManual && !deshabilitado;
+    const lon              = LONG_DOC[tipoDoc];
+    const docValido        = lon ? campos.documento?.length === lon : (campos.documento?.length ?? 0) >= 6;
+    const esLocked         = bloqueado && !modoManual && !deshabilitado;
+    // Domicilio solo se bloquea si la API lo devolvió (RUC); para DNI/CE siempre editable
+    const domicilioLocked  = esLocked && tipoDoc === 'ruc';
 
     return (
         <Seccion icono={Icono} titulo={titulo}>
@@ -238,7 +243,7 @@ function BloquePersona({ titulo, icono: Icono, campos, setCampos, errors, deshab
                 <Input label="Domicilio de notificación" required type="text"
                     value={campos.domicilio ?? ''}
                     onChange={e => setCampos({ domicilio: e.target.value })}
-                    disabled={deshabilitado || esLocked}
+                    disabled={deshabilitado || domicilioLocked}
                     placeholder="Dirección completa"
                     error={errors?.domicilio} />
             </div>

@@ -134,7 +134,7 @@ class SolicitudArbitrajeController extends Controller
                 ],
                 [],
                 [],
-                'respondido'
+                'recibido'
             );
 
             // ── 5. Registrar actores del expediente ──────────────────────────

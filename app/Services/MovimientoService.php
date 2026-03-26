@@ -47,8 +47,8 @@ class MovimientoService
                 'estado'                     => $estadoInicial,
             ]);
 
-            // Si el estado inicial es respondido, marcar fecha_respuesta
-            if ($estadoInicial === 'respondido') {
+            // Si el estado inicial es respondido o recibido, marcar fecha_respuesta
+            if (in_array($estadoInicial, ['respondido', 'recibido'])) {
                 $movimiento->update([
                     'fecha_respuesta' => now(),
                     'respondido_por'  => $datos['creado_por'],
@@ -93,6 +93,16 @@ class MovimientoService
                 'estado'          => 'respondido',
             ]);
 
+            // Si el expediente tiene solicitud en estado 'subsanacion',
+            // al responder el demandante se habilita la re-revisión del gestor
+            $expediente = $movimiento->expediente()->with('solicitud')->first();
+            if ($expediente?->solicitud?->estado === 'subsanacion') {
+                $expediente->solicitud->update([
+                    'estado'             => 'pendiente',
+                    'resultado_revision' => null,
+                ]);
+            }
+
             $this->guardarDocumentos($movimiento, $archivos, $datos['respondido_por'], 'respuesta');
 
             ExpedienteHistorial::create([
@@ -131,28 +141,6 @@ class MovimientoService
             // 2. Crear el siguiente movimiento
             return $this->crear($expediente, $datosNuevo, $archivosNuevo, $notificarActorIds);
         });
-    }
-
-    /**
-     * Omitir un movimiento pendiente (solo el Gestor).
-     */
-    public function omitir(ExpedienteMovimiento $movimiento, int $omitidoPor, string $motivo): ExpedienteMovimiento
-    {
-        $movimiento->update([
-            'estado'        => 'omitido',
-            'observaciones' => ($movimiento->observaciones ? $movimiento->observaciones . "\n" : '') . "Omitido: {$motivo}",
-        ]);
-
-        ExpedienteHistorial::create([
-            'expediente_id' => $movimiento->expediente_id,
-            'usuario_id'    => $omitidoPor,
-            'tipo_evento'   => 'movimiento_omitido',
-            'descripcion'   => "Movimiento omitido: {$movimiento->instruccion}. Motivo: {$motivo}",
-            'datos_extra'   => ['movimiento_id' => $movimiento->id],
-            'created_at'    => now(),
-        ]);
-
-        return $movimiento;
     }
 
     /**

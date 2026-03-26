@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList } from 'lucide-react';
+import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info } from 'lucide-react';
 import TabHistorial from './Partials/TabHistorial';
 import TabNuevoMovimiento from './Partials/TabNuevoMovimiento';
 import TabAccionPendiente from './Partials/TabAccionPendiente';
@@ -49,6 +49,60 @@ export default function Show({
     const [activeTab, setActiveTab] = useState(miAccionPendiente ? 'accion' : 'historial');
 
     const gestor = expediente.actores?.find(a => a.es_gestor && a.activo);
+    const solicitud = expediente.solicitud;
+
+    // ── Banner de próximo paso (solo para el gestor) ──────────────────────
+    const proximoPaso = (() => {
+        if (!esGestor || expediente.estado !== 'activo') return null;
+
+        // 1. Sin gestor designado
+        if (!gestor) return {
+            tipo: 'urgente',
+            texto: 'Primero debes designar un Gestor para este expediente.',
+            accion: 'Ir a Actores',
+            tab: 'actores',
+        };
+
+        // 2. Tiene solicitud sin revisar → conformidad pendiente
+        if (solicitud && !solicitud.resultado_revision) return {
+            tipo: 'alerta',
+            texto: 'Debes revisar la solicitud y declarar si es CONFORME o NO CONFORME antes de continuar.',
+            accion: 'Revisar solicitud',
+            tab: 'solicitud',
+        };
+
+        // 3. Solicitud no conforme pendiente de subsanación
+        if (solicitud?.resultado_revision === 'no_conforme' && solicitud?.estado === 'subsanacion') return {
+            tipo: 'info',
+            texto: 'La solicitud fue declarada NO CONFORME. Esperando subsanación del demandante.',
+            accion: null,
+        };
+
+        // 4. Tiene acción pendiente propia
+        if (miAccionPendiente) return {
+            tipo: 'alerta',
+            texto: 'Tienes una acción pendiente que requiere tu respuesta.',
+            accion: 'Ver mi acción',
+            tab: 'accion',
+        };
+
+        // 5. Solicitud conforme, proceso en curso → sugerir nuevo movimiento
+        if (solicitud?.resultado_revision === 'conforme') return {
+            tipo: 'ok',
+            texto: 'Solicitud admitida. Puedes crear el siguiente movimiento del proceso.',
+            accion: 'Nuevo movimiento',
+            tab: 'nuevo',
+        };
+
+        return null;
+    })();
+
+    const bannerColors = {
+        urgente: 'bg-red-50 border-red-300 text-red-800',
+        alerta:  'bg-amber-50 border-amber-300 text-amber-800',
+        info:    'bg-blue-50 border-blue-200 text-blue-800',
+        ok:      'bg-emerald-50 border-emerald-200 text-emerald-800',
+    };
 
     return (
         <AuthenticatedLayout
@@ -98,6 +152,24 @@ export default function Show({
                         </div>
                     </div>
 
+                    {/* ── Banner próximo paso ── */}
+                    {proximoPaso && (
+                        <div className={`flex items-center justify-between gap-4 px-5 py-3.5 rounded-2xl border ${bannerColors[proximoPaso.tipo]}`}>
+                            <div className="flex items-center gap-3 text-sm font-semibold">
+                                <Info size={16} className="shrink-0"/>
+                                <span>📌 <strong>¿Qué sigue?</strong> {proximoPaso.texto}</span>
+                            </div>
+                            {proximoPaso.accion && (
+                                <button
+                                    onClick={() => setActiveTab(proximoPaso.tab)}
+                                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white/70 border border-current/20 whitespace-nowrap hover:bg-white transition-colors"
+                                >
+                                    {proximoPaso.accion} <ArrowRight size={12}/>
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     {/* ── Tabs ── */}
                     <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
                         {tabs.map(({ id, label, Icon, alerta }) => (
@@ -127,6 +199,7 @@ export default function Show({
                             esGestor={esGestor}
                             expedienteId={expediente.id}
                             tiposResolucion={tiposResolucion ?? []}
+                            onIrANuevo={esGestor && expediente.estado === 'activo' ? () => setActiveTab('nuevo') : null}
                         />
                     )}
 

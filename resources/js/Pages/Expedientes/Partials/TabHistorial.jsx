@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import {
     FileText, Download, ChevronRight, ChevronDown, ChevronUp,
-    Clock, CheckCircle, XCircle, AlertTriangle, SkipForward,
-    Eye, CheckSquare
+    Clock, CheckCircle, AlertTriangle,
+    Eye, CheckSquare, ArrowRight
 } from 'lucide-react';
 
 const estadoConfig = {
-    pendiente:  { Icon: Clock,          color: 'bg-blue-50 text-blue-600 border-blue-200',      label: 'Pendiente' },
+    recibido:   { Icon: Eye,            color: 'bg-purple-50 text-purple-600 border-purple-200',  label: 'Recibido' },
+    pendiente:  { Icon: Clock,          color: 'bg-blue-50 text-blue-600 border-blue-200',        label: 'Pendiente' },
     respondido: { Icon: CheckCircle,    color: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'Respondido' },
-    vencido:    { Icon: AlertTriangle,  color: 'bg-red-50 text-red-600 border-red-200',          label: 'Vencido' },
-    omitido:    { Icon: XCircle,        color: 'bg-gray-50 text-gray-400 border-gray-200',       label: 'Omitido' },
+    vencido:    { Icon: AlertTriangle,  color: 'bg-red-50 text-red-600 border-red-200',           label: 'Vencido' },
 };
 
 const colorMap = {
@@ -92,43 +92,79 @@ function ResolverPanel({ mov, expedienteId, tiposResolucion }) {
     );
 }
 
-function OmitirPanel({ mov, expedienteId }) {
-    const [open, setOpen] = useState(false);
-    const [motivo, setMotivo] = useState('');
 
-    function submit() {
-        if (!motivo.trim()) return;
-        router.post(route('expedientes.movimientos.omitir', [expedienteId, mov.id]), { motivo }, {
-            onSuccess: () => { setOpen(false); setMotivo(''); },
-        });
+function ContinuarPanel({ mov, expedienteId, onContinuar }) {
+    const [open, setOpen] = useState(false);
+    const [dias, setDias] = useState('');
+    const [procesando, setProcesando] = useState(false);
+
+    function confirmar() {
+        setProcesando(true);
+        router.post(
+            route('expedientes.movimientos.extender-plazo', [expedienteId, mov.id]),
+            { dias_plazo: dias || null },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setOpen(false);
+                    setProcesando(false);
+                    onContinuar?.();
+                },
+                onError: () => setProcesando(false),
+            }
+        );
     }
 
     if (!open) {
         return (
-            <button onClick={() => setOpen(true)} className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                <SkipForward size={11}/> Omitir
+            <button
+                onClick={() => setOpen(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 transition-colors"
+            >
+                <ArrowRight size={12}/> Continuar proceso
             </button>
         );
     }
 
     return (
-        <div className="flex items-end gap-2 mt-2">
-            <div className="flex-1">
-                <input
-                    type="text"
-                    value={motivo}
-                    onChange={e => setMotivo(e.target.value)}
-                    placeholder="Motivo de omisión..."
-                    className="w-full text-xs border border-gray-200 rounded-lg px-3 py-1.5"
-                />
+        <div className="mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-3">
+            <p className="text-xs text-amber-800 font-semibold">
+                Este movimiento quedará <strong>pendiente</strong>. Si deseas ampliar el plazo al actor, ingresa los nuevos días (opcional).
+            </p>
+            <div className="flex items-center gap-3">
+                <div>
+                    <label className="block text-[11px] font-semibold text-amber-700 mb-1">Nuevo plazo (días)</label>
+                    <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={dias}
+                        onChange={e => setDias(e.target.value)}
+                        placeholder="Ej: 5"
+                        className="w-24 text-xs border border-amber-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                </div>
+                <p className="text-[11px] text-amber-600 mt-4">
+                    {dias ? `Nueva fecha límite: +${dias} días desde hoy` : 'Sin cambio de plazo'}
+                </p>
             </div>
-            <button onClick={submit} className="px-3 py-1.5 text-xs font-bold bg-gray-600 text-white rounded-lg">Confirmar</button>
-            <button onClick={() => setOpen(false)} className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600">✕</button>
+            <div className="flex gap-2">
+                <button
+                    onClick={confirmar}
+                    disabled={procesando}
+                    className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+                >
+                    <ArrowRight size={12}/> Confirmar y crear siguiente movimiento
+                </button>
+                <button onClick={() => setOpen(false)} className="px-3 py-1.5 text-xs text-gray-400 hover:text-gray-600">
+                    Cancelar
+                </button>
+            </div>
         </div>
     );
 }
 
-export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, tiposResolucion = [] }) {
+export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, tiposResolucion = [], onIrANuevo = null }) {
     const [expandidos, setExpandidos] = useState(new Set());
 
     function toggleExpandir(id) {
@@ -189,7 +225,7 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                             const expandido = expandidos.has(mov.id);
                             const resolucion = mov.resolucion_tipo;
                             const puedeResolver = esGestor && mov.estado === 'respondido' && mov.usuario_responsable_id && !mov.resolucion_tipo_id;
-                            const puedeOmitir = esGestor && mov.estado === 'pendiente';
+                            const puedeContinuar = esGestor && mov.estado === 'pendiente' && mov.usuario_responsable_id && onIrANuevo;
 
                             return (
                                 <div key={mov.id} className="relative pl-12">
@@ -318,12 +354,14 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                                 )}
 
                                                 {/* Acciones del gestor */}
-                                                {(puedeResolver || puedeOmitir) && (
-                                                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100">
+                                                {(puedeResolver || puedeContinuar) && (
+                                                    <div className="pt-2 border-t border-gray-100 space-y-2">
                                                         {puedeResolver && (
                                                             <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>
                                                         )}
-                                                        {puedeOmitir && <OmitirPanel mov={mov} expedienteId={expedienteId}/>}
+                                                        {puedeContinuar && (
+                                                            <ContinuarPanel mov={mov} expedienteId={expedienteId} onContinuar={onIrANuevo}/>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

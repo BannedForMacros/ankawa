@@ -261,8 +261,19 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false }
                 )}
             </div>
 
-            {/* ── Conformidad (solo gestor, solo si no ha sido revisada) ── */}
-            {esGestor && !solicitud.resultado_revision && !editando && (
+            {/* ── Esperando subsanación ── */}
+            {esGestor && solicitud.estado === 'subsanacion' && (
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
+                    <h3 className="text-sm font-bold text-amber-700 mb-1">⏳ Esperando subsanación del demandante</h3>
+                    <p className="text-xs text-amber-700">
+                        Se declaró NO CONFORME y se creó una acción pendiente para el demandante.
+                        Una vez que el demandante responda, podrás volver a revisar la conformidad desde esta sección.
+                    </p>
+                </div>
+            )}
+
+            {/* ── Conformidad (gestor puede revisar si no está conforme ni en subsanación activa) ── */}
+            {esGestor && solicitud.resultado_revision !== 'conforme' && solicitud.estado !== 'subsanacion' && !editando && (
                 <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
                     <h3 className="text-sm font-bold text-amber-700 mb-3">Revisión de Conformidad</h3>
                     <p className="text-xs text-gray-500 mb-4">

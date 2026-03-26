@@ -15,6 +15,7 @@ use App\Models\ExpedienteActor;
 use App\Models\ExpedienteHistorial;
 use App\Models\User;
 use App\Services\GestorExpedienteService;
+use App\Services\MovimientoService;
 use App\Services\NotificacionService;
 use App\Services\VencimientoService;
 use App\Services\EtapaService;
@@ -28,6 +29,7 @@ class ExpedienteController extends Controller
 {
     public function __construct(
         private GestorExpedienteService $gestorService,
+        private MovimientoService $movimientoService,
         private NotificacionService $notificacionService,
         private VencimientoService $vencimientoService,
         private EtapaService $etapaService,
@@ -257,7 +259,9 @@ class ExpedienteController extends Controller
 
         $solicitud = $expediente->solicitud;
         abort_unless($solicitud, 404);
-        abort_if($solicitud->resultado_revision, 422, 'La solicitud ya fue revisada.');
+        // Bloquear si ya está conforme (admitida) o si está en subsanación activa (esperando respuesta del demandante)
+        abort_if($solicitud->resultado_revision === 'conforme', 422, 'La solicitud ya fue declarada conforme.');
+        abort_if($solicitud->estado === 'subsanacion', 422, 'Hay una subsanación pendiente de respuesta por el demandante.');
 
         $request->validate([
             'resultado'                => 'required|in:conforme,no_conforme',
@@ -349,6 +353,26 @@ class ExpedienteController extends Controller
             'created_at'    => now(),
         ]);
 
-        return back()->with('success', 'Solicitud declarada NO CONFORME. Se requiere subsanación del demandante.');
+        // Crear movimiento pendiente asignado al demandante para que subsane
+        $actorDemandante = $expediente->actores()
+            ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandante'))
+            ->with('tipoActor')
+            ->first();
+
+        $this->movimientoService->crear(
+            $expediente,
+            [
+                'etapa_id'                  => $expediente->etapa_actual_id,
+                'tipo_actor_responsable_id' => $actorDemandante?->tipo_actor_id,
+                'usuario_responsable_id'    => $actorDemandante?->usuario_id,
+                'instruccion'               => "Subsanación requerida: {$request->motivo_no_conformidad}",
+                'dias_plazo'                => $plazoSubsanacion,
+                'creado_por'                => $user->id,
+            ],
+            [],
+            []
+        );
+
+        return back()->with('success', 'Solicitud declarada NO CONFORME. Se creó una acción pendiente para el demandante.');
     }
 }
