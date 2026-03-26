@@ -216,6 +216,7 @@ export default function Show({
                             solicitud={expediente.solicitud}
                             esGestor={esGestor}
                             etapas={etapas}
+                            actoresNotificables={actoresNotificables}
                         />
                     )}
 

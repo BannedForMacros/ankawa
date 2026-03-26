@@ -12,6 +12,7 @@ class ExpedienteMovimiento extends Model
 
     protected $fillable = [
         'expediente_id',
+        'tipo',
         'etapa_id',
         'sub_etapa_id',
         'tipo_actor_responsable_id',
@@ -30,14 +31,18 @@ class ExpedienteMovimiento extends Model
         'resuelto_por',
         'fecha_resolucion',
         'estado',
+        'enviar_credenciales',
+        'credenciales_enviadas',
         'activo',
     ];
 
     protected $casts = [
-        'fecha_limite'     => 'date',
-        'fecha_respuesta'  => 'datetime',
-        'fecha_resolucion' => 'datetime',
-        'activo'           => 'boolean',
+        'fecha_limite'           => 'date',
+        'fecha_respuesta'        => 'datetime',
+        'fecha_resolucion'       => 'datetime',
+        'activo'                 => 'boolean',
+        'enviar_credenciales'    => 'boolean',
+        'credenciales_enviadas'  => 'boolean',
     ];
 
     public function expediente(): BelongsTo

@@ -75,6 +75,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Movimientos
     Route::post('/expedientes/{expediente}/movimientos', [MovimientoController::class, 'store'])->name('expedientes.movimientos.store');
+    Route::post('/expedientes/{expediente}/movimientos/lote', [MovimientoController::class, 'storeLote'])->name('expedientes.movimientos.lote');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/responder', [MovimientoController::class, 'responder'])->name('expedientes.movimientos.responder');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/responder-y-crear', [MovimientoController::class, 'responderYCrear'])->name('expedientes.movimientos.responder-y-crear');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/resolver', [MovimientoController::class, 'resolver'])->name('expedientes.movimientos.resolver');

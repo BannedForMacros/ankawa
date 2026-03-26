@@ -50,12 +50,76 @@ class MovimientoController extends Controller
         $archivos = $request->file('documentos') ?? [];
         $notificarA = $request->notificar_a ?? [];
 
-        // Si no hay responsable, es una "Actuación Propia" → se crea ya como respondido
-        $estadoInicial = empty($datos['usuario_responsable_id']) ? 'respondido' : 'pendiente';
+        // tipo: 'requerimiento' → pendiente | 'propia' → respondido | 'notificacion' → recibido
+        $tipo = $request->input('tipo', 'requerimiento');
+        if (empty($datos['usuario_responsable_id'])) {
+            $estadoInicial = 'respondido';   // actuación propia (sin responsable)
+        } elseif ($tipo === 'notificacion') {
+            $estadoInicial = 'recibido';     // traslado/notificación → no requiere respuesta
+        } else {
+            $estadoInicial = 'pendiente';    // requerimiento
+        }
 
         $this->movimientoService->crear($expediente, $datos, $archivos, $notificarA, $estadoInicial);
 
         return back()->with('success', 'Movimiento registrado correctamente.');
+    }
+
+    /**
+     * Crear múltiples movimientos en lote (solo Gestor), en orden.
+     */
+    public function storeLote(Request $request, Expediente $expediente)
+    {
+        abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403);
+        abort_if($expediente->estado !== 'activo', 422, 'No se pueden crear movimientos en un expediente inactivo.');
+
+        $request->validate([
+            'movimientos'                            => 'required|array|min:1|max:20',
+            'movimientos.*.tipo'                     => 'required|in:requerimiento,propia,notificacion',
+            'movimientos.*.etapa_id'                 => 'required|exists:etapas,id',
+            'movimientos.*.sub_etapa_id'             => 'nullable|exists:sub_etapas,id',
+            'movimientos.*.instruccion'              => 'required|string|max:2000',
+            'movimientos.*.observaciones'            => 'nullable|string|max:2000',
+            'movimientos.*.tipo_actor_responsable_id'=> 'nullable|exists:tipos_actor_expediente,id',
+            'movimientos.*.usuario_responsable_id'   => 'nullable|exists:users,id',
+            'movimientos.*.dias_plazo'               => 'nullable|integer|min:1|max:365',
+            'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'notificar_a'                            => 'nullable|array',
+            'notificar_a.*'                          => 'integer|exists:expediente_actores,id',
+        ]);
+
+        $notificarA = $request->notificar_a ?? [];
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $notificarA) {
+            foreach ($request->movimientos as $item) {
+                $tipo = $item['tipo'] ?? 'requerimiento';
+                if (empty($item['usuario_responsable_id'])) {
+                    $estadoInicial = 'respondido';
+                } elseif ($tipo === 'notificacion') {
+                    $estadoInicial = 'recibido';
+                } else {
+                    $estadoInicial = 'pendiente';
+                }
+
+                $this->movimientoService->crear(
+                    $expediente,
+                    array_merge(
+                        \Illuminate\Support\Arr::only($item, [
+                            'etapa_id', 'sub_etapa_id', 'tipo_actor_responsable_id',
+                            'usuario_responsable_id', 'instruccion', 'observaciones',
+                            'dias_plazo', 'tipo_documento_requerido_id',
+                        ]),
+                        ['creado_por' => auth()->id()]
+                    ),
+                    [],
+                    $notificarA,
+                    $estadoInicial
+                );
+            }
+        });
+
+        $cant = count($request->movimientos);
+        return back()->with('success', "{$cant} movimiento(s) creado(s) correctamente.");
     }
 
     /**

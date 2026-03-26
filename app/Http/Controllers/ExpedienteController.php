@@ -264,13 +264,16 @@ class ExpedienteController extends Controller
         $request->validate([
             'resultado'                            => 'required|in:conforme,no_conforme',
             'motivo_no_conformidad'                => 'required_if:resultado,no_conforme|nullable|string|max:2000',
-            'movimientos'                          => 'nullable|array|max:10',
-            'movimientos.*.etapa_id'               => 'required|exists:etapas,id',
-            'movimientos.*.sub_etapa_id'           => 'nullable|exists:sub_etapas,id',
-            'movimientos.*.instruccion'            => 'required|string|max:2000',
+            'movimientos'                             => 'nullable|array|max:10',
+            'movimientos.*.tipo'                      => 'nullable|in:requerimiento,propia,notificacion',
+            'movimientos.*.etapa_id'                  => 'required|exists:etapas,id',
+            'movimientos.*.sub_etapa_id'              => 'nullable|exists:sub_etapas,id',
+            'movimientos.*.instruccion'               => 'required|string|max:2000',
             'movimientos.*.tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
-            'movimientos.*.usuario_responsable_id' => 'nullable|exists:users,id',
-            'movimientos.*.dias_plazo'             => 'nullable|integer|min:1|max:365',
+            'movimientos.*.usuario_responsable_id'    => 'nullable|exists:users,id',
+            'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
+            'notificar_a'                             => 'nullable|array',
+            'notificar_a.*'                           => 'integer|exists:expediente_actores,id',
         ]);
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $solicitud, $user) {
@@ -352,8 +355,17 @@ class ExpedienteController extends Controller
                 ]);
             }
 
-            // Crear los movimientos indicados por el gestor
+            // Crear los movimientos indicados por el gestor (en orden del array)
+            $notificarA = $request->input('notificar_a', []);
             foreach ($request->input('movimientos', []) as $datos) {
+                $tipo = $datos['tipo'] ?? 'requerimiento';
+                if (empty($datos['usuario_responsable_id'])) {
+                    $estadoMov = 'respondido';
+                } elseif ($tipo === 'notificacion') {
+                    $estadoMov = 'recibido';
+                } else {
+                    $estadoMov = 'pendiente';
+                }
                 $this->movimientoService->crear(
                     $expediente,
                     [
@@ -366,7 +378,8 @@ class ExpedienteController extends Controller
                         'creado_por'                => $user->id,
                     ],
                     [],
-                    []
+                    $notificarA,
+                    $estadoMov
                 );
             }
         });

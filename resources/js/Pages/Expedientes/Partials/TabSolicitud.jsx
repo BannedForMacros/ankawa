@@ -1,16 +1,44 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Trash2 } from 'lucide-react';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+
+const TIPO_LABELS = {
+    requerimiento: { label: 'Requerimiento', desc: 'Requiere respuesta del actor asignado', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    notificacion:  { label: 'Traslado / Notificación', desc: 'Solo se notifica, no requiere respuesta', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    propia:        { label: 'Actuación Propia', desc: 'Registra acción del gestor, se marca completada', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+};
 
 // ── Formulario de movimiento de seguimiento (inline) ────────────────────────
 function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange }) {
     const actoresActivos = expediente.actores?.filter(a => a.activo && a.usuario) ?? [];
     const etapaSel = etapas.find(e => String(e.id) === String(sugerencia.etapa_id));
     const subEtapas = etapaSel?.sub_etapas ?? [];
+    const tipo = sugerencia.tipo ?? 'requerimiento';
+    const tipoInfo = TIPO_LABELS[tipo];
+    const esPropia = tipo === 'propia';
 
     return (
         <div className="space-y-3 pt-3 border-t border-dashed border-gray-200">
-            <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide">Movimiento de seguimiento</p>
+
+            {/* Tipo de movimiento */}
+            <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tipo de movimiento</label>
+                <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(TIPO_LABELS).map(([key, info]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => onChange('tipo', key)}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                                tipo === key ? info.color + ' ring-1 ring-current' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            }`}
+                        >
+                            {info.label}
+                        </button>
+                    ))}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">{tipoInfo.desc}</p>
+            </div>
 
             {/* Etapa + Sub-etapa */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -55,45 +83,50 @@ function MovimientoSeguimientoForm({ expediente, etapas, sugerencia, onChange })
                 />
             </div>
 
-            {/* Actor responsable + Días plazo */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Actor responsable</label>
-                    <select
-                        value={sugerencia.usuario_responsable_id}
-                        onChange={e => {
-                            const actor = actoresActivos.find(a => String(a.usuario_id) === e.target.value);
-                            onChange('usuario_responsable_id', e.target.value);
-                            onChange('tipo_actor_responsable_id', actor?.tipo_actor_id ?? '');
-                        }}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                    >
-                        <option value="">— Sin asignar (actuación propia) —</option>
-                        {actoresActivos.map(a => (
-                            <option key={a.usuario_id} value={a.usuario_id}>
-                                {a.usuario.name} ({a.tipo_actor?.nombre ?? '?'})
-                            </option>
-                        ))}
-                    </select>
+            {/* Actor responsable + Días plazo (solo para requerimiento y notificacion) */}
+            {!esPropia && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">
+                            {tipo === 'notificacion' ? 'Actor a notificar' : 'Actor responsable'}
+                        </label>
+                        <select
+                            value={sugerencia.usuario_responsable_id}
+                            onChange={e => {
+                                const actor = actoresActivos.find(a => String(a.usuario_id) === e.target.value);
+                                onChange('usuario_responsable_id', e.target.value);
+                                onChange('tipo_actor_responsable_id', actor?.tipo_actor_id ?? '');
+                            }}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                        >
+                            <option value="">— Seleccionar actor —</option>
+                            {actoresActivos.map(a => (
+                                <option key={a.usuario_id} value={a.usuario_id}>
+                                    {a.usuario.name} ({a.tipo_actor?.nombre ?? '?'})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {tipo === 'requerimiento' && (
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">Días plazo</label>
+                            <input
+                                type="number" min="1" max="365"
+                                value={sugerencia.dias_plazo}
+                                onChange={e => onChange('dias_plazo', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                                placeholder="Ej: 5"
+                            />
+                        </div>
+                    )}
                 </div>
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Días plazo</label>
-                    <input
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={sugerencia.dias_plazo}
-                        onChange={e => onChange('dias_plazo', e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                        placeholder="Ej: 5"
-                    />
-                </div>
-            </div>
+            )}
         </div>
     );
 }
 
 const movDataVacio = (expediente) => ({
+    tipo:                      'requerimiento',
     etapa_id:                  String(expediente.etapa_actual_id ?? ''),
     sub_etapa_id:              '',
     instruccion:               '',
@@ -102,11 +135,12 @@ const movDataVacio = (expediente) => ({
     dias_plazo:                '',
 });
 
-export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [] }) {
+export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [] }) {
     const [editando, setEditando]           = useState(false);
     const [paso, setPaso]                   = useState('idle'); // idle | conforme | no_conforme
     const [motivoNoConforme, setMotivoNoConforme] = useState('');
     const [movimientos, setMovimientos]     = useState([]);  // lista de movimientos a crear
+    const [notificarA, setNotificarA]       = useState(actoresNotificables.map(a => a.id));
     const [procesando, setProcesando]       = useState(false);
     const [errores, setErrores]             = useState({});
 
@@ -122,30 +156,41 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         setMovimientos(prev => prev.filter((_, i) => i !== idx));
     }
 
+    function moverMovimiento(idx, dir) {
+        setMovimientos(prev => {
+            const arr = [...prev];
+            const swap = idx + dir;
+            if (swap < 0 || swap >= arr.length) return prev;
+            [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
+            return arr;
+        });
+    }
+
     function iniciarConforme() {
         const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
         const demandado  = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandado');
         const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
         setMovimientos([
-            // 1. Conformidad notificada al demandante
             {
+                tipo:                      'notificacion',
                 etapa_id:                  String(expediente.etapa_actual_id ?? ''),
                 sub_etapa_id:              '',
-                instruccion:               'Conformidad de la solicitud: La solicitud ha sido revisada y declarada CONFORME.',
+                instruccion:               'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
                 tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
                 usuario_responsable_id:    String(demandante?.usuario_id ?? ''),
                 dias_plazo:                '',
             },
-            // 2. Traslado al demandado
             {
+                tipo:                      'requerimiento',
                 etapa_id:                  String(expediente.etapa_actual_id ?? ''),
                 sub_etapa_id:              '',
-                instruccion:               'Traslado al demandado: Se le notifica que debe apersonarse al proceso.',
+                instruccion:               'Traslado al demandado: Debe apersonarse al proceso en el plazo indicado.',
                 tipo_actor_responsable_id: String(demandado?.tipo_actor_id ?? ''),
                 usuario_responsable_id:    String(demandado?.usuario_id ?? ''),
                 dias_plazo:                String(plazoApers),
             },
         ]);
+        setNotificarA(actoresNotificables.map(a => a.id));
         setPaso('conforme');
         setErrores({});
     }
@@ -155,6 +200,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const plazo = expediente.servicio?.plazo_subsanacion_dias ?? '';
         setMovimientos([
             {
+                tipo:                      'requerimiento',
                 etapa_id:                  String(expediente.etapa_actual_id ?? ''),
                 sub_etapa_id:              '',
                 instruccion:               '',
@@ -163,16 +209,18 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 dias_plazo:                String(plazo),
             },
         ]);
+        setNotificarA(actoresNotificables.map(a => a.id));
         setPaso('no_conforme');
         setErrores({});
     }
 
     function buildPayload(resultado) {
-        const payload = { resultado };
+        const payload = { resultado, notificar_a: notificarA };
         if (resultado === 'no_conforme') {
             payload.motivo_no_conformidad = motivoNoConforme;
         }
         payload.movimientos = movimientos.map(m => ({
+            tipo:                       m.tipo || 'requerimiento',
             etapa_id:                   m.etapa_id || null,
             sub_etapa_id:               m.sub_etapa_id || null,
             instruccion:                m.instruccion,
@@ -458,11 +506,25 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             {movimientos.map((mov, idx) => (
                                 <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-1 relative">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
-                                            Movimiento {idx + 1}
-                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
+                                                #{idx + 1}
+                                            </span>
+                                            {movimientos.length > 1 && (
+                                                <div className="flex gap-0.5">
+                                                    <button type="button" onClick={() => moverMovimiento(idx, -1)} disabled={idx === 0}
+                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
+                                                        <ChevronUp size={12}/>
+                                                    </button>
+                                                    <button type="button" onClick={() => moverMovimiento(idx, 1)} disabled={idx === movimientos.length - 1}
+                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
+                                                        <ChevronDown size={12}/>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                         {movimientos.length > 1 && (
-                                            <button onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
+                                            <button type="button" onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
                                                 <Trash2 size={13}/>
                                             </button>
                                         )}
@@ -485,6 +547,27 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             >
                                 <PlusCircle size={14}/> Agregar otro movimiento
                             </button>
+
+                            {actoresNotificables.length > 0 && (
+                                <div className="pt-2 border-t border-gray-100">
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Notificar a (email)</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {actoresNotificables.map(actor => (
+                                            <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={notificarA.includes(actor.id)}
+                                                    onChange={e => setNotificarA(prev =>
+                                                        e.target.checked ? [...prev, actor.id] : prev.filter(x => x !== actor.id)
+                                                    )}
+                                                    className="rounded border-gray-300 accent-[#291136]"
+                                                />
+                                                {actor.usuario?.name} ({actor.tipo_actor?.nombre})
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex gap-2 pt-2">
                                 <button
@@ -531,11 +614,25 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             {movimientos.map((mov, idx) => (
                                 <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-1 relative">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
-                                            Movimiento {idx + 1}
-                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
+                                                #{idx + 1}
+                                            </span>
+                                            {movimientos.length > 1 && (
+                                                <div className="flex gap-0.5">
+                                                    <button type="button" onClick={() => moverMovimiento(idx, -1)} disabled={idx === 0}
+                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
+                                                        <ChevronUp size={12}/>
+                                                    </button>
+                                                    <button type="button" onClick={() => moverMovimiento(idx, 1)} disabled={idx === movimientos.length - 1}
+                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
+                                                        <ChevronDown size={12}/>
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                         {movimientos.length > 1 && (
-                                            <button onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
+                                            <button type="button" onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
                                                 <Trash2 size={13}/>
                                             </button>
                                         )}
@@ -558,6 +655,27 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             >
                                 <PlusCircle size={14}/> Agregar otro movimiento
                             </button>
+
+                            {actoresNotificables.length > 0 && (
+                                <div className="pt-2 border-t border-gray-100">
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Notificar a (email)</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {actoresNotificables.map(actor => (
+                                            <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={notificarA.includes(actor.id)}
+                                                    onChange={e => setNotificarA(prev =>
+                                                        e.target.checked ? [...prev, actor.id] : prev.filter(x => x !== actor.id)
+                                                    )}
+                                                    className="rounded border-gray-300 accent-[#291136]"
+                                                />
+                                                {actor.usuario?.name} ({actor.tipo_actor?.nombre})
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="flex gap-2 pt-2">
                                 <button
