@@ -208,6 +208,7 @@ export default function Show({
                             expediente={expediente}
                             solicitud={expediente.solicitud}
                             esGestor={esGestor}
+                            etapas={etapas}
                         />
                     )}
 

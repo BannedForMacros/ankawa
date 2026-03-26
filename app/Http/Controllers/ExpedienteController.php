@@ -254,125 +254,128 @@ class ExpedienteController extends Controller
     public function registrarConformidad(Request $request, Expediente $expediente)
     {
         $user = auth()->user();
-        $esGestor = $this->gestorService->esGestor($expediente, $user->id);
-        abort_unless($esGestor, 403, 'Solo el Gestor puede registrar la conformidad.');
+        abort_unless($this->gestorService->esGestor($expediente, $user->id), 403, 'Solo el Gestor puede registrar la conformidad.');
 
         $solicitud = $expediente->solicitud;
         abort_unless($solicitud, 404);
-        // Bloquear si ya está conforme (admitida) o si está en subsanación activa (esperando respuesta del demandante)
         abort_if($solicitud->resultado_revision === 'conforme', 422, 'La solicitud ya fue declarada conforme.');
         abort_if($solicitud->estado === 'subsanacion', 422, 'Hay una subsanación pendiente de respuesta por el demandante.');
 
+        $crearMovimiento = filter_var($request->input('crear_movimiento', false), FILTER_VALIDATE_BOOLEAN);
+
         $request->validate([
-            'resultado'                => 'required|in:conforme,no_conforme',
-            'motivo_no_conformidad'    => 'required_if:resultado,no_conforme|nullable|string|max:2000',
+            'resultado'                    => 'required|in:conforme,no_conforme',
+            'motivo_no_conformidad'        => 'required_if:resultado,no_conforme|nullable|string|max:2000',
+            'mov_etapa_id'                 => $crearMovimiento ? 'required|exists:etapas,id' : 'nullable',
+            'mov_sub_etapa_id'             => 'nullable|exists:sub_etapas,id',
+            'mov_instruccion'              => $crearMovimiento ? 'required|string|max:2000' : 'nullable',
+            'mov_tipo_actor_responsable_id'=> 'nullable|exists:tipos_actor_expediente,id',
+            'mov_usuario_responsable_id'   => 'nullable|exists:users,id',
+            'mov_dias_plazo'               => 'nullable|integer|min:1|max:365',
         ]);
 
-        $solicitud->update([
-            'resultado_revision'    => $request->resultado,
-            'fecha_revision'        => now(),
-            'revisado_por'          => $user->id,
-            'motivo_no_conformidad' => $request->resultado === 'no_conforme' ? $request->motivo_no_conformidad : null,
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $solicitud, $user, $crearMovimiento) {
 
-        // Plazos configurables desde el servicio
-        $expediente->loadMissing('servicio');
-        $plazoApersonamiento = $expediente->servicio->plazo_apersonamiento_dias ?? 5;
-        $plazoSubsanacion    = $expediente->servicio->plazo_subsanacion_dias    ?? 5;
-
-        if ($request->resultado === 'conforme') {
-            $solicitud->update(['estado' => 'admitida']);
-
-            ExpedienteHistorial::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => $user->id,
-                'tipo_evento'   => 'solicitud_conforme',
-                'descripcion'   => 'Solicitud declarada CONFORME. Se procede a notificar al demandado.',
-                'datos_extra'   => [],
-                'created_at'    => now(),
+            $solicitud->update([
+                'resultado_revision'    => $request->resultado,
+                'fecha_revision'        => now(),
+                'revisado_por'          => $user->id,
+                'motivo_no_conformidad' => $request->resultado === 'no_conforme' ? $request->motivo_no_conformidad : null,
             ]);
 
-            // Notificar al demandado por email si tiene correo
-            $demandado = $expediente->actores()
-                ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandado'))
-                ->with('usuario')
-                ->first();
+            if ($request->resultado === 'conforme') {
+                $solicitud->update(['estado' => 'admitida']);
 
-            $emailDemandado  = $demandado?->usuario?->email ?? $solicitud->email_demandado;
-            $nombreDemandado = $demandado?->usuario?->name  ?? $solicitud->nombre_demandado;
+                ExpedienteHistorial::create([
+                    'expediente_id' => $expediente->id,
+                    'usuario_id'    => $user->id,
+                    'tipo_evento'   => 'solicitud_conforme',
+                    'descripcion'   => 'Solicitud declarada CONFORME.',
+                    'datos_extra'   => [],
+                    'created_at'    => now(),
+                ]);
 
-            if ($emailDemandado) {
-                // Generar nueva contraseña temporal para el demandado
-                $passwordRaw = null;
-                if ($demandado?->usuario) {
-                    $passwordRaw = \Str::random(10);
-                    $demandado->usuario->update(['password' => \Hash::make($passwordRaw)]);
-                }
+                // Email al demandado con credenciales
+                $expediente->loadMissing('servicio');
+                $demandado = $expediente->actores()
+                    ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandado'))
+                    ->with('usuario')
+                    ->first();
 
-                try {
+                $emailDemandado  = $demandado?->usuario?->email ?? $solicitud->email_demandado;
+                $nombreDemandado = $demandado?->usuario?->name  ?? $solicitud->nombre_demandado;
+
+                if ($emailDemandado) {
+                    $passwordRaw = null;
+                    if ($demandado?->usuario) {
+                        $passwordRaw = Str::random(10);
+                        $demandado->usuario->update(['password' => Hash::make($passwordRaw)]);
+                    }
                     $credencialesTexto = $passwordRaw
-                        ? "\n\nSus credenciales de acceso a la plataforma:\n  Usuario: {$emailDemandado}\n  Contraseña temporal: {$passwordRaw}\n  (Le recomendamos cambiarla al ingresar)"
-                        : "\n\nIngrese a la plataforma ANKAWA con el correo con el que fue registrado.";
-
-                    Mail::raw(
-                        "Estimado(a) {$nombreDemandado},\n\n" .
-                        "Se le notifica que la solicitud de arbitraje N° {$solicitud->numero_cargo} " .
-                        "en el expediente {$expediente->numero_expediente} ha sido declarada CONFORME.\n\n" .
-                        "Se le concede un plazo de {$plazoApersonamiento} días hábiles para apersonarse al proceso." .
-                        $credencialesTexto .
-                        "\n\nSaludos cordiales.\nCentro de Arbitraje CARD ANKAWA",
-                        fn($msg) => $msg->to($emailDemandado, $nombreDemandado)
-                                        ->subject('Notificación de Apersonamiento - ANKAWA')
-                    );
-                } catch (\Exception $e) {
-                    \Log::warning("No se pudo enviar email de apersonamiento: " . $e->getMessage());
+                        ? "\n\nSus credenciales:\n  Usuario: {$emailDemandado}\n  Contraseña temporal: {$passwordRaw}"
+                        : "\n\nIngrese con el correo con el que fue registrado.";
+                    try {
+                        Mail::raw(
+                            "Estimado(a) {$nombreDemandado},\n\n" .
+                            "La solicitud N° {$solicitud->numero_cargo} del expediente {$expediente->numero_expediente} " .
+                            "ha sido declarada CONFORME." . $credencialesTexto .
+                            "\n\nSaludos,\nCentro de Arbitraje CARD ANKAWA",
+                            fn($msg) => $msg->to($emailDemandado, $nombreDemandado)
+                                            ->subject('Solicitud Conforme - ANKAWA')
+                        );
+                    } catch (\Exception $e) {
+                        \Log::warning("Email conformidad: " . $e->getMessage());
+                    }
                 }
+            } else {
+                // No conforme
+                $solicitud->update(['estado' => 'subsanacion']);
+
+                $expediente->loadMissing('servicio');
+                $plazoSubsanacion = $expediente->servicio->plazo_subsanacion_dias ?? 5;
+
+                SolicitudSubsanacion::create([
+                    'solicitud_id'   => $solicitud->id,
+                    'registrado_por' => $user->id,
+                    'observacion'    => $request->motivo_no_conformidad,
+                    'plazo_dias'     => $plazoSubsanacion,
+                    'fecha_limite'   => now()->addDays($plazoSubsanacion)->toDateString(),
+                    'estado'         => 'pendiente',
+                ]);
+
+                ExpedienteHistorial::create([
+                    'expediente_id' => $expediente->id,
+                    'usuario_id'    => $user->id,
+                    'tipo_evento'   => 'solicitud_no_conforme',
+                    'descripcion'   => "Solicitud declarada NO CONFORME. Motivo: {$request->motivo_no_conformidad}",
+                    'datos_extra'   => ['motivo' => $request->motivo_no_conformidad],
+                    'created_at'    => now(),
+                ]);
             }
 
-            return back()->with('success', 'Solicitud declarada CONFORME. Se notificó al demandado.');
-        }
+            // Crear movimiento de seguimiento si el gestor lo indicó
+            if ($crearMovimiento) {
+                $this->movimientoService->crear(
+                    $expediente,
+                    [
+                        'etapa_id'                   => $request->mov_etapa_id,
+                        'sub_etapa_id'               => $request->mov_sub_etapa_id ?: null,
+                        'tipo_actor_responsable_id'  => $request->mov_tipo_actor_responsable_id ?: null,
+                        'usuario_responsable_id'     => $request->mov_usuario_responsable_id ?: null,
+                        'instruccion'                => $request->mov_instruccion,
+                        'dias_plazo'                 => $request->mov_dias_plazo ?: null,
+                        'creado_por'                 => $user->id,
+                    ],
+                    [],
+                    []
+                );
+            }
+        });
 
-        // No conforme → crear subsanación
-        $solicitud->update(['estado' => 'subsanacion']);
+        $msg = $request->resultado === 'conforme'
+            ? 'Solicitud declarada CONFORME.' . ($crearMovimiento ? ' Se creó el movimiento de seguimiento.' : '')
+            : 'Solicitud declarada NO CONFORME.' . ($crearMovimiento ? ' Se creó el movimiento de subsanación.' : '');
 
-        SolicitudSubsanacion::create([
-            'solicitud_id'   => $solicitud->id,
-            'registrado_por' => $user->id,
-            'observacion'    => $request->motivo_no_conformidad,
-            'plazo_dias'     => $plazoSubsanacion,
-            'fecha_limite'   => now()->addDays($plazoSubsanacion)->toDateString(),
-            'estado'         => 'pendiente',
-        ]);
-
-        ExpedienteHistorial::create([
-            'expediente_id' => $expediente->id,
-            'usuario_id'    => $user->id,
-            'tipo_evento'   => 'solicitud_no_conforme',
-            'descripcion'   => "Solicitud declarada NO CONFORME. Motivo: {$request->motivo_no_conformidad}",
-            'datos_extra'   => ['motivo' => $request->motivo_no_conformidad],
-            'created_at'    => now(),
-        ]);
-
-        // Crear movimiento pendiente asignado al demandante para que subsane
-        $actorDemandante = $expediente->actores()
-            ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandante'))
-            ->with('tipoActor')
-            ->first();
-
-        $this->movimientoService->crear(
-            $expediente,
-            [
-                'etapa_id'                  => $expediente->etapa_actual_id,
-                'tipo_actor_responsable_id' => $actorDemandante?->tipo_actor_id,
-                'usuario_responsable_id'    => $actorDemandante?->usuario_id,
-                'instruccion'               => "Subsanación requerida: {$request->motivo_no_conformidad}",
-                'dias_plazo'                => $plazoSubsanacion,
-                'creado_por'                => $user->id,
-            ],
-            [],
-            []
-        );
-
-        return back()->with('success', 'Solicitud declarada NO CONFORME. Se creó una acción pendiente para el demandante.');
+        return back()->with('success', $msg);
     }
 }
