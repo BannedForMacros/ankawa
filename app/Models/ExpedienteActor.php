@@ -17,10 +17,12 @@ class ExpedienteActor extends Model
         'email_externo',
         'es_gestor',
         'activo',
+        'credenciales_enviadas',
     ];
 
     protected $casts = [
-        'es_gestor' => 'boolean',
+        'es_gestor'             => 'boolean',
+        'credenciales_enviadas' => 'boolean',
     ];
 
     public function expediente(): BelongsTo

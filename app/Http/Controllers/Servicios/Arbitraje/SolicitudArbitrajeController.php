@@ -140,17 +140,20 @@ class SolicitudArbitrajeController extends Controller
             // ── 5. Registrar actores del expediente ──────────────────────────
 
             // 5a. Demandante (usuario que crea la solicitud)
+            // credenciales_enviadas = true porque recibirá el cargo con su contraseña por correo
             $tipoActorDemandante = TipoActorExpediente::where('slug', 'demandante')->first();
             if ($tipoActorDemandante) {
                 ExpedienteActor::create([
-                    'expediente_id' => $expediente->id,
-                    'usuario_id'    => $userId,
-                    'tipo_actor_id' => $tipoActorDemandante->id,
-                    'activo'        => 1,
+                    'expediente_id'        => $expediente->id,
+                    'usuario_id'           => $userId,
+                    'tipo_actor_id'        => $tipoActorDemandante->id,
+                    'activo'               => 1,
+                    'credenciales_enviadas' => true,
                 ]);
             }
 
             // 5b. Demandado (se crea cuenta si no existe)
+            // credenciales_enviadas = false: el gestor deberá enviar sus credenciales manualmente
             $tipoActorDemandado = TipoActorExpediente::where('slug', 'demandado')->first();
             if ($tipoActorDemandado) {
                 $userDemandado = null;
@@ -170,12 +173,13 @@ class SolicitudArbitrajeController extends Controller
                 }
 
                 ExpedienteActor::create([
-                    'expediente_id'  => $expediente->id,
-                    'usuario_id'     => $userDemandado?->id,
-                    'tipo_actor_id'  => $tipoActorDemandado->id,
-                    'nombre_externo' => $userDemandado ? null : $request->nombre_demandado,
-                    'email_externo'  => $userDemandado ? null : $request->email_demandado,
-                    'activo'         => 1,
+                    'expediente_id'        => $expediente->id,
+                    'usuario_id'           => $userDemandado?->id,
+                    'tipo_actor_id'        => $tipoActorDemandado->id,
+                    'nombre_externo'       => $userDemandado ? null : $request->nombre_demandado,
+                    'email_externo'        => $userDemandado ? null : $request->email_demandado,
+                    'activo'               => 1,
+                    'credenciales_enviadas' => false,
                 ]);
             }
 
@@ -276,7 +280,7 @@ class SolicitudArbitrajeController extends Controller
 
             ExpedienteActor::updateOrCreate(
                 ['expediente_id' => $expediente->id, 'tipo_actor_id' => $config->tipo_actor_id],
-                ['usuario_id' => $usuario->id, 'activo' => 1]
+                ['usuario_id' => $usuario->id, 'activo' => 1, 'credenciales_enviadas' => true]
             );
         }
     }

@@ -1,6 +1,6 @@
-import { router, useForm } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { PlusCircle, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip } from 'lucide-react';
 
 const TIPOS = {
     requerimiento: {
@@ -10,7 +10,7 @@ const TIPOS = {
     },
     notificacion: {
         label: 'Traslado / Notificación',
-        desc: 'Solo se notifica al actor. No requiere respuesta del sistema.',
+        desc: 'Se notifica a los actores seleccionados. No requiere respuesta.',
         badge: 'bg-purple-50 text-purple-700 border-purple-200',
     },
     propia: {
@@ -20,26 +20,35 @@ const TIPOS = {
     },
 };
 
-// ── Formulario de un movimiento individual ───────────────────────────────────
-function MovimientoCard({
-    mov, idx, total, etapas, tiposActor, usuariosAsignables, tiposDocumento,
+// ── Card de un movimiento individual (exportado para reutilización) ──────────
+export function MovimientoCard({
+    mov, idx, total,
+    etapas,
+    tiposActorEnExpediente,
+    actoresExpediente,
+    tiposDocumento,
+    actoresConCredenciales,
+    actoresNotificables,
+    archivos, onArchivos,
     onChange, onMover, onQuitar,
 }) {
-    const tipo = mov.tipo ?? 'requerimiento';
-    const tipoInfo = TIPOS[tipo];
+    const tipo      = mov.tipo ?? 'requerimiento';
+    const tipoInfo  = TIPOS[tipo];
+    const esPropia       = tipo === 'propia';
+    const esNotificacion = tipo === 'notificacion';
+
     const subEtapas = useMemo(() => {
         const et = etapas.find(e => String(e.id) === String(mov.etapa_id));
         return et?.sub_etapas ?? [];
     }, [mov.etapa_id, etapas]);
 
-    const tipoActorSel = tiposActor.find(t => String(t.id) === String(mov.tipo_actor_responsable_id));
+    // Usuarios del expediente filtrados por tipo actor seleccionado
     const usuariosFiltrados = useMemo(() => {
-        if (!tipoActorSel?.rol_auto_slug) return usuariosAsignables;
-        return usuariosAsignables.filter(u => u.rol?.slug === tipoActorSel.rol_auto_slug);
-    }, [tipoActorSel, usuariosAsignables]);
-
-    const esPropia = tipo === 'propia';
-    const esNotificacion = tipo === 'notificacion';
+        if (!mov.tipo_actor_responsable_id) return actoresExpediente;
+        return actoresExpediente.filter(
+            a => String(a.tipo_actor_id) === String(mov.tipo_actor_responsable_id)
+        );
+    }, [mov.tipo_actor_responsable_id, actoresExpediente]);
 
     return (
         <div className="border border-gray-200 rounded-xl overflow-hidden">
@@ -71,13 +80,17 @@ function MovimientoCard({
             </div>
 
             <div className="p-4 space-y-3">
-                {/* Tipo de movimiento */}
+                {/* Selector de tipo */}
                 <div className="flex flex-wrap gap-1.5">
                     {Object.entries(TIPOS).map(([key, info]) => (
                         <button key={key} type="button"
                             onClick={() => {
                                 onChange('tipo', key);
                                 if (key !== 'requerimiento') onChange('dias_plazo', '');
+                                if (key === 'notificacion' || key === 'propia') {
+                                    onChange('tipo_actor_responsable_id', '');
+                                    onChange('usuario_responsable_id', '');
+                                }
                             }}
                             className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
                                 tipo === key ? info.badge + ' ring-1 ring-current' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
@@ -122,62 +135,121 @@ function MovimientoCard({
                     />
                 </div>
 
-                {/* Actor + Plazo (no para actuación propia) */}
-                {!esPropia && (
+                {/* Actor + Plazo (solo para requerimiento) */}
+                {!esPropia && !esNotificacion && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo Actor Responsable</label>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                Tipo Actor Responsable <span className="text-gray-400 font-normal">(opcional)</span>
+                            </label>
                             <select value={mov.tipo_actor_responsable_id}
                                 onChange={e => { onChange('tipo_actor_responsable_id', e.target.value); onChange('usuario_responsable_id', ''); }}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-                                <option value="">Seleccionar...</option>
-                                {tiposActor.map(ta => <option key={ta.id} value={ta.id}>{ta.nombre}</option>)}
+                                <option value="">— Ninguno —</option>
+                                {tiposActorEnExpediente.map(ta => (
+                                    <option key={ta.id} value={ta.id}>{ta.nombre}</option>
+                                ))}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1">
-                                {esNotificacion ? 'Actor a notificar' : 'Usuario Responsable'}
-                            </label>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">Usuario Responsable</label>
                             <select value={mov.usuario_responsable_id}
                                 onChange={e => onChange('usuario_responsable_id', e.target.value)}
                                 className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-                                <option value="">Seleccionar...</option>
-                                {usuariosFiltrados.map(u => <option key={u.id} value={u.id}>{u.name} — {u.rol?.nombre}</option>)}
+                                <option value="">— Ninguno —</option>
+                                {usuariosFiltrados.map(a => (
+                                    <option key={a.usuario.id} value={a.usuario.id}>
+                                        {a.usuario.name} — {a.tipo_actor?.nombre}
+                                    </option>
+                                ))}
                             </select>
                         </div>
-                        {!esNotificacion && (
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días)</label>
-                                <input type="number" min="1" max="365" value={mov.dias_plazo}
-                                    onChange={e => onChange('dias_plazo', e.target.value)}
-                                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" placeholder="Ej: 5"/>
-                            </div>
-                        )}
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días)</label>
+                            <input type="number" min="1" max="365" value={mov.dias_plazo}
+                                onChange={e => onChange('dias_plazo', e.target.value)}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" placeholder="Ej: 5"/>
+                        </div>
                     </div>
                 )}
 
-                {/* Tipo documento requerido + Enviar credenciales */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de documento requerido</label>
-                        <select value={mov.tipo_documento_requerido_id}
-                            onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}
-                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-                            <option value="">— Ninguno —</option>
-                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                        </select>
-                    </div>
-                    {!esPropia && mov.usuario_responsable_id && (
-                        <div className="flex items-end pb-1">
-                            <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
-                                <input type="checkbox" checked={!!mov.enviar_credenciales}
-                                    onChange={e => onChange('enviar_credenciales', e.target.checked)}
-                                    className="rounded border-gray-300 accent-[#291136]"/>
-                                <span className="font-semibold text-gray-600">Enviar credenciales de acceso</span>
-                            </label>
-                        </div>
+                {/* Tipo documento requerido */}
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de documento requerido</label>
+                    <select value={mov.tipo_documento_requerido_id}
+                        onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+                        <option value="">— Ninguno —</option>
+                        {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
+                    </select>
+                </div>
+
+                {/* Documentos adjuntos */}
+                <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1 inline-flex items-center gap-1">
+                        <Paperclip size={11}/> Documentos adjuntos
+                    </label>
+                    <input type="file" multiple onChange={e => onArchivos(Array.from(e.target.files))}
+                        className="w-full text-xs text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#291136]/5 file:text-[#291136] hover:file:bg-[#291136]/10"/>
+                    {archivos.length > 0 && (
+                        <p className="text-[11px] text-gray-400 mt-1">{archivos.length} archivo(s) seleccionado(s)</p>
                     )}
                 </div>
+
+                {/* Notificar a (por movimiento) */}
+                {actoresNotificables.length > 0 && (
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Notificar a (email)</label>
+                        <div className="flex flex-wrap gap-2">
+                            {actoresNotificables.map(actor => (
+                                <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
+                                    <input type="checkbox"
+                                        checked={mov.notificar_a.includes(actor.id)}
+                                        onChange={e => {
+                                            const next = e.target.checked
+                                                ? [...mov.notificar_a, actor.id]
+                                                : mov.notificar_a.filter(x => x !== actor.id);
+                                            onChange('notificar_a', next);
+                                        }}
+                                        className="rounded border-gray-300 accent-[#291136]"
+                                    />
+                                    {actor.usuario?.name} ({actor.tipo_actor?.nombre})
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Enviar credenciales: selector de actor */}
+                {actoresConCredenciales.length > 0 && (
+                    <div className="border border-dashed border-amber-300 rounded-xl p-3 bg-amber-50/50 space-y-2">
+                        <div className="flex items-center gap-2">
+                            <KeyRound size={13} className="text-amber-600 shrink-0"/>
+                            <span className="text-xs font-bold text-amber-700">Enviar credenciales de acceso</span>
+                        </div>
+                        <select
+                            value={mov.actor_credenciales_id}
+                            onChange={e => {
+                                onChange('actor_credenciales_id', e.target.value);
+                                onChange('enviar_credenciales', !!e.target.value);
+                            }}
+                            className="w-full text-sm border border-amber-200 rounded-lg px-3 py-2 bg-white"
+                        >
+                            <option value="">— No enviar credenciales en este movimiento —</option>
+                            {actoresConCredenciales.map(a => (
+                                <option key={a.id} value={a.id}>
+                                    {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {a.tipo_actor?.nombre}
+                                    {a.credenciales_enviadas ? ' (ya recibió credenciales)' : ' ⚠ pendiente'}
+                                </option>
+                            ))}
+                        </select>
+                        {mov.actor_credenciales_id && (
+                            <p className="text-[11px] text-amber-600">
+                                Se generará una nueva contraseña temporal y se enviará por correo al actor seleccionado.
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 {/* Observaciones */}
                 <div>
@@ -191,48 +263,84 @@ function MovimientoCard({
     );
 }
 
-const movVacio = (expediente) => ({
-    tipo: 'requerimiento',
-    etapa_id: String(expediente.etapa_actual_id ?? ''),
-    sub_etapa_id: '',
-    instruccion: '',
-    observaciones: '',
-    tipo_actor_responsable_id: '',
-    usuario_responsable_id: '',
-    dias_plazo: '',
+const movVacio = (expediente, notificarIds = []) => ({
+    tipo:                        'requerimiento',
+    etapa_id:                    String(expediente.etapa_actual_id ?? ''),
+    sub_etapa_id:                '',
+    instruccion:                 '',
+    observaciones:               '',
+    tipo_actor_responsable_id:   '',
+    usuario_responsable_id:      '',
+    dias_plazo:                  '',
     tipo_documento_requerido_id: '',
-    enviar_credenciales: false,
+    enviar_credenciales:         false,
+    actor_credenciales_id:       '',
+    notificar_a:                 notificarIds,
 });
 
 export default function TabNuevoMovimiento({
     expediente, etapas = [], tiposActor = [], usuariosAsignables = [],
     actoresNotificables = [], tiposDocumento = [],
 }) {
-    const [movimientos, setMovimientos] = useState([movVacio(expediente)]);
-    const [notificarA, setNotificarA]   = useState(actoresNotificables.map(a => a.id));
-    const [procesando, setProcesando]   = useState(false);
-    // Archivo solo para el primer movimiento (single)
-    const [archivos, setArchivos]       = useState([]);
+    const defaultNotificarIds = actoresNotificables.map(a => a.id);
+
+    const [movimientos, setMovimientos]      = useState([movVacio(expediente, defaultNotificarIds)]);
+    const [archivosMovimientos, setArchivos] = useState({ 0: [] });
+    const [procesando, setProcesando]        = useState(false);
+
+    // Solo actores activos del expediente con cuenta de usuario
+    const actoresExpediente = useMemo(() =>
+        (expediente.actores ?? []).filter(a => a.activo && a.usuario),
+    [expediente.actores]);
+
+    // Tipos de actor que tienen al menos un actor activo en el expediente
+    const tiposActorEnExpediente = useMemo(() => {
+        const idsPresentes = new Set(actoresExpediente.map(a => a.tipo_actor_id));
+        return tiposActor.filter(t => idsPresentes.has(t.id));
+    }, [actoresExpediente, tiposActor]);
+
+    // Actores con credenciales pendientes (para el selector de envío)
+    const actoresConCredenciales = useMemo(() => actoresExpediente, [actoresExpediente]);
 
     function actualizar(idx, field, value) {
         setMovimientos(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
     }
 
+    function setArchivosIdx(idx, files) {
+        setArchivos(prev => ({ ...prev, [idx]: files }));
+    }
+
     function agregar() {
-        setMovimientos(prev => [...prev, movVacio(expediente)]);
+        setMovimientos(prev => {
+            const newIdx = prev.length;
+            setArchivos(a => ({ ...a, [newIdx]: [] }));
+            return [...prev, movVacio(expediente, defaultNotificarIds)];
+        });
     }
 
     function quitar(idx) {
         setMovimientos(prev => prev.filter((_, i) => i !== idx));
+        setArchivos(prev => {
+            const next = {};
+            Object.entries(prev)
+                .filter(([k]) => Number(k) !== idx)
+                .forEach(([, v], newIdx) => { next[newIdx] = v; });
+            return next;
+        });
     }
 
     function mover(idx, dir) {
+        const swap = idx + dir;
+        if (swap < 0 || swap >= movimientos.length) return;
         setMovimientos(prev => {
             const arr = [...prev];
-            const swap = idx + dir;
-            if (swap < 0 || swap >= arr.length) return prev;
             [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
             return arr;
+        });
+        setArchivos(prev => {
+            const next = { ...prev };
+            [next[idx], next[swap]] = [prev[swap], prev[idx]];
+            return next;
         });
     }
 
@@ -241,46 +349,49 @@ export default function TabNuevoMovimiento({
         setProcesando(true);
 
         if (movimientos.length === 1) {
-            // Single movement → usa el endpoint simple con soporte de archivos
             const mov = movimientos[0];
             const form = new FormData();
-            form.append('tipo', mov.tipo);
-            form.append('etapa_id', mov.etapa_id ?? '');
-            form.append('sub_etapa_id', mov.sub_etapa_id ?? '');
-            form.append('instruccion', mov.instruccion);
-            form.append('observaciones', mov.observaciones ?? '');
-            form.append('tipo_actor_responsable_id', mov.tipo_actor_responsable_id ?? '');
-            form.append('usuario_responsable_id', mov.usuario_responsable_id ?? '');
-            form.append('dias_plazo', mov.dias_plazo ?? '');
+            form.append('tipo',                        mov.tipo);
+            form.append('etapa_id',                    mov.etapa_id ?? '');
+            form.append('sub_etapa_id',                mov.sub_etapa_id ?? '');
+            form.append('instruccion',                 mov.instruccion);
+            form.append('observaciones',               mov.observaciones ?? '');
+            form.append('tipo_actor_responsable_id',   mov.tipo_actor_responsable_id ?? '');
+            form.append('usuario_responsable_id',      mov.usuario_responsable_id ?? '');
+            form.append('dias_plazo',                  mov.dias_plazo ?? '');
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
-            form.append('enviar_credenciales', mov.enviar_credenciales ? '1' : '0');
-            archivos.forEach(f => form.append('documentos[]', f));
-            notificarA.forEach(id => form.append('notificar_a[]', id));
+            form.append('enviar_credenciales',         mov.enviar_credenciales ? '1' : '0');
+            form.append('actor_credenciales_id',       mov.actor_credenciales_id ?? '');
+            (archivosMovimientos[0] ?? []).forEach(f => form.append('documentos[]', f));
+            mov.notificar_a.forEach(id => form.append('notificar_a[]', id));
 
             router.post(route('expedientes.movimientos.store', expediente.id), form, {
                 forceFormData: true,
                 onFinish: () => setProcesando(false),
-                onSuccess: () => { setMovimientos([movVacio(expediente)]); setArchivos([]); },
+                onSuccess: () => { setMovimientos([movVacio(expediente, defaultNotificarIds)]); setArchivos({ 0: [] }); },
             });
         } else {
-            // Batch → usa el endpoint lote (sin archivos)
-            router.post(route('expedientes.movimientos.lote', expediente.id), {
-                movimientos: movimientos.map(m => ({
-                    tipo:                       m.tipo,
-                    etapa_id:                   m.etapa_id || null,
-                    sub_etapa_id:               m.sub_etapa_id || null,
-                    instruccion:                m.instruccion,
-                    observaciones:              m.observaciones || null,
-                    tipo_actor_responsable_id:  m.tipo_actor_responsable_id || null,
-                    usuario_responsable_id:     m.usuario_responsable_id || null,
-                    dias_plazo:                 m.dias_plazo || null,
-                    tipo_documento_requerido_id: m.tipo_documento_requerido_id || null,
-                    enviar_credenciales:         !!m.enviar_credenciales,
-                })),
-                notificar_a: notificarA,
-            }, {
+            const form = new FormData();
+            movimientos.forEach((mov, i) => {
+                form.append(`movimientos[${i}][tipo]`,                        mov.tipo);
+                form.append(`movimientos[${i}][etapa_id]`,                    mov.etapa_id ?? '');
+                form.append(`movimientos[${i}][sub_etapa_id]`,                mov.sub_etapa_id ?? '');
+                form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
+                form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
+                form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
+                form.append(`movimientos[${i}][usuario_responsable_id]`,      mov.usuario_responsable_id ?? '');
+                form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
+                form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
+                form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
+                form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
+                mov.notificar_a.forEach(id => form.append(`movimientos[${i}][notificar_a][]`, id));
+                (archivosMovimientos[i] ?? []).forEach(f => form.append(`documentos[${i}][]`, f));
+            });
+
+            router.post(route('expedientes.movimientos.lote', expediente.id), form, {
+                forceFormData: true,
                 onFinish: () => setProcesando(false),
-                onSuccess: () => setMovimientos([movVacio(expediente)]),
+                onSuccess: () => { setMovimientos([movVacio(expediente, defaultNotificarIds)]); setArchivos({ 0: [] }); },
             });
         }
     }
@@ -300,7 +411,6 @@ export default function TabNuevoMovimiento({
                 )}
             </div>
 
-            {/* Cards de movimientos */}
             <div className="space-y-3">
                 {movimientos.map((mov, idx) => (
                     <MovimientoCard
@@ -309,9 +419,13 @@ export default function TabNuevoMovimiento({
                         idx={idx}
                         total={movimientos.length}
                         etapas={etapas}
-                        tiposActor={tiposActor}
-                        usuariosAsignables={usuariosAsignables}
+                        tiposActorEnExpediente={tiposActorEnExpediente}
+                        actoresExpediente={actoresExpediente}
                         tiposDocumento={tiposDocumento}
+                        actoresConCredenciales={actoresConCredenciales}
+                        actoresNotificables={actoresNotificables}
+                        archivos={archivosMovimientos[idx] ?? []}
+                        onArchivos={files => setArchivosIdx(idx, files)}
                         onChange={(field, value) => actualizar(idx, field, value)}
                         onMover={dir => mover(idx, dir)}
                         onQuitar={() => quitar(idx)}
@@ -319,54 +433,13 @@ export default function TabNuevoMovimiento({
                 ))}
             </div>
 
-            {/* Documentos (solo single) */}
-            {!esBatch && (
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Documentos adjuntos</label>
-                    <input type="file" multiple onChange={e => setArchivos(Array.from(e.target.files))} className="text-xs"/>
-                </div>
-            )}
-            {esBatch && (
-                <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    En modo lote, los documentos adjuntos no están disponibles. Puedes adjuntarlos editando cada movimiento después.
-                </p>
-            )}
-
-            {/* Notificar a */}
-            {actoresNotificables.length > 0 && (
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Notificar a (email)</label>
-                    <div className="flex flex-wrap gap-2">
-                        {actoresNotificables.map(actor => (
-                            <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
-                                <input type="checkbox"
-                                    checked={notificarA.includes(actor.id)}
-                                    onChange={e => setNotificarA(prev =>
-                                        e.target.checked ? [...prev, actor.id] : prev.filter(x => x !== actor.id)
-                                    )}
-                                    className="rounded border-gray-300 accent-[#291136]"
-                                />
-                                {actor.usuario?.name} ({actor.tipo_actor?.nombre})
-                            </label>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <button
-                    type="button"
-                    onClick={agregar}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#291136] px-3 py-1.5 rounded-lg border border-dashed border-[#291136]/30 hover:bg-[#291136]/5 transition-colors"
-                >
+                <button type="button" onClick={agregar}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#291136] px-3 py-1.5 rounded-lg border border-dashed border-[#291136]/30 hover:bg-[#291136]/5 transition-colors">
                     <PlusCircle size={13}/> Agregar movimiento
                 </button>
-
-                <button
-                    type="submit"
-                    disabled={procesando}
-                    className="px-5 py-2.5 text-sm font-bold bg-[#291136] text-white rounded-lg hover:bg-[#3d1a52] disabled:opacity-50"
-                >
+                <button type="submit" disabled={procesando}
+                    className="px-5 py-2.5 text-sm font-bold bg-[#291136] text-white rounded-lg hover:bg-[#3d1a52] disabled:opacity-50">
                     {procesando ? 'Creando...' : esBatch ? `Crear ${movimientos.length} movimientos` : 'Crear Movimiento'}
                 </button>
             </div>

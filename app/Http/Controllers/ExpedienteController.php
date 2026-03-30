@@ -274,11 +274,17 @@ class ExpedienteController extends Controller
             'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'movimientos.*.enviar_credenciales'       => 'nullable|boolean',
-            'notificar_a'                             => 'nullable|array',
-            'notificar_a.*'                           => 'integer|exists:expediente_actores,id',
+            'movimientos.*.actor_credenciales_id'     => 'nullable|exists:expediente_actores,id',
+            'movimientos.*.notificar_a'               => 'nullable|array',
+            'movimientos.*.notificar_a.*'             => 'integer|exists:expediente_actores,id',
+            'documentos'                              => 'nullable|array',
+            'documentos.*'                            => 'nullable|array',
+            'documentos.*.*'                          => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $solicitud, $user) {
+        $documentosPorMovimiento = $request->file('documentos') ?? [];
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $solicitud, $user, $documentosPorMovimiento) {
 
             $solicitud->update([
                 'resultado_revision'    => $request->resultado,
@@ -325,32 +331,32 @@ class ExpedienteController extends Controller
             }
 
             // Crear los movimientos indicados por el gestor (en orden del array)
-            $notificarA = $request->input('notificar_a', []);
-            foreach ($request->input('movimientos', []) as $datos) {
+            foreach ($request->input('movimientos', []) as $i => $datos) {
                 $tipo = $datos['tipo'] ?? 'requerimiento';
-                if (empty($datos['usuario_responsable_id'])) {
-                    $estadoMov = 'respondido';
-                } elseif ($tipo === 'notificacion') {
+                if ($tipo === 'notificacion') {
                     $estadoMov = 'recibido';
+                } elseif (empty($datos['usuario_responsable_id'])) {
+                    $estadoMov = 'respondido';
                 } else {
                     $estadoMov = 'pendiente';
                 }
                 $this->movimientoService->crear(
                     $expediente,
                     [
-                        'tipo'                       => $tipo,
-                        'etapa_id'                   => $datos['etapa_id'],
-                        'sub_etapa_id'               => $datos['sub_etapa_id'] ?: null,
-                        'tipo_actor_responsable_id'  => $datos['tipo_actor_responsable_id'] ?: null,
-                        'usuario_responsable_id'     => $datos['usuario_responsable_id'] ?: null,
-                        'instruccion'                => $datos['instruccion'],
-                        'dias_plazo'                 => $datos['dias_plazo'] ?: null,
+                        'tipo'                        => $tipo,
+                        'etapa_id'                    => $datos['etapa_id'],
+                        'sub_etapa_id'                => $datos['sub_etapa_id'] ?: null,
+                        'tipo_actor_responsable_id'   => $datos['tipo_actor_responsable_id'] ?: null,
+                        'usuario_responsable_id'      => $datos['usuario_responsable_id'] ?: null,
+                        'instruccion'                 => $datos['instruccion'],
+                        'dias_plazo'                  => $datos['dias_plazo'] ?: null,
                         'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
-                        'enviar_credenciales'        => !empty($datos['enviar_credenciales']),
-                        'creado_por'                 => $user->id,
+                        'enviar_credenciales'         => !empty($datos['enviar_credenciales']),
+                        'actor_credenciales_id'       => $datos['actor_credenciales_id'] ?? null,
+                        'creado_por'                  => $user->id,
                     ],
-                    [],
-                    $notificarA,
+                    $documentosPorMovimiento[$i] ?? [],
+                    $datos['notificar_a'] ?? [],
                     $estadoMov
                 );
             }

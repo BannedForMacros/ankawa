@@ -1,6 +1,6 @@
 import { useForm, router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { UserPlus, Trash2, Star, Globe, Building2 } from 'lucide-react';
+import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 export default function TabActores({
     expediente,
@@ -137,6 +137,16 @@ export default function TabActores({
                                         )}
                                         <span className="text-gray-200">•</span>
                                         <span>{actor.usuario?.email ?? '—'}</span>
+                                        <span className="text-gray-200">•</span>
+                                        {actor.credenciales_enviadas ? (
+                                            <span className="inline-flex items-center gap-0.5 text-emerald-600 font-semibold">
+                                                <ShieldCheck size={11}/> credenciales enviadas
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-0.5 text-amber-500 font-semibold">
+                                                <ShieldAlert size={11}/> credenciales pendientes
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                                 {puedeEditar && !['demandante', 'demandado'].includes(actor.tipo_actor?.slug) && (

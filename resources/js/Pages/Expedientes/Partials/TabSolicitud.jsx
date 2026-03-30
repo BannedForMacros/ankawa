@@ -1,203 +1,75 @@
 import { router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle } from 'lucide-react';
+import { MovimientoCard } from './TabNuevoMovimiento';
 
-const TIPO_LABELS = {
-    requerimiento: { label: 'Requerimiento', desc: 'Requiere respuesta del actor asignado', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-    notificacion:  { label: 'Traslado / Notificación', desc: 'Solo se notifica, no requiere respuesta', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-    propia:        { label: 'Actuación Propia', desc: 'Registra acción del gestor, se marca completada', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-};
-
-// ── Formulario de movimiento de seguimiento (inline) ────────────────────────
-function MovimientoSeguimientoForm({ expediente, etapas, tiposDocumento, sugerencia, onChange }) {
-    const actoresActivos = expediente.actores?.filter(a => a.activo && a.usuario) ?? [];
-    const etapaSel = etapas.find(e => String(e.id) === String(sugerencia.etapa_id));
-    const subEtapas = etapaSel?.sub_etapas ?? [];
-    const tipo = sugerencia.tipo ?? 'requerimiento';
-    const tipoInfo = TIPO_LABELS[tipo];
-    const esPropia = tipo === 'propia';
-
-    return (
-        <div className="space-y-3 pt-3 border-t border-dashed border-gray-200">
-
-            {/* Tipo de movimiento */}
-            <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Tipo de movimiento</label>
-                <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(TIPO_LABELS).map(([key, info]) => (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => {
-                                onChange('tipo', key);
-                                if (key !== 'requerimiento') onChange('dias_plazo', '');
-                            }}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
-                                tipo === key ? info.color + ' ring-1 ring-current' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                            }`}
-                        >
-                            {info.label}
-                        </button>
-                    ))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-1">{tipoInfo.desc}</p>
-            </div>
-
-            {/* Etapa + Sub-etapa */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Etapa *</label>
-                    <select
-                        value={sugerencia.etapa_id}
-                        onChange={e => { onChange('etapa_id', e.target.value); onChange('sub_etapa_id', ''); }}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                    >
-                        <option value="">— Seleccione etapa —</option>
-                        {etapas.map(et => (
-                            <option key={et.id} value={et.id}>{et.nombre}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Sub-etapa</label>
-                    <select
-                        value={sugerencia.sub_etapa_id}
-                        onChange={e => onChange('sub_etapa_id', e.target.value)}
-                        disabled={subEtapas.length === 0}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 disabled:bg-gray-50 disabled:text-gray-400"
-                    >
-                        <option value="">— Sin sub-etapa —</option>
-                        {subEtapas.map(se => (
-                            <option key={se.id} value={se.id}>{se.nombre}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
-
-            {/* Instrucción */}
-            <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Instrucción / Descripción *</label>
-                <textarea
-                    value={sugerencia.instruccion}
-                    onChange={e => onChange('instruccion', e.target.value)}
-                    rows={3}
-                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                    placeholder="Ej: Apersonamiento requerido..."
-                />
-            </div>
-
-            {/* Actor responsable + Días plazo (solo para requerimiento y notificacion) */}
-            {!esPropia && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">
-                            {tipo === 'notificacion' ? 'Actor a notificar' : 'Actor responsable'}
-                        </label>
-                        <select
-                            value={sugerencia.usuario_responsable_id}
-                            onChange={e => {
-                                const actor = actoresActivos.find(a => String(a.usuario_id) === e.target.value);
-                                onChange('usuario_responsable_id', e.target.value);
-                                onChange('tipo_actor_responsable_id', actor?.tipo_actor_id ?? '');
-                            }}
-                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                        >
-                            <option value="">— Seleccionar actor —</option>
-                            {actoresActivos.map(a => (
-                                <option key={a.usuario_id} value={a.usuario_id}>
-                                    {a.usuario.name} ({a.tipo_actor?.nombre ?? '?'})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    {tipo === 'requerimiento' && (
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-600 mb-1">Días plazo</label>
-                            <input
-                                type="number" min="1" max="365"
-                                value={sugerencia.dias_plazo}
-                                onChange={e => onChange('dias_plazo', e.target.value)}
-                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                                placeholder="Ej: 5"
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Tipo de documento requerido + Enviar credenciales */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de documento requerido</label>
-                    <select
-                        value={sugerencia.tipo_documento_requerido_id ?? ''}
-                        onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}
-                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                    >
-                        <option value="">— Ninguno —</option>
-                        {(tiposDocumento ?? []).map(td => (
-                            <option key={td.id} value={td.id}>{td.nombre}</option>
-                        ))}
-                    </select>
-                </div>
-                {!esPropia && sugerencia.usuario_responsable_id && (
-                    <div className="flex items-end pb-1">
-                        <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={!!sugerencia.enviar_credenciales}
-                                onChange={e => onChange('enviar_credenciales', e.target.checked)}
-                                className="rounded border-gray-300 accent-[#291136]"
-                            />
-                            <span className="font-semibold text-gray-600">Enviar credenciales de acceso</span>
-                        </label>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-const movDataVacio = (expediente) => ({
+const movVacio = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
     etapa_id:                    String(expediente.etapa_actual_id ?? ''),
     sub_etapa_id:                '',
     instruccion:                 '',
+    observaciones:               '',
     tipo_actor_responsable_id:   '',
     usuario_responsable_id:      '',
     dias_plazo:                  '',
     tipo_documento_requerido_id: '',
     enviar_credenciales:         false,
+    actor_credenciales_id:       '',
+    notificar_a:                 notificarIds,
 });
 
 export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [], tiposDocumento = [] }) {
-    const [editando, setEditando]           = useState(false);
-    const [paso, setPaso]                   = useState('idle'); // idle | conforme | no_conforme
-    const [motivoNoConforme, setMotivoNoConforme] = useState('');
-    const [movimientos, setMovimientos]     = useState([]);  // lista de movimientos a crear
-    const [notificarA, setNotificarA]       = useState(actoresNotificables.map(a => a.id));
-    const [procesando, setProcesando]       = useState(false);
-    const [errores, setErrores]             = useState({});
+    const [editando, setEditando]         = useState(false);
+    const [paso, setPaso]                 = useState('idle');
+    const [motivoNoConforme, setMotivo]   = useState('');
+    const [movimientos, setMovimientos]   = useState([]);
+    const [archivosMovimientos, setArchivos] = useState({});
+    const [procesando, setProcesando]     = useState(false);
+    const [errores, setErrores]           = useState({});
 
-    function agregarMovimiento(sugerencia = {}) {
-        setMovimientos(prev => [...prev, { ...movDataVacio(expediente), ...sugerencia }]);
-    }
+    const defaultNotificarIds = actoresNotificables.map(a => a.id);
 
-    function actualizarMovimiento(idx, field, value) {
+    // Actores activos del expediente con cuenta de usuario
+    const actoresExpediente = useMemo(() =>
+        (expediente.actores ?? []).filter(a => a.activo && a.usuario),
+    [expediente.actores]);
+
+    // Tipos de actor presentes en el expediente
+    const tiposActorEnExpediente = useMemo(() => {
+        const idsPresentes = new Set(actoresExpediente.map(a => a.tipo_actor_id));
+        return (expediente.actores ?? [])
+            .filter(a => a.activo && a.tipo_actor && idsPresentes.has(a.tipo_actor_id))
+            .map(a => a.tipo_actor)
+            .filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i);
+    }, [actoresExpediente, expediente.actores]);
+
+    function actualizar(idx, field, value) {
         setMovimientos(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
     }
 
-    function quitarMovimiento(idx) {
+    function quitar(idx) {
         setMovimientos(prev => prev.filter((_, i) => i !== idx));
+        setArchivos(prev => {
+            const next = {};
+            Object.entries(prev)
+                .filter(([k]) => Number(k) !== idx)
+                .forEach(([, v], ni) => { next[ni] = v; });
+            return next;
+        });
     }
 
-    function moverMovimiento(idx, dir) {
+    function mover(idx, dir) {
+        const swap = idx + dir;
+        if (swap < 0 || swap >= movimientos.length) return;
         setMovimientos(prev => {
             const arr = [...prev];
-            const swap = idx + dir;
-            if (swap < 0 || swap >= arr.length) return prev;
             [arr[idx], arr[swap]] = [arr[swap], arr[idx]];
             return arr;
+        });
+        setArchivos(prev => {
+            const next = { ...prev };
+            [next[idx], next[swap]] = [prev[swap], prev[idx]];
+            return next;
         });
     }
 
@@ -207,29 +79,24 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
         setMovimientos([
             {
-                tipo:                        'notificacion',
-                etapa_id:                    String(expediente.etapa_actual_id ?? ''),
-                sub_etapa_id:                '',
-                instruccion:                 'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
-                tipo_actor_responsable_id:   String(demandante?.tipo_actor_id ?? ''),
-                usuario_responsable_id:      String(demandante?.usuario_id ?? ''),
-                dias_plazo:                  '',
-                tipo_documento_requerido_id: '',
-                enviar_credenciales:         false,
+                ...movVacio(expediente, defaultNotificarIds),
+                tipo:                       'notificacion',
+                instruccion:                'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
+                tipo_actor_responsable_id:  String(demandante?.tipo_actor_id ?? ''),
+                usuario_responsable_id:     String(demandante?.usuario?.id ?? ''),
             },
             {
-                tipo:                        'requerimiento',
-                etapa_id:                    String(expediente.etapa_actual_id ?? ''),
-                sub_etapa_id:                '',
-                instruccion:                 'Traslado al demandado: Debe apersonarse al proceso en el plazo indicado.',
-                tipo_actor_responsable_id:   String(demandado?.tipo_actor_id ?? ''),
-                usuario_responsable_id:      String(demandado?.usuario_id ?? ''),
-                dias_plazo:                  String(plazoApers),
-                tipo_documento_requerido_id: '',
-                enviar_credenciales:         true,
+                ...movVacio(expediente, defaultNotificarIds),
+                tipo:                       'requerimiento',
+                instruccion:                'Traslado al demandado: Debe apersonarse al proceso en el plazo indicado.',
+                tipo_actor_responsable_id:  String(demandado?.tipo_actor_id ?? ''),
+                usuario_responsable_id:     String(demandado?.usuario?.id ?? ''),
+                dias_plazo:                 String(plazoApers),
+                enviar_credenciales:        !!demandado?.id,
+                actor_credenciales_id:      String(demandado?.id ?? ''),
             },
         ]);
-        setNotificarA(actoresNotificables.map(a => a.id));
+        setArchivos({ 0: [], 1: [] });
         setPaso('conforme');
         setErrores({});
     }
@@ -237,41 +104,16 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     function iniciarNoConforme() {
         const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
         const plazo = expediente.servicio?.plazo_subsanacion_dias ?? '';
-        setMovimientos([
-            {
-                tipo:                        'requerimiento',
-                etapa_id:                    String(expediente.etapa_actual_id ?? ''),
-                sub_etapa_id:                '',
-                instruccion:                 '',
-                tipo_actor_responsable_id:   String(demandante?.tipo_actor_id ?? ''),
-                usuario_responsable_id:      String(demandante?.usuario_id ?? ''),
-                dias_plazo:                  String(plazo),
-                tipo_documento_requerido_id: '',
-                enviar_credenciales:         false,
-            },
-        ]);
-        setNotificarA(actoresNotificables.map(a => a.id));
+        setMovimientos([{
+            ...movVacio(expediente, defaultNotificarIds),
+            tipo:                      'requerimiento',
+            tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
+            usuario_responsable_id:    String(demandante?.usuario?.id ?? ''),
+            dias_plazo:                String(plazo),
+        }]);
+        setArchivos({ 0: [] });
         setPaso('no_conforme');
         setErrores({});
-    }
-
-    function buildPayload(resultado) {
-        const payload = { resultado, notificar_a: notificarA };
-        if (resultado === 'no_conforme') {
-            payload.motivo_no_conformidad = motivoNoConforme;
-        }
-        payload.movimientos = movimientos.map(m => ({
-            tipo:                        m.tipo || 'requerimiento',
-            etapa_id:                    m.etapa_id || null,
-            sub_etapa_id:                m.sub_etapa_id || null,
-            instruccion:                 m.instruccion,
-            tipo_actor_responsable_id:   m.tipo_actor_responsable_id || null,
-            usuario_responsable_id:      m.usuario_responsable_id || null,
-            dias_plazo:                  m.dias_plazo || null,
-            tipo_documento_requerido_id: m.tipo_documento_requerido_id || null,
-            enviar_credenciales:         !!m.enviar_credenciales,
-        }));
-        return payload;
     }
 
     function confirmar(resultado) {
@@ -291,15 +133,33 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         }
         setProcesando(true);
         setErrores({});
-        router.post(
-            route('expedientes.conformidad', expediente.id),
-            buildPayload(resultado),
-            {
-                onFinish:  () => setProcesando(false),
-                onError:   errs => setErrores(errs),
-                onSuccess: () => setPaso('idle'),
-            }
-        );
+
+        const form = new FormData();
+        form.append('resultado', resultado);
+        if (resultado === 'no_conforme') form.append('motivo_no_conformidad', motivoNoConforme);
+
+        movimientos.forEach((mov, i) => {
+            form.append(`movimientos[${i}][tipo]`,                        mov.tipo);
+            form.append(`movimientos[${i}][etapa_id]`,                    mov.etapa_id ?? '');
+            form.append(`movimientos[${i}][sub_etapa_id]`,                mov.sub_etapa_id ?? '');
+            form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
+            form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
+            form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
+            form.append(`movimientos[${i}][usuario_responsable_id]`,      mov.usuario_responsable_id ?? '');
+            form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
+            form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
+            form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
+            form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
+            mov.notificar_a.forEach(id => form.append(`movimientos[${i}][notificar_a][]`, id));
+            (archivosMovimientos[i] ?? []).forEach(f => form.append(`documentos[${i}][]`, f));
+        });
+
+        router.post(route('expedientes.conformidad', expediente.id), form, {
+            forceFormData: true,
+            onFinish:  () => setProcesando(false),
+            onError:   errs => setErrores(errs),
+            onSuccess: () => setPaso('idle'),
+        });
     }
 
     // ── Form edición ──
@@ -337,20 +197,68 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     const inputField = (label, field, type = 'text', required = false) => (
         <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">{label} {required && '*'}</label>
-            <input
-                type={type}
-                value={formEdit.data[field]}
+            <input type={type} value={formEdit.data[field]}
                 onChange={e => formEdit.setData(field, e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-            />
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"/>
             {formEdit.errors[field] && <p className="text-xs text-red-500 mt-1">{formEdit.errors[field]}</p>}
         </div>
     );
 
+    // ── Panel de movimientos compartido (conforme / no_conforme) ─────────────
+    function PanelMovimientos({ colorBtn, labelBtn, resultado }) {
+        return (
+            <div className="space-y-3">
+                {movimientos.map((mov, idx) => (
+                    <div key={idx}>
+                        <MovimientoCard
+                            mov={mov}
+                            idx={idx}
+                            total={movimientos.length}
+                            etapas={etapas}
+                            tiposActorEnExpediente={tiposActorEnExpediente}
+                            actoresExpediente={actoresExpediente}
+                            tiposDocumento={tiposDocumento}
+                            actoresConCredenciales={actoresExpediente}
+                            actoresNotificables={actoresNotificables}
+                            archivos={archivosMovimientos[idx] ?? []}
+                            onArchivos={files => setArchivos(prev => ({ ...prev, [idx]: files }))}
+                            onChange={(field, value) => actualizar(idx, field, value)}
+                            onMover={dir => mover(idx, dir)}
+                            onQuitar={() => quitar(idx)}
+                        />
+                        {errores[`mov_${idx}_instruccion`] && <p className="text-xs text-red-500 mt-1">{errores[`mov_${idx}_instruccion`]}</p>}
+                        {errores[`mov_${idx}_etapa`]       && <p className="text-xs text-red-500 mt-1">{errores[`mov_${idx}_etapa`]}</p>}
+                    </div>
+                ))}
+
+                <button type="button"
+                    onClick={() => {
+                        const ni = movimientos.length;
+                        setMovimientos(prev => [...prev, movVacio(expediente, defaultNotificarIds)]);
+                        setArchivos(prev => ({ ...prev, [ni]: [] }));
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#291136] border-2 border-dashed border-[#291136]/20 rounded-xl hover:border-[#291136]/40 hover:bg-[#291136]/5 transition-colors"
+                >
+                    <PlusCircle size={14}/> Agregar otro movimiento
+                </button>
+
+                <div className="flex gap-2 pt-2 border-t border-gray-100">
+                    <button onClick={() => confirmar(resultado)} disabled={procesando}
+                        className={`px-5 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50 ${colorBtn}`}>
+                        {procesando ? 'Procesando...' : `Confirmar${movimientos.length > 0 ? ` y crear ${movimientos.length} movimiento(s)` : ''}`}
+                    </button>
+                    <button onClick={() => setPaso('idle')} className="px-4 py-2 text-xs text-gray-400 hover:text-gray-600">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
 
-            {/* ── Cabecera con botón editar ── */}
+            {/* ── Datos de la Solicitud ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold text-[#291136]">Datos de la Solicitud</h3>
@@ -365,10 +273,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             </span>
                         )}
                         {esGestor && !editando && (
-                            <button
-                                onClick={() => setEditando(true)}
-                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#291136]/5 text-[#291136] hover:bg-[#291136]/10 border border-[#291136]/20 transition-colors"
-                            >
+                            <button onClick={() => setEditando(true)}
+                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#291136]/5 text-[#291136] hover:bg-[#291136]/10 border border-[#291136]/20 transition-colors">
                                 <Pencil size={12}/> Editar
                             </button>
                         )}
@@ -517,25 +423,19 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         Revise los datos y declare si la solicitud es conforme o requiere subsanación.
                     </p>
 
-                    {/* ── Estado idle: botones de elección ── */}
                     {paso === 'idle' && (
                         <div className="flex gap-3">
-                            <button
-                                onClick={iniciarConforme}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-                            >
+                            <button onClick={iniciarConforme}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                                 <CheckCircle size={16}/> Declarar Conforme
                             </button>
-                            <button
-                                onClick={iniciarNoConforme}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200"
-                            >
+                            <button onClick={iniciarNoConforme}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
                                 <XCircle size={16}/> Declarar No Conforme
                             </button>
                         </div>
                     )}
 
-                    {/* ── Panel CONFORME ── */}
                     {paso === 'conforme' && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
@@ -544,91 +444,10 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     Declarar solicitud como <strong>CONFORME</strong>. Se enviará email al demandado con credenciales de acceso.
                                 </p>
                             </div>
-
-                            {/* Lista de movimientos */}
-                            {movimientos.map((mov, idx) => (
-                                <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-1 relative">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
-                                                #{idx + 1}
-                                            </span>
-                                            {movimientos.length > 1 && (
-                                                <div className="flex gap-0.5">
-                                                    <button type="button" onClick={() => moverMovimiento(idx, -1)} disabled={idx === 0}
-                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
-                                                        <ChevronUp size={12}/>
-                                                    </button>
-                                                    <button type="button" onClick={() => moverMovimiento(idx, 1)} disabled={idx === movimientos.length - 1}
-                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
-                                                        <ChevronDown size={12}/>
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {movimientos.length > 1 && (
-                                            <button type="button" onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
-                                                <Trash2 size={13}/>
-                                            </button>
-                                        )}
-                                    </div>
-                                    <MovimientoSeguimientoForm
-                                        expediente={expediente}
-                                        etapas={etapas}
-                                        tiposDocumento={tiposDocumento}
-                                        sugerencia={mov}
-                                        onChange={(field, value) => actualizarMovimiento(idx, field, value)}
-                                    />
-                                    {errores[`mov_${idx}_instruccion`] && <p className="text-xs text-red-500">{errores[`mov_${idx}_instruccion`]}</p>}
-                                    {errores[`mov_${idx}_etapa`]       && <p className="text-xs text-red-500">{errores[`mov_${idx}_etapa`]}</p>}
-                                </div>
-                            ))}
-
-                            <button
-                                type="button"
-                                onClick={() => agregarMovimiento()}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#291136] border-2 border-dashed border-[#291136]/20 rounded-xl hover:border-[#291136]/40 hover:bg-[#291136]/5 transition-colors"
-                            >
-                                <PlusCircle size={14}/> Agregar otro movimiento
-                            </button>
-
-                            {actoresNotificables.length > 0 && (
-                                <div className="pt-2 border-t border-gray-100">
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Notificar a (email)</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {actoresNotificables.map(actor => (
-                                            <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={notificarA.includes(actor.id)}
-                                                    onChange={e => setNotificarA(prev =>
-                                                        e.target.checked ? [...prev, actor.id] : prev.filter(x => x !== actor.id)
-                                                    )}
-                                                    className="rounded border-gray-300 accent-[#291136]"
-                                                />
-                                                {actor.usuario?.name} ({actor.tipo_actor?.nombre})
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-2 pt-2">
-                                <button
-                                    onClick={() => confirmar('conforme')}
-                                    disabled={procesando}
-                                    className="px-5 py-2 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-                                >
-                                    {procesando ? 'Procesando...' : `Confirmar${movimientos.length > 0 ? ` y crear ${movimientos.length} movimiento(s)` : ''}`}
-                                </button>
-                                <button onClick={() => setPaso('idle')} className="px-4 py-2 text-xs text-gray-400 hover:text-gray-600">
-                                    Cancelar
-                                </button>
-                            </div>
+                            <PanelMovimientos colorBtn="bg-emerald-600 hover:bg-emerald-700" labelBtn="Confirmar Conforme" resultado="conforme"/>
                         </div>
                     )}
 
-                    {/* ── Panel NO CONFORME ── */}
                     {paso === 'no_conforme' && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-200">
@@ -637,103 +456,20 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     Declarar solicitud como <strong>NO CONFORME</strong>. Se habilitará subsanación para el demandante.
                                 </p>
                             </div>
-
                             <div>
                                 <label className="block text-xs font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
-                                <textarea
-                                    value={motivoNoConforme}
+                                <textarea value={motivoNoConforme}
                                     onChange={e => {
-                                        setMotivoNoConforme(e.target.value);
+                                        setMotivo(e.target.value);
                                         if (movimientos.length > 0) {
-                                            actualizarMovimiento(0, 'instruccion', `Subsanación requerida: ${e.target.value}`);
+                                            actualizar(0, 'instruccion', `Subsanación requerida: ${e.target.value}`);
                                         }
                                     }}
-                                    rows={3}
-                                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                                    placeholder="Indique los motivos por los que la solicitud no es conforme..."
-                                />
+                                    rows={3} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                                    placeholder="Indique los motivos por los que la solicitud no es conforme..."/>
                                 {errores.motivo_no_conformidad && <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>}
                             </div>
-
-                            {movimientos.map((mov, idx) => (
-                                <div key={idx} className="border border-gray-200 rounded-xl p-4 space-y-1 relative">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-xs font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded-full">
-                                                #{idx + 1}
-                                            </span>
-                                            {movimientos.length > 1 && (
-                                                <div className="flex gap-0.5">
-                                                    <button type="button" onClick={() => moverMovimiento(idx, -1)} disabled={idx === 0}
-                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
-                                                        <ChevronUp size={12}/>
-                                                    </button>
-                                                    <button type="button" onClick={() => moverMovimiento(idx, 1)} disabled={idx === movimientos.length - 1}
-                                                        className="p-1 text-gray-300 hover:text-gray-600 disabled:opacity-30 transition-colors">
-                                                        <ChevronDown size={12}/>
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {movimientos.length > 1 && (
-                                            <button type="button" onClick={() => quitarMovimiento(idx)} className="text-gray-300 hover:text-red-400 transition-colors">
-                                                <Trash2 size={13}/>
-                                            </button>
-                                        )}
-                                    </div>
-                                    <MovimientoSeguimientoForm
-                                        expediente={expediente}
-                                        etapas={etapas}
-                                        tiposDocumento={tiposDocumento}
-                                        sugerencia={mov}
-                                        onChange={(field, value) => actualizarMovimiento(idx, field, value)}
-                                    />
-                                    {errores[`mov_${idx}_instruccion`] && <p className="text-xs text-red-500">{errores[`mov_${idx}_instruccion`]}</p>}
-                                    {errores[`mov_${idx}_etapa`]       && <p className="text-xs text-red-500">{errores[`mov_${idx}_etapa`]}</p>}
-                                </div>
-                            ))}
-
-                            <button
-                                type="button"
-                                onClick={() => agregarMovimiento()}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-[#291136] border-2 border-dashed border-[#291136]/20 rounded-xl hover:border-[#291136]/40 hover:bg-[#291136]/5 transition-colors"
-                            >
-                                <PlusCircle size={14}/> Agregar otro movimiento
-                            </button>
-
-                            {actoresNotificables.length > 0 && (
-                                <div className="pt-2 border-t border-gray-100">
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Notificar a (email)</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {actoresNotificables.map(actor => (
-                                            <label key={actor.id} className="inline-flex items-center gap-1.5 text-xs bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={notificarA.includes(actor.id)}
-                                                    onChange={e => setNotificarA(prev =>
-                                                        e.target.checked ? [...prev, actor.id] : prev.filter(x => x !== actor.id)
-                                                    )}
-                                                    className="rounded border-gray-300 accent-[#291136]"
-                                                />
-                                                {actor.usuario?.name} ({actor.tipo_actor?.nombre})
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-2 pt-2">
-                                <button
-                                    onClick={() => confirmar('no_conforme')}
-                                    disabled={procesando}
-                                    className="px-5 py-2 text-sm font-bold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-                                >
-                                    {procesando ? 'Procesando...' : `Confirmar No Conforme${movimientos.length > 0 ? ` y crear ${movimientos.length} movimiento(s)` : ''}`}
-                                </button>
-                                <button onClick={() => setPaso('idle')} className="px-4 py-2 text-xs text-gray-400 hover:text-gray-600">
-                                    Cancelar
-                                </button>
-                            </div>
+                            <PanelMovimientos colorBtn="bg-red-600 hover:bg-red-700" labelBtn="Confirmar No Conforme" resultado="no_conforme"/>
                         </div>
                     )}
                 </div>

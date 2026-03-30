@@ -38,9 +38,12 @@ class ExpedienteActorController extends Controller
         ]);
 
         $usuarioId = null;
+        $credencialesEnviadas = false;
 
         if ($request->modo === 'interno') {
             $usuarioId = $request->usuario_id;
+            // Usuario interno ya tiene credenciales del sistema
+            $credencialesEnviadas = true;
         } else {
             // Modo externo: buscar o crear usuario
             $userExterno = User::where('email', $request->email_externo)->first();
@@ -70,9 +73,13 @@ class ExpedienteActorController extends Controller
                                     ->subject('Designación como actor en expediente - ANKAWA');
                         }
                     );
+                    $credencialesEnviadas = true;
                 } catch (\Exception $e) {
                     \Log::warning("No se pudo enviar email a actor externo: " . $e->getMessage());
                 }
+            } else {
+                // Usuario externo ya existía: ya tiene sus credenciales
+                $credencialesEnviadas = true;
             }
 
             $usuarioId = $userExterno->id;
@@ -85,7 +92,8 @@ class ExpedienteActorController extends Controller
                 'usuario_id'    => $usuarioId,
             ],
             [
-                'activo' => 1,
+                'activo'               => 1,
+                'credenciales_enviadas' => $credencialesEnviadas,
             ]
         );
 

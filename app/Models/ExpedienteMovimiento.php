@@ -33,6 +33,7 @@ class ExpedienteMovimiento extends Model
         'estado',
         'enviar_credenciales',
         'credenciales_enviadas',
+        'actor_credenciales_id',
         'activo',
     ];
 
@@ -98,6 +99,11 @@ class ExpedienteMovimiento extends Model
     public function resueltoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'resuelto_por');
+    }
+
+    public function actorCredenciales(): BelongsTo
+    {
+        return $this->belongsTo(ExpedienteActor::class, 'actor_credenciales_id');
     }
 
     public function puedeSerResuelto(): bool

@@ -36,6 +36,7 @@ class MovimientoController extends Controller
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
             'tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'enviar_credenciales'        => 'nullable|boolean',
+            'actor_credenciales_id'      => 'nullable|exists:expediente_actores,id',
             'documentos'                 => 'nullable|array',
             'documentos.*'               => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             'notificar_a'                => 'nullable|array',
@@ -47,9 +48,10 @@ class MovimientoController extends Controller
             'usuario_responsable_id', 'instruccion', 'observaciones',
             'dias_plazo', 'tipo_documento_requerido_id',
         ]), [
-            'creado_por'          => auth()->id(),
-            'tipo'                => $request->input('tipo', 'requerimiento'),
-            'enviar_credenciales' => $request->boolean('enviar_credenciales'),
+            'creado_por'             => auth()->id(),
+            'tipo'                   => $request->input('tipo', 'requerimiento'),
+            'enviar_credenciales'    => $request->boolean('enviar_credenciales'),
+            'actor_credenciales_id'  => $request->input('actor_credenciales_id') ?: null,
         ]);
 
         $archivos = $request->file('documentos') ?? [];
@@ -57,12 +59,12 @@ class MovimientoController extends Controller
 
         // tipo: 'requerimiento' → pendiente | 'propia' → respondido | 'notificacion' → recibido
         $tipo = $request->input('tipo', 'requerimiento');
-        if (empty($datos['usuario_responsable_id'])) {
-            $estadoInicial = 'respondido';   // actuación propia (sin responsable)
-        } elseif ($tipo === 'notificacion') {
+        if ($tipo === 'notificacion') {
             $estadoInicial = 'recibido';     // traslado/notificación → no requiere respuesta
+        } elseif (empty($datos['usuario_responsable_id'])) {
+            $estadoInicial = 'respondido';   // actuación propia (sin responsable)
         } else {
-            $estadoInicial = 'pendiente';    // requerimiento
+            $estadoInicial = 'pendiente';    // requerimiento con responsable
         }
 
         $this->movimientoService->crear($expediente, $datos, $archivos, $notificarA, $estadoInicial);
@@ -90,22 +92,29 @@ class MovimientoController extends Controller
             'movimientos.*.dias_plazo'               => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'movimientos.*.enviar_credenciales'      => 'nullable|boolean',
-            'notificar_a'                            => 'nullable|array',
-            'notificar_a.*'                          => 'integer|exists:expediente_actores,id',
+            'movimientos.*.actor_credenciales_id'    => 'nullable|exists:expediente_actores,id',
+            'movimientos.*.notificar_a'              => 'nullable|array',
+            'movimientos.*.notificar_a.*'            => 'integer|exists:expediente_actores,id',
+            'documentos'                             => 'nullable|array',
+            'documentos.*'                           => 'nullable|array',
+            'documentos.*.*'                         => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
-        $notificarA = $request->notificar_a ?? [];
+        $documentosPorMovimiento = $request->file('documentos') ?? [];
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $notificarA) {
-            foreach ($request->movimientos as $item) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $documentosPorMovimiento) {
+            foreach ($request->movimientos as $i => $item) {
                 $tipo = $item['tipo'] ?? 'requerimiento';
-                if (empty($item['usuario_responsable_id'])) {
-                    $estadoInicial = 'respondido';
-                } elseif ($tipo === 'notificacion') {
+                if ($tipo === 'notificacion') {
                     $estadoInicial = 'recibido';
+                } elseif (empty($item['usuario_responsable_id'])) {
+                    $estadoInicial = 'respondido';
                 } else {
                     $estadoInicial = 'pendiente';
                 }
+
+                $archivos   = $documentosPorMovimiento[$i] ?? [];
+                $notificarA = $item['notificar_a'] ?? [];
 
                 $this->movimientoService->crear(
                     $expediente,
@@ -116,12 +125,13 @@ class MovimientoController extends Controller
                             'dias_plazo', 'tipo_documento_requerido_id',
                         ]),
                         [
-                            'creado_por'          => auth()->id(),
-                            'tipo'                => $tipo,
-                            'enviar_credenciales' => !empty($item['enviar_credenciales']),
+                            'creado_por'             => auth()->id(),
+                            'tipo'                   => $tipo,
+                            'enviar_credenciales'    => !empty($item['enviar_credenciales']),
+                            'actor_credenciales_id'  => $item['actor_credenciales_id'] ?? null,
                         ]
                     ),
-                    [],
+                    $archivos,
                     $notificarA,
                     $estadoInicial
                 );
