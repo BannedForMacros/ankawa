@@ -1,25 +1,9 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle } from 'lucide-react';
-import { MovimientoCard } from './TabNuevoMovimiento';
+import { MovimientoCard, movVacioBase, GENERA_CARGO_DEFAULT } from './TabNuevoMovimiento';
 
-const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
-
-const movVacio = (expediente, notificarIds = []) => ({
-    tipo:                        'requerimiento',
-    etapa_id:                    String(expediente.etapa_actual_id ?? ''),
-    sub_etapa_id:                '',
-    instruccion:                 '',
-    observaciones:               '',
-    tipo_actor_responsable_id:   '',
-    usuario_responsable_id:      '',
-    dias_plazo:                  '',
-    tipo_documento_requerido_id: '',
-    enviar_credenciales:         false,
-    actor_credenciales_id:       '',
-    notificar_a:                 notificarIds,
-    genera_cargo:                true,
-});
+const movVacio = movVacioBase;
 
 export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [], tiposDocumento = [] }) {
     const [editando, setEditando]         = useState(false);

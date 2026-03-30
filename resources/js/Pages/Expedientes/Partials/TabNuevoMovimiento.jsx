@@ -2,6 +2,24 @@ import { router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip } from 'lucide-react';
 
+export const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
+
+export const movVacioBase = (expediente, notificarIds = []) => ({
+    tipo:                        'requerimiento',
+    etapa_id:                    String(expediente.etapa_actual_id ?? ''),
+    sub_etapa_id:                '',
+    instruccion:                 '',
+    observaciones:               '',
+    tipo_actor_responsable_id:   '',
+    usuario_responsable_id:      '',
+    dias_plazo:                  '',
+    tipo_documento_requerido_id: '',
+    enviar_credenciales:         false,
+    actor_credenciales_id:       '',
+    notificar_a:                 notificarIds,
+    genera_cargo:                true,
+});
+
 const TIPOS = {
     requerimiento: {
         label: 'Requerimiento',
@@ -275,23 +293,7 @@ export function MovimientoCard({
     );
 }
 
-const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
-
-const movVacio = (expediente, notificarIds = []) => ({
-    tipo:                        'requerimiento',
-    etapa_id:                    String(expediente.etapa_actual_id ?? ''),
-    sub_etapa_id:                '',
-    instruccion:                 '',
-    observaciones:               '',
-    tipo_actor_responsable_id:   '',
-    usuario_responsable_id:      '',
-    dias_plazo:                  '',
-    tipo_documento_requerido_id: '',
-    enviar_credenciales:         false,
-    actor_credenciales_id:       '',
-    notificar_a:                 notificarIds,
-    genera_cargo:                true,
-});
+const movVacio = movVacioBase;
 
 export default function TabNuevoMovimiento({
     expediente, etapas = [], tiposActor = [], usuariosAsignables = [],
