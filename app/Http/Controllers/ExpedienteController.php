@@ -59,6 +59,7 @@ class ExpedienteController extends Controller
 
         return Inertia::render('Expedientes/Index', [
             'expedientes' => $expedientes,
+            'titulo'      => 'Expedientes',
         ]);
     }
 
@@ -84,6 +85,7 @@ class ExpedienteController extends Controller
 
         return Inertia::render('Expedientes/Index', [
             'expedientes' => $expedientes,
+            'titulo'      => 'Mis Expedientes',
         ]);
     }
 
@@ -108,6 +110,7 @@ class ExpedienteController extends Controller
                     'documentos.subidoPor',
                     'tipoDocumentoRequerido',
                     'resolucionTipo', 'resueltoPor',
+                    'cargo',
                 ]),
         ]);
 

@@ -39,6 +39,16 @@ class Servicio extends Model
          ->orderByPivot('orden');
     }
 
+    public function tiposDocumento(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            TipoDocumento::class,
+            'servicio_tipo_documento',
+            'servicio_id',
+            'tipo_documento_id'
+        );
+    }
+
     public function scopeActivo($query)
     {
         return $query->where('activo', 1);

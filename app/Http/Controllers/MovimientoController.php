@@ -52,6 +52,7 @@ class MovimientoController extends Controller
             'tipo'                   => $request->input('tipo', 'requerimiento'),
             'enviar_credenciales'    => $request->boolean('enviar_credenciales'),
             'actor_credenciales_id'  => $request->input('actor_credenciales_id') ?: null,
+            'genera_cargo'           => $request->boolean('genera_cargo'),
         ]);
 
         $archivos = $request->file('documentos') ?? [];
@@ -129,6 +130,7 @@ class MovimientoController extends Controller
                             'tipo'                   => $tipo,
                             'enviar_credenciales'    => !empty($item['enviar_credenciales']),
                             'actor_credenciales_id'  => $item['actor_credenciales_id'] ?? null,
+                            'genera_cargo'           => !empty($item['genera_cargo']),
                         ]
                     ),
                     $archivos,

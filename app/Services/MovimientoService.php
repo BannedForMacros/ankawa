@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Cargo;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteHistorial;
 use App\Models\MovimientoDocumento;
 use App\Models\User;
+use App\Mail\CargoRespuestaMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -53,6 +55,7 @@ class MovimientoService
                 'estado'                     => $estadoInicial,
                 'enviar_credenciales'        => !empty($datos['enviar_credenciales']),
                 'actor_credenciales_id'      => $datos['actor_credenciales_id'] ?? null,
+                'genera_cargo'               => !empty($datos['genera_cargo']),
             ]);
 
             // Si el estado inicial es respondido o recibido, marcar fecha_respuesta
@@ -169,6 +172,17 @@ class MovimientoService
 
             if (!empty($notificarActorIds)) {
                 $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
+            }
+
+            // Generar cargo si el movimiento lo requiere
+            if ($movimiento->genera_cargo) {
+                $respondedor = User::find($datos['respondido_por']);
+                $cargo = Cargo::crear('respuesta_movimiento', $movimiento, $datos['respondido_por']);
+                try {
+                    Mail::to($respondedor->email)->send(new CargoRespuestaMail($cargo, $movimiento));
+                } catch (\Exception $e) {
+                    \Log::warning("Error enviando cargo respuesta movimiento #{$movimiento->id}: " . $e->getMessage());
+                }
             }
 
             return $movimiento;

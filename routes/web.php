@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 // Controladores Públicos (Mesa de Partes)
 use App\Http\Controllers\MesaPartesController;
 use App\Http\Controllers\Servicios\Arbitraje\SolicitudArbitrajeController;
+use App\Http\Controllers\Servicios\Otros\SolicitudOtrosController;
 
 // Controladores Internos
 use App\Http\Controllers\DashboardController;
@@ -48,6 +49,10 @@ Route::post('/mesa-partes/verificar-codigo', [MesaPartesController::class, 'veri
 
 // Recepción de solicitudes por servicio (Paso final del formulario público)
 Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::class, 'store'])->name('solicitud.arbitraje.store');
+Route::post('/mesa-partes/servicios/otros', [SolicitudOtrosController::class, 'store'])->name('solicitud.otros.store');
+Route::get('/mesa-partes/servicios/{servicio}/tipos-documento', function (\App\Models\Servicio $servicio) {
+    return response()->json($servicio->tiposDocumento()->where('activo', true)->get(['tipo_documentos.id', 'tipo_documentos.nombre']));
+})->name('servicios.tipos-documento');
 
 
 // =========================================================================

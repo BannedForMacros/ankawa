@@ -86,6 +86,7 @@ export function MovimientoCard({
                         <button key={key} type="button"
                             onClick={() => {
                                 onChange('tipo', key);
+                                onChange('genera_cargo', GENERA_CARGO_DEFAULT[key] ?? false);
                                 if (key !== 'requerimiento') onChange('dias_plazo', '');
                                 if (key === 'notificacion' || key === 'propia') {
                                     onChange('tipo_actor_responsable_id', '');
@@ -251,6 +252,17 @@ export function MovimientoCard({
                     </div>
                 )}
 
+                {/* Genera cargo */}
+                {tipo !== 'notificacion' && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none py-1">
+                        <input type="checkbox" checked={!!mov.genera_cargo}
+                            onChange={e => onChange('genera_cargo', e.target.checked)}
+                            className="w-4 h-4 accent-[#BE0F4A] rounded"/>
+                        <span className="text-sm font-semibold text-[#291136]">Generar cargo al responder</span>
+                        <span className="text-xs text-gray-400">(acuse de recibo para el actor)</span>
+                    </label>
+                )}
+
                 {/* Observaciones */}
                 <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Observaciones</label>
@@ -262,6 +274,8 @@ export function MovimientoCard({
         </div>
     );
 }
+
+const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
 
 const movVacio = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
@@ -276,6 +290,7 @@ const movVacio = (expediente, notificarIds = []) => ({
     enviar_credenciales:         false,
     actor_credenciales_id:       '',
     notificar_a:                 notificarIds,
+    genera_cargo:                true,
 });
 
 export default function TabNuevoMovimiento({
@@ -362,6 +377,7 @@ export default function TabNuevoMovimiento({
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
             form.append('enviar_credenciales',         mov.enviar_credenciales ? '1' : '0');
             form.append('actor_credenciales_id',       mov.actor_credenciales_id ?? '');
+            form.append('genera_cargo',                mov.genera_cargo ? '1' : '0');
             (archivosMovimientos[0] ?? []).forEach(f => form.append('documentos[]', f));
             mov.notificar_a.forEach(id => form.append('notificar_a[]', id));
 
@@ -384,6 +400,7 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
                 form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
                 form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
+                form.append(`movimientos[${i}][genera_cargo]`,                mov.genera_cargo ? '1' : '0');
                 mov.notificar_a.forEach(id => form.append(`movimientos[${i}][notificar_a][]`, id));
                 (archivosMovimientos[i] ?? []).forEach(f => form.append(`documentos[${i}][]`, f));
             });

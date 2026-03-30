@@ -34,6 +34,7 @@ class ExpedienteMovimiento extends Model
         'enviar_credenciales',
         'credenciales_enviadas',
         'actor_credenciales_id',
+        'genera_cargo',
         'activo',
     ];
 
@@ -44,6 +45,7 @@ class ExpedienteMovimiento extends Model
         'activo'                 => 'boolean',
         'enviar_credenciales'    => 'boolean',
         'credenciales_enviadas'  => 'boolean',
+        'genera_cargo'           => 'boolean',
     ];
 
     public function expediente(): BelongsTo
@@ -104,6 +106,11 @@ class ExpedienteMovimiento extends Model
     public function actorCredenciales(): BelongsTo
     {
         return $this->belongsTo(ExpedienteActor::class, 'actor_credenciales_id');
+    }
+
+    public function cargo(): \Illuminate\Database\Eloquent\Relations\MorphOne
+    {
+        return $this->morphOne(\App\Models\Cargo::class, 'cargable');
     }
 
     public function puedeSerResuelto(): bool

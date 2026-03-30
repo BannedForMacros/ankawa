@@ -15,6 +15,7 @@ use App\Models\Rol;
 use App\Models\Etapa;
 use App\Services\CorrelativoService;
 use App\Mail\CargoSolicitudMail;
+use App\Models\Cargo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -101,9 +102,9 @@ class SolicitudArbitrajeController extends Controller
                 ]
             ));
 
-            // Generar número de cargo temporal (para el acuse de recibo)
-            $numeroCargo = 'CARGO-' . str_pad($solicitud->id, 4, '0', STR_PAD_LEFT) . '-' . now()->year;
-            $solicitud->update(['numero_cargo' => $numeroCargo]);
+            // Generar número de cargo correlativo universal
+            $cargo = Cargo::crear('solicitud', $solicitud, $userId);
+            $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
 
             // ── 4. Crear expediente con número correlativo automático ─────────
             $tipoExpId = TipoCorrelativo::where('codigo', 'EXP')->value('id');

@@ -28,7 +28,7 @@ export default function TabAccionPendiente({
         nuevo_dias_plazo: '',
         nuevo_tipo_documento_requerido_id: '',
         documentos_nuevo: [],
-        notificar_a: actoresNotificables.map(a => a.id),
+        notificar_a: [],  // solo se llena cuando se crea el siguiente movimiento
     });
 
     // Sub-etapas del nuevo movimiento
@@ -52,12 +52,6 @@ export default function TabAccionPendiente({
         const routeName = crearSiguiente
             ? 'expedientes.movimientos.responder-y-crear'
             : 'expedientes.movimientos.responder';
-
-        // Para la ruta simple, solo enviar campos de respuesta
-        const submitData = crearSiguiente ? form.data : {
-            respuesta: form.data.respuesta,
-            documentos: form.data.documentos,
-        };
 
         form.post(route(routeName, [expediente.id, movimiento.id]), {
             forceFormData: true,
@@ -164,7 +158,12 @@ export default function TabAccionPendiente({
                     <div className="border-t border-gray-100 pt-4">
                         <button
                             type="button"
-                            onClick={() => setCrearSiguiente(!crearSiguiente)}
+                            onClick={() => {
+                                const next = !crearSiguiente;
+                                setCrearSiguiente(next);
+                                // Pre-seleccionar actores solo al abrir el panel de siguiente movimiento
+                                form.setData('notificar_a', next ? actoresNotificables.map(a => a.id) : []);
+                            }}
                             className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-colors ${
                                 crearSiguiente
                                     ? 'border-[#291136] bg-[#291136]/5'

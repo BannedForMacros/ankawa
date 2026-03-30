@@ -9,7 +9,13 @@ const estadoColors = {
     concluido:  'bg-gray-100 text-gray-500',
 };
 
-export default function Index({ expedientes = [] }) {
+const borderByEstado = {
+    activo:     'border-l-emerald-400',
+    suspendido: 'border-l-amber-400',
+    concluido:  'border-l-gray-300',
+};
+
+export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
     const [busqueda, setBusqueda] = useState('');
     const [filtroEstado, setFiltroEstado] = useState('todos');
 
@@ -29,14 +35,41 @@ export default function Index({ expedientes = [] }) {
     };
 
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-[#291136]">
-                    Expedientes
-                </h2>
-            }
-        >
-            <Head title="Expedientes" />
+        <AuthenticatedLayout>
+            <Head title={titulo} />
+
+            {/* ── Page Hero Header ── */}
+            <div className="bg-white border-b border-gray-200">
+                <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
+                    <div className="flex items-start justify-between flex-wrap gap-4">
+                        <div>
+                            <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
+                                {titulo}
+                            </h1>
+                            <p className="text-gray-500 text-sm mt-1">
+                                Consulta y seguimiento de expedientes activos
+                            </p>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                            {contadores.activo > 0 && (
+                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Activos: {contadores.activo}
+                                </span>
+                            )}
+                            {contadores.suspendido > 0 && (
+                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                    Suspendidos: {contadores.suspendido}
+                                </span>
+                            )}
+                            {contadores.concluido > 0 && (
+                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                                    Concluidos: {contadores.concluido}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <div className="py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
@@ -48,12 +81,15 @@ export default function Index({ expedientes = [] }) {
                                 <button
                                     key={key}
                                     onClick={() => setFiltroEstado(key)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                    className={`px-3 py-1.5 rounded-full text-sm font-semibold flex items-center gap-1.5 transition-colors ${
                                         filtroEstado === key
                                             ? 'bg-[#291136] text-white'
                                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                                 >
+                                    {filtroEstado === key && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse shrink-0" />
+                                    )}
                                     {key === 'todos' ? 'Todos' : key.charAt(0).toUpperCase() + key.slice(1)} ({count})
                                 </button>
                             ))}
@@ -66,7 +102,7 @@ export default function Index({ expedientes = [] }) {
                                 placeholder="Buscar expediente..."
                                 value={busqueda}
                                 onChange={e => setBusqueda(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
+                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"
                             />
                         </div>
                     </div>
@@ -83,10 +119,10 @@ export default function Index({ expedientes = [] }) {
                                 <Link
                                     key={exp.id}
                                     href={route('expedientes.show', exp.id)}
-                                    className="block bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-4 group"
+                                    className={`block bg-white rounded-2xl border border-gray-100 border-l-4 ${borderByEstado[exp.estado] ?? 'border-l-gray-200'} shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-4 group`}
                                 >
                                     <div className="flex items-center gap-4">
-                                        <div className="shrink-0 w-10 h-10 rounded-xl bg-[#291136]/5 flex items-center justify-center text-[#291136]">
+                                        <div className="shrink-0 w-10 h-10 rounded-full bg-[#BE0F4A]/10 flex items-center justify-center text-[#BE0F4A]">
                                             <Scale size={18}/>
                                         </div>
                                         <div className="flex-1 min-w-0">

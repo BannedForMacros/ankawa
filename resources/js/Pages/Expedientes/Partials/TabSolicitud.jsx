@@ -3,6 +3,8 @@ import { useState, useMemo } from 'react';
 import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle } from 'lucide-react';
 import { MovimientoCard } from './TabNuevoMovimiento';
 
+const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
+
 const movVacio = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
     etapa_id:                    String(expediente.etapa_actual_id ?? ''),
@@ -16,6 +18,7 @@ const movVacio = (expediente, notificarIds = []) => ({
     enviar_credenciales:         false,
     actor_credenciales_id:       '',
     notificar_a:                 notificarIds,
+    genera_cargo:                true,
 });
 
 export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [], tiposDocumento = [] }) {
@@ -150,6 +153,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
             form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
             form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
+            form.append(`movimientos[${i}][genera_cargo]`,                mov.genera_cargo ? '1' : '0');
             mov.notificar_a.forEach(id => form.append(`movimientos[${i}][notificar_a][]`, id));
             (archivosMovimientos[i] ?? []).forEach(f => form.append(`documentos[${i}][]`, f));
         });
@@ -189,18 +193,18 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
 
     const campo = (label, value) => (
         <div>
-            <span className="text-xs text-gray-400 block">{label}</span>
-            <span className="text-sm font-semibold text-[#291136]">{value || '—'}</span>
+            <span className="text-sm text-gray-400 block mb-0.5">{label}</span>
+            <span className="text-base font-semibold text-[#291136]">{value || '—'}</span>
         </div>
     );
 
     const inputField = (label, field, type = 'text', required = false) => (
         <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">{label} {required && '*'}</label>
+            <label className="block text-sm font-semibold text-gray-600 mb-1">{label} {required && '*'}</label>
             <input type={type} value={formEdit.data[field]}
                 onChange={e => formEdit.setData(field, e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"/>
-            {formEdit.errors[field] && <p className="text-xs text-red-500 mt-1">{formEdit.errors[field]}</p>}
+                className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"/>
+            {formEdit.errors[field] && <p className="text-sm text-red-500 mt-1">{formEdit.errors[field]}</p>}
         </div>
     );
 
@@ -260,8 +264,17 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
 
             {/* ── Datos de la Solicitud ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                {solicitud.numero_cargo && (
+                    <div className="flex items-center gap-3 mb-4 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">N° de Cargo</p>
+                            <p className="text-xl font-black font-mono text-[#291136] tracking-wider">{solicitud.numero_cargo}</p>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-[#291136]">Datos de la Solicitud</h3>
+                    <h3 className="text-lg font-bold text-[#291136]">Datos de la Solicitud</h3>
                     <div className="flex items-center gap-2">
                         {solicitud.resultado_revision && (
                             <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
@@ -284,7 +297,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 {editando ? (
                     <form onSubmit={guardarEdicion} className="space-y-6">
                         <div>
-                            <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
+                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {inputField('Nombre completo', 'nombre_demandante', 'text', true)}
                                 {inputField('Documento de identidad', 'documento_demandante', 'text', true)}
@@ -296,7 +309,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             </div>
                         </div>
                         <div>
-                            <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
+                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {inputField('Nombre completo', 'nombre_demandado', 'text', true)}
                                 {inputField('Domicilio', 'domicilio_demandado', 'text', true)}
@@ -305,15 +318,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             </div>
                         </div>
                         <div>
-                            <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia</h4>
+                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia</h4>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Resumen *</label>
-                                    <textarea value={formEdit.data.resumen_controversia} onChange={e => formEdit.setData('resumen_controversia', e.target.value)} rows={4} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"/>
+                                    <label className="block text-sm font-semibold text-gray-600 mb-1">Resumen *</label>
+                                    <textarea value={formEdit.data.resumen_controversia} onChange={e => formEdit.setData('resumen_controversia', e.target.value)} rows={4} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"/>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Pretensiones *</label>
-                                    <textarea value={formEdit.data.pretensiones} onChange={e => formEdit.setData('pretensiones', e.target.value)} rows={3} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"/>
+                                    <label className="block text-sm font-semibold text-gray-600 mb-1">Pretensiones *</label>
+                                    <textarea value={formEdit.data.pretensiones} onChange={e => formEdit.setData('pretensiones', e.target.value)} rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"/>
                                 </div>
                                 {inputField('Monto involucrado (S/)', 'monto_involucrado', 'number')}
                             </div>
@@ -330,7 +343,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 ) : (
                     <div className="space-y-6">
                         <div>
-                            <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
+                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {campo('Nombre', solicitud.nombre_demandante)}
                                 {campo('Documento', solicitud.documento_demandante)}
@@ -343,7 +356,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             </div>
                         </div>
                         <div className="border-t border-gray-100 pt-4">
-                            <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
+                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                 {campo('Nombre', solicitud.nombre_demandado)}
                                 {campo('Domicilio', solicitud.domicilio_demandado)}
@@ -352,15 +365,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             </div>
                         </div>
                         <div className="border-t border-gray-100 pt-4">
-                            <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia y Pretensiones</h4>
+                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia y Pretensiones</h4>
                             <div className="space-y-3">
                                 <div>
-                                    <span className="text-xs text-gray-400 block mb-1">Resumen de la controversia</span>
-                                    <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3">{solicitud.resumen_controversia || '—'}</p>
+                                    <span className="text-sm text-gray-400 block mb-1">Resumen de la controversia</span>
+                                    <p className="text-base text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.resumen_controversia || '—'}</p>
                                 </div>
                                 <div>
-                                    <span className="text-xs text-gray-400 block mb-1">Pretensiones</span>
-                                    <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3">{solicitud.pretensiones || '—'}</p>
+                                    <span className="text-sm text-gray-400 block mb-1">Pretensiones</span>
+                                    <p className="text-base text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.pretensiones || '—'}</p>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {campo('Monto involucrado', solicitud.monto_involucrado ? `S/ ${Number(solicitud.monto_involucrado).toLocaleString()}` : '—')}
@@ -372,7 +385,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         </div>
                         {solicitud.documentos?.length > 0 && (
                             <div className="border-t border-gray-100 pt-4">
-                                <h4 className="text-xs font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Documentos Adjuntos</h4>
+                                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Documentos Adjuntos</h4>
                                 <div className="space-y-1.5">
                                     {solicitud.documentos.map(doc => (
                                         <a key={doc.id} href={route('documentos.descargar', doc.id)}
@@ -408,8 +421,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             {/* ── Banner: esperando subsanación ── */}
             {esGestor && solicitud.estado === 'subsanacion' && (
                 <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
-                    <h3 className="text-sm font-bold text-amber-700 mb-1">⏳ Esperando subsanación del demandante</h3>
-                    <p className="text-xs text-amber-700">
+                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación del demandante</h3>
+                    <p className="text-sm text-amber-700">
                         Se declaró NO CONFORME. Una vez que el demandante responda, podrás volver a revisar la conformidad desde esta sección.
                     </p>
                 </div>
@@ -418,8 +431,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             {/* ── Panel de conformidad ── */}
             {esGestor && solicitud.resultado_revision !== 'conforme' && solicitud.estado !== 'subsanacion' && !editando && (
                 <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
-                    <h3 className="text-sm font-bold text-amber-700 mb-1">Revisión de Conformidad</h3>
-                    <p className="text-xs text-gray-500 mb-4">
+                    <h3 className="text-base font-bold text-amber-700 mb-1">Revisión de Conformidad</h3>
+                    <p className="text-sm text-gray-500 mb-4">
                         Revise los datos y declare si la solicitud es conforme o requiere subsanación.
                     </p>
 
@@ -457,7 +470,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 </p>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
+                                <label className="block text-sm font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
                                 <textarea value={motivoNoConforme}
                                     onChange={e => {
                                         setMotivo(e.target.value);
@@ -465,7 +478,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                             actualizar(0, 'instruccion', `Subsanación requerida: ${e.target.value}`);
                                         }
                                     }}
-                                    rows={3} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                                    rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
                                     placeholder="Indique los motivos por los que la solicitud no es conforme..."/>
                                 {errores.motivo_no_conformidad && <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>}
                             </div>

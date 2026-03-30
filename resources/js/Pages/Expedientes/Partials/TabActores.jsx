@@ -84,7 +84,7 @@ export default function TabActores({
             {/* ── Lista de actores ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-[#291136]">Actores del Expediente</h3>
+                    <h3 className="text-lg font-bold text-[#291136]">Actores del Expediente</h3>
                     <div className="flex gap-2">
                         {puedeDesignarGestor && (
                             <button
@@ -118,7 +118,7 @@ export default function TabActores({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold text-[#291136] truncate">
+                                        <span className="text-base font-bold text-[#291136] truncate">
                                             {actor.usuario?.name ?? 'Sin nombre'}
                                         </span>
                                         {actor.es_gestor && (
@@ -127,24 +127,24 @@ export default function TabActores({
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
                                         <span className="font-semibold">{actor.tipo_actor?.nombre ?? '—'}</span>
                                         {actor.usuario?.rol?.nombre && (
                                             <>
-                                                <span className="text-gray-200">•</span>
+                                                <span className="text-gray-300">•</span>
                                                 <span>{actor.usuario.rol.nombre}</span>
                                             </>
                                         )}
-                                        <span className="text-gray-200">•</span>
+                                        <span className="text-gray-300">•</span>
                                         <span>{actor.usuario?.email ?? '—'}</span>
-                                        <span className="text-gray-200">•</span>
+                                        <span className="text-gray-300">•</span>
                                         {actor.credenciales_enviadas ? (
-                                            <span className="inline-flex items-center gap-0.5 text-emerald-600 font-semibold">
-                                                <ShieldCheck size={11}/> credenciales enviadas
+                                            <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
+                                                <ShieldCheck size={13}/> credenciales enviadas
                                             </span>
                                         ) : (
-                                            <span className="inline-flex items-center gap-0.5 text-amber-500 font-semibold">
-                                                <ShieldAlert size={11}/> credenciales pendientes
+                                            <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
+                                                <ShieldAlert size={13}/> credenciales pendientes
                                             </span>
                                         )}
                                     </div>
@@ -166,11 +166,11 @@ export default function TabActores({
             {/* ── Form: Agregar Actor ── */}
             {showFormActor && (
                 <form onSubmit={agregarActor} className="bg-white rounded-2xl border border-[#291136]/20 shadow-sm p-5 space-y-4">
-                    <h4 className="text-sm font-bold text-[#291136]">Agregar Actor</h4>
+                    <h4 className="text-base font-bold text-[#291136]">Agregar Actor</h4>
 
                     {/* Tipo de Actor */}
                     <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Tipo de Actor *</label>
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">Tipo de Actor *</label>
                         <select
                             value={formActor.data.tipo_actor_id}
                             onChange={e => onTipoActorChange(e.target.value)}
@@ -217,7 +217,7 @@ export default function TabActores({
                             {/* Modo Interno: dropdown de usuarios filtrados por rol */}
                             {formActor.data.modo === 'interno' && (
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                    <label className="block text-sm font-semibold text-gray-600 mb-1">
                                         Usuario *
                                         {tipoSeleccionado.rol_auto_slug && (
                                             <span className="ml-1 text-gray-400 font-normal">
@@ -246,7 +246,7 @@ export default function TabActores({
                             {formActor.data.modo === 'externo' && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo *</label>
+                                        <label className="block text-sm font-semibold text-gray-600 mb-1">Nombre completo *</label>
                                         <input
                                             type="text"
                                             value={formActor.data.nombre_externo}
@@ -257,7 +257,7 @@ export default function TabActores({
                                         {formActor.errors.nombre_externo && <p className="text-xs text-red-500 mt-1">{formActor.errors.nombre_externo}</p>}
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Correo electrónico *</label>
+                                        <label className="block text-sm font-semibold text-gray-600 mb-1">Correo electrónico *</label>
                                         <input
                                             type="email"
                                             value={formActor.data.email_externo}
@@ -267,7 +267,7 @@ export default function TabActores({
                                         />
                                         {formActor.errors.email_externo && <p className="text-xs text-red-500 mt-1">{formActor.errors.email_externo}</p>}
                                     </div>
-                                    <p className="sm:col-span-2 text-xs text-gray-400">
+                                    <p className="sm:col-span-2 text-sm text-gray-400">
                                         Se creará una cuenta automáticamente y se notificará por correo con las credenciales de acceso.
                                     </p>
                                 </div>
@@ -291,10 +291,10 @@ export default function TabActores({
             {/* ── Form: Designar Gestor ── */}
             {showFormGestor && (
                 <form onSubmit={designarGestor} className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5 space-y-4">
-                    <h4 className="text-sm font-bold text-amber-700">Designar Gestor del Expediente</h4>
-                    <p className="text-xs text-gray-500">Seleccione un actor ya asignado al expediente para designarlo como Gestor.</p>
+                    <h4 className="text-base font-bold text-amber-700">Designar Gestor del Expediente</h4>
+                    <p className="text-sm text-gray-500">Seleccione un actor ya asignado al expediente para designarlo como Gestor.</p>
                     <div>
-                        <label className="block text-xs font-semibold text-gray-600 mb-1">Actor *</label>
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">Actor *</label>
                         <select
                             value={formGestor.data.actor_id}
                             onChange={e => formGestor.setData('actor_id', e.target.value)}
