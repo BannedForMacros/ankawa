@@ -434,7 +434,7 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
             ) : (
                 <div className="space-y-4">
                     {grupos.map((grupo, gi) => (
-                        <div key={`${grupo.etapaId}-${gi}`} className="flex">
+                        <div key={`${grupo.etapaId}-${gi}`} className="flex animate-fade-in-up" style={{ animationDelay: `${gi * 60}ms` }}>
                             {/* Header vertical de etapa */}
                             <div className="relative shrink-0 flex items-stretch" style={{ width: '32px' }}>
                                 <div className="absolute inset-0 flex items-center justify-center">
