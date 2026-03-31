@@ -115,7 +115,7 @@ export default function Navbar() {
 
     return (
         <header
-            className="w-full h-16 flex items-center px-6 gap-4 shrink-0 z-40 relative"
+            className="w-full h-20 flex items-center px-6 gap-4 shrink-0 z-40 relative"
             style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 55%, #291136 100%)' }}
         >
             {/* Logo blanco */}
@@ -123,7 +123,7 @@ export default function Navbar() {
                 <img
                     src="/logo-white.png"
                     alt="Ankawa Global Group"
-                    className="h-9 w-auto object-contain"
+                    className="h-14 w-auto object-contain"
                 />
             </Link>
 

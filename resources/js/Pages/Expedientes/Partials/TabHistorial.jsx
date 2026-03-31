@@ -227,9 +227,9 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
 
                 {/* Tarjeta principal */}
                 <div className={`bg-white rounded-xl border border-gray-100 border-l-4 shadow-sm overflow-hidden z-10 relative transition-shadow duration-200 hover:shadow-md ${{
-                        requerimiento: 'border-l-blue-400',
-                        notificacion:  'border-l-purple-400',
-                        propia:        'border-l-amber-400',
+                        requerimiento: 'border-l-[#BE0F4A]',
+                        notificacion:  'border-l-indigo-400',
+                        propia:        'border-l-gray-400',
                     }[mov.tipo] ?? 'border-l-[#BE0F4A]/50'}`}>
                     <div className="p-3.5">
                         <div className="flex items-start justify-between gap-3">
