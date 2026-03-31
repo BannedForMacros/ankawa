@@ -27,6 +27,8 @@ use App\Http\Controllers\Configuracion\CorrelativoController;
 use App\Http\Controllers\Configuracion\ServicioController;
 use App\Http\Controllers\Configuracion\EtapaController;
 use App\Http\Controllers\Configuracion\TipoActorController;
+use App\Http\Controllers\Configuracion\TipoDocumentoController;
+
 
 
 // =========================================================================
@@ -51,7 +53,11 @@ Route::post('/mesa-partes/verificar-codigo', [MesaPartesController::class, 'veri
 Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::class, 'store'])->name('solicitud.arbitraje.store');
 Route::post('/mesa-partes/servicios/otros', [SolicitudOtrosController::class, 'store'])->name('solicitud.otros.store');
 Route::get('/mesa-partes/servicios/{servicio}/tipos-documento', function (\App\Models\Servicio $servicio) {
-    return response()->json($servicio->tiposDocumento()->where('activo', true)->get(['tipo_documentos.id', 'tipo_documentos.nombre']));
+    $tipos = $servicio->tiposDocumento()
+        ->where('tipo_documentos.activo', true)
+        ->wherePivot('es_para_solicitud', true)
+        ->get(['tipo_documentos.id', 'tipo_documentos.nombre']);
+    return response()->json($tipos);
 })->name('servicios.tipos-documento');
 
 
@@ -143,6 +149,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
         Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
         Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios');
+
+        // Tipos de Documento
+        Route::get('tipos-documentos',                                    [TipoDocumentoController::class, 'index'])         ->name('configuracion.tipos-documentos.index')         ->middleware('permiso:configuracion.tipos-documentos,ver');
+        Route::post('tipos-documentos',                                   [TipoDocumentoController::class, 'store'])          ->name('configuracion.tipos-documentos.store')         ->middleware('permiso:configuracion.tipos-documentos,crear');
+        Route::put('tipos-documentos/{tipoDocumento}',                    [TipoDocumentoController::class, 'update'])         ->name('configuracion.tipos-documentos.update')        ->middleware('permiso:configuracion.tipos-documentos,editar');
+        Route::delete('tipos-documentos/{tipoDocumento}',                 [TipoDocumentoController::class, 'destroy'])        ->name('configuracion.tipos-documentos.destroy')       ->middleware('permiso:configuracion.tipos-documentos,eliminar');
+        Route::post('tipos-documentos/{tipoDocumento}/servicios',         [TipoDocumentoController::class, 'syncServicios'])  ->name('configuracion.tipos-documentos.sync-servicios')->middleware('permiso:configuracion.tipos-documentos,editar');
+        Route::post('tipos-documentos/{tipoDocumento}/actores',           [TipoDocumentoController::class, 'syncActores'])    ->name('configuracion.tipos-documentos.sync-actores')  ->middleware('permiso:configuracion.tipos-documentos,editar');
     });
 
 });

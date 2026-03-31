@@ -1,10 +1,10 @@
-import Sidebar from '@/Components/Sidebar';
+import Navbar from '@/Components/Navbar';
 import { Toaster } from 'react-hot-toast';
 
 export default function AuthenticatedLayout({ children }) {
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
-            <Sidebar />
+        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+            <Navbar />
             <main className="flex-1 overflow-y-auto">
                 {children}
             </main>

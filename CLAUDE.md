@@ -176,3 +176,54 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 - `resources/js/Pages/Expedientes/Show.jsx` — detalle con tabs
 - `app/Http/Controllers/ExpedienteController.php` — controlador principal
 - `.env` — credenciales de base de datos para psql
+
+---
+
+## Estado actual del sistema (marzo 2026)
+
+### Motor de Expedientes
+- Expedientes con tabs: Solicitud, Actores, Historial, Nuevo Movimiento, Acción Pendiente
+- Movimientos: tipos `requerimiento` | `propia` | `notificacion`; estados `pendiente` | `respondido` | `recibido` | `vencido`
+- Componente `MovimientoCard` exportado desde `TabNuevoMovimiento.jsx` — **reutilizar siempre**, nunca duplicar. También exporta `movVacioBase` y `GENERA_CARGO_DEFAULT`
+- `TabSolicitud.jsx` importa `MovimientoCard`, `movVacioBase` y `GENERA_CARGO_DEFAULT` desde `TabNuevoMovimiento.jsx`
+
+### Sistema de Cargos
+- Tabla `cargos` con secuencia PostgreSQL `cargo_seq` → formato `CARGO-2026-0001`
+- Modelo `app/Models/Cargo.php` — método estático `Cargo::crear($tipo, $cargable, $userId)`
+- `genera_cargo` (boolean) en `expediente_movimientos`; default `true` para `requerimiento`, `false` para los demás
+- El cargo se genera en `MovimientoService::responder()` si `$movimiento->genera_cargo === true`
+- **Todos los controllers que crean movimientos deben pasar `genera_cargo`**: `MovimientoController::store()`, `storeLote()`, `ExpedienteController::registrarConformidad()`
+
+### Configuración — Módulo de Tipos de Actor
+- **Una sola página**: `resources/js/Pages/Configuracion/TiposActor/Index.jsx` — tabla con columnas: Nombre | Servicios donde participa | Estado | Acciones
+- Cada tipo de actor puede estar en uno o más servicios (pivot `servicio_tipos_actor`)
+- Pivot tiene: `es_automatico`, `permite_externo`, `rol_auto_slug`, `orden`, `activo`
+- **Auto-asignar**: al crear el expediente, el sistema busca el usuario con el `rol_auto_slug` que tenga menor carga y lo asigna. El rol se selecciona desde un `<select>` con los roles activos del sistema.
+- **Demandante/Demandado**: slugs `demandante` / `demandado` — inmutables, se asignan desde el formulario de solicitud en todos los servicios, no requieren configuración de pivot.
+- `TipoActorController::syncServicios()` — guarda la config de todos los servicios de un actor en bulk
+- No existe página separada "Actores por Servicio" — fue consolidada en Tipos de Actor
+
+### Configuración — Tipos de Documento
+- `resources/js/Pages/Configuracion/TiposDocumento/Index.jsx` — tabla con componente `Table`
+- Pivot `servicio_tipo_documento` incluye `es_para_solicitud` (si aparece como opción en el formulario público)
+- Pivot `tipo_actor_tipo_documento` incluye `puede_ver`, `puede_subir`
+- `TipoDocumentoController` — métodos: `index`, `store`, `update`, `destroy`, `syncServicios`, `syncActores`
+
+### Menú / Navegación
+- Tabla `modules` (no `modulos`) — `parent_id=1` para hijos de Configuración
+- Permisos en `rol_modulo_permiso` — al eliminar un módulo de `modules`, borrar también sus registros huérfanos en `rol_modulo_permiso`
+- Middleware `permiso:` valida por slug del módulo
+
+### Servicio "Otros"
+- `SolicitudOtros` + `Cargo` directo, sin expediente ni actores
+- Form: `resources/js/Pages/MesaPartes/Formularios/OtrosForm.jsx` — filtra tipos de documento con `es_para_solicitud=true`
+
+### Emails
+- Templates en `resources/views/emails/` — todos usan `@include('emails.partials.logo')`
+- Logo embebido como base64 en `resources/views/emails/partials/logo.blade.php` — **nunca usar `asset()` o `url()` para imágenes en emails**
+- `QUEUE_CONNECTION=database` — usar `Mail::send()` no `Mail::queue()`
+
+### psql
+```bash
+PGPASSWORD=postgres psql -U postgres -h 127.0.0.1 -d ankawa
+```

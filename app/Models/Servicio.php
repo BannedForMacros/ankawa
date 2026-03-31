@@ -35,7 +35,7 @@ class Servicio extends Model
             'servicio_tipos_actor',
             'servicio_id',
             'tipo_actor_id'
-        )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo')
+        )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo', 'permite_externo')
          ->orderByPivot('orden');
     }
 
@@ -46,7 +46,7 @@ class Servicio extends Model
             'servicio_tipo_documento',
             'servicio_id',
             'tipo_documento_id'
-        );
+        )->withPivot('es_para_solicitud');
     }
 
     public function scopeActivo($query)

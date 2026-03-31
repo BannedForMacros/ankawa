@@ -36,7 +36,7 @@ class TipoActorExpediente extends Model
             'servicio_tipos_actor',
             'tipo_actor_id',
             'servicio_id'
-        )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo');
+        )->withPivot('es_automatico', 'rol_auto_slug', 'orden', 'activo', 'permite_externo');
     }
 
     // --- SCOPES ---

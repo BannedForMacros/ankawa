@@ -247,7 +247,37 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         <div className="space-y-4">
 
             {/* ── Datos de la Solicitud ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                {/* Header de marca */}
+                <div
+                    className="px-5 py-3 flex items-center justify-between"
+                    style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}
+                >
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Datos de la Solicitud</h3>
+                        {solicitud.resultado_revision && (
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                                solicitud.resultado_revision === 'conforme'
+                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                                    : 'bg-red-100 text-red-700 border-red-300'
+                            }`}>
+                                {solicitud.resultado_revision === 'conforme' ? 'CONFORME' : 'NO CONFORME'}
+                            </span>
+                        )}
+                    </div>
+                    {esGestor && !editando && (
+                        <button onClick={() => setEditando(true)}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-colors">
+                            <Pencil size={12} /> Editar
+                        </button>
+                    )}
+                </div>
+                <div
+                    className="h-[2px]"
+                    style={{ background: 'linear-gradient(90deg, transparent 0%, #BE0F4A 40%, #BC1D35 60%, transparent 100%)' }}
+                />
+
+                <div className="p-5">
                 {solicitud.numero_cargo && (
                     <div className="flex items-center gap-3 mb-4 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
                         <div>
@@ -256,27 +286,6 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         </div>
                     </div>
                 )}
-
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-[#291136]">Datos de la Solicitud</h3>
-                    <div className="flex items-center gap-2">
-                        {solicitud.resultado_revision && (
-                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${
-                                solicitud.resultado_revision === 'conforme'
-                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                    : 'bg-red-50 text-red-600 border-red-200'
-                            }`}>
-                                {solicitud.resultado_revision === 'conforme' ? 'CONFORME' : 'NO CONFORME'}
-                            </span>
-                        )}
-                        {esGestor && !editando && (
-                            <button onClick={() => setEditando(true)}
-                                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#291136]/5 text-[#291136] hover:bg-[#291136]/10 border border-[#291136]/20 transition-colors">
-                                <Pencil size={12}/> Editar
-                            </button>
-                        )}
-                    </div>
-                </div>
 
                 {editando ? (
                     <form onSubmit={guardarEdicion} className="space-y-6">
@@ -400,6 +409,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         )}
                     </div>
                 )}
+                </div>{/* /p-5 */}
             </div>
 
             {/* ── Banner: esperando subsanación ── */}

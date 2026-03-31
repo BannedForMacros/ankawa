@@ -20,7 +20,14 @@ export default function OtrosForm({ servicio }) {
         setCargandoTipos(true);
         fetch(route('servicios.tipos-documento', servicio.id))
             .then(r => r.json())
-            .then(data => { setTiposDocumento(data); setCargandoTipos(false); })
+            .then(data => {
+                setTiposDocumento(data);
+                // Si solo hay 1 tipo configurado para solicitud, auto-seleccionar
+                if (data.length === 1) {
+                    setForm(prev => ({ ...prev, tipo_documento_id: String(data[0].id) }));
+                }
+                setCargandoTipos(false);
+            })
             .catch(() => setCargandoTipos(false));
     }, [servicio.id]);
 
@@ -33,7 +40,7 @@ export default function OtrosForm({ servicio }) {
         const errs = {};
         if (!form.nombre_remitente.trim()) errs.nombre_remitente = 'Requerido';
         if (!form.email_remitente.trim())  errs.email_remitente  = 'Requerido';
-        if (!form.tipo_documento_id)       errs.tipo_documento_id = 'Selecciona un tipo';
+        if (tiposDocumento.length > 1 && !form.tipo_documento_id) errs.tipo_documento_id = 'Selecciona un tipo';
         if (!form.descripcion.trim())      errs.descripcion       = 'Requerido';
         return errs;
     }
@@ -81,12 +88,15 @@ export default function OtrosForm({ servicio }) {
                 {errores.email_remitente && <p className="text-sm text-red-500 mt-1">{errores.email_remitente}</p>}
             </div>
 
-            {/* Tipo de documento */}
-            <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Tipo de documento *</label>
-                {cargandoTipos ? (
+            {/* Tipo de documento — solo si hay 2 o más tipos configurados */}
+            {cargandoTipos ? (
+                <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Tipo de documento</label>
                     <div className="h-10 bg-gray-100 animate-pulse rounded-lg"/>
-                ) : (
+                </div>
+            ) : tiposDocumento.length > 1 ? (
+                <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">Tipo de documento *</label>
                     <select value={form.tipo_documento_id} onChange={e => set('tipo_documento_id', e.target.value)}
                         className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5">
                         <option value="">Seleccionar...</option>
@@ -94,9 +104,14 @@ export default function OtrosForm({ servicio }) {
                             <option key={td.id} value={td.id}>{td.nombre}</option>
                         ))}
                     </select>
-                )}
-                {errores.tipo_documento_id && <p className="text-sm text-red-500 mt-1">{errores.tipo_documento_id}</p>}
-            </div>
+                    {errores.tipo_documento_id && <p className="text-sm text-red-500 mt-1">{errores.tipo_documento_id}</p>}
+                </div>
+            ) : tiposDocumento.length === 1 ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-600 flex items-center gap-2">
+                    <span className="text-gray-400 text-xs">Tipo:</span>
+                    <span className="font-semibold">{tiposDocumento[0].nombre}</span>
+                </div>
+            ) : null}
 
             {/* Descripción */}
             <div>

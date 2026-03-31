@@ -1,7 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/PageHeader';
 import { Head, Link } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info, ChevronLeft, Briefcase, Layers, UserCheck, Timer } from 'lucide-react';
+import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info, Briefcase, Layers, UserCheck, Timer } from 'lucide-react';
 import TabHistorial from './Partials/TabHistorial';
 import TabNuevoMovimiento from './Partials/TabNuevoMovimiento';
 import TabAccionPendiente from './Partials/TabAccionPendiente';
@@ -109,83 +110,29 @@ export default function Show({
         <AuthenticatedLayout>
             <Head title={expediente.numero_expediente ?? 'Expediente'} />
 
-            {/* ── Page Hero Header — degradado Ankawa ── */}
-            <div
-                className="w-full px-6 py-8"
-                style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 50%, #BE0F4A 100%)' }}
-            >
-                <Link
-                    href={route('expedientes.index')}
-                    className="inline-flex items-center gap-1 text-white/60 text-sm hover:text-white/90 transition-colors mb-4"
-                >
-                    <ChevronLeft size={14}/> Expedientes
-                </Link>
-                <div className="flex items-start justify-between flex-wrap gap-3">
-                    <div>
-                        {expediente.servicio?.nombre && (
-                            <p className="text-white/70 text-sm mb-1">
-                                Servicio: {expediente.servicio.nombre}
-                            </p>
-                        )}
-                        <h1 className="text-4xl font-black text-white tracking-tight">
-                            {expediente.numero_expediente ?? `EXP-${expediente.id}`}
-                        </h1>
-                        {expediente.etapa_actual?.nombre && (
-                            <p className="text-white/70 text-sm mt-1">
-                                Etapa: {expediente.etapa_actual.nombre}
-                            </p>
-                        )}
-                    </div>
-                    <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-white/20 text-white border border-white/30 self-start">
+            <PageHeader
+                title={expediente.numero_expediente ?? `EXP-${expediente.id}`}
+                backHref={route('expedientes.index')}
+                backLabel="Expedientes"
+                badge={
+                    <span className={{
+                        activo:     'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 border border-emerald-200',
+                        suspendido: 'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-200',
+                        concluido:  'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-500 border border-gray-200',
+                    }[expediente.estado] ?? 'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-500 border border-gray-200'}>
                         {estadoLabel[expediente.estado] ?? expediente.estado}
                     </span>
-                </div>
-            </div>
+                }
+                meta={[
+                    { Icon: Briefcase, label: 'Servicio', value: expediente.servicio?.nombre ?? '—' },
+                    { Icon: Layers,    label: 'Etapa',    value: expediente.etapa_actual?.nombre ?? '—', highlight: true },
+                    { Icon: UserCheck, label: 'Gestor',   value: gestor?.usuario?.name ?? 'Sin designar' },
+                    { Icon: Timer,     label: 'Plazos',   value: `${plazo.pendientes} pendiente(s)${plazo.por_vencer > 0 ? ` · ${plazo.por_vencer} por vencer` : ''}${plazo.vencidos > 0 ? ` · ${plazo.vencidos} vencido(s)` : ''}` },
+                ]}
+            />
 
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-
-                    {/* ── Cabecera informativa ── */}
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                            <div>
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <Briefcase size={13} className="text-[#BE0F4A]"/>
-                                    <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Servicio</span>
-                                </div>
-                                <span className="font-bold text-[#291136]">{expediente.servicio?.nombre ?? '—'}</span>
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <Layers size={13} className="text-[#BE0F4A]"/>
-                                    <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Etapa Actual</span>
-                                </div>
-                                <span className="font-bold text-[#BE0F4A]">{expediente.etapa_actual?.nombre ?? '—'}</span>
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <UserCheck size={13} className="text-[#BE0F4A]"/>
-                                    <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Gestor</span>
-                                </div>
-                                <span className="font-bold text-[#291136]">{gestor?.usuario?.name ?? 'Sin designar'}</span>
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <Timer size={13} className="text-[#BE0F4A]"/>
-                                    <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Plazos</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs flex-wrap">
-                                    <span className="font-bold text-[#291136]">{plazo.pendientes} pendiente(s)</span>
-                                    {plazo.por_vencer > 0 && (
-                                        <span className="text-amber-600 font-bold">• {plazo.por_vencer} por vencer</span>
-                                    )}
-                                    {plazo.vencidos > 0 && (
-                                        <span className="text-red-600 font-bold">• {plazo.vencidos} vencido(s)</span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     {/* ── Banner próximo paso ── */}
                     {proximoPaso && (

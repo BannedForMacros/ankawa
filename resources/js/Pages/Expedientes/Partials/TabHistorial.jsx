@@ -226,7 +226,11 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
             <div className="flex-1 min-w-0">
 
                 {/* Tarjeta principal */}
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden z-10 relative">
+                <div className={`bg-white rounded-xl border border-gray-100 border-l-4 shadow-sm overflow-hidden z-10 relative transition-shadow duration-200 hover:shadow-md ${{
+                        requerimiento: 'border-l-blue-400',
+                        notificacion:  'border-l-purple-400',
+                        propia:        'border-l-amber-400',
+                    }[mov.tipo] ?? 'border-l-[#BE0F4A]/50'}`}>
                     <div className="p-3.5">
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
@@ -274,7 +278,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                 </span>
                                 {(tieneExtras || puedeResolver || puedeContinuar) && (
                                     <button onClick={() => toggleExpandir(mov.id)}
-                                        className="text-gray-300 hover:text-gray-500 transition-colors">
+                                        className="text-[#BE0F4A]/50 hover:text-[#BE0F4A] transition-colors">
                                         {expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
                                     </button>
                                 )}
@@ -373,8 +377,18 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
 
             {/* ── Resumen del expediente ── */}
             {solicitud && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-lg font-bold text-[#291136] mb-4">Resumen del Expediente</h3>
+                <div className="bg-white rounded-2xl border border-[#BE0F4A]/20 shadow-sm overflow-hidden">
+                    <div
+                        className="px-5 py-3"
+                        style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}
+                    >
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Resumen del Expediente</h3>
+                    </div>
+                    <div
+                        className="h-[2px]"
+                        style={{ background: 'linear-gradient(90deg, transparent 0%, #BE0F4A 40%, #BC1D35 60%, transparent 100%)' }}
+                    />
+                    <div className="p-5">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <span className="text-sm text-gray-400 block mb-0.5">Demandante</span>
@@ -407,6 +421,7 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                             <p className="text-sm font-semibold text-[#291136] line-clamp-2">{solicitud.resumen_controversia}</p>
                         </div>
                     )}
+                    </div>{/* /p-5 */}
                 </div>
             )}
 

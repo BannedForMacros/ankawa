@@ -22,10 +22,12 @@ class TipoActorController extends Controller
             ->get();
 
         $servicios = Servicio::orderBy('nombre')->get(['id', 'nombre']);
+        $roles     = \App\Models\Rol::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre', 'slug']);
 
         return Inertia::render('Configuracion/TiposActor/Index', [
             'tipos'     => $tipos,
             'servicios' => $servicios,
+            'roles'     => $roles,
         ]);
     }
 
@@ -94,12 +96,13 @@ class TipoActorController extends Controller
     public function syncServicios(Request $request, TipoActorExpediente $tipoActor)
     {
         $request->validate([
-            'servicios'                  => 'required|array',
-            'servicios.*.servicio_id'    => 'required|integer|exists:servicios,id',
-            'servicios.*.activo'         => 'required|boolean',
-            'servicios.*.es_automatico'  => 'required|boolean',
-            'servicios.*.rol_auto_slug'  => 'nullable|string|max:100',
-            'servicios.*.orden'          => 'required|integer|min:1',
+            'servicios'                   => 'required|array',
+            'servicios.*.servicio_id'     => 'required|integer|exists:servicios,id',
+            'servicios.*.activo'          => 'required|boolean',
+            'servicios.*.es_automatico'   => 'required|boolean',
+            'servicios.*.permite_externo' => 'required|boolean',
+            'servicios.*.rol_auto_slug'   => 'nullable|string|max:100',
+            'servicios.*.orden'           => 'required|integer|min:1',
         ]);
 
         foreach ($request->servicios as $srv) {
@@ -110,10 +113,11 @@ class TipoActorController extends Controller
                         'tipo_actor_id' => $tipoActor->id,
                     ],
                     [
-                        'es_automatico' => $srv['es_automatico'],
-                        'rol_auto_slug' => $srv['es_automatico'] ? ($srv['rol_auto_slug'] ?? null) : null,
-                        'orden'         => $srv['orden'],
-                        'activo'        => 1,
+                        'es_automatico'  => $srv['es_automatico'],
+                        'permite_externo'=> $srv['permite_externo'],
+                        'rol_auto_slug'  => $srv['es_automatico'] ? ($srv['rol_auto_slug'] ?? null) : null,
+                        'orden'          => $srv['orden'],
+                        'activo'         => 1,
                     ]
                 );
             } else {

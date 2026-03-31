@@ -20,7 +20,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="{{ asset('logo-white.png') }}" alt="Ankawa Internacional" />
+            @include('emails.partials.logo')
         </div>
         <div class="bar"></div>
         <div class="body">

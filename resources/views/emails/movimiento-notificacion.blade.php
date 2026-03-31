@@ -5,7 +5,9 @@
     <style>
         body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #291136; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header { background: linear-gradient(135deg, #291136, #4A153D); padding: 32px; text-align: center; }
+        .header img { height: 48px; }
+        .bar { height: 4px; background: linear-gradient(to right, #291136, #BE0F4A, #291136); }
         .body { background: #f7fafc; padding: 20px; border: 1px solid #e2e8f0; }
         .footer { padding: 15px; text-align: center; font-size: 12px; color: #718096; }
         .info-row { padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
@@ -16,11 +18,9 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>{{ $movimiento->usuario_responsable_id ? 'Nuevo Requerimiento' : 'Acción Registrada' }}</h2>
-            <p style="margin:0; font-size:13px; opacity:0.85;">
-                Expediente: {{ $movimiento->expediente->numero_expediente ?? 'S/N' }}
-            </p>
+            @include('emails.partials.logo')
         </div>
+        <div class="bar"></div>
         <div class="body">
             <p>Estimado(a) <strong>{{ $nombreDestinatario }}</strong>,</p>
 

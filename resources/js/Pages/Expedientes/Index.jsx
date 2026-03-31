@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/PageHeader';
 import { Head, Link } from '@inertiajs/react';
 import { Scale, ChevronRight, Search, User } from 'lucide-react';
 import { useState } from 'react';
@@ -38,38 +39,30 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
         <AuthenticatedLayout>
             <Head title={titulo} />
 
-            {/* ── Page Hero Header ── */}
-            <div className="bg-white border-b border-gray-200">
-                <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                    <div className="flex items-start justify-between flex-wrap gap-4">
-                        <div>
-                            <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
-                                {titulo}
-                            </h1>
-                            <p className="text-gray-500 text-sm mt-1">
-                                Consulta y seguimiento de expedientes activos
-                            </p>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                            {contadores.activo > 0 && (
-                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                    Activos: {contadores.activo}
-                                </span>
-                            )}
-                            {contadores.suspendido > 0 && (
-                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                    Suspendidos: {contadores.suspendido}
-                                </span>
-                            )}
-                            {contadores.concluido > 0 && (
-                                <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                                    Concluidos: {contadores.concluido}
-                                </span>
-                            )}
-                        </div>
+            <PageHeader
+                title={titulo}
+                subtitle="Consulta y seguimiento de expedientes activos"
+                icon={Scale}
+                actions={
+                    <div className="flex gap-2 flex-wrap">
+                        {contadores.activo > 0 && (
+                            <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wide">
+                                Activos: {contadores.activo}
+                            </span>
+                        )}
+                        {contadores.suspendido > 0 && (
+                            <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wide">
+                                Suspendidos: {contadores.suspendido}
+                            </span>
+                        )}
+                        {contadores.concluido > 0 && (
+                            <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-500 border border-gray-200 uppercase tracking-wide">
+                                Concluidos: {contadores.concluido}
+                            </span>
+                        )}
                     </div>
-                </div>
-            </div>
+                }
+            />
 
             <div className="py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
