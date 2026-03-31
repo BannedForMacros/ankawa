@@ -620,7 +620,7 @@ function Footer() {
                         <h4 className="text-lg font-bold mb-4">Contacto</h4>
                         <ul className="space-y-3">
                             {[
-                                { icon: <MapPin size={16} />,  text: 'Lima, Peru'           },
+                                { icon: <MapPin size={16} />,  text: 'Cuzco, Peru'           },
                                 { icon: <Phone size={16} />,   text: '+51 XXX XXX XXX'       },
                                 { icon: <Mail size={16} />,    text: 'contacto@ankawa.pe'    },
                             ].map((c, i) => (
