@@ -80,8 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mesa-partes/nueva-solicitud', [MesaPartesController::class, 'nuevaSolicitudAuth'])->name('mesa-partes.nueva-solicitud');
 
     // ── MOTOR DE EXPEDIENTES ──
-    Route::get('/expedientes/todos', [ExpedienteController::class, 'index'])->name('expedientes.index');
-    Route::get('/expedientes/mis', [ExpedienteController::class, 'misExpedientes'])->name('expedientes.mis');
+    Route::get('/expedientes', [ExpedienteController::class, 'index'])->name('expedientes.index');
     Route::get('/expedientes/{expediente}', [ExpedienteController::class, 'show'])->name('expedientes.show');
 
     // Movimientos

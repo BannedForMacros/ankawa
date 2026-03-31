@@ -61,7 +61,6 @@ class HandleInertiaRequests extends Middleware
             ->get();
 
         return $modulosPadre->map(function ($padre) use ($user) {
-            // Filtrar hijos donde el usuario tenga permiso ver = 1
             $hijosVisibles = $padre->submodulos->filter(function ($hijo) use ($user) {
                 return RolModuloPermiso::where('rol_id', $user->rol_id)
                     ->where('modulo_id', $hijo->id)
@@ -69,7 +68,24 @@ class HandleInertiaRequests extends Middleware
                     ->exists();
             })->values();
 
-            if ($hijosVisibles->isEmpty()) return null;
+            // Módulo sin hijos: enlace directo si tiene ruta y permiso propio
+            if ($hijosVisibles->isEmpty()) {
+                $tienePermiso = RolModuloPermiso::where('rol_id', $user->rol_id)
+                    ->where('modulo_id', $padre->id)
+                    ->where('ver', 1)
+                    ->exists();
+
+                if (!$tienePermiso || !$padre->ruta) return null;
+
+                return [
+                    'id'     => $padre->id,
+                    'nombre' => $padre->nombre,
+                    'slug'   => $padre->slug,
+                    'icono'  => $padre->icono,
+                    'ruta'   => $padre->ruta,
+                    'hijos'  => [],
+                ];
+            }
 
             return [
                 'id'     => $padre->id,
@@ -85,7 +101,7 @@ class HandleInertiaRequests extends Middleware
                 ])->toArray(),
             ];
         })
-        ->filter() // eliminar nulls (padres sin hijos visibles)
+        ->filter()
         ->values()
         ->toArray();
     }

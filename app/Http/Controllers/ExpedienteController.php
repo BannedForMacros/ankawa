@@ -63,32 +63,6 @@ class ExpedienteController extends Controller
         ]);
     }
 
-    // ── Mis expedientes ──
-    public function misExpedientes()
-    {
-        $user = auth()->user();
-
-        $expedientes = Expediente::with(['servicio', 'etapaActual', 'gestor.usuario'])
-            ->whereHas('actores', fn($q) => $q->where('usuario_id', $user->id)->where('activo', 1))
-            ->where('estado', '!=', 'concluido')
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn($exp) => [
-                'id'                => $exp->id,
-                'numero_expediente' => $exp->numero_expediente ?? 'EXP-' . $exp->id,
-                'servicio'          => $exp->servicio?->nombre,
-                'etapa'             => $exp->etapaActual?->nombre,
-                'estado'            => $exp->estado,
-                'gestor'            => $exp->gestor?->usuario?->name,
-                'created_at'        => $exp->created_at->format('d/m/Y'),
-            ]);
-
-        return Inertia::render('Expedientes/Index', [
-            'expedientes' => $expedientes,
-            'titulo'      => 'Mis Expedientes',
-        ]);
-    }
-
     // ── Visor del expediente ──
     public function show(Expediente $expediente)
     {
