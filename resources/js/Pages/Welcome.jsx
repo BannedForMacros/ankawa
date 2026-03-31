@@ -576,7 +576,7 @@ function Footer() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid md:grid-cols-4 gap-12 mb-12">
                     <div>
-                        <img src="/logo.png" alt="Ankawa Internacional" className="h-14 w-auto mb-6" />
+                        <img src="/logo-white.png" alt="Ankawa Internacional" className="h-14 w-auto mb-6" />
                         <p className="text-white/70 mb-4 text-sm">
                             Centro de Arbitraje registrado ante INDECOPI
                         </p>
