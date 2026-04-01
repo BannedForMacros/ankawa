@@ -92,7 +92,7 @@ export default function TabActores({
                                 onClick={() => setShowFormGestor(true)}
                                 className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-400 text-amber-900 hover:bg-amber-300 transition-colors"
                             >
-                                <Star size={12} /> Designar Gestor
+                                <Star size={12} /> Designar Responsable
                             </button>
                         )}
                         {puedeEditar && tiposActorManuales.length > 0 && (
@@ -136,7 +136,7 @@ export default function TabActores({
                                             </span>
                                             {actor.es_gestor && (
                                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                                                    GESTOR
+                                                    RESPONSABLE
                                                 </span>
                                             )}
                                         </div>
@@ -312,12 +312,12 @@ export default function TabActores({
             <AnkawaModal
                 open={showFormGestor}
                 onClose={() => { setShowFormGestor(false); formGestor.reset(); }}
-                title="Designar Gestor del Expediente"
+                title="Designar Responsable del Expediente"
                 size="sm"
             >
                 <form onSubmit={designarGestor} className="space-y-4">
                     <p className="text-sm text-gray-500">
-                        Seleccione un actor ya asignado al expediente para designarlo como Gestor.
+                        Seleccione un actor ya asignado al expediente para designarlo como Responsable.
                     </p>
                     <div>
                         <label className="block text-sm font-semibold text-gray-600 mb-1">Actor *</label>
