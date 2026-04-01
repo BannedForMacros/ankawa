@@ -21,7 +21,7 @@ export default function Dashboard({ stats = {} }) {
             Icon:   Inbox,
             color:  stats.mis_pendientes > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-400',
             accent: stats.mis_pendientes > 0 ? 'border-blue-200' : 'border-gray-100',
-            href:   route('expedientes.mis'),
+            href:   route('expedientes.index'),
         },
         {
             label:  'Por Vencer (3 días)',
@@ -91,7 +91,7 @@ export default function Dashboard({ stats = {} }) {
                                 <ChevronRight size={16} className="text-gray-300 group-hover:text-[#BE0F4A] transition-colors"/>
                             </Link>
 
-                            <Link href={route('expedientes.mis')}
+                            <Link href={route('expedientes.index')}
                                 className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-5 flex items-center gap-4 group">
                                 <div className="p-3 rounded-xl bg-blue-50 text-blue-700">
                                     <Inbox size={22}/>
