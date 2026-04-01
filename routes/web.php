@@ -28,6 +28,7 @@ use App\Http\Controllers\Configuracion\ServicioController;
 use App\Http\Controllers\Configuracion\EtapaController;
 use App\Http\Controllers\Configuracion\TipoActorController;
 use App\Http\Controllers\Configuracion\TipoDocumentoController;
+use App\Http\Controllers\Configuracion\ModuloController;
 
 
 
@@ -148,6 +149,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
         Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
         Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios');
+
+        // Módulos
+        Route::get('modulos',              [ModuloController::class, 'index'])  ->name('configuracion.modulos.index')  ->middleware('permiso:configuracion.modulos,ver');
+        Route::post('modulos',             [ModuloController::class, 'store'])  ->name('configuracion.modulos.store')  ->middleware('permiso:configuracion.modulos,crear');
+        Route::put('modulos/{modulo}',     [ModuloController::class, 'update']) ->name('configuracion.modulos.update') ->middleware('permiso:configuracion.modulos,editar');
+        Route::delete('modulos/{modulo}',  [ModuloController::class, 'destroy'])->name('configuracion.modulos.destroy')->middleware('permiso:configuracion.modulos,eliminar');
 
         // Tipos de Documento
         Route::get('tipos-documentos',                                    [TipoDocumentoController::class, 'index'])         ->name('configuracion.tipos-documentos.index')         ->middleware('permiso:configuracion.tipos-documentos,ver');
