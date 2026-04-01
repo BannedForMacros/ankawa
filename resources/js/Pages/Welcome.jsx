@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from '@inertiajs/react';
 import {
-    FileText, FolderOpen, Shield, CheckCircle, Clock,
-    Bell, Eye, Lock, Headphones, ArrowRight,
-    Award, Users, GitBranch, Menu, X, Scale, Star,
-    MapPin, Phone, Mail // <-- Importaciones agregadas
+    FileText, FolderOpen, ArrowRight, Lock, 
+    PlayCircle, Clock, Headphones, Mail, ShieldCheck
 } from 'lucide-react';
 
-// --- COMPONENTE DE ANIMACIÓN AL SCROLL ---
+// --- COMPONENTE DE ANIMACIÓN ---
 const Reveal = ({ children, delay = 0, direction = 'up', className = '' }) => {
     const [isVisible, setIsVisible] = useState(false);
     const ref = useRef(null);
@@ -27,10 +25,10 @@ const Reveal = ({ children, delay = 0, direction = 'up', className = '' }) => {
     }, []);
 
     const transformStyles = {
-        up: 'translate-y-12',
-        down: '-translate-y-12',
-        left: 'translate-x-12',
-        right: '-translate-x-12',
+        up: 'translate-y-8',
+        down: '-translate-y-8',
+        left: 'translate-x-8',
+        right: '-translate-x-8',
         none: 'translate-y-0 scale-95'
     };
 
@@ -47,504 +45,231 @@ const Reveal = ({ children, delay = 0, direction = 'up', className = '' }) => {
     );
 };
 
+// 1. HEADER (Con Marca Explícita y Responsive)
 function Header() {
-    const [open, setOpen] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
-
-    useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    const links = [
-        { href: '#servicios',      label: 'Servicios'      },
-        { href: '#como-funciona',  label: 'Cómo Funciona'  },
-        { href: '#nosotros',       label: 'Nosotros'       },
-        { href: '#contacto',       label: 'Contacto'       },
-    ];
-
     return (
-        <header 
-            className={`fixed w-full top-0 z-50 transition-all duration-300 ${scrolled ? 'shadow-lg py-0' : 'py-2'}`} 
-            style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 50%, #BE0F4A 100%)' }}
-        >
-            <div className={`max-w-7xl mx-auto px-6 flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-16' : 'h-20'}`}>
-                <img src="/logo-white.png" alt="CARD Ankawa" className="h-14 w-auto hover:scale-105 transition-transform duration-300 cursor-pointer" />
-
-                <nav className="hidden md:flex items-center gap-8">
-                    {links.map((l) => (
-                        <a key={l.href} href={l.href}
-                            className="text-white/90 hover:text-white font-medium text-sm transition-colors relative group">
-                            {l.label}
-                            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
-                        </a>
-                    ))}
-                </nav>
-
-                <div className="hidden md:flex items-center gap-3">
-                    <Link href="/mesa-partes"
-                        className="text-white border border-white/70 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-white/10 active:scale-95 transition-all duration-200">
-                        Mesa de Partes
-                    </Link>
-                    <Link href="/login"
-                        className="bg-white text-[#BE0F4A] px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:bg-gray-100 hover:shadow-lg active:scale-95 transition-all duration-200">
-                        Iniciar Sesión
-                    </Link>
+        <header className="sticky top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all duration-300">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+                
+                {/* Logo y Nombre de Marca */}
+                <div className="flex items-center gap-3 sm:gap-4">
+                    <img 
+                        src="/logo.png" 
+                        alt="Logo Ankawa" 
+                        className="h-10 sm:h-12 w-auto object-contain hover:scale-105 transition-transform duration-300" 
+                    />
+                    <div className="border-l-2 border-[#BE0F4A]/20 pl-3 sm:pl-4">
+                        <h1 className="text-xs sm:text-sm font-black text-[#291136] leading-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            CARD ANKAWA INTL
+                        </h1>
+                        <p className="hidden sm:block text-[10px] text-gray-500 font-semibold tracking-wide uppercase">
+                            Centro de Arbitraje y Resolución de Disputas
+                        </p>
+                    </div>
                 </div>
 
-                <button className="md:hidden text-white transition-transform duration-200 active:scale-90" onClick={() => setOpen(!open)}>
-                    {open ? <X size={22} /> : <Menu size={22} />}
-                </button>
-            </div>
-
-            <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="border-t border-white/20 px-6 py-4 space-y-3" style={{ background: '#4A153D' }}>
-                    {links.map(l => (
-                        <a key={l.href} href={l.href}
-                            className="block text-white/90 hover:text-white font-medium py-1.5 transition-colors"
-                            onClick={() => setOpen(false)}>
-                            {l.label}
-                        </a>
-                    ))}
-                    <Link href="/mesa-partes" className="block text-center border border-white/70 text-white py-2.5 rounded-lg font-semibold mt-2 active:bg-white/10">Mesa de Partes</Link>
-                    <Link href="/login" className="block text-center bg-white text-[#BE0F4A] py-2.5 rounded-lg font-bold active:bg-gray-200">Iniciar Sesión</Link>
+                {/* Badge Seguro */}
+                <div className="hidden md:flex items-center gap-2 text-[#291136] bg-[#291136]/5 px-4 py-2 rounded-full border border-[#291136]/10">
+                    <ShieldCheck size={16} className="text-[#BE0F4A]" />
+                    <span className="text-xs font-bold uppercase tracking-widest">Portal Seguro</span>
                 </div>
             </div>
         </header>
     );
 }
 
-function Hero() {
+// 2. RECUADROS PRINCIPALES (Diseño Premium)
+function PlataformaAccesos() {
     return (
-        <section className="pt-20 min-h-screen flex items-center bg-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[40rem] h-[40rem] rounded-full bg-gradient-to-bl from-[#BE0F4A]/5 to-transparent blur-3xl animate-pulse"></div>
+        <section className="pt-16 pb-16 lg:pt-20 lg:pb-20 relative overflow-hidden bg-gray-50">
+            {/* Elementos decorativos de fondo */}
+            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-gray-200/50 to-transparent"></div>
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#BE0F4A]/10 rounded-full blur-3xl hidden md:block"></div>
+            <div className="absolute top-40 -left-40 w-96 h-96 bg-[#291136]/10 rounded-full blur-3xl hidden md:block"></div>
 
-            <div className="max-w-7xl mx-auto px-6 py-24 w-full relative z-10">
-                <div className="grid lg:grid-cols-2 gap-16 items-center">
-                    <div>
-                        <Reveal delay={100} direction="right">
-                            <span className="inline-flex items-center gap-2 bg-[#BE0F4A]/10 text-[#BE0F4A] text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-full mb-6">
-                                <Award size={13} className="animate-bounce" />
-                                Plataforma Oficial · CARD ANKAWA INTL
-                            </span>
-                        </Reveal>
-                        
-                        <Reveal delay={200} direction="up">
-                            <h1 className="text-5xl lg:text-6xl font-black text-[#291136] leading-tight mb-6" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                                Sistema de Mesa de Partes
-                                <br />
-                                <span className="text-[#BE0F4A]">& Expedientes Digitales</span>
-                            </h1>
-                        </Reveal>
-
-                        <Reveal delay={300}>
-                            <p className="text-gray-500 text-lg leading-relaxed mb-8 max-w-lg">
-                                La plataforma digital oficial del <strong className="text-[#291136]">Centro de Arbitraje y Resolución de Disputas Ankawa Internacional</strong>. Presente demandas, gestione expedientes y haga seguimiento de su caso 100% en línea.
-                            </p>
-                        </Reveal>
-
-                        <Reveal delay={400}>
-                            <div className="flex flex-wrap gap-3 mb-12">
-                                <Link href="/mesa-partes"
-                                    className="group inline-flex items-center gap-2 bg-[#BE0F4A] text-white px-7 py-3.5 rounded-xl font-bold hover:bg-[#BC1D35] hover:shadow-[0_10px_20px_rgba(190,15,74,0.3)] active:scale-95 transition-all duration-200">
-                                    Presentar Solicitud
-                                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                                </Link>
-                                <Link href="/login"
-                                    className="group inline-flex items-center gap-2 border-2 border-[#291136] text-[#291136] px-7 py-3.5 rounded-xl font-bold hover:bg-[#291136] hover:text-white hover:shadow-lg active:scale-95 transition-all duration-200">
-                                    Ver mis Expedientes
-                                    <FolderOpen size={18} className="group-hover:-translate-y-1 transition-transform" />
-                                </Link>
-                            </div>
-                        </Reveal>
-
-                        <Reveal delay={500} direction="up">
-                            <div className="flex gap-10">
-                                {[
-                                    { value: '50+', label: 'Casos resueltos' },
-                                    { value: '15+', label: 'Años de experiencia' },
-                                    { value: '98%', label: 'Satisfacción' },
-                                ].map((s, i) => (
-                                    <div key={i} className="group cursor-default">
-                                        <div className="text-2xl font-black text-[#291136] transition-colors duration-300 group-hover:text-[#BE0F4A] group-hover:-translate-y-1 transform inline-block" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                                            {s.value}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-800 transition-colors">{s.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </Reveal>
-                    </div>
-
-                    <Reveal delay={400} direction="none" className="flex items-center justify-center">
-                        <div className="relative group">
-                            <div className="absolute -inset-8 rounded-3xl opacity-10 group-hover:opacity-20 transition-opacity duration-700" style={{ background: 'linear-gradient(135deg, #291136, #BE0F4A)' }}></div>
-                            
-                            <div className="relative bg-white rounded-3xl shadow-2xl p-12 border border-gray-100 transform transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_30px_60px_-15px_rgba(41,17,54,0.3)]">
-                                <img src="/logo.png" alt="Ankawa Global Group" className="w-64 h-auto mx-auto transform transition-transform duration-700 group-hover:scale-105" />
-                                <p className="text-center text-sm text-gray-400 mt-6 font-medium transition-colors group-hover:text-[#291136]">The Ankawa Global Group SAC</p>
-                                <div className="flex justify-center gap-2 mt-3">
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star key={i} size={14} className={`fill-yellow-400 text-yellow-400 transition-all duration-300`} style={{ transitionDelay: `${i * 100}ms` }} />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </Reveal>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function Servicios({ servicios }) {
-    return (
-        <section id="servicios" className="py-20 bg-gray-50 relative overflow-hidden">
-            <div className="max-w-7xl mx-auto px-6 relative z-10">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
                 <Reveal direction="up">
-                    <div className="text-center mb-14">
-                        <h2 className="text-4xl font-black text-[#291136] mb-3" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            Nuestros Servicios
+                    <div className="text-center mb-12 lg:mb-16">
+                        <span className="text-[#BE0F4A] text-xs sm:text-sm font-bold uppercase tracking-widest mb-2 block">
+                            Ankawa Internacional
+                        </span>
+                        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#291136] mb-4 tracking-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            Mesa de Partes Virtual
                         </h2>
-                        <p className="text-gray-500 max-w-xl mx-auto">Plataforma digital para la gestión integral de arbitrajes</p>
+                        <p className="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg px-2">
+                            Gestione sus trámites arbitrales y acceda a sus expedientes de manera rápida, segura y 100% digital.
+                        </p>
                     </div>
                 </Reveal>
 
-                {/* Grid con items-stretch asegura la misma altura para ambas columnas */}
-                <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-10 items-stretch">
+                <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto">
+                    {/* Tarjeta 1: Mesa de Partes */}
                     <Reveal delay={100} direction="up" className="h-full">
-                        {/* h-full, flex y flex-col aseguran simetría */}
-                        <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:border-[#BE0F4A]/40 hover:shadow-[0_20px_40px_-15px_rgba(190,15,74,0.15)] transform hover:-translate-y-2 transition-all duration-300 group flex flex-col h-full">
-                            <div className="w-12 h-12 bg-[#BE0F4A]/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#BE0F4A] group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                                <FileText className="w-6 h-6 text-[#BE0F4A] group-hover:text-white transition-colors" />
+                        <div className="group relative bg-white rounded-3xl p-6 sm:p-8 lg:p-10 border border-gray-100 shadow-xl hover:shadow-2xl hover:shadow-[#BE0F4A]/10 transform hover:-translate-y-2 transition-all duration-500 flex flex-col h-full overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#BE0F4A] to-[#f42c6c] transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+                            
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#BE0F4A]/10 to-[#BE0F4A]/5 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500 border border-[#BE0F4A]/20">
+                                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-[#BE0F4A]" />
                             </div>
-                            <h3 className="text-xl font-bold text-[#291136] mb-2">Mesa de Partes Virtual</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed mb-6 flex-grow">
-                                Presente demandas, contestaciones y documentación de forma 100% digital. Sin desplazamientos ni filas.
+                            
+                            <h3 className="text-2xl sm:text-3xl font-bold text-[#291136] mb-3 sm:mb-4">Mesa de Partes</h3>
+                            <p className="text-gray-500 leading-relaxed mb-8 sm:mb-10 flex-grow text-sm sm:text-base lg:text-lg">
+                                Ingrese nuevas solicitudes de arbitraje, presente demandas, contestaciones y adjunte documentación probatoria.
                             </p>
-                            <ul className="space-y-2 mb-6">
-                                {['Nuevas demandas arbitrales', 'Contestación de demandas', 'Adjuntar documentos hasta 100MB', 'Confirmación instantánea'].map((t, i) => (
-                                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle size={14} className="text-[#BE0F4A] shrink-0" />
-                                        {t}
-                                    </li>
-                                ))}
-                            </ul>
+                            
                             <Link href="/mesa-partes"
-                                className="flex items-center justify-center gap-2 w-full bg-[#BE0F4A] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#BC1D35] active:scale-95 transition-all mt-auto">
-                                Presentar Solicitud <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                                className="relative overflow-hidden flex items-center justify-between w-full bg-gray-50 text-[#BE0F4A] border border-gray-200 px-5 py-3 sm:px-6 sm:py-4 rounded-xl font-bold hover:bg-[#BE0F4A] hover:text-white hover:border-[#BE0F4A] active:scale-95 transition-all duration-300 group/btn">
+                                <span className="relative z-10 text-sm sm:text-base">Ingresar Solicitud</span>
+                                <div className="bg-white/20 p-2 rounded-lg group-hover/btn:bg-white/20 group-hover/btn:translate-x-1 transition-all">
+                                    <ArrowRight size={18} className="sm:w-5 sm:h-5" />
+                                </div>
                             </Link>
                         </div>
                     </Reveal>
 
+                    {/* Tarjeta 2: Expediente */}
                     <Reveal delay={200} direction="up" className="h-full">
-                        {/* h-full, flex y flex-col aseguran simetría */}
-                        <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:border-[#291136]/30 hover:shadow-[0_20px_40px_-15px_rgba(41,17,54,0.15)] transform hover:-translate-y-2 transition-all duration-300 group flex flex-col h-full">
-                            <div className="w-12 h-12 bg-[#291136]/10 rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#291136] group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
-                                <FolderOpen className="w-6 h-6 text-[#291136] group-hover:text-white transition-colors" />
+                        <div className="group relative bg-white rounded-3xl p-6 sm:p-8 lg:p-10 border border-gray-100 shadow-xl hover:shadow-2xl hover:shadow-[#291136]/10 transform hover:-translate-y-2 transition-all duration-500 flex flex-col h-full overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#291136] to-[#4A153D] transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#291136]/10 to-[#291136]/5 rounded-2xl flex items-center justify-center mb-6 sm:mb-8 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-500 border border-[#291136]/20">
+                                <FolderOpen className="w-8 h-8 sm:w-10 sm:h-10 text-[#291136]" />
                             </div>
-                            <h3 className="text-xl font-bold text-[#291136] mb-2">Expediente Electrónico</h3>
-                            <p className="text-gray-500 text-sm leading-relaxed mb-6 flex-grow">
-                                Acceda en tiempo real al historial de su expediente, descargue documentos y reciba notificaciones automáticas.
+                            
+                            <h3 className="text-2xl sm:text-3xl font-bold text-[#291136] mb-3 sm:mb-4">Expedientes</h3>
+                            <p className="text-gray-500 leading-relaxed mb-8 sm:mb-10 flex-grow text-sm sm:text-base lg:text-lg">
+                                Acceda a su panel privado para hacer seguimiento de sus casos, descargar laudos y gestionar notificaciones.
                             </p>
-                            <ul className="space-y-2 mb-6">
-                                {['Estado actualizado en tiempo real', 'Historial de actuaciones', 'Descarga de documentos PDF', 'Notificaciones automáticas'].map((t, i) => (
-                                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                                        <CheckCircle size={14} className="text-[#291136] shrink-0" />
-                                        {t}
-                                    </li>
-                                ))}
-                            </ul>
+                            
                             <Link href="/login"
-                                className="flex items-center justify-center gap-2 w-full bg-[#291136] text-white py-3 rounded-xl font-semibold text-sm hover:bg-[#4A153D] active:scale-95 transition-all mt-auto">
-                                Acceder al Sistema <Lock size={15} className="group-hover:scale-110 transition-transform" />
+                                className="relative overflow-hidden flex items-center justify-between w-full bg-[#291136] text-white px-5 py-3 sm:px-6 sm:py-4 rounded-xl font-bold hover:bg-[#1a0a22] active:scale-95 transition-all duration-300 shadow-md group/btn">
+                                <span className="text-sm sm:text-base">Iniciar Sesión</span>
+                                <div className="bg-white/10 p-2 rounded-lg group-hover/btn:bg-white/20 transition-all">
+                                    <Lock size={18} className="sm:w-5 sm:h-5 group-hover/btn:scale-110 transition-transform" />
+                                </div>
                             </Link>
                         </div>
                     </Reveal>
                 </div>
+            </div>
+        </section>
+    );
+}
 
-                {servicios.length > 0 && (
-                    <Reveal delay={300}>
-                        <div className="text-center">
-                            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">Modalidades de arbitraje</p>
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {servicios.map((s) => (
-                                    <span key={s.id} 
-                                        className="inline-flex items-center gap-1.5 bg-white border border-gray-200 text-[#291136] text-sm font-medium px-4 py-2 rounded-full hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors cursor-default"
-                                    >
-                                        <GitBranch size={12} className="text-[#BE0F4A]" />
-                                        {s.nombre}
-                                    </span>
-                                ))}
-                            </div>
+// 3. SECCIÓN DE VIDEO 
+function VideoTutorial() {
+    return (
+        <section className="py-16 lg:py-20 bg-white relative">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6">
+                <Reveal direction="up">
+                    <div className="text-center mb-8 lg:mb-10">
+                        <h2 className="text-2xl sm:text-3xl font-black text-[#291136] mb-3" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            ¿Cómo usar la plataforma?
+                        </h2>
+                        <p className="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto">
+                            Visualice nuestra guía rápida para presentar sus documentos sin contratiempos.
+                        </p>
+                    </div>
+                    
+                    <div className="relative mx-auto max-w-4xl rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_20px_50px_-12px_rgba(41,17,54,0.2)] bg-gray-900 border border-gray-200 group">
+                        <div className="h-8 sm:h-10 bg-gray-100 border-b border-gray-200 flex items-center px-3 sm:px-4 gap-2">
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-400"></div>
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-yellow-400"></div>
+                            <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-400"></div>
                         </div>
-                    </Reveal>
-                )}
-            </div>
-        </section>
-    );
-}
-
-function ComoFunciona() {
-    const pasos = [
-        { n: '01', icon: <Users size={24} />, title: 'Complete el formulario', desc: 'Acceda a Mesa de Partes, ingrese datos y adjunte documentos.' },
-        { n: '02', icon: <FileText size={24} />, title: 'Envíe su solicitud', desc: 'Presente su caso. Recibirá confirmación y número de expediente.' },
-        { n: '03', icon: <Eye size={24} />, title: 'Seguimiento en línea', desc: 'Acceda para ver el estado, notificaciones y actuaciones.' },
-        { n: '04', icon: <Scale size={24} />, title: 'Resolución', desc: 'Reciba el laudo y descargue la documentación final.' },
-    ];
-
-    return (
-        <section id="como-funciona" className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-6">
-                <Reveal>
-                    <div className="text-center mb-14">
-                        <h2 className="text-4xl font-black text-[#291136] mb-3" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            ¿Cómo Funciona?
-                        </h2>
-                        <p className="text-gray-500 max-w-xl mx-auto">Proceso simple y transparente en 4 pasos</p>
-                    </div>
-                </Reveal>
-                
-                {/* Contenedor principal con group/cycle para que toda la animación se dispare a la vez */}
-                <div className="grid md:grid-cols-4 gap-6 group/cycle">
-                    {pasos.map((p, i) => (
-                        <Reveal key={i} delay={i * 150} direction="up" className="relative text-center h-full flex flex-col items-center">
-                            
-                            {/* Fila del icono y línea conectora */}
-                            <div className="relative w-full flex justify-center mt-4 mb-6">
-                                
-                                {/* Línea conectora alineada EXACTAMENTE a la mitad del círculo (top-1/2 -translate-y-1/2) */}
-                                {i < pasos.length - 1 && (
-                                    <div className="hidden md:block absolute top-1/2 left-[50%] w-full h-[2px] bg-gray-100 z-0 overflow-hidden -translate-y-1/2">
-                                        <div 
-                                            className="w-full h-full bg-[#BE0F4A] origin-left scale-x-0 group-hover/cycle:scale-x-100 transition-transform duration-700 ease-out" 
-                                            style={{ transitionDelay: `${i * 200}ms` }}
-                                        ></div>
-                                    </div>
-                                )}
-
-                                {/* Círculo contenedor del Icono y Número */}
-                                <div 
-                                    className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full bg-[#291136] text-white transition-all duration-500 group-hover/cycle:bg-[#BE0F4A] group-hover/cycle:scale-110 group-hover/cycle:shadow-[0_10px_20px_rgba(190,15,74,0.3)]"
-                                    style={{ transitionDelay: `${i * 200}ms` }}
-                                >
-                                    {p.icon}
-                                    
-                                    {/* Número como un Badge flotante en la esquina superior derecha */}
-                                    <div className="absolute -top-2 -right-2 bg-white text-[#BE0F4A] font-black text-xs border-2 border-[#BE0F4A] rounded-full w-7 h-7 flex items-center justify-center shadow-sm">
-                                        {p.n}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <h3 className="font-bold text-[#291136] mb-2 text-sm">{p.title}</h3>
-                            <p className="text-gray-500 text-xs leading-relaxed max-w-[200px]">{p.desc}</p>
-                        </Reveal>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function PorQueElegirnos() {
-    const items = [
-        { icon: <Shield size={22} />, title: 'Seguridad Total', desc: 'Cifrado de extremo a extremo. Solo las partes autorizadas acceden a su información.' },
-        { icon: <Clock size={22} />,  title: 'Disponible 24/7', desc: 'Acceda desde cualquier dispositivo, en cualquier momento, sin instalaciones.' },
-        { icon: <Bell size={22} />,   title: 'Notificaciones', desc: 'Alertas automáticas de cada movimiento, vencimiento y actualización de su expediente.' },
-        { icon: <Headphones size={22} />, title: 'Soporte Especializado', desc: 'Equipo técnico y legal disponible para resolver cualquier consulta sobre el proceso.' },
-    ];
-
-    return (
-        <section className="py-20 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-6">
-                <Reveal>
-                    <div className="text-center mb-14">
-                        <h2 className="text-4xl font-black text-[#291136] mb-3" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            ¿Por qué elegirnos?
-                        </h2>
-                        <p className="text-gray-500 max-w-xl mx-auto">Tecnología al servicio del arbitraje moderno</p>
-                    </div>
-                </Reveal>
-                {/* items-stretch para simetría forzada */}
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-                    {items.map((item, i) => (
-                        <Reveal key={i} delay={i * 100} direction="up" className="h-full">
-                            {/* h-full y flex flex-col para igualar tamaños de las tarjetas */}
-                            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-[#BE0F4A]/30 hover:shadow-lg hover:-translate-y-2 transition-all duration-300 group h-full flex flex-col">
-                                <div className="w-11 h-11 bg-[#BE0F4A]/10 rounded-xl flex items-center justify-center text-[#BE0F4A] mb-4 group-hover:bg-[#BE0F4A] group-hover:text-white transition-colors duration-300">
-                                    <div className="group-hover:scale-110 transition-transform duration-300">
-                                        {item.icon}
-                                    </div>
-                                </div>
-                                <h3 className="font-bold text-[#291136] mb-2 text-sm">{item.title}</h3>
-                                <p className="text-gray-500 text-xs leading-relaxed flex-grow">{item.desc}</p>
-                            </div>
-                        </Reveal>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function Nosotros() {
-    return (
-        <section id="nosotros" className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="grid lg:grid-cols-2 gap-16 items-center">
-                    <div>
-                        <Reveal direction="left">
-                            <span className="text-xs font-bold uppercase tracking-widest text-[#BE0F4A] mb-4 block">Sobre Nosotros</span>
-                            <h2 className="text-4xl font-black text-[#291136] mb-6 leading-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                                The Ankawa<br />Global Group SAC
-                            </h2>
-                            <div className="w-16 h-1 bg-[#BE0F4A] mb-6 transform origin-left transition-all duration-500 hover:w-24"></div>
-                            <p className="text-gray-600 leading-relaxed mb-4">
-                                Somos un centro de arbitraje reconocido y registrado ante INDECOPI, comprometidos con la resolución eficiente y transparente de conflictos comerciales y civiles.
-                            </p>
-                            <p className="text-gray-600 leading-relaxed mb-8">
-                                Nuestra plataforma digital combina la solidez jurídica con la eficiencia tecnológica, ofreciendo un proceso arbitral moderno, accesible y completamente digital.
-                            </p>
-                        </Reveal>
                         
-                        <div className="grid grid-cols-3 gap-6">
-                            {[
-                                { value: '15+', label: 'Años de exp.' },
-                                { value: '50+', label: 'Árbitros cert.' },
-                                { value: '98%', label: 'Satisfacción' },
-                            ].map((s, i) => (
-                                <Reveal key={i} delay={i * 150} direction="up">
-                                    <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:bg-[#291136] transition-colors duration-300">
-                                        <div className="text-2xl font-black text-[#BE0F4A] group-hover:text-white group-hover:scale-110 transform transition-all duration-300" style={{ fontFamily: 'Montserrat, sans-serif' }}>{s.value}</div>
-                                        <div className="text-xs text-gray-500 mt-1 group-hover:text-white/70 transition-colors">{s.label}</div>
-                                    </div>
-                                </Reveal>
-                            ))}
+                        <div className="relative w-full pb-[56.25%] bg-black">
+                            {/* AQUÍ VA TU IFRAME O VIDEO */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer">
+                                <div className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-30 transition-opacity" style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&q=80")' }}></div>
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#BE0F4A]/90 backdrop-blur-sm rounded-full flex items-center justify-center relative z-10 group-hover:scale-110 transition-transform duration-300 shadow-[0_0_30px_rgba(190,15,74,0.5)]">
+                                    <PlayCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white ml-1" />
+                                </div>
+                                <span className="text-white font-medium mt-4 sm:mt-6 relative z-10 tracking-wide text-base sm:text-lg">Reproducir Tutorial</span>
+                            </div>
                         </div>
                     </div>
-                    <Reveal direction="right" className="flex justify-center">
-                        <div className="bg-gray-50 rounded-3xl p-16 border border-gray-200 group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2">
-                            <img src="/logo.png" alt="Ankawa Global Group" className="w-72 h-auto transform transition-transform duration-700 group-hover:scale-105 group-hover:rotate-1" />
-                            <p className="text-center text-xs text-gray-400 mt-6 font-semibold uppercase tracking-widest group-hover:text-[#BE0F4A] transition-colors">CARD — ANKAWA INTL</p>
-                        </div>
-                    </Reveal>
-                </div>
+                </Reveal>
             </div>
         </section>
     );
 }
 
-function CTA() {
+// 4. FOOTER (Cards Arregladas y 100% Responsive)
+function SoporteTecnico() {
     return (
-        <section className="py-20 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 50%, #BE0F4A 100%)' }}>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent opacity-50"></div>
+        <footer className="bg-[#291136] text-white py-12 lg:py-16 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#BE0F4A] to-transparent opacity-50"></div>
             
-            <Reveal direction="up" className="max-w-4xl mx-auto px-6 text-center relative z-10">
-                <img src="/logo-white.png" alt="Ankawa" className="h-16 w-auto mx-auto mb-8 transform transition-transform hover:scale-110 duration-500" />
-                <h2 className="text-4xl font-black text-white mb-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                    ¿Listo para comenzar?
-                </h2>
-                <p className="text-white/80 text-lg mb-8 max-w-xl mx-auto">
-                    Presente su solicitud de arbitraje de forma digital, segura y en minutos.
-                </p>
-                <div className="flex flex-wrap justify-center gap-4">
-                    <Link href="/mesa-partes"
-                        className="group inline-flex items-center gap-2 bg-white text-[#291136] px-8 py-3.5 rounded-xl font-bold hover:bg-gray-100 hover:shadow-lg active:scale-95 transition-all duration-200">
-                        Presentar Solicitud <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                    <Link href="/login"
-                        className="group inline-flex items-center gap-2 border-2 border-white/50 text-white px-8 py-3.5 rounded-xl font-bold hover:bg-white/10 hover:border-white active:scale-95 transition-all duration-200">
-                        Iniciar Sesión <Lock size={16} className="group-hover:scale-110 transition-transform" />
-                    </Link>
-                </div>
-            </Reveal>
-        </section>
-    );
-}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+                <Reveal direction="up">
+                    {/* Contenedor Flex para que apile bien en móviles y se divida en escritorio */}
+                    <div className="flex flex-col xl:flex-row gap-10 items-center xl:items-stretch">
+                        
+                        {/* Texto de la Izquierda */}
+                        <div className="w-full xl:w-1/3 text-center xl:text-left flex flex-col justify-center">
+                            <h3 className="text-2xl sm:text-3xl font-bold mb-3">Soporte Técnico</h3>
+                            <p className="text-white/70 leading-relaxed text-sm sm:text-base max-w-lg mx-auto xl:mx-0">
+                                ¿Inconvenientes con la carga de documentos o acceso al sistema? Nuestro equipo está listo para asistirle en horario de oficina.
+                            </p>
+                        </div>
 
-function Footer() {
-    return (
-        <footer id="contacto" className="bg-[#291136] text-white py-14 relative overflow-hidden">
-            <div className="max-w-7xl mx-auto px-6 relative z-10">
-                <div className="grid md:grid-cols-4 gap-10 mb-10">
-                    <Reveal delay={100} direction="up">
-                        <img src="/logo-white.png" alt="Ankawa" className="h-12 w-auto mb-4 hover:opacity-80 transition-opacity" />
-                        <p className="text-white/60 text-sm leading-relaxed">Centro de Arbitraje y Resolución de Disputas Ankawa Internacional — CARD ANKAWA INTL. Registrado ante INDECOPI.</p>
-                    </Reveal>
-                    <Reveal delay={200} direction="up">
-                        <h4 className="font-bold text-sm mb-4 uppercase tracking-wider">Plataforma</h4>
-                        <ul className="space-y-2">
-                            <li><Link href="/mesa-partes" className="text-white/60 hover:text-[#BE0F4A] hover:translate-x-1 inline-block transition-all text-sm">Mesa de Partes Virtual</Link></li>
-                            <li><Link href="/login" className="text-white/60 hover:text-[#BE0F4A] hover:translate-x-1 inline-block transition-all text-sm">Expediente Electrónico</Link></li>
-                        </ul>
-                    </Reveal>
-                    <Reveal delay={300} direction="up">
-                        <h4 className="font-bold text-sm mb-4 uppercase tracking-wider">Empresa</h4>
-                        <ul className="space-y-2">
-                            <li><a href="#nosotros" className="text-white/60 hover:text-[#BE0F4A] hover:translate-x-1 inline-block transition-all text-sm">Sobre Nosotros</a></li>
-                            <li><a href="#" className="text-white/60 hover:text-[#BE0F4A] hover:translate-x-1 inline-block transition-all text-sm">Términos y Condiciones</a></li>
-                            <li><a href="#" className="text-white/60 hover:text-[#BE0F4A] hover:translate-x-1 inline-block transition-all text-sm">Política de Privacidad</a></li>
-                        </ul>
-                    </Reveal>
-                    <Reveal delay={400} direction="up">
-                        <h4 className="font-bold text-sm mb-4 uppercase tracking-wider">Contacto</h4>
-                        <ul className="space-y-3">
-                            {[
-                                { icon: <MapPin size={14} />, text: 'Cusco, Perú' },
-                                { icon: <Phone size={14} />,  text: '+51 XXX XXX XXX' },
-                                { icon: <Mail size={14} />,   text: 'contacto@ankawa.pe' },
-                            ].map((c, i) => (
-                                <li key={i} className="flex items-center gap-2 text-white/60 text-sm group cursor-pointer hover:text-white transition-colors">
-                                    <span className="text-[#BE0F4A] group-hover:scale-125 transition-transform">{c.icon}</span>
-                                    {c.text}
-                                </li>
-                            ))}
-                        </ul>
-                    </Reveal>
-                </div>
-                <div className="border-t border-white/10 pt-6 text-center text-white/40 text-sm">
-                    © {new Date().getFullYear()} The Ankawa Global Group SAC. Todos los derechos reservados.
-                </div>
+                        {/* Cards de Soporte - Arreglo de grid para evitar que se rompa el texto */}
+                        <div className="w-full xl:w-2/3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                                
+                                {/* Card Horario */}
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 lg:p-6 hover:bg-white/10 transition-colors duration-300 flex flex-col">
+                                    <Clock className="text-[#BE0F4A] w-7 h-7 sm:w-8 sm:h-8 mb-4" />
+                                    <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-semibold mb-1 sm:mb-2">Atención</p>
+                                    <p className="text-base lg:text-sm xl:text-base font-medium whitespace-nowrap">08:00 AM – 06:00 PM</p>
+                                    <p className="text-xs text-white/40 mt-1">Lunes a Viernes</p>
+                                </div>
+
+                                {/* Card Teléfono */}
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 lg:p-6 hover:bg-white/10 transition-colors duration-300 flex flex-col">
+                                    <Headphones className="text-[#BE0F4A] w-7 h-7 sm:w-8 sm:h-8 mb-4" />
+                                    <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-semibold mb-1 sm:mb-2">Central Telefónica</p>
+                                    <p className="text-base lg:text-sm xl:text-base font-medium whitespace-nowrap">+51 XXX XXX XXX</p>
+                                </div>
+
+                                {/* Card Correo (Toma el ancho completo en móvil/tablet si sobra, o 1 columna en PC) */}
+                                <div className="bg-white/5 border border-white/10 rounded-2xl p-5 lg:p-6 hover:bg-white/10 transition-colors duration-300 flex flex-col sm:col-span-2 lg:col-span-1">
+                                    <Mail className="text-[#BE0F4A] w-7 h-7 sm:w-8 sm:h-8 mb-4" />
+                                    <p className="text-[10px] sm:text-xs text-white/50 uppercase tracking-widest font-semibold mb-1 sm:mb-2">Correo Electrónico</p>
+                                    <a href="mailto:soporte@ankawagroup.org" className="text-sm sm:text-base lg:text-sm xl:text-base font-medium hover:text-[#BE0F4A] transition-colors truncate block w-full" title="soporte@ankawagroup.org">
+                                        soporte@ankawagroup.org
+                                    </a>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Footer Bottom */}
+                    <div className="mt-12 lg:mt-16 pt-6 lg:pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left text-white/40 text-xs sm:text-sm">
+                        <p className="font-medium">© {new Date().getFullYear()} The Ankawa Global Group SAC.</p>
+                        <p>CARD ANKAWA INTL — Plataforma de trámites digitales.</p>
+                    </div>
+                </Reveal>
             </div>
         </footer>
     );
 }
 
-export default function Welcome({ servicios = [] }) {
-    const [scrollOffset, setScrollOffset] = useState(0);
-
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrollOffset(window.scrollY);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
+// 5. COMPONENTE PRINCIPAL
+export default function Welcome() {
     return (
-        <div className="min-h-screen bg-white relative overflow-hidden">
-            <div 
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0"
-                style={{
-                    transform: `translate(-50%, -50%) rotate(${scrollOffset * 0.05}deg) translateY(${scrollOffset * 0.1}px)`,
-                    opacity: Math.max(0.01, 0.04 - (scrollOffset * 0.00002))
-                }}
-            >
-                <Scale className="w-[80vw] h-[80vw] text-[#291136]" strokeWidth={0.5} />
-            </div>
+        <div className="min-h-screen bg-white flex flex-col font-sans selection:bg-[#BE0F4A] selection:text-white">
+            <Header />
+            
+            <main className="flex-grow">
+                <PlataformaAccesos />
+                <VideoTutorial />
+            </main>
 
-            <div className="relative z-10">
-                <Header />
-                <Hero />
-                <Servicios servicios={servicios} />
-                <ComoFunciona />
-                <PorQueElegirnos />
-                <Nosotros />
-                <CTA />
-                <Footer />
-            </div>
+            <SoporteTecnico />
         </div>
     );
 }
