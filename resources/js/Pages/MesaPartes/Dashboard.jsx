@@ -13,19 +13,19 @@ import toast, { Toaster } from 'react-hot-toast';
 // fitMode: 'cover' para fotos que llenan el borde | 'contain' para ilustraciones/logos con márgenes
 const SERVICIO_META_BY_SLUG = {
     arbitraje: {
-        imagen:    '/images/servicios/arbitraje.png',
+        imagen:    '/images/servicios/arbitraje.webp',
         icono:     Scale,
         gradiente: 'from-[#291136] via-[#4A153D] to-[#BE0F4A]',
         fitMode:   'cover',
     },
     jprd: {
-        imagen:    '/images/servicios/jprd.png',
+        imagen:    '/images/servicios/jprd.webp',
         icono:     Building2,
         gradiente: 'from-[#1e3a5f] via-[#1d4ed8] to-[#3b82f6]',
         fitMode:   'cover',
     },
     otros: {
-        imagen:    '/images/servicios/otros.png',
+        imagen:    '/images/servicios/otros.webp',
         icono:     Send,
         gradiente: 'from-[#1f2937] via-[#374151] to-[#6b7280]',
         fitMode:   'cover',
@@ -35,7 +35,7 @@ const SERVICIO_META_BY_SLUG = {
 // Override por id para servicios con mismo slug pero distinta imagen
 const SERVICIO_META_BY_ID = {
     3: {
-        imagen:    '/images/servicios/emergencia.png',
+        imagen:    '/images/servicios/emergencia.webp',
         icono:     Gavel,
         gradiente: 'from-[#7c1d1d] via-[#b91c1c] to-[#ef4444]',
         fitMode:   'cover',
@@ -80,12 +80,12 @@ function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                 className="group text-left rounded-2xl overflow-hidden border border-gray-200 hover:border-[#BE0F4A]/50 hover:shadow-lg transition-all duration-200">
 
                                 {/* Cabecera: imagen o gradiente */}
-                                <div className={`relative h-44 bg-gradient-to-br ${meta.gradiente} overflow-hidden`}>
+                                <div className={`relative h-72 bg-gradient-to-br ${meta.gradiente} overflow-hidden`}>
                                     {meta.imagen && (
                                         <img
                                             src={meta.imagen}
                                             alt={s.nombre}
-                                            className="absolute inset-0 w-full h-full object-cover"
+                                            className="absolute inset-0 w-full h-full object-cover object-center"
                                             onError={e => { e.currentTarget.style.display = 'none'; }}
                                         />
                                     )}
