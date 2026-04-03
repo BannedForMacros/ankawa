@@ -21,7 +21,7 @@ const TIPOS_PERSONA = [
     { id: 'juridica', nombre: 'Persona Jurídica' },
 ];
 const OPCIONES_ARBITRO = [
-    { id: 1, nombre: 'Sí, solicito designación por el Director' },
+    { id: 1, nombre: 'Sí, solicito designación por el Centro' },
     { id: 0, nombre: 'No, propongo árbitro'                     },
 ];
 const LONG_DOC = { dni: 8, ruc: 11, ce: null };

@@ -3,11 +3,123 @@ import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import {
     Bell, Clock, CheckCircle, FileText, X, Paperclip, LogOut,
-    PlusCircle, Scale, ChevronRight
+    PlusCircle, Scale, Building2, Send, Gavel, ArrowRight
 } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
 import toast, { Toaster } from 'react-hot-toast';
+
+/* ─── Metadatos hardcodeados por slug (y overrides por id) ─── */
+// fitMode: 'cover' para fotos que llenan el borde | 'contain' para ilustraciones/logos con márgenes
+const SERVICIO_META_BY_SLUG = {
+    arbitraje: {
+        imagen:    '/images/servicios/arbitraje.png',
+        icono:     Scale,
+        gradiente: 'from-[#291136] via-[#4A153D] to-[#BE0F4A]',
+        fitMode:   'cover',
+    },
+    jprd: {
+        imagen:    '/images/servicios/jprd.png',
+        icono:     Building2,
+        gradiente: 'from-[#1e3a5f] via-[#1d4ed8] to-[#3b82f6]',
+        fitMode:   'cover',
+    },
+    otros: {
+        imagen:    '/images/servicios/otros.png',
+        icono:     Send,
+        gradiente: 'from-[#1f2937] via-[#374151] to-[#6b7280]',
+        fitMode:   'cover',
+    },
+};
+
+// Override por id para servicios con mismo slug pero distinta imagen
+const SERVICIO_META_BY_ID = {
+    3: {
+        imagen:    '/images/servicios/emergencia.png',
+        icono:     Gavel,
+        gradiente: 'from-[#7c1d1d] via-[#b91c1c] to-[#ef4444]',
+        fitMode:   'cover',
+    },
+};
+
+const META_DEFAULT = {
+    imagen:    null,
+    icono:     FileText,
+    gradiente: 'from-[#291136] via-[#4A153D] to-[#BE0F4A]',
+    fitMode:   'cover',
+};
+
+function getServicioMeta(s) {
+    return SERVICIO_META_BY_ID[s.id] ?? SERVICIO_META_BY_SLUG[s.slug] ?? META_DEFAULT;
+}
+
+/* ─── Modal selector de servicio ─── */
+function ModalServicios({ servicios, onSeleccionar, onClose }) {
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+                    <div>
+                        <h2 className="text-lg font-black text-[#291136]">Nueva solicitud</h2>
+                        <p className="text-sm text-gray-400 mt-0.5">Selecciona el tipo de trámite que deseas presentar</p>
+                    </div>
+                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                        <X size={18}/>
+                    </button>
+                </div>
+
+                {/* Grid de servicios */}
+                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto">
+                    {servicios.map(s => {
+                        const meta  = getServicioMeta(s);
+                        const Icono = meta.icono;
+
+                        return (
+                            <button key={s.id} type="button" onClick={() => onSeleccionar(s.slug)}
+                                className="group text-left rounded-2xl overflow-hidden border border-gray-200 hover:border-[#BE0F4A]/50 hover:shadow-lg transition-all duration-200">
+
+                                {/* Cabecera: imagen o gradiente */}
+                                <div className={`relative h-44 bg-gradient-to-br ${meta.gradiente} overflow-hidden`}>
+                                    {meta.imagen && (
+                                        <img
+                                            src={meta.imagen}
+                                            alt={s.nombre}
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                            onError={e => { e.currentTarget.style.display = 'none'; }}
+                                        />
+                                    )}
+                                    {/* Overlay sutil solo en la base */}
+                                    <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/30 to-transparent" />
+                                    {/* Ícono esquina superior izquierda */}
+                                    <div className="absolute top-3 left-3 w-8 h-8 rounded-lg bg-black/20 flex items-center justify-center">
+                                        <Icono size={16} className="text-white"/>
+                                    </div>
+                                    {/* Flecha en hover */}
+                                    <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                        <ArrowRight size={16} className="text-white drop-shadow"/>
+                                    </div>
+                                </div>
+
+                                {/* Cuerpo */}
+                                <div className="p-4">
+                                    <h3 className="font-bold text-[#291136] text-sm mb-1 group-hover:text-[#BE0F4A] transition-colors">
+                                        {s.nombre}
+                                    </h3>
+                                    {s.descripcion && (
+                                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                                            {s.descripcion}
+                                        </p>
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 const BADGE_ESTADO = {
     activo:     'bg-emerald-100 text-emerald-700',
@@ -168,9 +280,9 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
 
 /* ─── Página principal ─── */
 export default function Dashboard({ expedientes: expedientesIniciales, servicios, portalUser, portalEmail }) {
-    const [expedientes, setExpedientes] = useState(expedientesIniciales);
-    const [modalMov,    setModalMov]    = useState(null);
-    const [mostrarServicios, setMostrarServicios] = useState(false);
+    const [expedientes,      setExpedientes]      = useState(expedientesIniciales);
+    const [modalMov,         setModalMov]         = useState(null);
+    const [modalServicios,   setModalServicios]   = useState(false);
 
     function onRespondido(movId) {
         setExpedientes(prev => prev.map(exp => {
@@ -182,6 +294,7 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
     }
 
     function irASolicitud(slug) {
+        setModalServicios(false);
         router.get(route('mesa-partes.solicitud', { slug }));
     }
 
@@ -213,42 +326,12 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
 
                 {/* Nueva solicitud */}
                 <div>
-                    {!mostrarServicios ? (
-                        <button
-                            onClick={() => setMostrarServicios(true)}
-                            className="flex items-center gap-2 px-5 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] transition-colors shadow-sm"
-                        >
-                            <PlusCircle size={16}/> Nueva solicitud
-                        </button>
-                    ) : (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50/60">
-                                <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Seleccionar servicio</h2>
-                                <button onClick={() => setMostrarServicios(false)} className="text-gray-400 hover:text-gray-600">
-                                    <X size={16}/>
-                                </button>
-                            </div>
-                            <div className="p-4 grid gap-2">
-                                {servicios.map(s => (
-                                    <button key={s.id} type="button" onClick={() => irASolicitud(s.slug)}
-                                        className="flex items-center justify-between gap-3 w-full px-4 py-3 rounded-xl border border-gray-200 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-all text-left group">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center shrink-0">
-                                                <Scale size={15} className="text-[#BE0F4A]"/>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-[#291136]">{s.nombre}</p>
-                                                {s.descripcion && (
-                                                    <p className="text-xs text-gray-400 line-clamp-1">{s.descripcion}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <ChevronRight size={16} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0"/>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <button
+                        onClick={() => setModalServicios(true)}
+                        className="flex items-center gap-2 px-5 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] transition-colors shadow-sm"
+                    >
+                        <PlusCircle size={16}/> Nueva solicitud
+                    </button>
                 </div>
 
                 {/* Alerta pendientes */}
@@ -332,6 +415,14 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
                     )}
                 </div>
             </div>
+
+            {modalServicios && (
+                <ModalServicios
+                    servicios={servicios}
+                    onSeleccionar={irASolicitud}
+                    onClose={() => setModalServicios(false)}
+                />
+            )}
 
             {modalMov && (
                 <ModalResponder
