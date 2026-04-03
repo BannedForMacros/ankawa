@@ -2,6 +2,7 @@ import { router, useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle } from 'lucide-react';
 import { MovimientoCard, movVacioBase, GENERA_CARGO_DEFAULT } from './TabNuevoMovimiento';
+import toast from 'react-hot-toast';
 
 const movVacio = movVacioBase;
 
@@ -148,8 +149,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         router.post(route('expedientes.conformidad', expediente.id), form, {
             forceFormData: true,
             onFinish:  () => setProcesando(false),
-            onError:   errs => setErrores(errs),
-            onSuccess: () => setPaso('idle'),
+            onError:   errs => { setErrores(errs); toast.error('Error al registrar la conformidad. Revise los campos.'); },
+            onSuccess: () => { setPaso('idle'); toast.success('Conformidad registrada correctamente.'); },
         });
     }
 
@@ -174,7 +175,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     function guardarEdicion(e) {
         e.preventDefault();
         formEdit.put(route('expedientes.solicitud.update', expediente.id), {
-            onSuccess: () => setEditando(false),
+            onSuccess: () => { setEditando(false); toast.success('Datos de solicitud actualizados.'); },
+            onError: () => toast.error('Error al guardar los cambios.'),
         });
     }
 

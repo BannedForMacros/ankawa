@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useState, useMemo, useRef, useEffect, Children } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
+import toast from 'react-hot-toast';
 import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail } from 'lucide-react';
 
 export const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
@@ -494,7 +495,12 @@ export default function TabNuevoMovimiento({
             router.post(route('expedientes.movimientos.store', expediente.id), form, {
                 forceFormData: true,
                 onFinish: () => setProcesando(false),
-                onSuccess: () => { setMovimientos([movVacio(expediente, defaultNotificarIds)]); setArchivos({ 0: [] }); },
+                onSuccess: () => {
+                    toast.success('Movimiento creado correctamente.');
+                    setMovimientos([movVacio(expediente, defaultNotificarIds)]);
+                    setArchivos({ 0: [] });
+                },
+                onError: () => toast.error('Error al crear el movimiento. Revise los campos.'),
             });
         } else {
             const form = new FormData();
@@ -518,7 +524,12 @@ export default function TabNuevoMovimiento({
             router.post(route('expedientes.movimientos.lote', expediente.id), form, {
                 forceFormData: true,
                 onFinish: () => setProcesando(false),
-                onSuccess: () => { setMovimientos([movVacio(expediente, defaultNotificarIds)]); setArchivos({ 0: [] }); },
+                onSuccess: () => {
+                    toast.success(`${movimientos.length} movimientos creados correctamente.`);
+                    setMovimientos([movVacio(expediente, defaultNotificarIds)]);
+                    setArchivos({ 0: [] });
+                },
+                onError: () => toast.error('Error al crear los movimientos. Revise los campos.'),
             });
         }
     }

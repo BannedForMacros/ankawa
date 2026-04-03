@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 import { AlertCircle, ChevronDown, ChevronUp, FileText, PlusCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function TabAccionPendiente({
     expediente,
@@ -55,7 +56,11 @@ export default function TabAccionPendiente({
 
         form.post(route(routeName, [expediente.id, movimiento.id]), {
             forceFormData: true,
-            onSuccess: () => form.reset(),
+            onSuccess: () => {
+                toast.success(crearSiguiente ? 'Respuesta enviada y nuevo movimiento creado.' : 'Respuesta enviada correctamente.');
+                form.reset();
+            },
+            onError: () => toast.error('Error al enviar la respuesta. Revise los campos.'),
         });
     }
 
