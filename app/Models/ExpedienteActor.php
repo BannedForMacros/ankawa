@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ExpedienteActor extends Model
 {
@@ -38,6 +39,28 @@ class ExpedienteActor extends Model
     public function tipoActor(): BelongsTo
     {
         return $this->belongsTo(TipoActorExpediente::class, 'tipo_actor_id');
+    }
+
+    public function emailsAdicionales(): HasMany
+    {
+        return $this->hasMany(ExpedienteActorEmail::class, 'expediente_actor_id')->orderBy('orden');
+    }
+
+    /**
+     * Todos los emails del actor: el principal + los adicionales.
+     */
+    public function todosLosEmails(): array
+    {
+        $emails = [];
+        if ($this->email_externo) {
+            $emails[] = $this->email_externo;
+        }
+        foreach ($this->emailsAdicionales as $extra) {
+            if ($extra->email && !in_array($extra->email, $emails)) {
+                $emails[] = $extra->email;
+            }
+        }
+        return $emails;
     }
 
     public function scopeActivo($query)

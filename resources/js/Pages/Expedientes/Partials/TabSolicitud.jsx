@@ -109,7 +109,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             return;
         }
         for (let i = 0; i < movimientos.length; i++) {
-            if (!movimientos[i].instruccion.trim()) {
+            const instrEfectiva = movimientos[i].instruccion.trim() ||
+                (resultado === 'no_conforme' ? `Subsanación requerida: ${motivoNoConforme}` : '');
+            if (!instrEfectiva) {
                 setErrores({ [`mov_${i}_instruccion`]: `Movimiento ${i + 1}: La instrucción es obligatoria.` });
                 return;
             }
@@ -129,7 +131,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             form.append(`movimientos[${i}][tipo]`,                        mov.tipo);
             form.append(`movimientos[${i}][etapa_id]`,                    mov.etapa_id ?? '');
             form.append(`movimientos[${i}][sub_etapa_id]`,                mov.sub_etapa_id ?? '');
-            form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
+            const instruccion = mov.instruccion.trim() || (resultado === 'no_conforme' ? `Subsanación requerida: ${motivoNoConforme}` : '');
+            form.append(`movimientos[${i}][instruccion]`,                 instruccion);
             form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
             form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
             form.append(`movimientos[${i}][usuario_responsable_id]`,      mov.usuario_responsable_id ?? '');
@@ -192,8 +195,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         </div>
     );
 
-    // ── Panel de movimientos compartido (conforme / no_conforme) ─────────────
-    function PanelMovimientos({ colorBtn, labelBtn, resultado }) {
+    // Panel de movimientos como función que retorna JSX (no como componente)
+    // para evitar desmontaje/remontaje en cada re-render del padre
+    function panelMovimientosJSX(colorBtn, resultado) {
         return (
             <div className="space-y-3">
                 {movimientos.map((mov, idx) => (
@@ -451,7 +455,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     Declarar solicitud como <strong>CONFORME</strong>. Se enviará email al demandado con credenciales de acceso.
                                 </p>
                             </div>
-                            <PanelMovimientos colorBtn="bg-emerald-600 hover:bg-emerald-700" labelBtn="Confirmar Conforme" resultado="conforme"/>
+                            {panelMovimientosJSX('bg-emerald-600 hover:bg-emerald-700', 'conforme')}
                         </div>
                     )}
 
@@ -466,17 +470,12 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             <div>
                                 <label className="block text-sm font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
                                 <textarea value={motivoNoConforme}
-                                    onChange={e => {
-                                        setMotivo(e.target.value);
-                                        if (movimientos.length > 0) {
-                                            actualizar(0, 'instruccion', `Subsanación requerida: ${e.target.value}`);
-                                        }
-                                    }}
+                                    onChange={e => setMotivo(e.target.value)}
                                     rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
                                     placeholder="Indique los motivos por los que la solicitud no es conforme..."/>
                                 {errores.motivo_no_conformidad && <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>}
                             </div>
-                            <PanelMovimientos colorBtn="bg-red-600 hover:bg-red-700" labelBtn="Confirmar No Conforme" resultado="no_conforme"/>
+                            {panelMovimientosJSX('bg-red-600 hover:bg-red-700', 'no_conforme')}
                         </div>
                     )}
                 </div>

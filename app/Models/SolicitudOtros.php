@@ -16,6 +16,7 @@ class SolicitudOtros extends Model
         'nombre_remitente',
         'email_remitente',
         'descripcion',
+        'observacion',
         'numero_cargo',
     ];
 

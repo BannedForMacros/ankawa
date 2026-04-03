@@ -17,7 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'permiso' => \App\Http\Middleware\CheckPermiso::class,
+            'permiso'     => \App\Http\Middleware\CheckPermiso::class,
+            'portal.auth' => \App\Http\Middleware\PortalAuth::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -11,6 +11,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\MesaPartesController;
 use App\Http\Controllers\Servicios\Arbitraje\SolicitudArbitrajeController;
 use App\Http\Controllers\Servicios\Otros\SolicitudOtrosController;
+use App\Http\Controllers\Servicios\JPRD\SolicitudJPRDController;
+use App\Http\Controllers\PortalController;
 
 // Controladores Internos
 use App\Http\Controllers\DashboardController;
@@ -38,21 +40,24 @@ use App\Http\Controllers\Configuracion\ModuloController;
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // =========================================================================
-// 2. MESA DE PARTES VIRTUAL (Público - Sin Auth)
+// 2. MESA DE PARTES / PORTAL UNIFICADO
 // =========================================================================
+
+// ── Públicas (sin auth) ──
 Route::get('/mesa-partes', [MesaPartesController::class, 'index'])->name('mesa-partes.index');
 Route::get('/mesa-partes/confirmacion/{numeroCargo}', [MesaPartesController::class, 'confirmacion'])->name('mesa-partes.confirmacion');
 
-// Consulta de documentos (proxy Decolecta — público, sin auth)
-Route::get('/consulta-documento', [\App\Http\Controllers\ConsultaDocumentoController::class, 'consultar'])->name('consulta.documento');
+// OTP unificado (acepta cualquier email)
+Route::post('/mesa-partes/enviar-codigo', [PortalController::class, 'enviarCodigo'])->name('mesa-partes.enviarCodigo');
+Route::post('/mesa-partes/verificar-codigo', [PortalController::class, 'verificarCodigo'])->name('mesa-partes.verificarCodigo');
 
-// OTP (Autenticación para firmas/formularios)
-Route::post('/mesa-partes/enviar-codigo', [MesaPartesController::class, 'enviarCodigo'])->name('mesa-partes.enviarCodigo');
-Route::post('/mesa-partes/verificar-codigo', [MesaPartesController::class, 'verificarCodigo'])->name('mesa-partes.verificarCodigo');
-
-// Recepción de solicitudes por servicio (Paso final del formulario público)
+// Submit de formularios (sin auth requerida, el portal_email se verifica en el controller)
 Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::class, 'store'])->name('solicitud.arbitraje.store');
 Route::post('/mesa-partes/servicios/otros', [SolicitudOtrosController::class, 'store'])->name('solicitud.otros.store');
+Route::post('/mesa-partes/servicios/jprd', [SolicitudJPRDController::class, 'store'])->name('solicitud.jprd.store');
+
+// Consulta de documentos (proxy Decolecta — público, sin auth)
+Route::get('/consulta-documento', [\App\Http\Controllers\ConsultaDocumentoController::class, 'consultar'])->name('consulta.documento');
 Route::get('/mesa-partes/servicios/{servicio}/tipos-documento', function (\App\Models\Servicio $servicio) {
     $tipos = $servicio->tiposDocumento()
         ->where('tipo_documentos.activo', true)
@@ -60,6 +65,14 @@ Route::get('/mesa-partes/servicios/{servicio}/tipos-documento', function (\App\M
         ->get(['tipo_documentos.id', 'tipo_documentos.nombre']);
     return response()->json($tipos);
 })->name('servicios.tipos-documento');
+
+// ── Protegidas por OTP session (portal.auth) ──
+Route::middleware('portal.auth')->group(function () {
+    Route::get('/mesa-partes/inicio', [PortalController::class, 'dashboard'])->name('mesa-partes.inicio');
+    Route::get('/mesa-partes/solicitud/{slug}', [MesaPartesController::class, 'formularioPorSlug'])->name('mesa-partes.solicitud');
+    Route::get('/mesa-partes/logout', [PortalController::class, 'logout'])->name('mesa-partes.logout');
+    Route::post('/mesa-partes/movimientos/{movimiento}/responder', [PortalController::class, 'responder'])->name('mesa-partes.responder');
+});
 
 
 // =========================================================================
@@ -165,6 +178,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('tipos-documentos/{tipoDocumento}/actores',           [TipoDocumentoController::class, 'syncActores'])    ->name('configuracion.tipos-documentos.sync-actores')  ->middleware('permiso:configuracion.tipos-documentos,editar');
     });
 
+});
+
+// =========================================================================
+// 4. PORTAL EXTERNO (Actores externos — autenticación OTP sin cuenta)
+// =========================================================================
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('/',                    [PortalController::class, 'index'])        ->name('login');
+    Route::post('/enviar-codigo',      [PortalController::class, 'enviarCodigo']) ->name('enviar-codigo');
+    Route::post('/verificar-codigo',   [PortalController::class, 'verificarCodigo'])->name('verificar-codigo');
+    Route::get('/logout',              [PortalController::class, 'logout'])       ->name('logout');
+
+    Route::middleware('portal.auth')->group(function () {
+        Route::get('/mis-expedientes',                      [PortalController::class, 'misExpedientes'])->name('expedientes');
+        Route::post('/movimientos/{movimiento}/responder',  [PortalController::class, 'responder'])     ->name('responder');
+    });
 });
 
 require __DIR__.'/auth.php';

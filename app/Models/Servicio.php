@@ -12,6 +12,7 @@ class Servicio extends Model
 
     protected $fillable = [
         'nombre',
+        'slug',
         'descripcion',
         'activo',
         'plazo_subsanacion_dias',

@@ -30,6 +30,7 @@ class SolicitudOtrosController extends Controller
             'nombre_remitente'  => $request->nombre_remitente,
             'email_remitente'   => $request->email_remitente,
             'descripcion'       => $request->descripcion,
+            'observacion'       => $request->observacion,
         ]);
 
         $cargo = Cargo::crear('solicitud', $solicitud, null);

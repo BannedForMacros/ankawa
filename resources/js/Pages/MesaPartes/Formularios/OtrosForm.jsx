@@ -1,19 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
-import { Paperclip, Send } from 'lucide-react';
+import { Paperclip, Send, FileText, X, Image } from 'lucide-react';
+import ConfirmModal from '@/Components/ConfirmModal';
+import AnkawaLoader from '@/Components/AnkawaLoader';
 
-export default function OtrosForm({ servicio }) {
+const ICONOS_EXT = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️' };
+
+function ext(nombre) {
+    return nombre.split('.').pop().toLowerCase();
+}
+
+export default function OtrosForm({ servicio, portalEmail, portalUser }) {
+    const isPortal = !!portalEmail;
+
     const [tiposDocumento, setTiposDocumento]   = useState([]);
     const [cargandoTipos, setCargandoTipos]     = useState(true);
     const [procesando, setProcesando]           = useState(false);
     const [errores, setErrores]                 = useState({});
     const [archivos, setArchivos]               = useState([]);
+    const [confirm, setConfirm]                 = useState(false);
+    const [mostrarLoader, setMostrarLoader]     = useState(false);
+    const loaderTimer                           = useRef(null);
+    const inputRef                              = useRef();
 
     const [form, setForm] = useState({
-        nombre_remitente:  '',
-        email_remitente:   '',
+        nombre_remitente:  portalUser?.name ?? '',
+        email_remitente:   portalEmail ?? '',
         tipo_documento_id: '',
         descripcion:       '',
+        observacion:       '',
     });
 
     useEffect(() => {
@@ -22,7 +37,6 @@ export default function OtrosForm({ servicio }) {
             .then(r => r.json())
             .then(data => {
                 setTiposDocumento(data);
-                // Si solo hay 1 tipo configurado para solicitud, auto-seleccionar
                 if (data.length === 1) {
                     setForm(prev => ({ ...prev, tipo_documento_id: String(data[0].id) }));
                 }
@@ -36,12 +50,24 @@ export default function OtrosForm({ servicio }) {
         setErrores(prev => ({ ...prev, [field]: undefined }));
     }
 
+    function agregarArchivos(e) {
+        const nuevos = Array.from(e.target.files).filter(
+            n => !archivos.some(a => a.name === n.name && a.size === n.size)
+        );
+        setArchivos(prev => [...prev, ...nuevos]);
+        e.target.value = '';
+    }
+
+    function quitarArchivo(i) {
+        setArchivos(prev => prev.filter((_, idx) => idx !== i));
+    }
+
     function validar() {
         const errs = {};
         if (!form.nombre_remitente.trim()) errs.nombre_remitente = 'Requerido';
         if (!form.email_remitente.trim())  errs.email_remitente  = 'Requerido';
         if (tiposDocumento.length > 1 && !form.tipo_documento_id) errs.tipo_documento_id = 'Selecciona un tipo';
-        if (!form.descripcion.trim())      errs.descripcion       = 'Requerido';
+        if (!form.descripcion.trim())      errs.descripcion      = 'Requerido';
         return errs;
     }
 
@@ -49,24 +75,50 @@ export default function OtrosForm({ servicio }) {
         e.preventDefault();
         const errs = validar();
         if (Object.keys(errs).length) { setErrores(errs); return; }
+        setConfirm(true);
+    }
 
+    function confirmar() {
+        setConfirm(false);
         setProcesando(true);
+
+        loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
+
         const fd = new FormData();
         fd.append('servicio_id',       servicio.id);
         fd.append('tipo_documento_id', form.tipo_documento_id);
         fd.append('nombre_remitente',  form.nombre_remitente);
         fd.append('email_remitente',   form.email_remitente);
         fd.append('descripcion',       form.descripcion);
+        if (form.observacion.trim()) fd.append('observacion', form.observacion);
         archivos.forEach(f => fd.append('documentos[]', f));
 
         router.post(route('solicitud.otros.store'), fd, {
             forceFormData: true,
-            onFinish:  () => setProcesando(false),
-            onError:   errs => setErrores(errs),
+            onFinish: () => {
+                clearTimeout(loaderTimer.current);
+                setMostrarLoader(false);
+                setProcesando(false);
+            },
+            onError: errs => setErrores(errs),
         });
     }
 
+    const tipoActivo = tiposDocumento.find(t => String(t.id) === form.tipo_documento_id);
+    const resumenConfirm = `Enviará un documento "${tipoActivo?.nombre ?? 'seleccionado'}" de parte de ${form.nombre_remitente || '—'}. Se enviaráun cargo de recepción a ${form.email_remitente}.${archivos.length ? ` Adjuntos: ${archivos.length} archivo(s).` : ''}`;
+
     return (
+        <>
+        <AnkawaLoader visible={mostrarLoader} />
+        <ConfirmModal
+            open={confirm}
+            titulo="Confirmar envío"
+            resumen={resumenConfirm}
+            onConfirm={confirmar}
+            onCancel={() => setConfirm(false)}
+            confirmando={procesando}
+        />
+
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5 max-w-2xl">
             <h2 className="text-lg font-bold text-[#291136]">Envío de Documento — {servicio.nombre}</h2>
 
@@ -74,7 +126,7 @@ export default function OtrosForm({ servicio }) {
             <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">Nombre del remitente *</label>
                 <input type="text" value={form.nombre_remitente} onChange={e => set('nombre_remitente', e.target.value)}
-                    className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
+                    className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]"
                     placeholder="Nombre completo o razón social"/>
                 {errores.nombre_remitente && <p className="text-sm text-red-500 mt-1">{errores.nombre_remitente}</p>}
             </div>
@@ -82,13 +134,19 @@ export default function OtrosForm({ servicio }) {
             {/* Email remitente */}
             <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">Correo electrónico *</label>
-                <input type="email" value={form.email_remitente} onChange={e => set('email_remitente', e.target.value)}
-                    className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
-                    placeholder="Se enviará el número de cargo a este correo"/>
+                {isPortal ? (
+                    <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-lg px-3 py-2.5 text-sm text-emerald-800 font-medium">
+                        {portalEmail}
+                    </div>
+                ) : (
+                    <input type="email" value={form.email_remitente} onChange={e => set('email_remitente', e.target.value)}
+                        className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]"
+                        placeholder="Se enviará el número de cargo a este correo"/>
+                )}
                 {errores.email_remitente && <p className="text-sm text-red-500 mt-1">{errores.email_remitente}</p>}
             </div>
 
-            {/* Tipo de documento — solo si hay 2 o más tipos configurados */}
+            {/* Tipo de documento */}
             {cargandoTipos ? (
                 <div>
                     <label className="block text-sm font-semibold text-gray-600 mb-1">Tipo de documento</label>
@@ -98,7 +156,7 @@ export default function OtrosForm({ servicio }) {
                 <div>
                     <label className="block text-sm font-semibold text-gray-600 mb-1">Tipo de documento *</label>
                     <select value={form.tipo_documento_id} onChange={e => set('tipo_documento_id', e.target.value)}
-                        className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5">
+                        className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
                         <option value="">Seleccionar...</option>
                         {tiposDocumento.map(td => (
                             <option key={td.id} value={td.id}>{td.nombre}</option>
@@ -117,21 +175,45 @@ export default function OtrosForm({ servicio }) {
             <div>
                 <label className="block text-sm font-semibold text-gray-600 mb-1">Descripción / Mensaje *</label>
                 <textarea value={form.descripcion} onChange={e => set('descripcion', e.target.value)}
-                    rows={4} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
+                    rows={4} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]"
                     placeholder="Detalle el motivo o contenido del documento enviado..."/>
                 {errores.descripcion && <p className="text-sm text-red-500 mt-1">{errores.descripcion}</p>}
             </div>
 
-            {/* Archivos */}
+            {/* Observación (opcional) */}
             <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1 inline-flex items-center gap-1.5">
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Observación <span className="text-gray-400 font-normal">(opcional)</span></label>
+                <textarea value={form.observacion} onChange={e => set('observacion', e.target.value)}
+                    rows={2} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]"
+                    placeholder="Alguna observación adicional..."/>
+            </div>
+
+            {/* Archivos con preview */}
+            <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-2 inline-flex items-center gap-1.5">
                     <Paperclip size={13}/> Documentos adjuntos
                 </label>
-                <input type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={e => setArchivos(Array.from(e.target.files))}
-                    className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#291136]/5 file:text-[#291136] hover:file:bg-[#291136]/10"/>
+                <button type="button" onClick={() => inputRef.current?.click()}
+                    className="flex items-center gap-2 w-full px-4 py-3 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors justify-center">
+                    <Paperclip size={15}/> Seleccionar archivos
+                </button>
+                <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={agregarArchivos} className="hidden"/>
+
                 {archivos.length > 0 && (
-                    <p className="text-xs text-gray-400 mt-1">{archivos.length} archivo(s) seleccionado(s)</p>
+                    <ul className="mt-3 space-y-2">
+                        {archivos.map((f, i) => (
+                            <li key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm">
+                                <span className="text-lg shrink-0">{ICONOS_EXT[ext(f.name)] ?? '📎'}</span>
+                                <span className="truncate flex-1 text-[#291136] font-medium">{f.name}</span>
+                                <span className="text-xs text-gray-400 shrink-0">{(f.size/1024/1024).toFixed(2)} MB</span>
+                                <button type="button" onClick={() => quitarArchivo(i)}
+                                    className="text-gray-300 hover:text-red-500 transition-colors shrink-0">
+                                    <X size={14}/>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
                 )}
             </div>
 
@@ -141,9 +223,10 @@ export default function OtrosForm({ servicio }) {
                     <Send size={14}/> {procesando ? 'Enviando...' : 'Enviar documento'}
                 </button>
                 <p className="text-xs text-gray-400 mt-2">
-                    Al enviar recibirás un número de cargo en tu correo como constancia.
+                    Al confirmar recibirás un número de cargo en tu correo como constancia.
                 </p>
             </div>
         </form>
+        </>
     );
 }

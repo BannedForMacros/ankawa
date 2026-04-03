@@ -1,10 +1,13 @@
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import Input from '@/Components/Input';
 import Textarea from '@/Components/Textarea';
 import CustomSelect from '@/Components/CustomSelect';
 import PrimaryButton from '@/Components/PrimaryButton';
+import EmailsInput from '@/Components/EmailsInput';
+import ConfirmModal from '@/Components/ConfirmModal';
+import AnkawaLoader from '@/Components/AnkawaLoader';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -252,28 +255,35 @@ function BloquePersona({ titulo, icono: Icono, campos, setCampos, errors, deshab
 }
 
 /* ─── Formulario principal ─── */
-export default function ArbitrajeForm({ servicio }) {
+export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
     const { auth } = usePage().props;
-    const isAuth = !!auth?.user;
-    const user   = auth?.user;
+    const isPortal = !!portalEmail;
+    const isAuth   = !!auth?.user && !isPortal;
+    const user     = isPortal ? portalUser : auth?.user;
 
-    const tipoPersInicial = isAuth ? (user.tipo_persona || 'natural') : 'natural';
+    const tipoPersInicial = user ? (user.tipo_persona || 'natural') : 'natural';
 
-    const [aceptoLegal, setAceptoLegal] = useState(isAuth);
-    const [modalLegal, setModalLegal]   = useState(false);
+    const [aceptoLegal, setAceptoLegal]         = useState(isAuth || isPortal);
+    const [modalLegal, setModalLegal]           = useState(false);
+    const [confirm, setConfirm]                 = useState(false);
+    const [mostrarLoader, setMostrarLoader]     = useState(false);
+    const emailInicial = isPortal ? portalEmail : (isAuth ? user?.email : '');
+    const [emailsDem, setEmailsDem]             = useState(emailInicial ? [{ email: emailInicial, label: '' }] : [{ email: '', label: '' }]);
+    const [emailsDado, setEmailsDado]           = useState([]);
+    const loaderTimer                           = useRef(null);
 
     const { data, setData, post, processing, errors } = useForm({
         servicio_id:                   servicio.id,
         // Demandante
         tipo_persona:                  tipoPersInicial,
         tipo_documento:                docDefaultPorPersona(tipoPersInicial),
-        nombre_demandante:             isAuth ? user.name : '',
-        documento_demandante:          isAuth ? (user.numero_documento || '') : '',
+        nombre_demandante:             user?.name ?? '',
+        documento_demandante:          user?.numero_documento ?? '',
         nombre_representante:          '',
         documento_representante:       '',
-        domicilio_demandante:          isAuth ? (user.direccion || '') : '',
-        email_demandante:              isAuth ? user.email : '',
-        telefono_demandante:           isAuth ? (user.telefono || '') : '',
+        domicilio_demandante:          user?.direccion ?? '',
+        email_demandante:              emailInicial ?? '',
+        telefono_demandante:           user?.telefono ?? '',
         // Demandado
         tipo_persona_demandado:        'natural',
         tipo_documento_demandado:      'dni',
@@ -334,7 +344,6 @@ export default function ArbitrajeForm({ servicio }) {
             nombre_demandante:    'Nombre del demandante',
             documento_demandante: 'Documento del demandante',
             domicilio_demandante: 'Domicilio del demandante',
-            email_demandante:     'Correo del demandante',
             telefono_demandante:  'Teléfono del demandante',
             nombre_demandado:     'Nombre del demandado',
             domicilio_demandado:  'Domicilio del demandado',
@@ -347,21 +356,64 @@ export default function ArbitrajeForm({ servicio }) {
                 return;
             }
         }
+        const emailPrincipal = emailsDem.find(e => e.email.trim());
+        if (!emailPrincipal) {
+            toast.error('Ingresa al menos un correo electrónico del demandante', { position: 'top-center' });
+            return;
+        }
         const lon = LONG_DOC[data.tipo_documento];
         if (lon && data.documento_demandante.length !== lon) {
             toast.error(`Documento del demandante debe tener ${lon} dígitos`, { position: 'top-center' });
             return;
         }
 
-        post(route('solicitud.arbitraje.store'), {
-            preserveScroll: true,
-            forceFormData:  true,
-            onError: (errs) => toast.error(Object.values(errs)[0] || 'Revise los campos', { position: 'top-center' }),
+        setConfirm(true);
+    };
+
+    const enviarFormulario = () => {
+        setConfirm(false);
+        loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
+
+        const fd = new FormData();
+        // Datos principales del formulario
+        Object.entries(data).forEach(([k, v]) => {
+            if (v === null || v === undefined) return;
+            if (Array.isArray(v)) {
+                v.forEach(f => fd.append(k + '[]', f instanceof File ? f : String(f)));
+            } else {
+                fd.append(k, v);
+            }
+        });
+        // Emails adicionales
+        fd.set('email_demandante',  emailsDem[0]?.email ?? '');
+        fd.append('emails_demandante', JSON.stringify(emailsDem.filter(e => e.email.trim())));
+        fd.append('emails_demandado',  JSON.stringify(emailsDado.filter(e => e.email.trim())));
+
+        router.post(route('solicitud.arbitraje.store'), fd, {
+            forceFormData: true,
+            onFinish: () => {
+                clearTimeout(loaderTimer.current);
+                setMostrarLoader(false);
+            },
+            onError: (errs) => {
+                clearTimeout(loaderTimer.current);
+                setMostrarLoader(false);
+                toast.error(Object.values(errs)[0] || 'Revise los campos', { position: 'top-center' });
+            },
         });
     };
 
     return (
         <>
+        <AnkawaLoader visible={mostrarLoader} />
+        <ConfirmModal
+            open={confirm}
+            titulo="Confirmar solicitud de arbitraje"
+            resumen={`Se enviará la solicitud de arbitraje del servicio "${servicio.nombre}" a nombre de ${data.nombre_demandante || '—'}. Se generará un cargo y se enviarán credenciales de acceso al correo registrado.`}
+            onConfirm={enviarFormulario}
+            onCancel={() => setConfirm(false)}
+            confirmando={processing}
+        />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
             <BloquePersona
@@ -377,26 +429,46 @@ export default function ArbitrajeForm({ servicio }) {
                 }}
                 setCampos={setCamposDem}
                 errors={{ documento: errors.documento_demandante, nombre: errors.nombre_demandante, domicilio: errors.domicilio_demandante }}
-                deshabilitado={isAuth}
+                deshabilitado={isAuth || isPortal}
                 conRepresentante={true}
             >
-                {isAuth && (
+                {(isAuth || isPortal) && (
                     <div className="flex items-center gap-2 mb-5 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-xs font-semibold text-green-700">
                         <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
                     </div>
                 )}
             </BloquePersona>
 
-            {/* Email y teléfono del demandante fuera del bloque persona */}
+            {/* Email(s) y teléfono del demandante */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <Input id="email_demandante" label="Correo electrónico" required type="email"
-                        value={data.email_demandante} onChange={e => setData('email_demandante', e.target.value)}
-                        disabled={isAuth} placeholder="correo@ejemplo.com" error={errors.email_demandante} />
-                    <Input id="telefono_demandante" label="Teléfono" required type="text"
-                        value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
-                        disabled={isAuth} placeholder="987654321" error={errors.telefono_demandante} />
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="col-span-2">
+                        {isPortal ? (
+                            <div>
+                                <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                                    Correo del demandante <span className="text-[#BE0F4A]">*</span>
+                                </label>
+                                <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-4 py-2.5 text-sm text-emerald-800 font-medium">
+                                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0"/>
+                                    {portalEmail}
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no puede modificarse</p>
+                            </div>
+                        ) : (
+                            <EmailsInput
+                                label="Correos del demandante (para notificaciones)"
+                                value={emailsDem}
+                                onChange={setEmailsDem}
+                                required
+                                placeholder="correo@ejemplo.com"
+                                error={errors.email_demandante}
+                            />
+                        )}
+                    </div>
                 </div>
+                <Input id="telefono_demandante" label="Teléfono" required type="text"
+                    value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
+                    disabled={isAuth || (isPortal && !!user?.telefono)} placeholder="987654321" error={errors.telefono_demandante} />
             </div>
 
             <BloquePersona
@@ -414,16 +486,20 @@ export default function ArbitrajeForm({ servicio }) {
                 conRepresentante={false}
             />
 
-            {/* Email y teléfono del demandado */}
+            {/* Email(s) y teléfono del demandado */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <Input label="Correo electrónico del demandado" type="email"
-                        value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
-                        placeholder="correo@ejemplo.com" />
-                    <Input label="Teléfono del demandado" type="text"
-                        value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
-                        placeholder="987654321" />
+                <div className="mb-4">
+                    <EmailsInput
+                        label="Correos del demandado (opcional, para notificaciones)"
+                        value={emailsDado}
+                        onChange={setEmailsDado}
+                        required={false}
+                        placeholder="correo@ejemplo.com"
+                    />
                 </div>
+                <Input label="Teléfono del demandado" type="text"
+                    value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
+                    placeholder="987654321" />
             </div>
 
             {/* Controversia */}

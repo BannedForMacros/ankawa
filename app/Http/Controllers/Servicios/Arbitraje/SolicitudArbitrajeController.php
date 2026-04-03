@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SolicitudArbitraje;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorEmail;
 use App\Models\TipoActorExpediente;
 use App\Models\ServicioTipoActor;
 use App\Models\TipoCorrelativo;
@@ -69,14 +70,20 @@ class SolicitudArbitrajeController extends Controller
             $passwordRaw = null;
 
             if (!$userId) {
-                $userExists = User::where('email', $request->email_demandante)
+                $existingUser = User::where('email', $request->email_demandante)
                     ->orWhere('numero_documento', $request->documento_demandante)
-                    ->exists();
+                    ->first();
 
-                if ($userExists) {
+                $esPortal = session('portal_email') &&
+                    strtolower(session('portal_email')) === strtolower($request->email_demandante);
+
+                if ($existingUser && !$esPortal) {
                     return back()->withErrors(['general' => 'El correo o documento ya pertenece a un usuario registrado. Por favor, inicie sesión.']);
                 }
 
+                if ($existingUser) {
+                    $userId = $existingUser->id;
+                } else {
                 $passwordRaw  = $request->documento_demandante . Str::random(6);
                 $usuarioNuevo = User::create([
                     'name'             => $request->nombre_demandante,
@@ -90,6 +97,7 @@ class SolicitudArbitrajeController extends Controller
                     'activo'           => 1,
                 ]);
                 $userId = $usuarioNuevo->id;
+                } // end else (nuevo usuario)
             }
 
             // ── 3. Crear solicitud ───────────────────────────────────────────
@@ -184,7 +192,45 @@ class SolicitudArbitrajeController extends Controller
                 ]);
             }
 
-            // 5c. Auto-asignar actores configurados para este servicio
+            // 5c. Guardar emails adicionales del demandante
+            $emailsDemandante = json_decode($request->input('emails_demandante', '[]'), true) ?? [];
+            if (!empty($emailsDemandante)) {
+                $actorDemandante = ExpedienteActor::where('expediente_id', $expediente->id)
+                    ->where('tipo_actor_id', $tipoActorDemandante?->id)->first();
+                if ($actorDemandante) {
+                    foreach (array_values($emailsDemandante) as $orden => $item) {
+                        if (!empty($item['email'])) {
+                            ExpedienteActorEmail::create([
+                                'expediente_actor_id' => $actorDemandante->id,
+                                'email'               => $item['email'],
+                                'label'               => $item['label'] ?? null,
+                                'orden'               => $orden + 1,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // 5d. Guardar emails adicionales del demandado
+            $emailsDemandado = json_decode($request->input('emails_demandado', '[]'), true) ?? [];
+            if (!empty($emailsDemandado)) {
+                $actorDemandado = ExpedienteActor::where('expediente_id', $expediente->id)
+                    ->where('tipo_actor_id', $tipoActorDemandado?->id)->first();
+                if ($actorDemandado) {
+                    foreach (array_values($emailsDemandado) as $orden => $item) {
+                        if (!empty($item['email'])) {
+                            ExpedienteActorEmail::create([
+                                'expediente_actor_id' => $actorDemandado->id,
+                                'email'               => $item['email'],
+                                'label'               => $item['label'] ?? null,
+                                'orden'               => $orden + 1,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // 5e. Auto-asignar actores configurados para este servicio
             $this->autoAsignarActores($expediente, $request->servicio_id);
 
             // ── 6. Guardar documentos adjuntos ───────────────────────────────

@@ -1,8 +1,21 @@
 import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
-import Formulario from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
+import ArbitrajeForm from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
+import OtrosForm     from '@/Pages/MesaPartes/Formularios/OtrosForm';
+import JPRDForm      from '@/Pages/MesaPartes/Formularios/JPRDForm';
 import { Shield, CheckCircle, Zap, ArrowLeft, Clock, FileText, ChevronRight } from 'lucide-react';
+
+const FORMS = {
+    arbitraje: ArbitrajeForm,
+    jprd:      JPRDForm,
+    otros:     OtrosForm,
+};
+
+function FormularioPorServicio({ servicio }) {
+    const Comp = FORMS[servicio.slug] ?? OtrosForm;
+    return <Comp servicio={servicio} />;
+}
 
 // ── Requisitos antes del formulario ──
 function Requisitos({ servicio, onContinue }) {
@@ -166,7 +179,7 @@ export default function Index({ servicios }) {
                                                                 Formulario vive en Solicitud/Formulario.jsx
                                                                 Recibe el servicio seleccionado como prop
                                                             */}
-                                                            <Formulario servicio={servicioActivo} />
+                                                            <FormularioPorServicio servicio={servicioActivo} />
                                                         </div>
                                                     )}
                                                 </>

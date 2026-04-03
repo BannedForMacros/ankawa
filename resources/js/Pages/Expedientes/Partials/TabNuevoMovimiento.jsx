@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useState, useMemo, useRef, useEffect, Children } from 'react';
+import ConfirmModal from '@/Components/ConfirmModal';
 import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail } from 'lucide-react';
 
 export const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
@@ -145,10 +146,10 @@ export function MovimientoCard({
     }
 
     return (
-        <div className={`border border-gray-200 border-l-4 ${tipoInfo.header} rounded-xl overflow-hidden bg-white`}>
+        <div className={`border border-gray-200 border-l-4 ${tipoInfo.header} rounded-xl bg-white`}>
 
             {/* ── Header de la card ── */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b border-gray-100">
+            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 rounded-t-xl">
                 <div className="flex items-center gap-2">
                     {total > 1 && (
                         <span className="text-xs font-black text-[#291136] bg-white border border-gray-200 rounded px-1.5">#{idx + 1}</span>
@@ -405,6 +406,7 @@ export default function TabNuevoMovimiento({
     const [movimientos, setMovimientos]      = useState([movVacio(expediente, defaultNotificarIds)]);
     const [archivosMovimientos, setArchivos] = useState({ 0: [] });
     const [procesando, setProcesando]        = useState(false);
+    const [confirm, setConfirm] = useState(false);
 
     const actoresExpediente = useMemo(() =>
         (expediente.actores ?? []).filter(a => a.activo && a.usuario),
@@ -464,6 +466,11 @@ export default function TabNuevoMovimiento({
 
     function handleSubmit(e) {
         e.preventDefault();
+        setConfirm(true);
+    }
+
+    function doSubmit() {
+        setConfirm(false);
         setProcesando(true);
 
         if (movimientos.length === 1) {
@@ -519,6 +526,17 @@ export default function TabNuevoMovimiento({
     const esBatch = movimientos.length > 1;
 
     return (
+        <>
+        <ConfirmModal
+            open={confirm}
+            titulo="Confirmar movimiento"
+            resumen={movimientos.length > 1
+                ? `Se crearán ${movimientos.length} movimientos en secuencia para este expediente.`
+                : 'Se creará el movimiento y se notificará a los actores seleccionados.'}
+            onConfirm={doSubmit}
+            onCancel={() => setConfirm(false)}
+            confirmando={procesando}
+        />
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {/* Header */}
             <div
@@ -567,5 +585,6 @@ export default function TabNuevoMovimiento({
                 </div>
             </form>
         </div>
+        </>
     );
 }

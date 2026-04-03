@@ -6,6 +6,7 @@ use App\Models\Servicio;
 use App\Models\SolicitudArbitraje;
 use App\Models\SolicitudSubsanacion;
 use App\Models\Documento;
+use App\Models\User;
 use App\Models\VerificationCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -21,15 +22,35 @@ class MesaPartesController extends Controller
     // 1. MÉTODOS PÚBLICOS (Sin Login)
     // =======================================================
 
-    // ── Página pública — presentar solicitud (Elige el servicio) ──
+    // ── Entrada unificada — Login OTP ──
     public function index()
     {
-        $servicios = Servicio::where('activo', 1)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre', 'descripcion']);
+        if (session('portal_email')) {
+            return redirect()->route('mesa-partes.inicio');
+        }
+        return Inertia::render('MesaPartes/Login');
+    }
 
-        return Inertia::render('MesaPartes/Index', [
-            'servicios' => $servicios,
+    // ── Formulario de solicitud por slug (protegido por portal.auth) ──
+    public function formularioPorSlug(string $slug)
+    {
+        $servicio = Servicio::where('slug', $slug)->where('activo', 1)->firstOrFail();
+        $email    = session('portal_email');
+        $usuario  = User::where('email', $email)->first();
+
+        $portalUser = $usuario ? [
+            'name'             => $usuario->name,
+            'email'            => $email,
+            'numero_documento' => $usuario->numero_documento,
+            'telefono'         => $usuario->telefono,
+            'direccion'        => $usuario->direccion,
+            'tipo_persona'     => $usuario->tipo_persona,
+        ] : null;
+
+        return Inertia::render('MesaPartes/Solicitud', [
+            'servicio'   => $servicio,
+            'portalEmail' => $email,
+            'portalUser'  => $portalUser,
         ]);
     }
 
@@ -270,7 +291,7 @@ class MesaPartesController extends Controller
     public function nuevaSolicitudAuth()
     {
         // Traemos los servicios igual que en la página pública
-        $servicios = Servicio::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre', 'descripcion']);
+        $servicios = Servicio::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre', 'slug', 'descripcion']);
 
         return Inertia::render('MesaPartes/NuevaSolicitudAuth', [
             'servicios' => $servicios,
