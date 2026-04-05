@@ -4,8 +4,6 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail } from 'lucide-react';
 
-export const GENERA_CARGO_DEFAULT = { requerimiento: true, notificacion: false, propia: false };
-
 export const movVacioBase = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
     etapa_id:                    String(expediente.etapa_actual_id ?? ''),
@@ -17,10 +15,12 @@ export const movVacioBase = (expediente, notificarIds = []) => ({
     dias_plazo:                  '',
     tipo_dias:                   'calendario',
     tipo_documento_requerido_id: '',
-    enviar_credenciales:         false,
-    actor_credenciales_id:       '',
+    habilitar_mesa_partes:          false,
+    actores_mesa_partes_ids:        [],
+    enviar_credenciales_expediente: false,
+    actor_credenciales_exp_id:      '',
+    credenciales_email_destino:     '',
     notificar_a:                 notificarIds,
-    genera_cargo:                true,
 });
 
 const TIPOS = {
@@ -123,25 +123,36 @@ const FieldLabel = ({ children }) => (
 export function MovimientoCard({
     mov, idx, total,
     etapas, tiposActorEnExpediente, actoresExpediente,
-    tiposDocumento, actoresConCredenciales, actoresNotificables,
+    tiposDocumento, actoresSinMesaPartes, actoresSinExpElectronico, actoresNotificables,
     archivos, onArchivos, onChange, onMover, onQuitar,
 }) {
     const tipo     = mov.tipo ?? 'requerimiento';
     const tipoInfo = TIPOS[tipo];
     const esPropia = tipo === 'propia';
     const esReq    = tipo === 'requerimiento';
+    const esNotif  = tipo === 'notificacion';
 
     const subEtapas = useMemo(() => {
         const et = etapas.find(e => String(e.id) === String(mov.etapa_id));
         return et?.sub_etapas ?? [];
     }, [mov.etapa_id, etapas]);
 
+    // Solo actores con acceso a Mesa de Partes (pueden recibir requerimientos y responder)
+    const actoresConAcceso = useMemo(() =>
+        actoresExpediente.filter(a => a.acceso_mesa_partes),
+    [actoresExpediente]);
+
+    // Tipos de actor donde al menos uno tiene acceso (para el select de Responsable)
+    const tiposActorConAcceso = useMemo(() => {
+        const ids = new Set(actoresConAcceso.map(a => a.tipo_actor_id));
+        return tiposActorEnExpediente.filter(t => ids.has(t.id));
+    }, [actoresConAcceso, tiposActorEnExpediente]);
+
     const usuariosFiltrados = useMemo(() => {
-        if (!mov.tipo_actor_responsable_id) return actoresExpediente;
-        return actoresExpediente.filter(
-            a => String(a.tipo_actor_id) === String(mov.tipo_actor_responsable_id)
-        );
-    }, [mov.tipo_actor_responsable_id, actoresExpediente]);
+        const base = actoresConAcceso;
+        if (!mov.tipo_actor_responsable_id) return base;
+        return base.filter(a => String(a.tipo_actor_id) === String(mov.tipo_actor_responsable_id));
+    }, [mov.tipo_actor_responsable_id, actoresConAcceso]);
 
     function removeFile(i) {
         onArchivos(archivos.filter((_, j) => j !== i));
@@ -162,7 +173,6 @@ export function MovimientoCard({
                             <button key={key} type="button"
                                 onClick={() => {
                                     onChange('tipo', key);
-                                    onChange('genera_cargo', GENERA_CARGO_DEFAULT[key] ?? false);
                                     if (key !== 'requerimiento') { onChange('dias_plazo', ''); onChange('tipo_actor_responsable_id', ''); onChange('usuario_responsable_id', ''); }
                                 }}
                                 className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${
@@ -218,12 +228,18 @@ export function MovimientoCard({
                     </div>
                 </div>
 
-                {/* ── SECCIÓN 2: Instrucción / Acción realizada ── */}
+                {/* ── SECCIÓN 2: Instrucción / Descripción / Acción realizada ── */}
                 <div>
-                    <SectionLabel>{esPropia ? 'Acción realizada' : 'Instrucción'}</SectionLabel>
+                    <SectionLabel>
+                        {esPropia ? 'Acción realizada' : esNotif ? 'Descripción del traslado' : 'Instrucción'}
+                    </SectionLabel>
                     <textarea value={mov.instruccion} onChange={e => onChange('instruccion', e.target.value)}
                         rows={3} className={inputCls}
-                        placeholder={esPropia ? 'Describa la acción realizada por el gestor...' : 'Describa la instrucción o acción a realizar...'}
+                        placeholder={
+                            esPropia ? 'Describa la acción realizada por el gestor...'
+                            : esNotif ? 'Describa el contenido del traslado o notificación...'
+                            : 'Describa la instrucción o acción a realizar...'
+                        }
                     />
                 </div>
 
@@ -237,7 +253,7 @@ export function MovimientoCard({
                                 <AnkawaSelect value={mov.tipo_actor_responsable_id}
                                     onChange={e => { onChange('tipo_actor_responsable_id', e.target.value); onChange('usuario_responsable_id', ''); }}>
                                     <option value="">— Ninguno —</option>
-                                    {tiposActorEnExpediente.map(ta => <option key={ta.id} value={ta.id}>{ta.nombre}</option>)}
+                                    {tiposActorConAcceso.map(ta => <option key={ta.id} value={ta.id}>{ta.nombre}</option>)}
                                 </AnkawaSelect>
                             </div>
                             <div>
@@ -279,15 +295,30 @@ export function MovimientoCard({
                     </div>
                 )}
 
-                {/* ── SECCIÓN 4: Tipo documento requerido (no en actuación propia) ── */}
-                {!esPropia && (
+                {/* ── SECCIÓN 4: Tipo documento requerido (solo requerimiento) ── */}
+                {esReq && (
                     <div>
                         <SectionLabel>Documento requerido</SectionLabel>
-                        <AnkawaSelect value={mov.tipo_documento_requerido_id}
-                            onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}>
-                            <option value="">— Ninguno —</option>
-                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                        </AnkawaSelect>
+                        {(() => {
+                            const docsFiltered = mov.tipo_actor_responsable_id
+                                ? tiposDocumento.filter(td =>
+                                    td.permisos?.some(p =>
+                                        String(p.tipo_actor_id) === String(mov.tipo_actor_responsable_id) && p.puede_subir
+                                    )
+                                  )
+                                : tiposDocumento;
+                            return docsFiltered.length === 0 && mov.tipo_actor_responsable_id ? (
+                                <p className="text-xs text-gray-400 italic mt-1">
+                                    Sin documentos configurados para requerir a este actor.
+                                </p>
+                            ) : (
+                                <AnkawaSelect value={mov.tipo_documento_requerido_id}
+                                    onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}>
+                                    <option value="">— Ninguno —</option>
+                                    {docsFiltered.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
+                                </AnkawaSelect>
+                            );
+                        })()}
                     </div>
                 )}
 
@@ -321,8 +352,134 @@ export function MovimientoCard({
                 <div className="border-t border-gray-100 pt-4 space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Opciones adicionales</p>
 
-                    {/* Notificación por email */}
-                    {actoresNotificables.length > 0 && (
+                    {/* Habilitar acceso a Mesa de Partes — solo notificacion/propia, actores sin acceso */}
+                    {!esReq && actoresSinMesaPartes.length > 0 && (
+                        <div className="border border-emerald-200/60 rounded-xl overflow-hidden">
+                            <label className="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50/60 cursor-pointer select-none">
+                                <input type="checkbox"
+                                    checked={!!mov.habilitar_mesa_partes}
+                                    onChange={e => {
+                                        onChange('habilitar_mesa_partes', e.target.checked);
+                                        if (!e.target.checked) onChange('actores_mesa_partes_ids', []);
+                                    }}
+                                    className="w-4 h-4 accent-emerald-600 rounded"/>
+                                <Mail size={13} className="text-emerald-600 shrink-0"/>
+                                <span className="text-sm font-bold text-emerald-700">Habilitar acceso a Mesa de Partes</span>
+                            </label>
+                            {mov.habilitar_mesa_partes && (
+                                <div className="px-3.5 py-3 bg-white border-t border-emerald-200/40 space-y-1.5">
+                                    <p className="text-xs text-emerald-600 leading-relaxed mb-2">
+                                        Los actores seleccionados podrán ver este expediente en el portal, responder requerimientos y enviar documentos. Se notificará por email.
+                                    </p>
+                                    {actoresSinMesaPartes.map(actor => {
+                                        const sel = mov.actores_mesa_partes_ids.includes(actor.id);
+                                        return (
+                                            <label key={actor.id}
+                                                className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors select-none ${
+                                                    sel ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-gray-100 hover:border-gray-200'
+                                                }`}>
+                                                <input type="checkbox" checked={sel}
+                                                    onChange={e => onChange('actores_mesa_partes_ids', e.target.checked
+                                                        ? [...mov.actores_mesa_partes_ids, actor.id]
+                                                        : mov.actores_mesa_partes_ids.filter(x => x !== actor.id))}
+                                                    className="w-3.5 h-3.5 accent-emerald-600 rounded shrink-0"/>
+                                                <div className="flex-1 min-w-0">
+                                                    <span className={`text-sm font-semibold ${sel ? 'text-emerald-800' : 'text-gray-700'}`}>
+                                                        {actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre'}
+                                                    </span>
+                                                    <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1.5">
+                                                        {actor.tipo_actor?.nombre}
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Enviar credenciales de Expediente Electrónico — solo notificacion/propia */}
+                    {!esReq && actoresSinExpElectronico.length > 0 && (
+                        <div className="border border-amber-200/60 rounded-xl overflow-hidden">
+                            <label className="flex items-center gap-2.5 px-3.5 py-2.5 bg-amber-50/60 cursor-pointer select-none">
+                                <input type="checkbox"
+                                    checked={!!mov.enviar_credenciales_expediente}
+                                    onChange={e => {
+                                        onChange('enviar_credenciales_expediente', e.target.checked);
+                                        if (!e.target.checked) { onChange('actor_credenciales_exp_id', ''); onChange('credenciales_email_destino', ''); }
+                                    }}
+                                    className="w-4 h-4 accent-amber-500 rounded"/>
+                                <KeyRound size={13} className="text-amber-600 shrink-0"/>
+                                <span className="text-sm font-bold text-amber-700">Enviar credenciales de Expediente Electrónico</span>
+                            </label>
+                            {mov.enviar_credenciales_expediente && (
+                                <div className="px-3.5 py-3 bg-white border-t border-amber-200/40 space-y-2">
+                                    <p className="text-xs text-amber-600 leading-relaxed mb-1">
+                                        El actor recibirá credenciales (email + contraseña) para acceder al historial completo del expediente en la plataforma interna.
+                                    </p>
+                                    <FieldLabel>Actor que recibirá credenciales</FieldLabel>
+                                    <AnkawaSelect
+                                        value={mov.actor_credenciales_exp_id}
+                                        onChange={e => {
+                                            onChange('actor_credenciales_exp_id', e.target.value);
+                                            onChange('credenciales_email_destino', '');
+                                        }}>
+                                        <option value="">— Seleccionar actor —</option>
+                                        {actoresSinExpElectronico.map(a => (
+                                            <option key={a.id} value={a.id}>
+                                                {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {a.tipo_actor?.nombre}
+                                            </option>
+                                        ))}
+                                    </AnkawaSelect>
+                                    {mov.actor_credenciales_exp_id && (() => {
+                                        const actorSel = actoresExpediente.find(a => String(a.id) === String(mov.actor_credenciales_exp_id));
+                                        if (!actorSel) return null;
+                                        const emailPrincipal = actorSel.usuario?.email ?? actorSel.email_externo ?? '';
+                                        const adicionales = (actorSel.emails_adicionales ?? []).filter(e => e.activo !== false);
+                                        const todosEmails = [
+                                            emailPrincipal ? { email: emailPrincipal, label: 'Principal' } : null,
+                                            ...adicionales,
+                                        ].filter(Boolean);
+
+                                        if (todosEmails.length <= 1) {
+                                            return (
+                                                <p className="text-xs text-amber-600 leading-relaxed">
+                                                    Las credenciales se enviarán a <strong>{emailPrincipal}</strong>.
+                                                </p>
+                                            );
+                                        }
+
+                                        return (
+                                            <div>
+                                                <FieldLabel>Correo destino para las credenciales</FieldLabel>
+                                                <AnkawaSelect
+                                                    value={mov.credenciales_email_destino || emailPrincipal}
+                                                    onChange={e => onChange('credenciales_email_destino', e.target.value)}>
+                                                    {todosEmails.map(e => (
+                                                        <option key={e.email} value={e.email}>
+                                                            {e.email}{e.label ? ` (${e.label})` : ''}
+                                                        </option>
+                                                    ))}
+                                                </AnkawaSelect>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Observaciones */}
+                    <div>
+                        <FieldLabel>Observaciones <span className="font-normal text-gray-400">(opcional)</span></FieldLabel>
+                        <textarea value={mov.observaciones} onChange={e => onChange('observaciones', e.target.value)}
+                            rows={2} className={inputCls}
+                            placeholder="Observaciones adicionales..."/>
+                    </div>
+
+                    {/* Notificación por email — solo actores con acceso_mesa_partes, no en propia */}
+                    {!esPropia && actoresNotificables.length > 0 && (
                         <div className="border border-gray-100 rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-50 border-b border-gray-100">
                                 <Mail size={13} className="text-gray-400"/>
@@ -376,62 +533,6 @@ export function MovimientoCard({
                             </div>
                         </div>
                     )}
-
-                    {/* Credenciales — solo actores SIN credenciales enviadas */}
-                    {actoresConCredenciales.length > 0 && (
-                        <div className="border border-amber-200/60 rounded-xl overflow-hidden">
-                            <label className="flex items-center gap-2.5 px-3.5 py-2.5 bg-amber-50/60 cursor-pointer select-none">
-                                <input type="checkbox"
-                                    checked={!!mov.enviar_credenciales}
-                                    onChange={e => {
-                                        onChange('enviar_credenciales', e.target.checked);
-                                        if (!e.target.checked) onChange('actor_credenciales_id', '');
-                                    }}
-                                    className="w-4 h-4 accent-amber-500 rounded"/>
-                                <KeyRound size={13} className="text-amber-600 shrink-0"/>
-                                <span className="text-sm font-bold text-amber-700">Enviar credenciales de acceso</span>
-                            </label>
-                            {mov.enviar_credenciales && (
-                                <div className="px-3.5 py-3 bg-white border-t border-amber-200/40 space-y-2">
-                                    <FieldLabel>Actor que recibirá sus credenciales</FieldLabel>
-                                    <AnkawaSelect
-                                        value={mov.actor_credenciales_id}
-                                        onChange={e => onChange('actor_credenciales_id', e.target.value)}>
-                                        <option value="">— Seleccionar actor —</option>
-                                        {actoresConCredenciales.map(a => (
-                                            <option key={a.id} value={a.id}>
-                                                {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {a.tipo_actor?.nombre}
-                                            </option>
-                                        ))}
-                                    </AnkawaSelect>
-                                    {mov.actor_credenciales_id && (
-                                        <p className="text-xs text-amber-600 leading-relaxed">
-                                            Se enviarán <strong>2 emails</strong>: uno de notificación a todos los seleccionados arriba, y otro con las credenciales únicamente a este actor.
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Genera cargo — solo requerimiento */}
-                    {esReq && (
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input type="checkbox" checked={!!mov.genera_cargo}
-                                onChange={e => onChange('genera_cargo', e.target.checked)}
-                                className="w-4 h-4 accent-[#BE0F4A] rounded"/>
-                            <span className="text-sm font-semibold text-[#291136]">Generar cargo al responder</span>
-                            <span className="text-xs text-gray-400">— acuse de recibo</span>
-                        </label>
-                    )}
-
-                    {/* Observaciones */}
-                    <div>
-                        <FieldLabel>Observaciones <span className="font-normal text-gray-400">(opcional)</span></FieldLabel>
-                        <textarea value={mov.observaciones} onChange={e => onChange('observaciones', e.target.value)}
-                            rows={2} className={inputCls}
-                            placeholder="Observaciones adicionales..."/>
-                    </div>
                 </div>
             </div>
         </div>
@@ -460,9 +561,14 @@ export default function TabNuevoMovimiento({
         return tiposActor.filter(t => idsPresentes.has(t.id));
     }, [actoresExpediente, tiposActor]);
 
-    // Solo actores que AÚN NO han recibido credenciales
-    const actoresConCredenciales = useMemo(() =>
-        actoresExpediente.filter(a => !a.credenciales_enviadas),
+    // Actores sin acceso a Mesa de Partes
+    const actoresSinMesaPartes = useMemo(() =>
+        actoresExpediente.filter(a => !a.acceso_mesa_partes),
+    [actoresExpediente]);
+
+    // Actores sin acceso a Expediente Electrónico
+    const actoresSinExpElectronico = useMemo(() =>
+        actoresExpediente.filter(a => !a.acceso_expediente_electronico),
     [actoresExpediente]);
 
     function actualizar(idx, field, value) {
@@ -529,9 +635,11 @@ export default function TabNuevoMovimiento({
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
             form.append('tipo_dias',                   mov.tipo_dias ?? 'calendario');
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
-            form.append('enviar_credenciales',         mov.enviar_credenciales ? '1' : '0');
-            form.append('actor_credenciales_id',       mov.actor_credenciales_id ?? '');
-            form.append('genera_cargo',                mov.genera_cargo ? '1' : '0');
+            form.append('habilitar_mesa_partes',          mov.habilitar_mesa_partes ? '1' : '0');
+            mov.actores_mesa_partes_ids.forEach(id => form.append('actores_mesa_partes_ids[]', id));
+            form.append('enviar_credenciales_expediente', mov.enviar_credenciales_expediente ? '1' : '0');
+            form.append('actor_credenciales_exp_id',     mov.actor_credenciales_exp_id ?? '');
+            form.append('credenciales_email_destino',    mov.credenciales_email_destino ?? '');
             (archivosMovimientos[0] ?? []).forEach(f => form.append('documentos[]', f));
             mov.notificar_a.forEach(id => form.append('notificar_a[]', id));
 
@@ -558,9 +666,11 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
                 form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
                 form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
-                form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
-                form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
-                form.append(`movimientos[${i}][genera_cargo]`,                mov.genera_cargo ? '1' : '0');
+                form.append(`movimientos[${i}][habilitar_mesa_partes]`,          mov.habilitar_mesa_partes ? '1' : '0');
+                mov.actores_mesa_partes_ids.forEach(id => form.append(`movimientos[${i}][actores_mesa_partes_ids][]`, id));
+                form.append(`movimientos[${i}][enviar_credenciales_expediente]`, mov.enviar_credenciales_expediente ? '1' : '0');
+                form.append(`movimientos[${i}][actor_credenciales_exp_id]`,     mov.actor_credenciales_exp_id ?? '');
+                form.append(`movimientos[${i}][credenciales_email_destino]`,    mov.credenciales_email_destino ?? '');
                 mov.notificar_a.forEach(id => form.append(`movimientos[${i}][notificar_a][]`, id));
                 (archivosMovimientos[i] ?? []).forEach(f => form.append(`documentos[${i}][]`, f));
             });
@@ -617,7 +727,8 @@ export default function TabNuevoMovimiento({
                             tiposActorEnExpediente={tiposActorEnExpediente}
                             actoresExpediente={actoresExpediente}
                             tiposDocumento={tiposDocumento}
-                            actoresConCredenciales={actoresConCredenciales}
+                            actoresSinMesaPartes={actoresSinMesaPartes}
+                            actoresSinExpElectronico={actoresSinExpElectronico}
                             actoresNotificables={actoresNotificables}
                             archivos={archivosMovimientos[idx] ?? []}
                             onArchivos={files => setArchivosIdx(idx, files)}

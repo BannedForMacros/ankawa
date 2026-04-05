@@ -1,14 +1,16 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle } from 'lucide-react';
-import { MovimientoCard, movVacioBase, GENERA_CARGO_DEFAULT } from './TabNuevoMovimiento';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus } from 'lucide-react';
+import { MovimientoCard, movVacioBase } from './TabNuevoMovimiento';
 import toast from 'react-hot-toast';
 
 const movVacio = movVacioBase;
 
-export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], actoresNotificables = [], tiposDocumento = [] }) {
-    const [editando, setEditando]         = useState(false);
-    const [paso, setPaso]                 = useState('idle');
+export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], tiposActor = [], actoresNotificables = [], tiposDocumento = [] }) {
+    const [editando, setEditando]             = useState(false);
+    const [paso, setPaso]                     = useState('idle');
+    const [emailFormActorId, setEmailFormActorId] = useState(null);
+    const [showFormDemandado, setShowFormDemandado] = useState(false);
     const [motivoNoConforme, setMotivo]   = useState('');
     const [movimientos, setMovimientos]   = useState([]);
     const [archivosMovimientos, setArchivos] = useState({});
@@ -80,8 +82,10 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 tipo_actor_responsable_id:  String(demandado?.tipo_actor_id ?? ''),
                 usuario_responsable_id:     String(demandado?.usuario?.id ?? ''),
                 dias_plazo:                 String(plazoApers),
-                enviar_credenciales:        !!demandado?.id,
-                actor_credenciales_id:      String(demandado?.id ?? ''),
+                habilitar_mesa_partes:          !!demandado?.id,
+                actores_mesa_partes_ids:        demandado?.id ? [demandado.id] : [],
+                enviar_credenciales_expediente: false,
+                actor_credenciales_exp_id:      '',
             },
         ]);
         setArchivos({ 0: [], 1: [] });
@@ -140,9 +144,11 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
             form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
             form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
-            form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
-            form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
-            form.append(`movimientos[${i}][genera_cargo]`,                mov.genera_cargo ? '1' : '0');
+            form.append(`movimientos[${i}][habilitar_mesa_partes]`,          mov.habilitar_mesa_partes ? '1' : '0');
+            (mov.actores_mesa_partes_ids ?? []).forEach(id => form.append(`movimientos[${i}][actores_mesa_partes_ids][]`, id));
+            form.append(`movimientos[${i}][enviar_credenciales_expediente]`, mov.enviar_credenciales_expediente ? '1' : '0');
+            form.append(`movimientos[${i}][actor_credenciales_exp_id]`,     mov.actor_credenciales_exp_id ?? '');
+            form.append(`movimientos[${i}][credenciales_email_destino]`,    mov.credenciales_email_destino ?? '');
             mov.notificar_a.forEach(id => form.append(`movimientos[${i}][notificar_a][]`, id));
             (archivosMovimientos[i] ?? []).forEach(f => form.append(`documentos[${i}][]`, f));
         });
@@ -152,6 +158,33 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             onFinish:  () => setProcesando(false),
             onError:   errs => { setErrores(errs); toast.error('Error al registrar la conformidad. Revise los campos.'); },
             onSuccess: () => { setPaso('idle'); toast.success('Conformidad registrada correctamente.'); },
+        });
+    }
+
+    // ── Partes del proceso ──
+    const demandantes = (expediente.actores ?? []).filter(a => a.activo && a.tipo_actor?.slug === 'demandante');
+    const demandados  = (expediente.actores ?? []).filter(a => a.activo && a.tipo_actor?.slug === 'demandado');
+    const tipoActorDemandado = tiposActor.find(t => t.slug === 'demandado');
+
+    const formEmail = useForm({ email: '', label: '' });
+    function abrirFormEmail(actorId) { formEmail.reset(); setEmailFormActorId(actorId); }
+    function cerrarFormEmail() { formEmail.reset(); setEmailFormActorId(null); }
+    function agregarEmail(e, actorId) {
+        e.preventDefault();
+        formEmail.post(route('expedientes.actores.emails.store', [expediente.id, actorId]), {
+            onSuccess: () => cerrarFormEmail(),
+        });
+    }
+    function eliminarEmail(actorId, emailId) {
+        if (!confirm('¿Eliminar este correo?')) return;
+        router.delete(route('expedientes.actores.emails.destroy', [expediente.id, actorId, emailId]));
+    }
+
+    const formDemandado = useForm({ tipo_actor_id: tipoActorDemandado?.id ?? '', modo: 'externo', nombre_externo: '', email_externo: '' });
+    function agregarDemandado(e) {
+        e.preventDefault();
+        formDemandado.post(route('expedientes.actores.store', expediente.id), {
+            onSuccess: () => { formDemandado.reset(); setShowFormDemandado(false); },
         });
     }
 
@@ -168,9 +201,10 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         domicilio_demandado:     solicitud.domicilio_demandado ?? '',
         email_demandado:         solicitud.email_demandado ?? '',
         telefono_demandado:      solicitud.telefono_demandado ?? '',
-        resumen_controversia:    solicitud.resumen_controversia ?? '',
-        pretensiones:            solicitud.pretensiones ?? '',
-        monto_involucrado:       solicitud.monto_involucrado ?? '',
+        resumen_controversia:                       solicitud.resumen_controversia ?? '',
+        pretensiones:                               solicitud.pretensiones ?? '',
+        monto_involucrado:                          solicitud.monto_involucrado ?? '',
+        solicita_designacion_director_demandado:    solicitud.solicita_designacion_director_demandado ? true : false,
     });
 
     function guardarEdicion(e) {
@@ -214,7 +248,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             tiposActorEnExpediente={tiposActorEnExpediente}
                             actoresExpediente={actoresExpediente}
                             tiposDocumento={tiposDocumento}
-                            actoresConCredenciales={actoresExpediente}
+                            actoresSinMesaPartes={actoresExpediente.filter(a => !a.acceso_mesa_partes)}
+                            actoresSinExpElectronico={actoresExpediente.filter(a => !a.acceso_expediente_electronico)}
                             actoresNotificables={actoresNotificables}
                             archivos={archivosMovimientos[idx] ?? []}
                             onArchivos={files => setArchivos(prev => ({ ...prev, [idx]: files }))}
@@ -251,8 +286,132 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         );
     }
 
+    const inputSmCls = "w-full text-sm border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]";
+
+    // Render de una parte (demandante o demandado) con gestión de emails
+    function renderParte(actor) {
+        const emailPrincipal = actor.usuario?.email ?? actor.email_externo ?? null;
+        const adicionales = (actor.emails_adicionales ?? []).filter(e => e.activo !== false);
+        const mostrando = emailFormActorId === actor.id;
+        return (
+            <div key={actor.id} className="bg-gray-50 rounded-xl border border-gray-100 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                    <div>
+                        <p className="text-sm font-bold text-[#291136]">{actor.usuario?.name ?? '—'}</p>
+                        <p className="text-xs text-gray-400">{actor.tipo_actor?.nombre}</p>
+                    </div>
+                    {esGestor && (
+                        <button onClick={() => mostrando ? cerrarFormEmail() : abrirFormEmail(actor.id)}
+                            className={`p-1.5 rounded-lg transition-colors ${mostrando ? 'bg-[#BE0F4A]/10 text-[#BE0F4A]' : 'text-gray-300 hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/10'}`}
+                            title="Gestionar correos">
+                            <Mail size={14}/>
+                        </button>
+                    )}
+                </div>
+                {/* Lista de emails */}
+                <div className="space-y-1">
+                    {emailPrincipal && (
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] shrink-0"/>
+                            <span className="font-medium">{emailPrincipal}</span>
+                            <span className="text-gray-400 text-[10px]">(principal)</span>
+                        </div>
+                    )}
+                    {adicionales.map(e => (
+                        <div key={e.id} className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"/>
+                            <span>{e.email}</span>
+                            {e.label && <span className="text-gray-400 text-[10px]">({e.label})</span>}
+                            {esGestor && (
+                                <button onClick={() => eliminarEmail(actor.id, e.id)} className="ml-auto text-gray-300 hover:text-red-500 transition-colors" title="Eliminar">
+                                    <X size={11}/>
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    {!emailPrincipal && adicionales.length === 0 && <p className="text-xs text-gray-400 italic">Sin correos registrados.</p>}
+                </div>
+                {/* Form agregar email inline */}
+                {mostrando && (
+                    <form onSubmit={e => agregarEmail(e, actor.id)} className="pt-2 border-t border-dashed border-gray-200 flex flex-wrap gap-2 items-end">
+                        <input type="email" value={formEmail.data.email} onChange={e => formEmail.setData('email', e.target.value)}
+                            placeholder="nuevo@correo.com" className="flex-1 min-w-[180px] text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"/>
+                        <input type="text" value={formEmail.data.label} onChange={e => formEmail.setData('label', e.target.value)}
+                            placeholder="Etiqueta (opc.)" className="w-28 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"/>
+                        <button type="submit" disabled={formEmail.processing} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#BE0F4A]/90 disabled:opacity-50">
+                            <Plus size={11}/> Agregar
+                        </button>
+                        <button type="button" onClick={cerrarFormEmail} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5">Cancelar</button>
+                        {formEmail.errors.email && <p className="w-full text-[10px] text-red-500">{formEmail.errors.email}</p>}
+                    </form>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-4">
+
+            {/* ── Partes del proceso ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}>
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Partes del Proceso</h3>
+                    {esGestor && tipoActorDemandado && (
+                        <button onClick={() => setShowFormDemandado(v => !v)}
+                            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#BE0F4A]/90 transition-colors">
+                            <UserPlus size={12}/> Agregar demandado
+                        </button>
+                    )}
+                </div>
+                <div className="p-5 space-y-4">
+                    {/* Demandantes */}
+                    {demandantes.length > 0 && (
+                        <div>
+                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-2">Demandante(s)</p>
+                            <div className="space-y-2">{demandantes.map(a => renderParte(a))}</div>
+                        </div>
+                    )}
+                    {/* Demandados */}
+                    <div>
+                        <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-2">Demandado(s)</p>
+                        {demandados.length > 0
+                            ? <div className="space-y-2">{demandados.map(a => renderParte(a))}</div>
+                            : <p className="text-sm text-gray-400 italic">Sin demandados asignados.</p>
+                        }
+                    </div>
+                    {/* Form nuevo demandado */}
+                    {showFormDemandado && tipoActorDemandado && (
+                        <form onSubmit={agregarDemandado} className="border border-[#BE0F4A]/20 rounded-xl p-4 bg-[#BE0F4A]/5 space-y-3">
+                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide">Nuevo Demandado</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo *</label>
+                                    <input type="text" value={formDemandado.data.nombre_externo}
+                                        onChange={e => formDemandado.setData('nombre_externo', e.target.value)}
+                                        placeholder="Nombre del demandado" className={inputSmCls}/>
+                                    {formDemandado.errors.nombre_externo && <p className="text-xs text-red-500 mt-1">{formDemandado.errors.nombre_externo}</p>}
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Correo electrónico *</label>
+                                    <input type="email" value={formDemandado.data.email_externo}
+                                        onChange={e => formDemandado.setData('email_externo', e.target.value)}
+                                        placeholder="correo@ejemplo.com" className={inputSmCls}/>
+                                    {formDemandado.errors.email_externo && <p className="text-xs text-red-500 mt-1">{formDemandado.errors.email_externo}</p>}
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-400">Se creará una cuenta y se enviarán las credenciales automáticamente.</p>
+                            <div className="flex gap-2">
+                                <button type="submit" disabled={formDemandado.processing}
+                                    className="px-4 py-2 text-xs font-bold bg-[#BE0F4A] text-white rounded-lg hover:bg-[#BE0F4A]/90 disabled:opacity-50">
+                                    {formDemandado.processing ? 'Agregando...' : 'Agregar Demandado'}
+                                </button>
+                                <button type="button" onClick={() => { setShowFormDemandado(false); formDemandado.reset(); }}
+                                    className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </div>
 
             {/* ── Panel de conformidad (PRIMERO, acción principal) ── */}
             {esGestor && solicitud.resultado_revision !== 'conforme' && solicitud.estado !== 'subsanacion' && !editando && (
@@ -395,6 +554,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     <textarea value={formEdit.data.pretensiones} onChange={e => formEdit.setData('pretensiones', e.target.value)} rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"/>
                                 </div>
                                 {inputField('Monto involucrado (S/)', 'monto_involucrado', 'number')}
+                                <div className="sm:col-span-2 flex items-center gap-3">
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input type="checkbox"
+                                            checked={!!formEdit.data.solicita_designacion_director_demandado}
+                                            onChange={e => formEdit.setData('solicita_designacion_director_demandado', e.target.checked)}
+                                            className="w-4 h-4 accent-[#BE0F4A] rounded"/>
+                                        <span className="text-sm font-semibold text-gray-700">Demandado solicita designación de árbitro por el Centro</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
@@ -443,7 +611,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {campo('Monto involucrado', solicitud.monto_involucrado ? `S/ ${Number(solicitud.monto_involucrado).toLocaleString()}` : '—')}
-                                    {campo('Solicita designación por Director', solicitud.solicita_designacion_director ? 'Sí' : 'No')}
+                                    {campo('Demandante — Designación árbitro por Centro', solicitud.solicita_designacion_director ? 'Sí' : 'No')}
+                                    {campo('Demandado — Designación árbitro por Centro', solicitud.solicita_designacion_director_demandado ? 'Sí' : 'No')}
                                     {campo('Árbitro propuesto', solicitud.nombre_arbitro_propuesto)}
                                     {campo('Reglas aplicables', solicitud.reglas_aplicables)}
                                 </div>

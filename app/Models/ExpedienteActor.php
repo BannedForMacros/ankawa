@@ -19,11 +19,15 @@ class ExpedienteActor extends Model
         'es_gestor',
         'activo',
         'credenciales_enviadas',
+        'acceso_mesa_partes',
+        'acceso_expediente_electronico',
     ];
 
     protected $casts = [
-        'es_gestor'             => 'boolean',
-        'credenciales_enviadas' => 'boolean',
+        'es_gestor'                     => 'boolean',
+        'credenciales_enviadas'         => 'boolean',
+        'acceso_mesa_partes'            => 'boolean',
+        'acceso_expediente_electronico' => 'boolean',
     ];
 
     public function expediente(): BelongsTo
@@ -43,7 +47,9 @@ class ExpedienteActor extends Model
 
     public function emailsAdicionales(): HasMany
     {
-        return $this->hasMany(ExpedienteActorEmail::class, 'expediente_actor_id')->orderBy('orden');
+        return $this->hasMany(ExpedienteActorEmail::class, 'expediente_actor_id')
+            ->where('activo', 1)
+            ->orderBy('orden');
     }
 
     /**

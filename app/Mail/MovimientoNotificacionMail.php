@@ -16,15 +16,22 @@ class MovimientoNotificacionMail extends Mailable
     public function __construct(
         public ExpedienteMovimiento $movimiento,
         public string $nombreDestinatario,
+        public bool $esPortal = false,
     ) {}
 
     public function envelope(): Envelope
     {
-        $this->movimiento->loadMissing(['expediente', 'etapa', 'subEtapa', 'tipoDocumentoRequerido']);
+        $this->movimiento->loadMissing(['expediente', 'expediente.servicio', 'etapa', 'subEtapa', 'tipoDocumentoRequerido']);
         $numExp = $this->movimiento->expediente->numero_expediente ?? 'S/N';
 
+        $label = match($this->movimiento->tipo) {
+            'requerimiento' => 'Requerimiento pendiente',
+            'notificacion'  => 'Traslado / Notificación',
+            default         => 'Nuevo movimiento',
+        };
+
         return new Envelope(
-            subject: "Expediente {$numExp} — Nuevo movimiento registrado",
+            subject: "Expediente {$numExp} — {$label}",
         );
     }
 

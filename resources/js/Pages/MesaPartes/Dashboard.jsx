@@ -232,7 +232,9 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
         <ConfirmModal
             open={confirm}
             titulo="Confirmar respuesta"
-            resumen={`Enviarás tu respuesta al expediente ${expediente}. Se generará un cargo de recepción y se enviará a tu correo.`}
+            resumen={mov.tipo_documento_requerido
+                ? `Enviarás tu respuesta al expediente ${expediente}. Recuerda que te solicitaron adjuntar: "${mov.tipo_documento_requerido}". Se generará un cargo de recepción.`
+                : `Enviarás tu respuesta al expediente ${expediente}. Se generará un cargo de recepción y se enviará a tu correo.`}
             onConfirm={confirmar}
             onCancel={() => setConfirm(false)}
             confirmando={procesando}
@@ -258,6 +260,15 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
                             </p>
                         )}
                     </div>
+                    {mov.tipo_documento_requerido && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 flex items-start gap-2">
+                            <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0"/>
+                            <p className="text-xs text-amber-800 font-semibold">
+                                Documento solicitado: <span className="text-[#BE0F4A]">{mov.tipo_documento_requerido}</span>
+                                <span className="block font-normal text-amber-700 mt-0.5">Asegúrate de adjuntarlo en tu respuesta.</span>
+                            </p>
+                        </div>
+                    )}
                     <form id="form-respuesta" onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">

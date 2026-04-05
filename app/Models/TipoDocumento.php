@@ -42,7 +42,7 @@ class TipoDocumento extends Model
             'tipo_actor_tipo_documento',
             'tipo_documento_id',
             'tipo_actor_id'
-        )->withPivot('puede_subir', 'puede_ver');
+        )->withPivot('puede_subir', 'puede_ver', 'servicio_id');
     }
 
     public function scopeActivo($query)

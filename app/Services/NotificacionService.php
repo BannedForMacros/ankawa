@@ -20,6 +20,7 @@ class NotificacionService
             ->whereIn('id', $actorIds)
             ->where('expediente_id', $movimiento->expediente_id)
             ->where('activo', 1)
+            ->where('acceso_mesa_partes', 1)
             ->get();
 
         $asunto = $this->generarAsunto($movimiento);
@@ -31,6 +32,8 @@ class NotificacionService
             if (empty($emails)) {
                 continue;
             }
+
+            $esPortal = (bool) $actor->acceso_mesa_partes && !$actor->usuario_id;
 
             foreach ($emails as $email) {
                 $notificacion = MovimientoNotificacion::create([
@@ -47,6 +50,7 @@ class NotificacionService
                     Mail::to($email, $nombre)->send(new MovimientoNotificacionMail(
                         $movimiento,
                         $nombre,
+                        $esPortal,
                     ));
 
                     $notificacion->update([
@@ -70,6 +74,7 @@ class NotificacionService
         return ExpedienteActor::with(['usuario', 'tipoActor', 'emailsAdicionales'])
             ->where('expediente_id', $expedienteId)
             ->where('activo', 1)
+            ->where('acceso_mesa_partes', 1)
             ->get()
             ->filter(fn($actor) => !empty($actor->todosLosEmails()))
             ->map(fn($actor) => [

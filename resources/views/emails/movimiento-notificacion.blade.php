@@ -24,10 +24,10 @@
         <div class="body">
             <p>Estimado(a) <strong>{{ $nombreDestinatario }}</strong>,</p>
 
-            @if($movimiento->usuario_responsable_id)
-                <p>Se ha registrado un <strong>requerimiento</strong> que requiere su atención:</p>
+            @if($movimiento->tipo === 'requerimiento')
+                <p>Se le ha generado un <strong>requerimiento</strong> que requiere su atención:</p>
             @else
-                <p>Se informa que se ha registrado la siguiente acción en el expediente:</p>
+                <p>Se le informa del siguiente traslado en el expediente:</p>
             @endif
 
             @if($movimiento->etapa)
@@ -37,8 +37,15 @@
             </div>
             @endif
 
+            @if($movimiento->expediente)
             <div class="info-row">
-                <span class="label">{{ $movimiento->usuario_responsable_id ? 'Instrucción' : 'Acción realizada' }}:</span>
+                <span class="label">Expediente:</span>
+                {{ $movimiento->expediente->numero_expediente ?? 'S/N' }}
+            </div>
+            @endif
+
+            <div class="info-row">
+                <span class="label">{{ $movimiento->tipo === 'requerimiento' ? 'Instrucción' : 'Descripción' }}:</span>
                 {{ $movimiento->instruccion }}
             </div>
 
@@ -49,7 +56,7 @@
             </div>
             @endif
 
-            @if($movimiento->usuario_responsable_id && $movimiento->tipoDocumentoRequerido)
+            @if($movimiento->tipo === 'requerimiento' && $movimiento->tipoDocumentoRequerido)
             <div class="alert">
                 <strong>📄 Documento requerido:</strong> {{ $movimiento->tipoDocumentoRequerido->nombre }}
             </div>
@@ -63,7 +70,11 @@
             @endif
 
             <p style="margin-top:20px;">
-                Ingrese a la plataforma <strong>ANKAWA</strong> para revisar los detalles.
+                @if($esPortal)
+                    Ingrese al <strong>Portal de Mesa de Partes</strong> con su correo electrónico para revisar los detalles y adjuntar documentos si corresponde. Recibirá un código de verificación temporal al ingresar.
+                @else
+                    Ingrese a la plataforma <strong>ANKAWA</strong> para revisar los detalles.
+                @endif
             </p>
         </div>
         <div class="footer">

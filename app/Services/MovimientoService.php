@@ -9,6 +9,8 @@ use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteHistorial;
 use App\Models\MovimientoDocumento;
 use App\Models\User;
+use App\Models\Rol;
+use App\Mail\AccesoMesaPartesMail;
 use App\Mail\CargoRespuestaMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -55,9 +57,15 @@ class MovimientoService
                 'fecha_limite'               => $fechaLimite,
                 'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
                 'estado'                     => $estadoInicial,
-                'enviar_credenciales'        => !empty($datos['enviar_credenciales']),
-                'actor_credenciales_id'      => $datos['actor_credenciales_id'] ?? null,
-                'genera_cargo'               => !empty($datos['genera_cargo']),
+                // Campos legacy (se conservan por compatibilidad)
+                'enviar_credenciales'        => false,
+                'actor_credenciales_id'      => null,
+                'genera_cargo'               => false,
+                // Nuevos campos de acceso
+                'habilitar_mesa_partes'          => !empty($datos['habilitar_mesa_partes']),
+                'enviar_credenciales_expediente' => !empty($datos['enviar_credenciales_expediente']),
+                'actor_credenciales_exp_id'      => $datos['actor_credenciales_exp_id'] ?? null,
+                'credenciales_email_destino'     => $datos['credenciales_email_destino'] ?? null,
             ]);
 
             // Si el estado inicial es respondido o recibido, marcar fecha_respuesta
@@ -84,9 +92,14 @@ class MovimientoService
                 'created_at'    => now(),
             ]);
 
-            // Enviar credenciales de acceso al actor seleccionado si se indicó
-            if (!empty($datos['enviar_credenciales']) && !empty($datos['actor_credenciales_id'])) {
-                $this->enviarCredenciales($movimiento, $expediente);
+            // Habilitar acceso a Mesa de Partes
+            if (!empty($datos['habilitar_mesa_partes']) && !empty($datos['actores_mesa_partes_ids'])) {
+                $this->habilitarMesaPartes($movimiento, $expediente, $datos['actores_mesa_partes_ids']);
+            }
+
+            // Enviar credenciales de Expediente Electrónico
+            if (!empty($datos['enviar_credenciales_expediente']) && !empty($datos['actor_credenciales_exp_id'])) {
+                $this->enviarCredencialesExpediente($movimiento, $expediente);
             }
 
             if (!empty($notificarActorIds)) {
@@ -98,16 +111,58 @@ class MovimientoService
     }
 
     /**
-     * Generar/resetear credenciales del actor seleccionado y enviar email.
-     * Marca credenciales_enviadas=true en el actor de expediente.
+     * Habilitar acceso a Mesa de Partes para los actores seleccionados.
+     * Envía email informativo a todos sus correos.
      */
-    private function enviarCredenciales(ExpedienteMovimiento $movimiento, Expediente $expediente): void
+    private function habilitarMesaPartes(ExpedienteMovimiento $movimiento, Expediente $expediente, array $actorIds): void
     {
-        $actor = ExpedienteActor::with('usuario')->find($movimiento->actor_credenciales_id);
+        $actores = ExpedienteActor::with(['usuario', 'emailsAdicionales'])
+            ->whereIn('id', $actorIds)
+            ->where('expediente_id', $expediente->id)
+            ->where('activo', 1)
+            ->get();
+
+        foreach ($actores as $actor) {
+            if ($actor->acceso_mesa_partes) continue;
+
+            $actor->update(['acceso_mesa_partes' => 1]);
+            $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
+
+            foreach ($actor->todosLosEmails() as $email) {
+                try {
+                    Mail::to($email)->send(new AccesoMesaPartesMail($expediente, $actor));
+                } catch (\Exception $e) {
+                    \Log::warning("Error enviando acceso mesa partes a {$email}: " . $e->getMessage());
+                }
+            }
+
+            ExpedienteHistorial::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id'    => auth()->id(),
+                'tipo_evento'   => 'acceso_mesa_partes_habilitado',
+                'descripcion'   => "Se habilitó acceso a Mesa de Partes para {$nombre}.",
+                'datos_extra'   => ['actor_id' => $actor->id],
+                'created_at'    => now(),
+            ]);
+        }
+
+        $movimiento->update(['actores_mesa_partes_ids' => $actorIds]);
+    }
+
+    /**
+     * Enviar credenciales de acceso al Expediente Electrónico.
+     * Crea cuenta si no existe, envía email con credenciales.
+     */
+    private function enviarCredencialesExpediente(ExpedienteMovimiento $movimiento, Expediente $expediente): void
+    {
+        $actor = ExpedienteActor::with('usuario')->find($movimiento->actor_credenciales_exp_id);
         if (!$actor) return;
 
         $usuario = $actor->usuario;
-        if (!$usuario?->email) return;
+        if (!$usuario) return;
+
+        $emailDestino = $movimiento->credenciales_email_destino ?: $usuario->email;
+        if (!$emailDestino) return;
 
         $expediente->loadMissing('solicitud');
         $solicitud = $expediente->solicitud;
@@ -120,29 +175,50 @@ class MovimientoService
                 "Estimado(a) {$usuario->name},\n\n" .
                 "Se le ha designado como participante en el expediente {$expediente->numero_expediente}" .
                 ($solicitud ? " (Solicitud N° {$solicitud->numero_cargo})" : '') .
-                ".\n\nSus credenciales de acceso a la plataforma ANKAWA son:\n" .
+                ".\n\nSus credenciales de acceso al Expediente Electrónico de la plataforma ANKAWA son:\n" .
                 "  Usuario: {$usuario->email}\n" .
                 "  Contraseña temporal: {$passwordRaw}\n\n" .
                 "Por favor ingrese y cambie su contraseña.\n\n" .
                 "Saludos,\nCentro de Arbitraje CARD ANKAWA",
-                fn($msg) => $msg->to($usuario->email, $usuario->name)
-                                ->subject("Credenciales de acceso - Expediente {$expediente->numero_expediente}")
+                fn($msg) => $msg->to($emailDestino, $usuario->name)
+                                ->subject("Credenciales Expediente Electrónico - {$expediente->numero_expediente}")
             );
 
-            // Marcar como enviadas tanto en el movimiento como en el actor
-            $movimiento->update(['credenciales_enviadas' => true]);
-            $actor->update(['credenciales_enviadas' => true]);
+            $movimiento->update([
+                'enviar_credenciales_expediente' => true,
+                'credenciales_enviadas' => true,
+            ]);
+            $actor->update([
+                'credenciales_enviadas' => true,
+                'acceso_expediente_electronico' => 1,
+            ]);
+
+            $nombre = $usuario->name;
+            ExpedienteHistorial::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id'    => auth()->id(),
+                'tipo_evento'   => 'acceso_expediente_habilitado',
+                'descripcion'   => "Se habilitó acceso al Expediente Electrónico para {$nombre}.",
+                'datos_extra'   => ['actor_id' => $actor->id, 'email_destino' => $emailDestino],
+                'created_at'    => now(),
+            ]);
         } catch (\Exception $e) {
-            \Log::warning("Error enviando credenciales movimiento #{$movimiento->id}: " . $e->getMessage());
+            \Log::warning("Error enviando credenciales exp. electrónico movimiento #{$movimiento->id}: " . $e->getMessage());
         }
     }
 
     /**
      * Responder a un movimiento pendiente.
+     * $generarCargo=true cuando la respuesta viene del portal (Mesa de Partes).
      */
-    public function responder(ExpedienteMovimiento $movimiento, array $datos, array $archivos = [], array $notificarActorIds = []): ExpedienteMovimiento
-    {
-        return DB::transaction(function () use ($movimiento, $datos, $archivos, $notificarActorIds) {
+    public function responder(
+        ExpedienteMovimiento $movimiento,
+        array $datos,
+        array $archivos = [],
+        array $notificarActorIds = [],
+        bool $generarCargo = false,
+    ): ExpedienteMovimiento {
+        return DB::transaction(function () use ($movimiento, $datos, $archivos, $notificarActorIds, $generarCargo) {
 
             $movimiento->update([
                 'respuesta'       => $datos['respuesta'],
@@ -176,12 +252,14 @@ class MovimientoService
                 $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
             }
 
-            // Generar cargo si el movimiento lo requiere
-            if ($movimiento->genera_cargo) {
+            // Cargo se genera solo cuando responden desde Mesa de Partes
+            if ($generarCargo && $movimiento->tipo === 'requerimiento') {
                 $respondedor = User::find($datos['respondido_por']);
                 $cargo = Cargo::crear('respuesta_movimiento', $movimiento, $datos['respondido_por']);
                 try {
-                    Mail::to($respondedor->email)->send(new CargoRespuestaMail($cargo, $movimiento));
+                    if ($respondedor?->email) {
+                        Mail::to($respondedor->email)->send(new CargoRespuestaMail($cargo, $movimiento));
+                    }
                 } catch (\Exception $e) {
                     \Log::warning("Error enviando cargo respuesta movimiento #{$movimiento->id}: " . $e->getMessage());
                 }
@@ -204,10 +282,7 @@ class MovimientoService
         array $notificarActorIds = []
     ): ExpedienteMovimiento {
         return DB::transaction(function () use ($movimiento, $datosRespuesta, $archivosRespuesta, $expediente, $datosNuevo, $archivosNuevo, $notificarActorIds) {
-            // 1. Responder el movimiento actual
             $this->responder($movimiento, $datosRespuesta, $archivosRespuesta);
-
-            // 2. Crear el siguiente movimiento
             return $this->crear($expediente, $datosNuevo, $archivosNuevo, $notificarActorIds);
         });
     }

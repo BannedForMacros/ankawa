@@ -49,15 +49,15 @@ class PortalController extends Controller
                     $nq->where('email_destino', $email)->orWhereIn('actor_id', $actorIds)
                 );
             })
-            ->with(['expediente.servicio'])
+            ->with(['expediente.servicio', 'tipoDocumentoRequerido:id,nombre'])
             ->orderBy('created_at')
-            ->select(['id', 'expediente_id', 'instruccion', 'fecha_limite', 'tipo_dias', 'dias_plazo', 'created_at'])
+            ->select(['id', 'expediente_id', 'instruccion', 'fecha_limite', 'tipo_dias', 'dias_plazo', 'tipo_documento_requerido_id', 'created_at'])
             ->get();
 
         $expedienteIdsConPendiente = $movimientosPendientes->pluck('expediente_id')->unique();
 
         $todosExpedienteIds = Expediente::whereHas('actores', fn($q) =>
-            $q->whereIn('id', $actorIds)->where('activo', 1)
+            $q->whereIn('id', $actorIds)->where('activo', 1)->where('acceso_mesa_partes', 1)
         )->pluck('id');
 
         return Expediente::whereIn('id', $todosExpedienteIds)
@@ -74,13 +74,14 @@ class PortalController extends Controller
                     'etapa_actual'          => $exp->etapa_actual,
                     'tiene_pendiente'       => $expedienteIdsConPendiente->contains($exp->id),
                     'movimientos_pendientes' => $movsPendientes->map(fn($mov) => [
-                        'id'             => $mov->id,
-                        'instruccion'    => $mov->instruccion,
-                        'fecha_limite'   => $mov->fecha_limite?->format('d/m/Y'),
-                        'tipo_dias'      => $mov->tipo_dias,
-                        'dias_plazo'     => $mov->dias_plazo,
-                        'dias_restantes' => $mov->diasRestantes(),
-                        'created_at'     => $mov->created_at->format('d/m/Y H:i'),
+                        'id'                      => $mov->id,
+                        'instruccion'             => $mov->instruccion,
+                        'fecha_limite'            => $mov->fecha_limite?->format('d/m/Y'),
+                        'tipo_dias'               => $mov->tipo_dias,
+                        'dias_plazo'              => $mov->dias_plazo,
+                        'dias_restantes'          => $mov->diasRestantes(),
+                        'created_at'              => $mov->created_at->format('d/m/Y H:i'),
+                        'tipo_documento_requerido' => $mov->tipoDocumentoRequerido?->nombre,
                     ])->values()->toArray(),
                 ];
             })
@@ -245,7 +246,7 @@ class PortalController extends Controller
                 'created_at'    => now(),
             ]);
 
-            if ($movimiento->genera_cargo) {
+            if ($movimiento->tipo === 'requerimiento') {
                 $cargo = Cargo::crear('respuesta_movimiento', $movimiento, null);
                 try {
                     Mail::to($email)->send(new CargoRespuestaMail($cargo, $movimiento));

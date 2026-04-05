@@ -1,6 +1,6 @@
 import { useForm, router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X } from 'lucide-react';
+import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText } from 'lucide-react';
 import AnkawaModal from '@/Components/AnkawaModal';
 
 export default function TabActores({
@@ -13,6 +13,7 @@ export default function TabActores({
     const puedeEditar = esGestor || puedeDesignarGestor;
     const [showFormActor, setShowFormActor] = useState(false);
     const [showFormGestor, setShowFormGestor] = useState(false);
+    const [emailFormActorId, setEmailFormActorId] = useState(null);
 
     const actoresActivos = (expediente.actores ?? []).filter(a => a.activo);
 
@@ -74,6 +75,36 @@ export default function TabActores({
         });
     }
 
+    // ── Form: Email adicional ──
+    const formEmail = useForm({ email: '', label: '' });
+
+    function abrirFormEmail(actorId) {
+        formEmail.reset();
+        setEmailFormActorId(actorId);
+    }
+
+    function cerrarFormEmail() {
+        formEmail.reset();
+        setEmailFormActorId(null);
+    }
+
+    function agregarEmail(e, actorId) {
+        e.preventDefault();
+        formEmail.post(
+            route('expedientes.actores.emails.store', [expediente.id, actorId]),
+            { onSuccess: () => cerrarFormEmail() }
+        );
+    }
+
+    function eliminarEmail(actorId, emailId) {
+        if (!confirm('¿Eliminar este correo?')) return;
+        router.delete(route('expedientes.actores.emails.destroy', [expediente.id, actorId, emailId]));
+    }
+
+    function toggleAcceso(actorId, campo) {
+        router.patch(route('expedientes.actores.acceso', [expediente.id, actorId]), { campo });
+    }
+
     const inputCls = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]";
 
     return (
@@ -110,68 +141,203 @@ export default function TabActores({
                     {actoresActivos.length === 0 ? (
                         <p className="text-sm text-gray-400 text-center py-6">No hay actores asignados.</p>
                     ) : (
-                        <div className="space-y-2">
-                            {actoresActivos.map(actor => (
-                                <div
-                                    key={actor.id}
-                                    className={`flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100 border-l-4 ${
-                                        actor.es_gestor ? 'border-l-amber-400'
-                                        : actor.tipo_actor?.slug === 'demandante' ? 'border-l-[#BE0F4A]'
-                                        : actor.tipo_actor?.slug === 'demandado'  ? 'border-l-[#291136]/40'
-                                        : 'border-l-gray-200'
-                                    }`}
-                                >
-                                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                        actor.es_gestor ? 'bg-amber-100 text-amber-700' : 'bg-[#291136]/10 text-[#291136]'
-                                    }`}>
-                                        {actor.es_gestor
-                                            ? <Star size={14} />
-                                            : (actor.usuario?.name ?? '?').charAt(0).toUpperCase()
-                                        }
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-base font-bold text-[#291136] truncate">
-                                                {actor.usuario?.name ?? 'Sin nombre'}
-                                            </span>
-                                            {actor.es_gestor && (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                                                    RESPONSABLE
-                                                </span>
+                        <div className="space-y-3">
+                            {actoresActivos.map(actor => {
+                                const emailPrincipal = actor.usuario?.email ?? actor.email_externo ?? null;
+                                const emailsAdicionales = (actor.emails_adicionales ?? []).filter(e => e.activo !== false);
+                                const mostrandoFormEmail = emailFormActorId === actor.id;
+
+                                return (
+                                    <div
+                                        key={actor.id}
+                                        className={`rounded-xl bg-gray-50 border border-gray-100 border-l-4 overflow-hidden ${
+                                            actor.es_gestor ? 'border-l-amber-400'
+                                            : actor.tipo_actor?.slug === 'demandante' ? 'border-l-[#BE0F4A]'
+                                            : actor.tipo_actor?.slug === 'demandado'  ? 'border-l-[#291136]/40'
+                                            : 'border-l-gray-200'
+                                        }`}
+                                    >
+                                        {/* Fila principal del actor */}
+                                        <div className="flex items-center gap-3 p-3">
+                                            <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                                actor.es_gestor ? 'bg-amber-100 text-amber-700' : 'bg-[#291136]/10 text-[#291136]'
+                                            }`}>
+                                                {actor.es_gestor
+                                                    ? <Star size={14} />
+                                                    : (actor.usuario?.name ?? '?').charAt(0).toUpperCase()
+                                                }
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-bold text-[#291136] truncate">
+                                                        {actor.usuario?.name ?? 'Sin nombre'}
+                                                    </span>
+                                                    {actor.es_gestor && (
+                                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                                            RESPONSABLE
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+                                                    <span className="font-semibold">{actor.tipo_actor?.nombre ?? '—'}</span>
+                                                    {actor.usuario?.rol?.nombre && (
+                                                        <>
+                                                            <span className="text-gray-300">•</span>
+                                                            <span>{actor.usuario.rol.nombre}</span>
+                                                        </>
+                                                    )}
+                                                    {actor.acceso_mesa_partes && (
+                                                        <>
+                                                            <span className="text-gray-300">•</span>
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                                                <FileText size={10} /> MESA DE PARTES
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                    {actor.acceso_expediente_electronico && (
+                                                        <>
+                                                            <span className="text-gray-300">•</span>
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                                                                <Monitor size={10} /> EXP. ELECTRÓNICO
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                {puedeEditar && (
+                                                    <button
+                                                        onClick={() => toggleAcceso(actor.id, 'acceso_mesa_partes')}
+                                                        title={actor.acceso_mesa_partes ? 'Deshabilitar Mesa de Partes' : 'Habilitar Mesa de Partes'}
+                                                        className={`p-1.5 rounded-lg transition-colors ${
+                                                            actor.acceso_mesa_partes
+                                                                ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                                                                : 'text-gray-300 hover:text-emerald-600 hover:bg-emerald-50'
+                                                        }`}
+                                                    >
+                                                        <FileText size={14} />
+                                                    </button>
+                                                )}
+                                                {puedeEditar && (
+                                                    <button
+                                                        onClick={() => toggleAcceso(actor.id, 'acceso_expediente_electronico')}
+                                                        title={actor.acceso_expediente_electronico ? 'Deshabilitar Exp. Electrónico' : 'Habilitar Exp. Electrónico'}
+                                                        className={`p-1.5 rounded-lg transition-colors ${
+                                                            actor.acceso_expediente_electronico
+                                                                ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
+                                                                : 'text-gray-300 hover:text-indigo-600 hover:bg-indigo-50'
+                                                        }`}
+                                                    >
+                                                        <Monitor size={14} />
+                                                    </button>
+                                                )}
+                                                {puedeEditar && (
+                                                    <button
+                                                        onClick={() => mostrandoFormEmail ? cerrarFormEmail() : abrirFormEmail(actor.id)}
+                                                        title="Gestionar correos"
+                                                        className={`p-1.5 rounded-lg transition-colors ${
+                                                            mostrandoFormEmail
+                                                                ? 'bg-[#BE0F4A]/10 text-[#BE0F4A]'
+                                                                : 'text-gray-300 hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/10'
+                                                        }`}
+                                                    >
+                                                        <Mail size={14} />
+                                                    </button>
+                                                )}
+                                                {puedeEditar && !['demandante', 'demandado'].includes(actor.tipo_actor?.slug) && (
+                                                    <button
+                                                        onClick={() => removerActor(actor.id)}
+                                                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Panel de correos */}
+                                        <div className="px-3 pb-3 border-t border-gray-100/60 pt-2">
+                                            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                                                <Mail size={10} /> Correos
+                                            </p>
+                                            <div className="space-y-1">
+                                                {/* Email principal */}
+                                                {emailPrincipal && (
+                                                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] shrink-0" />
+                                                        <span className="font-medium">{emailPrincipal}</span>
+                                                        <span className="text-gray-400 text-[10px]">(principal)</span>
+                                                    </div>
+                                                )}
+                                                {/* Emails adicionales activos */}
+                                                {emailsAdicionales.map(e => (
+                                                    <div key={e.id} className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                                                        <span>{e.email}</span>
+                                                        {e.label && <span className="text-gray-400 text-[10px]">({e.label})</span>}
+                                                        {puedeEditar && (
+                                                            <button
+                                                                onClick={() => eliminarEmail(actor.id, e.id)}
+                                                                className="ml-auto text-gray-300 hover:text-red-500 transition-colors"
+                                                                title="Eliminar correo"
+                                                            >
+                                                                <X size={11} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {!emailPrincipal && emailsAdicionales.length === 0 && (
+                                                    <p className="text-xs text-gray-400 italic">Sin correos registrados.</p>
+                                                )}
+                                            </div>
+
+                                            {/* Formulario inline agregar email */}
+                                            {mostrandoFormEmail && (
+                                                <form
+                                                    onSubmit={e => agregarEmail(e, actor.id)}
+                                                    className="mt-2 pt-2 border-t border-dashed border-gray-200 flex flex-wrap gap-2 items-end"
+                                                >
+                                                    <div className="flex-1 min-w-[180px]">
+                                                        <input
+                                                            type="email"
+                                                            value={formEmail.data.email}
+                                                            onChange={e => formEmail.setData('email', e.target.value)}
+                                                            placeholder="nuevo@correo.com"
+                                                            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"
+                                                        />
+                                                        {formEmail.errors.email && (
+                                                            <p className="text-[10px] text-red-500 mt-0.5">{formEmail.errors.email}</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="w-32">
+                                                        <input
+                                                            type="text"
+                                                            value={formEmail.data.label}
+                                                            onChange={e => formEmail.setData('label', e.target.value)}
+                                                            placeholder="Etiqueta (opc.)"
+                                                            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"
+                                                        />
+                                                    </div>
+                                                    <button
+                                                        type="submit"
+                                                        disabled={formEmail.processing}
+                                                        className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#BE0F4A]/90 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        <Plus size={11} /> Agregar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={cerrarFormEmail}
+                                                        className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                </form>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
-                                            <span className="font-semibold">{actor.tipo_actor?.nombre ?? '—'}</span>
-                                            {actor.usuario?.rol?.nombre && (
-                                                <>
-                                                    <span className="text-gray-300">•</span>
-                                                    <span>{actor.usuario.rol.nombre}</span>
-                                                </>
-                                            )}
-                                            <span className="text-gray-300">•</span>
-                                            <span>{actor.usuario?.email ?? '—'}</span>
-                                            <span className="text-gray-300">•</span>
-                                            {actor.credenciales_enviadas ? (
-                                                <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
-                                                    <ShieldCheck size={13} /> credenciales enviadas
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-amber-500 font-semibold">
-                                                    <ShieldAlert size={13} /> credenciales pendientes
-                                                </span>
-                                            )}
-                                        </div>
                                     </div>
-                                    {puedeEditar && !['demandante', 'demandado'].includes(actor.tipo_actor?.slug) && (
-                                        <button
-                                            onClick={() => removerActor(actor.id)}
-                                            className="shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

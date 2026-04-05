@@ -3,7 +3,7 @@ import { router, useForm } from '@inertiajs/react';
 import {
     FileText, Download, ChevronDown, ChevronUp,
     Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
-    ArrowRight, Send, Bell, UserCheck, CalendarDays
+    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail
 } from 'lucide-react';
 
 const estadoConfig = {
@@ -301,6 +301,24 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
                                                 <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
                                             </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {mov.notificaciones?.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-400 mb-1.5 flex items-center gap-1">
+                                        <Mail size={11} className="text-[#BE0F4A]" /> Notificado a
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {mov.notificaciones.map(n => (
+                                            <span key={n.id} className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${
+                                                n.estado_envio === 'enviado'  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                : n.estado_envio === 'fallido' ? 'bg-red-50 text-red-600 border-red-200'
+                                                : 'bg-gray-50 text-gray-500 border-gray-200'
+                                            }`}>
+                                                {n.email_destino}
+                                            </span>
                                         ))}
                                     </div>
                                 </div>

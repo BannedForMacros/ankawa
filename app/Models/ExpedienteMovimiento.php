@@ -35,18 +35,26 @@ class ExpedienteMovimiento extends Model
         'enviar_credenciales',
         'credenciales_enviadas',
         'actor_credenciales_id',
+        'credenciales_email_destino',
         'genera_cargo',
+        'habilitar_mesa_partes',
+        'enviar_credenciales_expediente',
+        'actor_credenciales_exp_id',
+        'actores_mesa_partes_ids',
         'activo',
     ];
 
     protected $casts = [
-        'fecha_limite'           => 'date',
-        'fecha_respuesta'        => 'datetime',
-        'fecha_resolucion'       => 'datetime',
-        'activo'                 => 'boolean',
-        'enviar_credenciales'    => 'boolean',
-        'credenciales_enviadas'  => 'boolean',
-        'genera_cargo'           => 'boolean',
+        'fecha_limite'                   => 'date',
+        'fecha_respuesta'                => 'datetime',
+        'fecha_resolucion'               => 'datetime',
+        'activo'                         => 'boolean',
+        'enviar_credenciales'            => 'boolean',
+        'credenciales_enviadas'          => 'boolean',
+        'genera_cargo'                   => 'boolean',
+        'habilitar_mesa_partes'          => 'boolean',
+        'enviar_credenciales_expediente' => 'boolean',
+        'actores_mesa_partes_ids'        => 'array',
     ];
 
     public function expediente(): BelongsTo

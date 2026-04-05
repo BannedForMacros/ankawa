@@ -293,27 +293,53 @@ function ModalServicios({ show, onClose, tipoDoc, servicios }) {
     );
 }
 
-// ── Modal: Actores ────────────────────────────────────────────────────────────
+// ── Toggle helper ─────────────────────────────────────────────────────────────
+function Toggle({ value, onChange, color = 'bg-[#291136]', size = 'md' }) {
+    const h = size === 'sm' ? 'w-9 h-5' : 'w-11 h-6';
+    const t = size === 'sm' ? 'w-4 h-4'  : 'w-5 h-5';
+    return (
+        <button type="button" onClick={() => onChange(!value)}
+            className={`relative ${h} rounded-full transition-colors duration-200 focus:outline-none shrink-0 ${value ? color : 'bg-gray-200'}`}>
+            <span className={`absolute top-0.5 left-0.5 ${t} bg-white rounded-full shadow-sm transition-transform duration-200 ${value ? (size === 'sm' ? 'translate-x-4' : 'translate-x-5') : 'translate-x-0'}`} />
+        </button>
+    );
+}
 
-function ModalActores({ show, onClose, tipoDoc, tiposActor }) {
-    const [filas, setFilas]           = useState([]);
-    const [processing, setProcessing] = useState(false);
+// ── Modal: Actores (con filtro por servicio) ──────────────────────────────────
 
+function ModalActores({ show, onClose, tipoDoc, servicios, serviciosTiposActor }) {
+    const [servicioId,  setServicioId]  = useState(null);
+    const [filas,       setFilas]       = useState([]);
+    const [processing,  setProcessing]  = useState(false);
+
+    // Servicios donde este documento está activo
+    const serviciosDelDoc = tipoDoc?.servicios ?? [];
+
+    // Al abrir, seleccionar el primer servicio disponible
     useEffect(() => {
-        if (show && tipoDoc) {
-            setFilas(tiposActor.map(actor => {
-                const pivot = tipoDoc?.tipos_actor?.find(a => a.id === actor.id)?.pivot;
-                return {
-                    tipo_actor_id: actor.id,
-                    nombre:        actor.nombre,
-                    slug:          actor.slug,
-                    activo:        !!pivot,
-                    puede_ver:     pivot?.puede_ver   ?? true,
-                    puede_subir:   pivot?.puede_subir ?? false,
-                };
-            }));
+        if (show && serviciosDelDoc.length > 0) {
+            setServicioId(prev => serviciosDelDoc.find(s => s.id === prev) ? prev : serviciosDelDoc[0].id);
         }
     }, [show, tipoDoc?.id]);
+
+    // Al cambiar servicio, cargar las filas de actores para ese servicio
+    useEffect(() => {
+        if (!servicioId || !tipoDoc) return;
+        const actoresDelServicio = serviciosTiposActor[servicioId] ?? [];
+        setFilas(actoresDelServicio.map(actor => {
+            const pivot = tipoDoc.actores_pivots?.find(
+                p => p.tipo_actor_id === actor.tipo_actor_id && p.servicio_id === servicioId
+            );
+            return {
+                tipo_actor_id: actor.tipo_actor_id,
+                nombre:        actor.nombre,
+                slug:          actor.slug,
+                activo:        !!pivot,
+                puede_ver:     pivot?.puede_ver    ?? true,
+                puede_subir:   pivot?.puede_subir  ?? false,
+            };
+        }));
+    }, [servicioId, tipoDoc?.id]);
 
     const updateRow = (idx, field, value) => {
         setFilas(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value } : row));
@@ -321,10 +347,11 @@ function ModalActores({ show, onClose, tipoDoc, tiposActor }) {
 
     const submit = (e) => {
         e.preventDefault();
+        if (!servicioId) return;
         setProcessing(true);
         router.post(
             route('configuracion.tipos-documentos.sync-actores', tipoDoc.id),
-            { actores: filas },
+            { servicio_id: servicioId, actores: filas },
             {
                 preserveScroll: true,
                 onSuccess: (page) => {
@@ -337,68 +364,109 @@ function ModalActores({ show, onClose, tipoDoc, tiposActor }) {
         );
     };
 
+    const servicioSelec = servicios.find(s => s.id === servicioId);
+
     return (
         <Modal show={show} onClose={onClose} maxWidth="md">
             <form onSubmit={submit}>
                 <div className="p-6">
-                    <div className="flex items-center gap-3 mb-2">
+                    {/* Header */}
+                    <div className="flex items-center gap-3 mb-5">
                         <div className="w-10 h-10 rounded-xl bg-[#291136] flex items-center justify-center shrink-0">
                             <Users size={18} className="text-white" />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-[#291136]">Permisos por Actor</h2>
                             <p className="text-xs text-gray-400">
-                                <strong>{tipoDoc?.nombre}</strong> — ¿Qué actores pueden ver/subir este documento?
+                                <strong>{tipoDoc?.nombre}</strong>
                             </p>
                         </div>
                     </div>
 
-                    <div className="space-y-2 mt-4">
-                        {filas.map((actor, idx) => (
-                            <div key={actor.tipo_actor_id}
-                                className={`border rounded-2xl p-4 transition-colors ${actor.activo ? 'border-[#291136]/20 bg-[#291136]/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${actor.activo ? 'bg-[#291136]/10' : 'bg-gray-100'}`}>
-                                            <Users size={14} className={actor.activo ? 'text-[#291136]' : 'text-gray-300'} />
-                                        </div>
-                                        <span className={`text-sm font-bold ${actor.activo ? 'text-[#291136]' : 'text-gray-400'}`}>
-                                            {actor.nombre}
-                                        </span>
-                                    </div>
-                                    <button type="button" onClick={() => updateRow(idx, 'activo', !actor.activo)}
-                                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${actor.activo ? 'bg-[#291136]' : 'bg-gray-200'}`}>
-                                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${actor.activo ? 'translate-x-5' : 'translate-x-0'}`} />
-                                    </button>
+                    {serviciosDelDoc.length === 0 ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-5 text-center">
+                            <Building2 size={24} className="text-amber-400 mx-auto mb-2" />
+                            <p className="text-sm font-semibold text-amber-700">Sin servicios asignados</p>
+                            <p className="text-xs text-amber-600 mt-1">
+                                Primero asigna este documento a al menos un servicio.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Selector de servicio */}
+                            <div className="mb-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                                    Servicio
+                                </label>
+                                <div className="flex gap-2 flex-wrap">
+                                    {serviciosDelDoc.map(srv => (
+                                        <button key={srv.id} type="button"
+                                            onClick={() => setServicioId(srv.id)}
+                                            className={`px-3 py-1.5 rounded-xl text-sm font-bold border transition-colors ${
+                                                servicioId === srv.id
+                                                    ? 'bg-[#291136] text-white border-[#291136]'
+                                                    : 'bg-white text-gray-500 border-gray-200 hover:border-[#291136]/30'
+                                            }`}>
+                                            {srv.nombre}
+                                        </button>
+                                    ))}
                                 </div>
-
-                                {actor.activo && (
-                                    <div className="mt-3 pl-11 flex items-center gap-6 border-t border-gray-100 pt-3">
-                                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                                            <button type="button" onClick={() => updateRow(idx, 'puede_ver', !actor.puede_ver)}
-                                                className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${actor.puede_ver ? 'bg-emerald-500' : 'bg-gray-200'}`}>
-                                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${actor.puede_ver ? 'translate-x-5' : 'translate-x-0'}`} />
-                                            </button>
-                                            <div className="flex items-center gap-1">
-                                                <Eye size={12} className={actor.puede_ver ? 'text-emerald-600' : 'text-gray-300'} />
-                                                <span className="text-xs font-semibold text-gray-600">Puede ver</span>
-                                            </div>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                                            <button type="button" onClick={() => updateRow(idx, 'puede_subir', !actor.puede_subir)}
-                                                className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${actor.puede_subir ? 'bg-[#BE0F4A]' : 'bg-gray-200'}`}>
-                                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${actor.puede_subir ? 'translate-x-5' : 'translate-x-0'}`} />
-                                            </button>
-                                            <div className="flex items-center gap-1">
-                                                <Upload size={12} className={actor.puede_subir ? 'text-[#BE0F4A]' : 'text-gray-300'} />
-                                                <span className="text-xs font-semibold text-gray-600">Puede subir</span>
-                                            </div>
-                                        </label>
-                                    </div>
-                                )}
                             </div>
-                        ))}
-                    </div>
+
+                            {/* Lista de actores del servicio */}
+                            {filas.length === 0 ? (
+                                <div className="text-center py-6 text-gray-400 text-sm">
+                                    No hay tipos de actor configurados en {servicioSelec?.nombre}.
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filas.map((actor, idx) => (
+                                        <div key={actor.tipo_actor_id}
+                                            className={`border rounded-2xl p-4 transition-colors ${actor.activo ? 'border-[#291136]/20 bg-[#291136]/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${actor.activo ? 'bg-[#291136]/10' : 'bg-gray-100'}`}>
+                                                        <Users size={14} className={actor.activo ? 'text-[#291136]' : 'text-gray-300'} />
+                                                    </div>
+                                                    <span className={`text-sm font-bold ${actor.activo ? 'text-[#291136]' : 'text-gray-400'}`}>
+                                                        {actor.nombre}
+                                                    </span>
+                                                </div>
+                                                <Toggle value={actor.activo} onChange={v => updateRow(idx, 'activo', v)} />
+                                            </div>
+
+                                            {actor.activo && (
+                                                <div className="mt-3 pl-11 border-t border-gray-100 pt-3 space-y-2.5">
+                                                    {/* Puede ver */}
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <Eye size={13} className={actor.puede_ver ? 'text-emerald-600' : 'text-gray-300'} />
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-700">Puede ver en historial</p>
+                                                                <p className="text-[10px] text-gray-400">Ve documentos de este tipo en el expediente</p>
+                                                            </div>
+                                                        </div>
+                                                        <Toggle value={actor.puede_ver} onChange={v => updateRow(idx, 'puede_ver', v)} color="bg-emerald-500" size="sm" />
+                                                    </div>
+                                                    {/* Se le puede requerir */}
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <Upload size={13} className={actor.puede_subir ? 'text-[#BE0F4A]' : 'text-gray-300'} />
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-700">Se le puede requerir</p>
+                                                                <p className="text-[10px] text-gray-400">Aparece en el dropdown "Documento requerido" al crear un movimiento a este actor</p>
+                                                            </div>
+                                                        </div>
+                                                        <Toggle value={actor.puede_subir} onChange={v => updateRow(idx, 'puede_subir', v)} color="bg-[#BE0F4A]" size="sm" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
 
                 <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl">
@@ -406,7 +474,7 @@ function ModalActores({ show, onClose, tipoDoc, tiposActor }) {
                         className="px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50">
                         Cancelar
                     </button>
-                    <button type="submit" disabled={processing}
+                    <button type="submit" disabled={processing || serviciosDelDoc.length === 0}
                         className="px-5 py-2 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] shadow-lg disabled:opacity-50 transition-colors">
                         {processing ? 'Guardando...' : 'Guardar Permisos'}
                     </button>
@@ -418,7 +486,7 @@ function ModalActores({ show, onClose, tipoDoc, tiposActor }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
-export default function TiposDocumentoIndex({ tipos, servicios, tiposActor }) {
+export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposActor }) {
     const [modalTipo,     setModalTipo]     = useState(false);
     const [modalServ,     setModalServ]     = useState(false);
     const [modalActores,  setModalActores]  = useState(false);
@@ -505,21 +573,32 @@ export default function TiposDocumentoIndex({ tipos, servicios, tiposActor }) {
             key:      'actores',
             label:    'Actores',
             sortable: false,
-            render: (row) => (
-                <div className="flex flex-wrap gap-1">
-                    {row.tipos_actor?.length > 0
-                        ? row.tipos_actor.map(actor => (
-                            <ActorChip
-                                key={actor.id}
-                                nombre={actor.nombre}
-                                puedeSubir={actor.pivot?.puede_subir}
-                                puedeVer={actor.pivot?.puede_ver}
-                            />
-                        ))
-                        : <span className="text-[10px] text-gray-300 italic">—</span>
+            render: (row) => {
+                // Actores únicos con al menos un permiso
+                const unicos = [];
+                const seen   = new Set();
+                (row.actores_pivots ?? []).forEach(p => {
+                    if (!seen.has(p.tipo_actor_id)) {
+                        seen.add(p.tipo_actor_id);
+                        unicos.push(p);
                     }
-                </div>
-            ),
+                });
+                return (
+                    <div className="flex flex-wrap gap-1">
+                        {unicos.length > 0
+                            ? unicos.map(p => (
+                                <ActorChip
+                                    key={p.tipo_actor_id}
+                                    nombre={p.actor_nombre}
+                                    puedeSubir={p.puede_subir}
+                                    puedeVer={p.puede_ver}
+                                />
+                            ))
+                            : <span className="text-[10px] text-gray-300 italic">—</span>
+                        }
+                    </div>
+                );
+            },
         },
         {
             key:      'acciones',
@@ -602,7 +681,8 @@ export default function TiposDocumentoIndex({ tipos, servicios, tiposActor }) {
                 show={modalActores}
                 onClose={() => setModalActores(false)}
                 tipoDoc={gestionando}
-                tiposActor={tiposActor}
+                servicios={servicios}
+                serviciosTiposActor={serviciosTiposActor}
             />
             <ConfirmDialog
                 show={confirmOpen}

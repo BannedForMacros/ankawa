@@ -7,6 +7,7 @@ use App\Models\TipoDocumento;
 use App\Models\Servicio;
 use App\Models\TipoActorExpediente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
 
@@ -18,23 +19,45 @@ class TipoDocumentoController extends Controller
         $sort     = in_array($request->sort, $sortable) ? $request->sort : 'nombre';
         $dir      = $request->dir === 'desc' ? 'desc' : 'asc';
 
-        $tipos = TipoDocumento::withCount('documentos')
+        $tiposPage = TipoDocumento::withCount('documentos')
             ->with([
                 'servicios' => fn($q) => $q->select('servicios.id', 'servicios.nombre'),
-                'tiposActor',
             ])
             ->when($request->search, fn($q, $s) => $q->where('nombre', 'ilike', "%{$s}%"))
             ->orderBy($sort, $dir)
             ->paginate(15)
             ->withQueryString();
 
-        $servicios  = Servicio::orderBy('nombre')->get(['id', 'nombre']);
-        $tiposActor = TipoActorExpediente::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre', 'slug']);
+        // Adjuntar pivots de actores a cada tipo_documento (raw, con servicio_id)
+        $tipoIds = collect($tiposPage->items())->pluck('id');
+        $pivots  = DB::table('tipo_actor_tipo_documento as tatd')
+            ->join('tipos_actor_expediente as ta', 'ta.id', '=', 'tatd.tipo_actor_id')
+            ->whereIn('tatd.tipo_documento_id', $tipoIds)
+            ->select('tatd.tipo_documento_id', 'tatd.servicio_id', 'tatd.tipo_actor_id', 'ta.nombre as actor_nombre', 'tatd.puede_ver', 'tatd.puede_subir')
+            ->get()
+            ->groupBy('tipo_documento_id');
+
+        $tiposPage->getCollection()->transform(function ($td) use ($pivots) {
+            $td->actores_pivots = $pivots->get($td->id, collect())->values();
+            return $td;
+        });
+
+        $servicios = Servicio::orderBy('nombre')->get(['id', 'nombre']);
+
+        // Actores por servicio: para que el frontend sepa qué actores están disponibles en cada servicio
+        $serviciosTiposActor = DB::table('servicio_tipos_actor as sta')
+            ->join('tipos_actor_expediente as ta', 'ta.id', '=', 'sta.tipo_actor_id')
+            ->where('sta.activo', 1)
+            ->where('ta.activo', 1)
+            ->select('sta.servicio_id', 'ta.id as tipo_actor_id', 'ta.nombre', 'ta.slug')
+            ->orderBy('sta.orden')
+            ->get()
+            ->groupBy('servicio_id');
 
         return Inertia::render('Configuracion/TiposDocumento/Index', [
-            'tipos'      => $tipos,
-            'servicios'  => $servicios,
-            'tiposActor' => $tiposActor,
+            'tipos'               => $tiposPage,
+            'servicios'           => $servicios,
+            'serviciosTiposActor' => $serviciosTiposActor,
         ]);
     }
 
@@ -131,6 +154,7 @@ class TipoDocumentoController extends Controller
     public function syncActores(Request $request, TipoDocumento $tipoDocumento)
     {
         $request->validate([
+            'servicio_id'             => 'required|integer|exists:servicios,id',
             'actores'                 => 'required|array',
             'actores.*.tipo_actor_id' => 'required|integer|exists:tipos_actor_expediente,id',
             'actores.*.activo'        => 'required|boolean',
@@ -138,17 +162,31 @@ class TipoDocumentoController extends Controller
             'actores.*.puede_ver'     => 'required|boolean',
         ]);
 
-        $sync = [];
+        $servicioId = $request->servicio_id;
+
+        // Borrar solo los registros del servicio seleccionado para este tipo de documento
+        DB::table('tipo_actor_tipo_documento')
+            ->where('tipo_documento_id', $tipoDocumento->id)
+            ->where('servicio_id', $servicioId)
+            ->delete();
+
+        // Insertar los activos
+        $inserts = [];
         foreach ($request->actores as $actor) {
             if ($actor['activo']) {
-                $sync[$actor['tipo_actor_id']] = [
-                    'puede_subir' => $actor['puede_subir'],
-                    'puede_ver'   => $actor['puede_ver'],
+                $inserts[] = [
+                    'servicio_id'      => $servicioId,
+                    'tipo_actor_id'    => $actor['tipo_actor_id'],
+                    'tipo_documento_id' => $tipoDocumento->id,
+                    'puede_ver'        => $actor['puede_ver'],
+                    'puede_subir'      => $actor['puede_subir'],
                 ];
             }
         }
 
-        $tipoDocumento->tiposActor()->sync($sync);
+        if (!empty($inserts)) {
+            DB::table('tipo_actor_tipo_documento')->insert($inserts);
+        }
 
         return back()->with('success', 'Permisos de actores actualizados correctamente.');
     }

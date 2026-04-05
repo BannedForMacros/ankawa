@@ -174,6 +174,7 @@ class ExpedienteActorController extends Controller
 
     /**
      * Agregar un email adicional a un actor.
+     * Si el email ya existía (baja lógica), lo reactiva.
      */
     public function storeEmail(Request $request, Expediente $expediente, ExpedienteActor $actor)
     {
@@ -185,23 +186,51 @@ class ExpedienteActorController extends Controller
             'label' => 'nullable|string|max:100',
         ]);
 
-        $existe = $actor->emailsAdicionales()->where('email', $request->email)->exists();
-        if ($existe) {
+        $emailNorm = strtolower(trim($request->email));
+
+        // Verificar si ya está activo
+        $activo = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
+            ->where('email', $emailNorm)
+            ->where('activo', 1)
+            ->exists();
+
+        if ($activo) {
             return back()->withErrors(['email' => 'Este email ya está registrado para este actor.']);
         }
 
-        $orden = $actor->emailsAdicionales()->max('orden') + 1;
-        $actor->emailsAdicionales()->create([
-            'email' => strtolower(trim($request->email)),
-            'label' => $request->label,
-            'orden' => $orden,
+        // Si existe como baja lógica, reactivar; si no, crear
+        $registro = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
+            ->where('email', $emailNorm)
+            ->first();
+
+        if ($registro) {
+            $registro->update(['activo' => 1, 'label' => $request->label]);
+        } else {
+            $orden = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)->max('orden') + 1;
+            $registro = ExpedienteActorEmail::create([
+                'expediente_actor_id' => $actor->id,
+                'email'  => $emailNorm,
+                'label'  => $request->label,
+                'orden'  => $orden,
+                'activo' => 1,
+            ]);
+        }
+
+        $nombreActor = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
+        ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => auth()->id(),
+            'tipo_evento'   => 'email_actor_agregado',
+            'descripcion'   => "Se agregó el correo {$emailNorm} al actor {$nombreActor}.",
+            'datos_extra'   => ['actor_id' => $actor->id, 'email_id' => $registro->id, 'email' => $emailNorm],
+            'created_at'    => now(),
         ]);
 
         return back()->with('success', 'Email adicional agregado correctamente.');
     }
 
     /**
-     * Eliminar un email adicional de un actor.
+     * Baja lógica de un email adicional de un actor.
      */
     public function destroyEmail(Expediente $expediente, ExpedienteActor $actor, int $emailId)
     {
@@ -210,11 +239,54 @@ class ExpedienteActorController extends Controller
 
         $email = ExpedienteActorEmail::where('id', $emailId)
             ->where('expediente_actor_id', $actor->id)
+            ->where('activo', 1)
             ->firstOrFail();
 
-        $email->delete();
+        $email->update(['activo' => 0]);
+
+        $nombreActor = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
+        ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => auth()->id(),
+            'tipo_evento'   => 'email_actor_eliminado',
+            'descripcion'   => "Se eliminó el correo {$email->email} del actor {$nombreActor}.",
+            'datos_extra'   => ['actor_id' => $actor->id, 'email_id' => $email->id, 'email' => $email->email],
+            'created_at'    => now(),
+        ]);
 
         return back()->with('success', 'Email eliminado correctamente.');
+    }
+
+    /**
+     * Toggle de acceso (mesa_partes o expediente_electronico) para un actor.
+     */
+    public function toggleAcceso(Request $request, Expediente $expediente, ExpedienteActor $actor)
+    {
+        $this->autorizarGestion($expediente);
+        abort_unless($actor->expediente_id === $expediente->id, 404);
+
+        $request->validate([
+            'campo' => 'required|in:acceso_mesa_partes,acceso_expediente_electronico',
+        ]);
+
+        $campo = $request->campo;
+        $nuevoValor = $actor->$campo ? 0 : 1;
+        $actor->update([$campo => $nuevoValor]);
+
+        $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
+        $label = $campo === 'acceso_mesa_partes' ? 'Mesa de Partes' : 'Expediente Electrónico';
+        $accion = $nuevoValor ? 'habilitado' : 'deshabilitado';
+
+        ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => auth()->id(),
+            'tipo_evento'   => "acceso_{$accion}",
+            'descripcion'   => "Acceso a {$label} {$accion} para {$nombre}.",
+            'datos_extra'   => ['actor_id' => $actor->id, 'campo' => $campo, 'valor' => $nuevoValor],
+            'created_at'    => now(),
+        ]);
+
+        return back()->with('success', "Acceso a {$label} {$accion} para {$nombre}.");
     }
 
     private function autorizarGestion(Expediente $expediente): void

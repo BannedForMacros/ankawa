@@ -18,6 +18,7 @@ use App\Services\GestorExpedienteService;
 use App\Services\MovimientoService;
 use App\Services\NotificacionService;
 use App\Services\VencimientoService;
+use Illuminate\Support\Facades\DB;
 use App\Services\EtapaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -50,7 +51,9 @@ class ExpedienteController extends Controller
         ])->orderByDesc('created_at');
 
         if (!$user->rol?->puede_ver_todos_expedientes) {
-            $query->whereHas('actores', fn($q) => $q->where('usuario_id', $user->id)->where('activo', 1));
+            $query->whereHas('actores', fn($q) =>
+                $q->where('usuario_id', $user->id)->where('activo', 1)->where('acceso_expediente_electronico', 1)
+            );
         }
 
         $expedientes = $query->get()->map(function ($exp) {
@@ -103,8 +106,17 @@ class ExpedienteController extends Controller
                     'tipoDocumentoRequerido',
                     'resolucionTipo', 'resueltoPor',
                     'cargo',
+                    'notificaciones',
                 ]),
         ]);
+
+        // Validar acceso al expediente electrónico para no-admins
+        if (!$user->rol?->puede_ver_todos_expedientes) {
+            $tieneAcceso = $expediente->actores->contains(fn($a) =>
+                $a->usuario_id === $user->id && $a->activo && $a->acceso_expediente_electronico
+            );
+            abort_unless($tieneAcceso, 403, 'No tiene acceso a este expediente.');
+        }
 
         $esGestor = $this->gestorService->esGestor($expediente, $user->id);
         $puedeDesignarGestor = $user->rol?->puede_designar_gestor ?? false;
@@ -140,9 +152,22 @@ class ExpedienteController extends Controller
         $actoresNotificables = $this->notificacionService->actoresNotificables($expediente->id);
         $plazo = $this->vencimientoService->resumen($expediente->id);
 
+        // Tipos de documento activos en el servicio del expediente, con permisos por actor
         $tiposDocumento = TipoDocumento::where('activo', true)
+            ->whereHas('servicios', fn($q) => $q->where('servicio_id', $expediente->servicio_id))
             ->orderBy('nombre')
-            ->get(['id', 'nombre']);
+            ->get(['id', 'nombre'])
+            ->map(function ($td) use ($expediente) {
+                $permisos = DB::table('tipo_actor_tipo_documento')
+                    ->where('tipo_documento_id', $td->id)
+                    ->where('servicio_id', $expediente->servicio_id)
+                    ->get(['tipo_actor_id', 'puede_ver', 'puede_subir']);
+                return [
+                    'id'       => $td->id,
+                    'nombre'   => $td->nombre,
+                    'permisos' => $permisos,
+                ];
+            })->values();
 
         $tiposResolucion = TipoResolucionMovimiento::where('activo', true)
             ->orderBy('id')
@@ -187,7 +212,8 @@ class ExpedienteController extends Controller
             'telefono_demandado'      => 'nullable|string|max:20',
             'resumen_controversia'    => 'required|string',
             'pretensiones'            => 'required|string',
-            'monto_involucrado'       => 'nullable|numeric|min:0',
+            'monto_involucrado'                          => 'nullable|numeric|min:0',
+            'solicita_designacion_director_demandado'    => 'nullable|boolean',
         ]);
 
         $camposActualizados = [];
@@ -196,7 +222,7 @@ class ExpedienteController extends Controller
             'documento_representante', 'domicilio_demandante', 'email_demandante',
             'telefono_demandante', 'nombre_demandado', 'domicilio_demandado',
             'email_demandado', 'telefono_demandado', 'resumen_controversia',
-            'pretensiones', 'monto_involucrado',
+            'pretensiones', 'monto_involucrado', 'solicita_designacion_director_demandado',
         ];
 
         foreach ($camposEditables as $campo) {
@@ -205,7 +231,9 @@ class ExpedienteController extends Controller
             }
         }
 
-        $solicitud->update($request->only($camposEditables));
+        $datos = $request->only($camposEditables);
+        $datos['solicita_designacion_director_demandado'] = $request->boolean('solicita_designacion_director_demandado') ? 1 : 0;
+        $solicitud->update($datos);
 
         // Sincronizar datos en el usuario del demandante (si tiene cuenta)
         $actorDemandante = ExpedienteActor::where('expediente_id', $expediente->id)
@@ -269,9 +297,12 @@ class ExpedienteController extends Controller
             'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                 => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
-            'movimientos.*.enviar_credenciales'       => 'nullable|boolean',
-            'movimientos.*.actor_credenciales_id'     => 'nullable|exists:expediente_actores,id',
-            'movimientos.*.genera_cargo'              => 'nullable|boolean',
+            'movimientos.*.habilitar_mesa_partes'          => 'nullable|boolean',
+            'movimientos.*.actores_mesa_partes_ids'        => 'nullable|array',
+            'movimientos.*.actores_mesa_partes_ids.*'      => 'integer|exists:expediente_actores,id',
+            'movimientos.*.enviar_credenciales_expediente' => 'nullable|boolean',
+            'movimientos.*.actor_credenciales_exp_id'      => 'nullable|exists:expediente_actores,id',
+            'movimientos.*.credenciales_email_destino'     => 'nullable|email|max:255',
             'movimientos.*.notificar_a'               => 'nullable|array',
             'movimientos.*.notificar_a.*'             => 'integer|exists:expediente_actores,id',
             'documentos'                              => 'nullable|array',
@@ -349,9 +380,11 @@ class ExpedienteController extends Controller
                         'dias_plazo'                  => $datos['dias_plazo'] ?: null,
                         'tipo_dias'                   => $datos['tipo_dias'] ?? 'calendario',
                         'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
-                        'enviar_credenciales'         => !empty($datos['enviar_credenciales']),
-                        'actor_credenciales_id'       => $datos['actor_credenciales_id'] ?? null,
-                        'genera_cargo'                => !empty($datos['genera_cargo']),
+                        'habilitar_mesa_partes'          => !empty($datos['habilitar_mesa_partes']),
+                        'actores_mesa_partes_ids'        => $datos['actores_mesa_partes_ids'] ?? [],
+                        'enviar_credenciales_expediente' => !empty($datos['enviar_credenciales_expediente']),
+                        'actor_credenciales_exp_id'      => $datos['actor_credenciales_exp_id'] ?? null,
+                        'credenciales_email_destino'     => $datos['credenciales_email_destino'] ?? null,
                         'creado_por'                  => $user->id,
                     ],
                     $documentosPorMovimiento[$i] ?? [],
