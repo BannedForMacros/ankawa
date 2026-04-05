@@ -34,6 +34,7 @@ class MovimientoController extends Controller
             'instruccion'                => 'required|string|max:2000',
             'observaciones'              => 'nullable|string|max:2000',
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
+            'tipo_dias'                  => 'nullable|in:calendario,habiles',
             'tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'enviar_credenciales'        => 'nullable|boolean',
             'actor_credenciales_id'      => 'nullable|exists:expediente_actores,id',
@@ -46,7 +47,7 @@ class MovimientoController extends Controller
         $datos = array_merge($request->only([
             'etapa_id', 'sub_etapa_id', 'tipo_actor_responsable_id',
             'usuario_responsable_id', 'instruccion', 'observaciones',
-            'dias_plazo', 'tipo_documento_requerido_id',
+            'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
         ]), [
             'creado_por'             => auth()->id(),
             'tipo'                   => $request->input('tipo', 'requerimiento'),
@@ -91,6 +92,7 @@ class MovimientoController extends Controller
             'movimientos.*.tipo_actor_responsable_id'=> 'nullable|exists:tipos_actor_expediente,id',
             'movimientos.*.usuario_responsable_id'   => 'nullable|exists:users,id',
             'movimientos.*.dias_plazo'               => 'nullable|integer|min:1|max:365',
+            'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'movimientos.*.enviar_credenciales'      => 'nullable|boolean',
             'movimientos.*.actor_credenciales_id'    => 'nullable|exists:expediente_actores,id',
@@ -123,7 +125,7 @@ class MovimientoController extends Controller
                         \Illuminate\Support\Arr::only($item, [
                             'etapa_id', 'sub_etapa_id', 'tipo_actor_responsable_id',
                             'usuario_responsable_id', 'instruccion', 'observaciones',
-                            'dias_plazo', 'tipo_documento_requerido_id',
+                            'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
                         ]),
                         [
                             'creado_por'             => auth()->id(),
@@ -200,6 +202,7 @@ class MovimientoController extends Controller
             'nuevo_instruccion'               => 'required|string|max:2000',
             'nuevo_observaciones'             => 'nullable|string|max:2000',
             'nuevo_dias_plazo'                => 'nullable|integer|min:1|max:365',
+            'nuevo_tipo_dias'                 => 'nullable|in:calendario,habiles',
             'nuevo_tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'documentos_nuevo'                => 'nullable|array',
             'documentos_nuevo.*'              => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
@@ -220,6 +223,7 @@ class MovimientoController extends Controller
             'instruccion'                => $request->nuevo_instruccion,
             'observaciones'              => $request->nuevo_observaciones,
             'dias_plazo'                 => $request->nuevo_dias_plazo,
+            'tipo_dias'                  => $request->nuevo_tipo_dias ?? 'calendario',
             'tipo_documento_requerido_id' => $request->nuevo_tipo_documento_requerido_id,
             'creado_por'                 => auth()->id(),
         ];

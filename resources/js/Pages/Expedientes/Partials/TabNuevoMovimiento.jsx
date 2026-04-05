@@ -15,6 +15,7 @@ export const movVacioBase = (expediente, notificarIds = []) => ({
     tipo_actor_responsable_id:   '',
     usuario_responsable_id:      '',
     dias_plazo:                  '',
+    tipo_dias:                   'calendario',
     tipo_documento_requerido_id: '',
     enviar_credenciales:         false,
     actor_credenciales_id:       '',
@@ -251,9 +252,28 @@ export function MovimientoCard({
                             </div>
                             <div>
                                 <FieldLabel>Plazo (días)</FieldLabel>
-                                <input type="number" min="1" max="365" value={mov.dias_plazo}
-                                    onChange={e => onChange('dias_plazo', e.target.value)}
-                                    className={inputCls} placeholder="Ej: 5"/>
+                                <div className="flex gap-2 items-stretch">
+                                    <input type="number" min="1" max="365" value={mov.dias_plazo}
+                                        onChange={e => onChange('dias_plazo', e.target.value)}
+                                        className={`${inputCls} flex-1`} placeholder="Ej: 5"/>
+                                    <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
+                                        {[
+                                            { v: 'calendario', label: 'Cal.' },
+                                            { v: 'habiles',    label: 'Háb.' },
+                                        ].map(opt => (
+                                            <button key={opt.v} type="button"
+                                                onClick={() => onChange('tipo_dias', opt.v)}
+                                                title={opt.v === 'calendario' ? 'Días calendario (incluye fines de semana)' : 'Días hábiles (excluye sábados y domingos)'}
+                                                className={`px-3 py-2 text-xs font-bold transition-colors ${
+                                                    mov.tipo_dias === opt.v
+                                                        ? 'bg-[#291136] text-white'
+                                                        : 'bg-white text-gray-500 hover:bg-gray-50'
+                                                }`}>
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -311,26 +331,48 @@ export function MovimientoCard({
                                     {mov.notificar_a.length} / {actoresNotificables.length} seleccionados
                                 </span>
                             </div>
-                            <div className="p-3 flex flex-wrap gap-1.5">
-                                {actoresNotificables.map(actor => (
-                                    <label key={actor.id}
-                                        className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border cursor-pointer transition-colors select-none ${
-                                            mov.notificar_a.includes(actor.id)
-                                                ? 'bg-[#291136] border-[#291136] text-white font-semibold'
-                                                : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
-                                        }`}>
-                                        <input type="checkbox"
-                                            checked={mov.notificar_a.includes(actor.id)}
-                                            onChange={e => onChange('notificar_a', e.target.checked
-                                                ? [...mov.notificar_a, actor.id]
-                                                : mov.notificar_a.filter(x => x !== actor.id))}
-                                            className="sr-only"/>
-                                        {actor.usuario?.name}
-                                        <span className={`text-xs ${mov.notificar_a.includes(actor.id) ? 'text-white/60' : 'text-gray-400'}`}>
-                                            · {actor.tipo_actor?.nombre}
-                                        </span>
-                                    </label>
-                                ))}
+                            <div className="p-3 space-y-1.5">
+                                {actoresNotificables.map(actor => {
+                                    const seleccionado = mov.notificar_a.includes(actor.id);
+                                    const emails = actor.emails ?? [];
+                                    return (
+                                        <label key={actor.id}
+                                            className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors select-none ${
+                                                seleccionado
+                                                    ? 'bg-[#291136]/5 border-[#291136]/20'
+                                                    : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                            }`}>
+                                            <input type="checkbox"
+                                                checked={seleccionado}
+                                                onChange={e => onChange('notificar_a', e.target.checked
+                                                    ? [...mov.notificar_a, actor.id]
+                                                    : mov.notificar_a.filter(x => x !== actor.id))}
+                                                className="mt-0.5 w-3.5 h-3.5 accent-[#291136] rounded shrink-0"/>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className={`text-sm font-semibold ${seleccionado ? 'text-[#291136]' : 'text-gray-700'}`}>
+                                                        {actor.nombre}
+                                                    </span>
+                                                    <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                                                        {actor.tipo_actor?.nombre}
+                                                    </span>
+                                                    {emails.length > 1 && (
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#BE0F4A]/10 text-[#BE0F4A]">
+                                                            {emails.length} emails
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                                    {emails.map((em, i) => (
+                                                        <span key={i} className="text-[11px] text-gray-400 font-mono">
+                                                            {em}{i < emails.length - 1 ? ',' : ''}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -485,6 +527,7 @@ export default function TabNuevoMovimiento({
             form.append('tipo_actor_responsable_id',   mov.tipo_actor_responsable_id ?? '');
             form.append('usuario_responsable_id',      mov.usuario_responsable_id ?? '');
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
+            form.append('tipo_dias',                   mov.tipo_dias ?? 'calendario');
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
             form.append('enviar_credenciales',         mov.enviar_credenciales ? '1' : '0');
             form.append('actor_credenciales_id',       mov.actor_credenciales_id ?? '');
@@ -513,6 +556,7 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
                 form.append(`movimientos[${i}][usuario_responsable_id]`,      mov.usuario_responsable_id ?? '');
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
+                form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
                 form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
                 form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
                 form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');

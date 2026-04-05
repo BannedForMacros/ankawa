@@ -12,61 +12,75 @@ class NotificacionService
 {
     /**
      * Notificar a los actores seleccionados sobre un movimiento.
-     * Por defecto se sugieren TODOS los actores, pero el gestor puede desmarcar.
+     * Envía a TODOS los emails del actor (principal + adicionales).
      */
     public function notificarActores(ExpedienteMovimiento $movimiento, array $actorIds): void
     {
-        $actores = ExpedienteActor::with('usuario')
+        $actores = ExpedienteActor::with(['usuario', 'emailsAdicionales'])
             ->whereIn('id', $actorIds)
             ->where('expediente_id', $movimiento->expediente_id)
             ->where('activo', 1)
             ->get();
 
-        foreach ($actores as $actor) {
-            $email  = $actor->usuario?->email ?? $actor->email_externo;
-            $nombre = $actor->usuario?->name  ?? $actor->nombre_externo ?? 'Participante';
+        $asunto = $this->generarAsunto($movimiento);
 
-            if (!$email) {
+        foreach ($actores as $actor) {
+            $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Participante';
+            $emails = $actor->todosLosEmails();
+
+            if (empty($emails)) {
                 continue;
             }
 
-            $notificacion = MovimientoNotificacion::create([
-                'movimiento_id'  => $movimiento->id,
-                'actor_id'       => $actor->id,
-                'email_destino'  => $email,
-                'nombre_destino' => $nombre,
-                'asunto'         => $this->generarAsunto($movimiento),
-                'estado_envio'   => 'pendiente',
-                'created_at'     => now(),
-            ]);
-
-            try {
-                Mail::to($email, $nombre)->send(new MovimientoNotificacionMail(
-                    $movimiento,
-                    $nombre,
-                ));
-
-                $notificacion->update([
-                    'estado_envio' => 'enviado',
-                    'enviado_at'   => now(),
+            foreach ($emails as $email) {
+                $notificacion = MovimientoNotificacion::create([
+                    'movimiento_id'  => $movimiento->id,
+                    'actor_id'       => $actor->id,
+                    'email_destino'  => $email,
+                    'nombre_destino' => $nombre,
+                    'asunto'         => $asunto,
+                    'estado_envio'   => 'pendiente',
+                    'created_at'     => now(),
                 ]);
-            } catch (\Exception $e) {
-                $notificacion->update(['estado_envio' => 'fallido']);
-                \Log::warning("Fallo envío notificación actor {$actor->id}: " . $e->getMessage());
+
+                try {
+                    Mail::to($email, $nombre)->send(new MovimientoNotificacionMail(
+                        $movimiento,
+                        $nombre,
+                    ));
+
+                    $notificacion->update([
+                        'estado_envio' => 'enviado',
+                        'enviado_at'   => now(),
+                    ]);
+                } catch (\Exception $e) {
+                    $notificacion->update(['estado_envio' => 'fallido']);
+                    \Log::warning("Fallo envío notificación actor {$actor->id} → {$email}: " . $e->getMessage());
+                }
             }
         }
     }
 
     /**
      * Obtener todos los actores activos de un expediente para preseleccionarlos.
+     * Incluye todos los emails del actor para mostrarlos en el selector.
      */
-    public function actoresNotificables(int $expedienteId): \Illuminate\Database\Eloquent\Collection
+    public function actoresNotificables(int $expedienteId): array
     {
-        return ExpedienteActor::with(['usuario', 'tipoActor'])
+        return ExpedienteActor::with(['usuario', 'tipoActor', 'emailsAdicionales'])
             ->where('expediente_id', $expedienteId)
             ->where('activo', 1)
             ->get()
-            ->filter(fn($actor) => $actor->usuario?->email || $actor->email_externo);
+            ->filter(fn($actor) => !empty($actor->todosLosEmails()))
+            ->map(fn($actor) => [
+                'id'           => $actor->id,
+                'nombre'       => $actor->usuario?->name ?? $actor->nombre_externo ?? 'Sin nombre',
+                'tipo_actor'   => ['nombre' => $actor->tipoActor?->nombre, 'slug' => $actor->tipoActor?->slug],
+                'emails'       => $actor->todosLosEmails(),
+                'email_principal' => $actor->todosLosEmails()[0] ?? null,
+            ])
+            ->values()
+            ->all();
     }
 
     private function generarAsunto(ExpedienteMovimiento $movimiento): string

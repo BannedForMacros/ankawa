@@ -3,7 +3,7 @@ import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import {
     Bell, Clock, CheckCircle, FileText, X, Paperclip, LogOut,
-    PlusCircle, Scale, Building2, Send, Gavel, ArrowRight
+    PlusCircle, Scale, Building2, Send, Gavel, ArrowRight, AlertTriangle
 } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
@@ -127,6 +127,37 @@ const BADGE_ESTADO = {
     concluido:  'bg-gray-100 text-gray-600',
 };
 
+function PlazoUrgente({ mov }) {
+    if (!mov?.fecha_limite) return null;
+    const dias = mov.dias_restantes;
+    const sufijo = mov.tipo_dias === 'habiles' ? ' días hábiles' : ' días';
+
+    let config;
+    if (dias === null || dias === undefined) {
+        config = { bg: 'bg-gray-100 border-gray-200', text: 'text-gray-600', icon: Clock, msg: `Vence el ${mov.fecha_limite}` };
+    } else if (dias <= 0) {
+        config = { bg: 'bg-red-50 border-red-300', text: 'text-red-700', icon: AlertTriangle,
+            msg: dias === 0 ? '⚠ Vence HOY' : `⚠ Venció hace ${Math.abs(dias)} día${Math.abs(dias) !== 1 ? 's' : ''}` };
+    } else if (dias <= 2) {
+        config = { bg: 'bg-orange-50 border-orange-300', text: 'text-orange-700', icon: AlertTriangle,
+            msg: `Quedan ${dias}${sufijo} — vence el ${mov.fecha_limite}` };
+    } else if (dias <= 5) {
+        config = { bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700', icon: Clock,
+            msg: `Quedan ${dias}${sufijo} — vence el ${mov.fecha_limite}` };
+    } else {
+        config = { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: Clock,
+            msg: `Quedan ${dias}${sufijo} — vence el ${mov.fecha_limite}` };
+    }
+
+    const Icono = config.icon;
+    return (
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold ${config.bg} ${config.text} ${dias !== null && dias <= 2 ? 'animate-pulse' : ''}`}>
+            <Icono size={12} className="shrink-0"/>
+            {config.msg}
+        </div>
+    );
+}
+
 /* ─── Modal de respuesta ─── */
 function ModalResponder({ mov, expediente, onClose, onRespondido }) {
     const [respuesta,     setRespuesta]     = useState('');
@@ -179,8 +210,8 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
             setProcesando(false);
             if (data.ok) {
                 toast.success('Respuesta enviada correctamente. Recibirás un cargo en tu correo.');
-                onRespondido(mov.id);
                 onClose();
+                onRespondido();
             } else {
                 toast.error(data.mensaje ?? 'Error al enviar la respuesta.');
             }
@@ -279,18 +310,13 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
 }
 
 /* ─── Página principal ─── */
-export default function Dashboard({ expedientes: expedientesIniciales, servicios, portalUser, portalEmail }) {
-    const [expedientes,      setExpedientes]      = useState(expedientesIniciales);
-    const [modalMov,         setModalMov]         = useState(null);
-    const [modalServicios,   setModalServicios]   = useState(false);
+export default function Dashboard({ expedientes, servicios, portalUser, portalEmail }) {
+    const [modalMov,       setModalMov]       = useState(null);
+    const [modalServicios, setModalServicios] = useState(false);
 
-    function onRespondido(movId) {
-        setExpedientes(prev => prev.map(exp => {
-            if (exp.movimiento_pendiente?.id === movId) {
-                return { ...exp, tiene_pendiente: false, movimiento_pendiente: null };
-            }
-            return exp;
-        }));
+    function onRespondido() {
+        // Recarga los datos del servidor para mostrar el siguiente movimiento pendiente
+        router.reload({ only: ['expedientes'] });
     }
 
     function irASolicitud(slug) {
@@ -298,7 +324,8 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
         router.get(route('mesa-partes.solicitud', { slug }));
     }
 
-    const pendientes = expedientes.filter(e => e.tiene_pendiente).length;
+    const pendientes = (expedientes ?? []).filter(e => e.tiene_pendiente).length;
+    const totalMovPendientes = (expedientes ?? []).reduce((s, e) => s + (e.movimientos_pendientes?.length ?? 0), 0);
 
     return (
         <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Montserrat, sans-serif' }}>
@@ -335,11 +362,11 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
                 </div>
 
                 {/* Alerta pendientes */}
-                {pendientes > 0 && (
+                {totalMovPendientes > 0 && (
                     <div className="bg-[#BE0F4A]/10 border border-[#BE0F4A]/20 rounded-2xl px-5 py-4 flex items-center gap-3">
                         <Bell size={20} className="text-[#BE0F4A] shrink-0" />
                         <p className="text-sm font-semibold text-[#291136]">
-                            Tienes <span className="text-[#BE0F4A]">{pendientes} expediente{pendientes > 1 ? 's' : ''}</span> con acción pendiente.
+                            Tienes <span className="text-[#BE0F4A]">{totalMovPendientes} requerimiento{totalMovPendientes > 1 ? 's' : ''} pendiente{totalMovPendientes > 1 ? 's' : ''}</span> de respuesta.
                         </p>
                     </div>
                 )}
@@ -348,7 +375,7 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
                 <div>
                     <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Mis expedientes</h2>
 
-                    {expedientes.length === 0 ? (
+                    {(expedientes ?? []).length === 0 ? (
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
                             <FileText size={40} className="text-gray-200 mx-auto mb-4"/>
                             <p className="text-gray-500 font-medium">No tienes expedientes registrados.</p>
@@ -356,7 +383,7 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {expedientes.map(exp => (
+                            {(expedientes ?? []).map(exp => (
                                 <div key={exp.id}
                                     className={`bg-white rounded-2xl border shadow-sm p-5 transition-all ${
                                         exp.tiene_pendiente
@@ -384,27 +411,36 @@ export default function Dashboard({ expedientes: expedientesIniciales, servicios
                                         </span>
                                     </div>
 
-                                    {exp.movimiento_pendiente && (
-                                        <div className="mt-4 bg-[#291136]/5 rounded-xl p-4">
-                                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-1">Requerimiento pendiente</p>
-                                            <p className="text-sm text-[#291136] line-clamp-2">{exp.movimiento_pendiente.instruccion}</p>
-                                            <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
-                                                {exp.movimiento_pendiente.fecha_limite && (
-                                                    <p className="text-xs text-gray-400 flex items-center gap-1">
-                                                        <Clock size={11}/> Plazo: {exp.movimiento_pendiente.fecha_limite}
-                                                    </p>
-                                                )}
-                                                <button
-                                                    onClick={() => setModalMov({ mov: exp.movimiento_pendiente, expediente: exp.numero_expediente })}
-                                                    className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-[#BE0F4A] text-white text-xs font-bold rounded-xl hover:bg-[#9c0a3b] transition-colors"
-                                                >
-                                                    Responder →
-                                                </button>
-                                            </div>
+                                    {(exp.movimientos_pendientes ?? []).length > 0 && (
+                                        <div className="mt-4 space-y-3">
+                                            {(exp.movimientos_pendientes ?? []).map((mov, idx) => (
+                                                <div key={mov.id} className="bg-[#291136]/5 rounded-xl p-4 space-y-3">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            {(exp.movimientos_pendientes ?? []).length > 1 && (
+                                                                <p className="text-[10px] font-bold text-[#BE0F4A] uppercase tracking-widest mb-0.5">
+                                                                    Requerimiento {idx + 1} de {(exp.movimientos_pendientes ?? []).length}
+                                                                </p>
+                                                            )}
+                                                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-1">Requerimiento pendiente</p>
+                                                            <p className="text-sm text-[#291136] line-clamp-2">{mov.instruccion}</p>
+                                                        </div>
+                                                    </div>
+                                                    <PlazoUrgente mov={mov} />
+                                                    <div className="flex justify-end">
+                                                        <button
+                                                            onClick={() => setModalMov({ mov, expediente: exp.numero_expediente })}
+                                                            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#BE0F4A] text-white text-xs font-bold rounded-xl hover:bg-[#9c0a3b] transition-colors"
+                                                        >
+                                                            Responder →
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
 
-                                    {!exp.tiene_pendiente && (
+                                    {(exp.movimientos_pendientes ?? []).length === 0 && (
                                         <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600">
                                             <CheckCircle size={13}/> Sin acciones pendientes
                                         </div>

@@ -1,6 +1,6 @@
 import { useForm, router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X } from 'lucide-react';
 import AnkawaModal from '@/Components/AnkawaModal';
 
 export default function TabActores({

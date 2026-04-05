@@ -40,22 +40,39 @@ class ExpedienteController extends Controller
     {
         $user = auth()->user();
 
-        $query = Expediente::with(['servicio', 'etapaActual', 'gestor.usuario'])
-            ->orderByDesc('created_at');
+        $query = Expediente::with([
+            'servicio', 'etapaActual', 'gestor.usuario',
+            'movimientos' => fn($q) => $q
+                ->where('tipo', 'requerimiento')
+                ->where('estado', 'pendiente')
+                ->select(['id', 'expediente_id', 'instruccion', 'fecha_limite', 'tipo_dias', 'dias_plazo'])
+                ->orderBy('fecha_limite'),
+        ])->orderByDesc('created_at');
 
         if (!$user->rol?->puede_ver_todos_expedientes) {
             $query->whereHas('actores', fn($q) => $q->where('usuario_id', $user->id)->where('activo', 1));
         }
 
-        $expedientes = $query->get()->map(fn($exp) => [
-            'id'                => $exp->id,
-            'numero_expediente' => $exp->numero_expediente ?? 'EXP-' . $exp->id,
-            'servicio'          => $exp->servicio?->nombre,
-            'etapa'             => $exp->etapaActual?->nombre,
-            'estado'            => $exp->estado,
-            'gestor'            => $exp->gestor?->usuario?->name,
-            'created_at'        => $exp->created_at->format('d/m/Y'),
-        ]);
+        $expedientes = $query->get()->map(function ($exp) {
+            $movUrgente    = $exp->movimientos->first();
+            $diasRestantes = $movUrgente?->diasRestantes();
+            return [
+                'id'                => $exp->id,
+                'numero_expediente' => $exp->numero_expediente ?? 'EXP-' . $exp->id,
+                'servicio'          => $exp->servicio?->nombre,
+                'etapa'             => $exp->etapaActual?->nombre,
+                'estado'            => $exp->estado,
+                'gestor'            => $exp->gestor?->usuario?->name,
+                'created_at'        => $exp->created_at->format('d/m/Y'),
+                'movimiento_urgente' => $movUrgente ? [
+                    'instruccion'  => $movUrgente->instruccion,
+                    'fecha_limite' => $movUrgente->fecha_limite?->format('d/m/Y'),
+                    'dias_plazo'   => $movUrgente->dias_plazo,
+                    'tipo_dias'    => $movUrgente->tipo_dias,
+                    'dias_restantes' => $diasRestantes,
+                ] : null,
+            ];
+        });
 
         return Inertia::render('Expedientes/Index', [
             'expedientes' => $expedientes,
@@ -74,6 +91,7 @@ class ExpedienteController extends Controller
             'etapaActual',
             'actores.usuario.rol:id,nombre,slug',
             'actores.tipoActor',
+            'actores.emailsAdicionales',
             'movimientos' => fn($q) => $q->where('activo', true)
                 ->orderByDesc('created_at')
                 ->with([
@@ -249,6 +267,7 @@ class ExpedienteController extends Controller
             'movimientos.*.tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
             'movimientos.*.usuario_responsable_id'    => 'nullable|exists:users,id',
             'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
+            'movimientos.*.tipo_dias'                 => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'movimientos.*.enviar_credenciales'       => 'nullable|boolean',
             'movimientos.*.actor_credenciales_id'     => 'nullable|exists:expediente_actores,id',
@@ -328,6 +347,7 @@ class ExpedienteController extends Controller
                         'usuario_responsable_id'      => $datos['usuario_responsable_id'] ?: null,
                         'instruccion'                 => $datos['instruccion'],
                         'dias_plazo'                  => $datos['dias_plazo'] ?: null,
+                        'tipo_dias'                   => $datos['tipo_dias'] ?? 'calendario',
                         'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
                         'enviar_credenciales'         => !empty($datos['enviar_credenciales']),
                         'actor_credenciales_id'       => $datos['actor_credenciales_id'] ?? null,

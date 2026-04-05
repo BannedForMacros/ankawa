@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorEmail;
 use App\Models\ExpedienteHistorial;
 use App\Models\User;
 use App\Models\Rol;
@@ -169,6 +170,51 @@ class ExpedienteActorController extends Controller
 
         $nombre = $actor->usuario?->name ?? 'Actor';
         return back()->with('success', "{$nombre} ha sido designado como Gestor del expediente.");
+    }
+
+    /**
+     * Agregar un email adicional a un actor.
+     */
+    public function storeEmail(Request $request, Expediente $expediente, ExpedienteActor $actor)
+    {
+        $this->autorizarGestion($expediente);
+        abort_unless($actor->expediente_id === $expediente->id, 404);
+
+        $request->validate([
+            'email' => 'required|email|max:255',
+            'label' => 'nullable|string|max:100',
+        ]);
+
+        $existe = $actor->emailsAdicionales()->where('email', $request->email)->exists();
+        if ($existe) {
+            return back()->withErrors(['email' => 'Este email ya está registrado para este actor.']);
+        }
+
+        $orden = $actor->emailsAdicionales()->max('orden') + 1;
+        $actor->emailsAdicionales()->create([
+            'email' => strtolower(trim($request->email)),
+            'label' => $request->label,
+            'orden' => $orden,
+        ]);
+
+        return back()->with('success', 'Email adicional agregado correctamente.');
+    }
+
+    /**
+     * Eliminar un email adicional de un actor.
+     */
+    public function destroyEmail(Expediente $expediente, ExpedienteActor $actor, int $emailId)
+    {
+        $this->autorizarGestion($expediente);
+        abort_unless($actor->expediente_id === $expediente->id, 404);
+
+        $email = ExpedienteActorEmail::where('id', $emailId)
+            ->where('expediente_actor_id', $actor->id)
+            ->firstOrFail();
+
+        $email->delete();
+
+        return back()->with('success', 'Email eliminado correctamente.');
     }
 
     private function autorizarGestion(Expediente $expediente): void

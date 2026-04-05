@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cargo;
-use App\Models\Documento;
 use App\Models\Expediente;
+use App\Models\MovimientoDocumento;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteActorEmail;
 use App\Models\ExpedienteHistorial;
@@ -50,6 +50,8 @@ class PortalController extends Controller
                 );
             })
             ->with(['expediente.servicio'])
+            ->orderBy('created_at')
+            ->select(['id', 'expediente_id', 'instruccion', 'fecha_limite', 'tipo_dias', 'dias_plazo', 'created_at'])
             ->get();
 
         $expedienteIdsConPendiente = $movimientosPendientes->pluck('expediente_id')->unique();
@@ -63,20 +65,23 @@ class PortalController extends Controller
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($exp) use ($expedienteIdsConPendiente, $movimientosPendientes) {
-                $movPendiente = $movimientosPendientes->where('expediente_id', $exp->id)->first();
+                $movsPendientes = $movimientosPendientes->where('expediente_id', $exp->id)->values();
                 return [
-                    'id'                   => $exp->id,
-                    'numero_expediente'    => $exp->numero_expediente,
-                    'servicio'             => $exp->servicio->nombre,
-                    'estado'               => $exp->estado,
-                    'etapa_actual'         => $exp->etapa_actual,
-                    'tiene_pendiente'      => $expedienteIdsConPendiente->contains($exp->id),
-                    'movimiento_pendiente' => $movPendiente ? [
-                        'id'           => $movPendiente->id,
-                        'instruccion'  => $movPendiente->instruccion,
-                        'fecha_limite' => $movPendiente->fecha_limite?->format('d/m/Y'),
-                        'created_at'   => $movPendiente->created_at->format('d/m/Y H:i'),
-                    ] : null,
+                    'id'                    => $exp->id,
+                    'numero_expediente'     => $exp->numero_expediente,
+                    'servicio'              => $exp->servicio->nombre,
+                    'estado'                => $exp->estado,
+                    'etapa_actual'          => $exp->etapa_actual,
+                    'tiene_pendiente'       => $expedienteIdsConPendiente->contains($exp->id),
+                    'movimientos_pendientes' => $movsPendientes->map(fn($mov) => [
+                        'id'             => $mov->id,
+                        'instruccion'    => $mov->instruccion,
+                        'fecha_limite'   => $mov->fecha_limite?->format('d/m/Y'),
+                        'tipo_dias'      => $mov->tipo_dias,
+                        'dias_plazo'     => $mov->dias_plazo,
+                        'dias_restantes' => $mov->diasRestantes(),
+                        'created_at'     => $mov->created_at->format('d/m/Y H:i'),
+                    ])->values()->toArray(),
                 ];
             })
             ->toArray();
@@ -217,16 +222,16 @@ class PortalController extends Controller
             }
 
             if ($request->hasFile('documentos')) {
+                $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
                 foreach ($request->file('documentos') as $archivo) {
-                    $ruta = $archivo->store('movimientos/' . $movimiento->id . '/portal', 'public');
-                    Documento::create([
-                        'modelo_tipo'     => ExpedienteMovimiento::class,
-                        'modelo_id'       => $movimiento->id,
-                        'tipo_documento'  => 'respuesta',
-                        'ruta_archivo'    => $ruta,
+                    $ruta = $archivo->store($carpeta, 'public');
+                    MovimientoDocumento::create([
+                        'movimiento_id'   => $movimiento->id,
+                        'subido_por'      => $usuarioIdActor,
                         'nombre_original' => $archivo->getClientOriginalName(),
+                        'ruta_archivo'    => $ruta,
                         'peso_bytes'      => $archivo->getSize(),
-                        'activo'          => 1,
+                        'momento'         => 'respuesta',
                     ]);
                 }
             }

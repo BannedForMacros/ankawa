@@ -138,6 +138,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
             form.append(`movimientos[${i}][usuario_responsable_id]`,      mov.usuario_responsable_id ?? '');
             form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
+            form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
             form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
             form.append(`movimientos[${i}][enviar_credenciales]`,         mov.enviar_credenciales ? '1' : '0');
             form.append(`movimientos[${i}][actor_credenciales_id]`,       mov.actor_credenciales_id ?? '');
@@ -203,8 +204,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         return (
             <div className="space-y-3">
                 {movimientos.map((mov, idx) => (
-                    <div key={idx}>
+                    <div key={idx} className="space-y-1">
                         <MovimientoCard
+                            key={idx}
                             mov={mov}
                             idx={idx}
                             total={movimientos.length}
@@ -251,6 +253,71 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
 
     return (
         <div className="space-y-4">
+
+            {/* ── Panel de conformidad (PRIMERO, acción principal) ── */}
+            {esGestor && solicitud.resultado_revision !== 'conforme' && solicitud.estado !== 'subsanacion' && !editando && (
+                <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
+                    <h3 className="text-base font-bold text-amber-700 mb-1">Revisión de Conformidad</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                        Revise los datos y declare si la solicitud es conforme o requiere subsanación.
+                    </p>
+
+                    {paso === 'idle' && (
+                        <div className="flex gap-3">
+                            <button onClick={iniciarConforme}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                                <CheckCircle size={16}/> Declarar Conforme
+                            </button>
+                            <button onClick={iniciarNoConforme}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
+                                <XCircle size={16}/> Declarar No Conforme
+                            </button>
+                        </div>
+                    )}
+
+                    {paso === 'conforme' && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                                <CheckCircle size={16} className="text-emerald-600 shrink-0"/>
+                                <p className="text-sm font-bold text-emerald-700">
+                                    Declarar solicitud como <strong>CONFORME</strong>. Se enviará email al demandado con credenciales de acceso.
+                                </p>
+                            </div>
+                            {panelMovimientosJSX('bg-emerald-600 hover:bg-emerald-700', 'conforme')}
+                        </div>
+                    )}
+
+                    {paso === 'no_conforme' && (
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-200">
+                                <XCircle size={16} className="text-red-600 shrink-0"/>
+                                <p className="text-sm font-bold text-red-700">
+                                    Declarar solicitud como <strong>NO CONFORME</strong>. Se habilitará subsanación para el demandante.
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
+                                <textarea value={motivoNoConforme}
+                                    onChange={e => setMotivo(e.target.value)}
+                                    rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
+                                    placeholder="Indique los motivos por los que la solicitud no es conforme..."/>
+                                {errores.motivo_no_conformidad && <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>}
+                            </div>
+                            {panelMovimientosJSX('bg-red-600 hover:bg-red-700', 'no_conforme')}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Banner: esperando subsanación ── */}
+            {esGestor && solicitud.estado === 'subsanacion' && (
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
+                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación del demandante</h3>
+                    <p className="text-sm text-amber-700">
+                        Se declaró NO CONFORME. Una vez que el demandante responda, podrás volver a revisar la conformidad desde esta sección.
+                    </p>
+                </div>
+            )}
 
             {/* ── Datos de la Solicitud ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -418,70 +485,6 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 </div>{/* /p-5 */}
             </div>
 
-            {/* ── Banner: esperando subsanación ── */}
-            {esGestor && solicitud.estado === 'subsanacion' && (
-                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
-                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación del demandante</h3>
-                    <p className="text-sm text-amber-700">
-                        Se declaró NO CONFORME. Una vez que el demandante responda, podrás volver a revisar la conformidad desde esta sección.
-                    </p>
-                </div>
-            )}
-
-            {/* ── Panel de conformidad ── */}
-            {esGestor && solicitud.resultado_revision !== 'conforme' && solicitud.estado !== 'subsanacion' && !editando && (
-                <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
-                    <h3 className="text-base font-bold text-amber-700 mb-1">Revisión de Conformidad</h3>
-                    <p className="text-sm text-gray-500 mb-4">
-                        Revise los datos y declare si la solicitud es conforme o requiere subsanación.
-                    </p>
-
-                    {paso === 'idle' && (
-                        <div className="flex gap-3">
-                            <button onClick={iniciarConforme}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-                                <CheckCircle size={16}/> Declarar Conforme
-                            </button>
-                            <button onClick={iniciarNoConforme}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
-                                <XCircle size={16}/> Declarar No Conforme
-                            </button>
-                        </div>
-                    )}
-
-                    {paso === 'conforme' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                                <CheckCircle size={16} className="text-emerald-600 shrink-0"/>
-                                <p className="text-sm font-bold text-emerald-700">
-                                    Declarar solicitud como <strong>CONFORME</strong>. Se enviará email al demandado con credenciales de acceso.
-                                </p>
-                            </div>
-                            {panelMovimientosJSX('bg-emerald-600 hover:bg-emerald-700', 'conforme')}
-                        </div>
-                    )}
-
-                    {paso === 'no_conforme' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-200">
-                                <XCircle size={16} className="text-red-600 shrink-0"/>
-                                <p className="text-sm font-bold text-red-700">
-                                    Declarar solicitud como <strong>NO CONFORME</strong>. Se habilitará subsanación para el demandante.
-                                </p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-600 mb-1">Motivo de no conformidad *</label>
-                                <textarea value={motivoNoConforme}
-                                    onChange={e => setMotivo(e.target.value)}
-                                    rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"
-                                    placeholder="Indique los motivos por los que la solicitud no es conforme..."/>
-                                {errores.motivo_no_conformidad && <p className="text-xs text-red-500 mt-1">{errores.motivo_no_conformidad}</p>}
-                            </div>
-                            {panelMovimientosJSX('bg-red-600 hover:bg-red-700', 'no_conforme')}
-                        </div>
-                    )}
-                </div>
-            )}
         </div>
     );
 }

@@ -27,6 +27,7 @@ export default function TabAccionPendiente({
         nuevo_instruccion: '',
         nuevo_observaciones: '',
         nuevo_dias_plazo: '',
+        nuevo_tipo_dias: 'calendario',
         nuevo_tipo_documento_requerido_id: '',
         documentos_nuevo: [],
         notificar_a: [],  // solo se llena cuando se crea el siguiente movimiento
@@ -92,7 +93,11 @@ export default function TabAccionPendiente({
                                     <span className="text-amber-500 block">Fecha Límite</span>
                                     <span className="font-bold text-amber-800">
                                         {new Date(movimiento.fecha_limite).toLocaleDateString('es-PE')}
-                                        {movimiento.dias_plazo && <span className="font-normal ml-1">({movimiento.dias_plazo} días)</span>}
+                                        {movimiento.dias_plazo && (
+                                            <span className="font-normal ml-1">
+                                                ({movimiento.dias_plazo} día{movimiento.dias_plazo !== 1 ? 's' : ''}{movimiento.tipo_dias === 'habiles' ? ' hábiles' : ''})
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                             )}
@@ -250,16 +255,35 @@ export default function TabAccionPendiente({
 
                                     {/* Plazo */}
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo (días hábiles)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="365"
-                                            value={form.data.nuevo_dias_plazo}
-                                            onChange={e => form.setData('nuevo_dias_plazo', e.target.value)}
-                                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                                            placeholder="Ej: 5"
-                                        />
+                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Plazo</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="365"
+                                                value={form.data.nuevo_dias_plazo}
+                                                onChange={e => form.setData('nuevo_dias_plazo', e.target.value)}
+                                                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2"
+                                                placeholder="Ej: 5"
+                                            />
+                                            <div className="flex rounded-lg overflow-hidden border border-gray-200 shrink-0">
+                                                {[
+                                                    { v: 'calendario', label: 'Cal.' },
+                                                    { v: 'habiles',    label: 'Háb.' },
+                                                ].map(opt => (
+                                                    <button key={opt.v} type="button"
+                                                        title={opt.v === 'calendario' ? 'Días calendario' : 'Días hábiles'}
+                                                        onClick={() => form.setData('nuevo_tipo_dias', opt.v)}
+                                                        className={`px-2.5 py-1 text-xs font-bold transition-colors ${
+                                                            form.data.nuevo_tipo_dias === opt.v
+                                                                ? 'bg-[#291136] text-white'
+                                                                : 'bg-white text-gray-500 hover:bg-gray-50'
+                                                        }`}>
+                                                        {opt.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Tipo documento requerido */}

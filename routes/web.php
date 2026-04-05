@@ -115,6 +115,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/expedientes/{expediente}/actores/{actor}', [ExpedienteActorController::class, 'destroy'])->name('expedientes.actores.destroy');
     Route::post('/expedientes/{expediente}/gestor', [ExpedienteActorController::class, 'designarGestor'])->name('expedientes.gestor.designar');
 
+    // Emails adicionales de actor
+    Route::post('/expedientes/{expediente}/actores/{actor}/emails', [ExpedienteActorController::class, 'storeEmail'])->name('expedientes.actores.emails.store');
+    Route::delete('/expedientes/{expediente}/actores/{actor}/emails/{emailId}', [ExpedienteActorController::class, 'destroyEmail'])->name('expedientes.actores.emails.destroy');
+
     // Estado del expediente
     Route::post('/expedientes/{expediente}/suspender', [ExpedienteEstadoController::class, 'suspender'])->name('expedientes.suspender');
     Route::post('/expedientes/{expediente}/reactivar', [ExpedienteEstadoController::class, 'reactivar'])->name('expedientes.reactivar');

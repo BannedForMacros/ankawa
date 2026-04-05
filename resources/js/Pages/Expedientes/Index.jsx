@@ -1,7 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/PageHeader';
 import { Head, Link } from '@inertiajs/react';
-import { Scale, ChevronRight, Search, User } from 'lucide-react';
+import { Scale, ChevronRight, Search, User, Clock } from 'lucide-react';
 import { useState } from 'react';
 
 const estadoColors = {
@@ -15,6 +15,71 @@ const borderByEstado = {
     suspendido: 'border-l-amber-400',
     concluido:  'border-l-gray-300',
 };
+
+function getUrgencia(diasRestantes) {
+    if (diasRestantes === null || diasRestantes === undefined) return null;
+    if (diasRestantes <= 0)  return 'vencido';
+    if (diasRestantes <= 2)  return 'critico';
+    if (diasRestantes <= 5)  return 'urgente';
+    if (diasRestantes <= 10) return 'proximo';
+    return 'normal';
+}
+
+const URGENCIA_CONFIG = {
+    vencido: {
+        anim:  'animate-float-urgent',
+        badge: 'bg-red-100 text-red-700 border-red-300',
+        dot:   'bg-red-500',
+    },
+    critico: {
+        anim:  'animate-float-med',
+        badge: 'bg-orange-100 text-orange-700 border-orange-300',
+        dot:   'bg-orange-500',
+    },
+    urgente: {
+        anim:  'animate-float-slow',
+        badge: 'bg-amber-100 text-amber-700 border-amber-300',
+        dot:   'bg-amber-400',
+    },
+    proximo: {
+        anim:  '',
+        badge: 'bg-blue-50 text-blue-700 border-blue-200',
+        dot:   'bg-blue-400',
+    },
+    normal: {
+        anim:  '',
+        badge: 'bg-gray-100 text-gray-500 border-gray-200',
+        dot:   'bg-gray-400',
+    },
+};
+
+function PlazoLabel({ mov }) {
+    if (!mov) return null;
+    const dias = mov.dias_restantes;
+    const nivel = getUrgencia(dias);
+    if (!nivel) return null;
+    const cfg = URGENCIA_CONFIG[nivel];
+
+    let texto;
+    if (dias === null || dias === undefined) {
+        texto = mov.fecha_limite ? `Vence ${mov.fecha_limite}` : null;
+    } else if (dias <= 0) {
+        texto = dias === 0 ? 'Vence hoy' : `Vencido hace ${Math.abs(dias)}d`;
+    } else {
+        const sufijo = mov.tipo_dias === 'habiles' ? ' háb.' : 'd';
+        texto = `${dias}${sufijo} restantes`;
+    }
+
+    if (!texto) return null;
+
+    return (
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge}`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot} ${nivel !== 'normal' && nivel !== 'proximo' ? 'animate-pulse' : ''}`}/>
+            <Clock size={9}/>
+            {texto}
+        </span>
+    );
+}
 
 export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
     const [busqueda, setBusqueda] = useState('');
@@ -108,49 +173,62 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {filtrados.map(exp => (
-                                <Link
-                                    key={exp.id}
-                                    href={route('expedientes.show', exp.id)}
-                                    className={`block bg-white rounded-2xl border border-gray-100 border-l-4 ${borderByEstado[exp.estado] ?? 'border-l-gray-200'} shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-4 group`}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className="shrink-0 w-10 h-10 rounded-full bg-[#BE0F4A]/10 flex items-center justify-center text-[#BE0F4A]">
-                                            <Scale size={18}/>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                <span className="font-black font-mono text-[#291136] text-sm">
-                                                    {exp.numero_expediente}
-                                                </span>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${estadoColors[exp.estado] ?? 'bg-gray-100 text-gray-500'}`}>
-                                                    {exp.estado}
-                                                </span>
+                            {filtrados.map(exp => {
+                                const mov    = exp.movimiento_urgente ?? null;
+                                const nivel  = getUrgencia(mov?.dias_restantes ?? null);
+                                const cfg    = nivel ? URGENCIA_CONFIG[nivel] : null;
+                                const tieneAnim = cfg?.anim && cfg.anim !== '';
+
+                                return (
+                                    <Link
+                                        key={exp.id}
+                                        href={route('expedientes.show', exp.id)}
+                                        className={`block bg-white rounded-2xl border border-gray-100 border-l-4 ${borderByEstado[exp.estado] ?? 'border-l-gray-200'} shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-4 group ${tieneAnim ? cfg.anim : ''}`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="shrink-0 w-10 h-10 rounded-full bg-[#BE0F4A]/10 flex items-center justify-center text-[#BE0F4A]">
+                                                <Scale size={18}/>
                                             </div>
-                                            <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
-                                                {exp.servicio && <span>{exp.servicio}</span>}
-                                                {exp.etapa && (
-                                                    <>
-                                                        <span className="text-gray-200">•</span>
-                                                        <span className="font-semibold text-[#BE0F4A]">{exp.etapa}</span>
-                                                    </>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                    <span className="font-black font-mono text-[#291136] text-sm">
+                                                        {exp.numero_expediente}
+                                                    </span>
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${estadoColors[exp.estado] ?? 'bg-gray-100 text-gray-500'}`}>
+                                                        {exp.estado}
+                                                    </span>
+                                                    {mov && <PlazoLabel mov={mov} />}
+                                                </div>
+                                                <div className="flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+                                                    {exp.servicio && <span>{exp.servicio}</span>}
+                                                    {exp.etapa && (
+                                                        <>
+                                                            <span className="text-gray-200">•</span>
+                                                            <span className="font-semibold text-[#BE0F4A]">{exp.etapa}</span>
+                                                        </>
+                                                    )}
+                                                    {exp.gestor && (
+                                                        <>
+                                                            <span className="text-gray-200">•</span>
+                                                            <span className="flex items-center gap-1">
+                                                                <User size={10}/> {exp.gestor}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                    <span className="text-gray-200">•</span>
+                                                    <span>{exp.created_at}</span>
+                                                </div>
+                                                {mov && (
+                                                    <p className="text-xs text-gray-500 mt-1 truncate">
+                                                        <span className="font-semibold text-[#BE0F4A]">Pendiente:</span> {mov.instruccion}
+                                                    </p>
                                                 )}
-                                                {exp.gestor && (
-                                                    <>
-                                                        <span className="text-gray-200">•</span>
-                                                        <span className="flex items-center gap-1">
-                                                            <User size={10}/> {exp.gestor}
-                                                        </span>
-                                                    </>
-                                                )}
-                                                <span className="text-gray-200">•</span>
-                                                <span>{exp.created_at}</span>
                                             </div>
+                                            <ChevronRight size={16} className="shrink-0 text-gray-300 group-hover:text-[#BE0F4A] transition-colors"/>
                                         </div>
-                                        <ChevronRight size={16} className="shrink-0 text-gray-300 group-hover:text-[#BE0F4A] transition-colors"/>
-                                    </div>
-                                </Link>
-                            ))}
+                                    </Link>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

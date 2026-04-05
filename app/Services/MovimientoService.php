@@ -34,9 +34,10 @@ class MovimientoService
     ): ExpedienteMovimiento {
         return DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds, $estadoInicial) {
 
+            $tipoDias    = $datos['tipo_dias'] ?? 'calendario';
             $fechaLimite = null;
             if (!empty($datos['dias_plazo'])) {
-                $fechaLimite = now()->addDays((int) $datos['dias_plazo'])->toDateString();
+                $fechaLimite = $this->calcularFechaLimite((int) $datos['dias_plazo'], $tipoDias);
             }
 
             $movimiento = ExpedienteMovimiento::create([
@@ -50,6 +51,7 @@ class MovimientoService
                 'instruccion'                => $datos['instruccion'],
                 'observaciones'              => $datos['observaciones'] ?? null,
                 'dias_plazo'                 => $datos['dias_plazo'] ?? null,
+                'tipo_dias'                  => $tipoDias,
                 'fecha_limite'               => $fechaLimite,
                 'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
                 'estado'                     => $estadoInicial,
@@ -222,7 +224,25 @@ class MovimientoService
             ->update(['estado' => 'vencido']);
     }
 
-    private function guardarDocumentos(ExpedienteMovimiento $movimiento, array $archivos, int $subidoPor, string $momento): void
+    private function calcularFechaLimite(int $dias, string $tipoDias): string
+    {
+        if ($tipoDias === 'habiles') {
+            $feriados = \DB::table('feriados')->where('activo', true)->pluck('fecha')->toArray();
+            $fecha    = now()->copy();
+            $contados = 0;
+            while ($contados < $dias) {
+                $fecha->addDay();
+                if ($fecha->dayOfWeek !== 0 && $fecha->dayOfWeek !== 6
+                    && !in_array($fecha->toDateString(), $feriados)) {
+                    $contados++;
+                }
+            }
+            return $fecha->toDateString();
+        }
+        return now()->addDays($dias)->toDateString();
+    }
+
+    private function guardarDocumentos(ExpedienteMovimiento $movimiento, array $archivos, ?int $subidoPor, string $momento): void
     {
         $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
 

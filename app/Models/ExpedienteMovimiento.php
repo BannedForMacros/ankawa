@@ -22,6 +22,7 @@ class ExpedienteMovimiento extends Model
         'observaciones',
         'respuesta',
         'dias_plazo',
+        'tipo_dias',
         'fecha_limite',
         'fecha_respuesta',
         'respondido_por',
@@ -140,5 +141,47 @@ class ExpedienteMovimiento extends Model
         return $this->estado === 'pendiente'
             && $this->fecha_limite
             && $this->fecha_limite->isPast();
+    }
+
+    /**
+     * Días restantes hasta fecha_limite.
+     * Cuenta días hábiles (lun-vie, excluye feriados) cuando tipo_dias = 'habiles',
+     * días calendario en caso contrario. Negativo si ya venció.
+     */
+    public function diasRestantes(): ?int
+    {
+        if (!$this->fecha_limite) return null;
+
+        $hoy    = now()->startOfDay();
+        $limite = $this->fecha_limite->copy()->startOfDay();
+
+        if ($this->tipo_dias !== 'habiles') {
+            return (int) ceil(($limite->timestamp - $hoy->timestamp) / 86400);
+        }
+
+        // Días hábiles restantes (sin fines de semana ni feriados)
+        $feriados = \DB::table('feriados')->where('activo', true)->pluck('fecha')->map(fn($f) => $f)->toArray();
+        $dias     = 0;
+        $actual   = $hoy->copy();
+
+        if ($actual->gte($limite)) {
+            while ($actual->gt($limite)) {
+                $actual->subDay();
+                if ($actual->dayOfWeek !== 0 && $actual->dayOfWeek !== 6
+                    && !in_array($actual->toDateString(), $feriados)) {
+                    $dias--;
+                }
+            }
+            return $dias;
+        }
+
+        while ($actual->lt($limite)) {
+            $actual->addDay();
+            if ($actual->dayOfWeek !== 0 && $actual->dayOfWeek !== 6
+                && !in_array($actual->toDateString(), $feriados)) {
+                $dias++;
+            }
+        }
+        return $dias;
     }
 }

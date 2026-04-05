@@ -48,13 +48,21 @@ class ExpedienteActor extends Model
 
     /**
      * Todos los emails del actor: el principal + los adicionales.
+     * Para actores internos, el email principal es usuario->email.
+     * Para actores externos, es email_externo.
      */
     public function todosLosEmails(): array
     {
         $emails = [];
-        if ($this->email_externo) {
+
+        // Email principal
+        if ($this->usuario?->email) {
+            $emails[] = $this->usuario->email;
+        } elseif ($this->email_externo) {
             $emails[] = $this->email_externo;
         }
+
+        // Emails adicionales
         foreach ($this->emailsAdicionales as $extra) {
             if ($extra->email && !in_array($extra->email, $emails)) {
                 $emails[] = $extra->email;
