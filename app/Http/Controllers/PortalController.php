@@ -12,6 +12,7 @@ use App\Models\ExpedienteMovimiento;
 use App\Models\SolicitudArbitraje;
 use App\Models\Servicio;
 use App\Models\User;
+use App\Models\ExpedienteActorAceptacion;
 use App\Models\VerificationCode;
 use App\Mail\CargoRespuestaMail;
 use App\Mail\CodigoVerificacionMail;
@@ -167,11 +168,35 @@ class PortalController extends Controller
         $servicios   = Servicio::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre', 'slug', 'descripcion']);
         $expedientes = $this->expedientesDashboard($email);
 
+        // Expedientes con acceso habilitado pero sin toma de conocimiento registrada
+        $actorIds = $this->actorIdsPorEmail($email);
+        $pendientesAceptacion = [];
+        if ($actorIds->isNotEmpty()) {
+            $yaAceptados = ExpedienteActorAceptacion::whereIn('expediente_actor_id', $actorIds)
+                ->where('tipo', 'toma_conocimiento')
+                ->pluck('expediente_id')
+                ->unique();
+
+            $pendientesAceptacion = Expediente::whereHas('actores', fn($q) =>
+                $q->whereIn('id', $actorIds)->where('activo', 1)->where('acceso_mesa_partes', 1)
+            )
+            ->whereNotIn('id', $yaAceptados)
+            ->with('servicio:id,nombre')
+            ->get()
+            ->map(fn($exp) => [
+                'id'                => $exp->id,
+                'numero_expediente' => $exp->numero_expediente,
+                'servicio'          => $exp->servicio->nombre,
+                'estado'            => $exp->estado,
+            ])->values()->toArray();
+        }
+
         return Inertia::render('MesaPartes/Dashboard', [
-            'expedientes' => $expedientes,
-            'servicios'   => $servicios,
-            'portalUser'  => $portalUser,
-            'portalEmail' => $email,
+            'expedientes'          => $expedientes,
+            'servicios'            => $servicios,
+            'portalUser'           => $portalUser,
+            'portalEmail'          => $email,
+            'pendientesAceptacion' => $pendientesAceptacion,
         ]);
     }
 
@@ -264,5 +289,46 @@ class PortalController extends Controller
     {
         session()->forget('portal_email');
         return redirect()->route('mesa-partes.index');
+    }
+
+    // ── Toma de conocimiento de un expediente ─────────────────────────────────
+    public function aceptarConocimiento(Request $request, Expediente $expediente)
+    {
+        $email    = session('portal_email');
+        $actorIds = $this->actorIdsPorEmail($email);
+
+        $actor = ExpedienteActor::whereIn('id', $actorIds)
+            ->where('expediente_id', $expediente->id)
+            ->where('acceso_mesa_partes', 1)
+            ->firstOrFail();
+
+        ExpedienteActorAceptacion::firstOrCreate(
+            [
+                'expediente_actor_id' => $actor->id,
+                'expediente_id'       => $expediente->id,
+                'tipo'                => 'toma_conocimiento',
+            ],
+            [
+                'ip_address'   => $request->ip(),
+                'user_agent'   => $request->userAgent(),
+                'portal_email' => $email,
+                'created_at'   => now(),
+            ]
+        );
+
+        ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => $actor->usuario_id ?? 0,
+            'tipo_evento'   => 'toma_conocimiento',
+            'descripcion'   => "Actor tomó conocimiento del expediente desde el portal ({$email}).",
+            'datos_extra'   => [
+                'portal_email' => $email,
+                'ip'           => $request->ip(),
+                'user_agent'   => substr($request->userAgent() ?? '', 0, 200),
+                'actor_id'     => $actor->id,
+            ],
+        ]);
+
+        return back();
     }
 }

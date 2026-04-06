@@ -205,32 +205,28 @@ export default function TabActores({
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
-                                                {puedeEditar && (
-                                                    <button
-                                                        onClick={() => toggleAcceso(actor.id, 'acceso_mesa_partes')}
-                                                        title={actor.acceso_mesa_partes ? 'Deshabilitar Mesa de Partes' : 'Habilitar Mesa de Partes'}
-                                                        className={`p-1.5 rounded-lg transition-colors ${
-                                                            actor.acceso_mesa_partes
-                                                                ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
-                                                                : 'text-gray-300 hover:text-emerald-600 hover:bg-emerald-50'
-                                                        }`}
-                                                    >
-                                                        <FileText size={14} />
-                                                    </button>
-                                                )}
-                                                {puedeEditar && (
-                                                    <button
-                                                        onClick={() => toggleAcceso(actor.id, 'acceso_expediente_electronico')}
-                                                        title={actor.acceso_expediente_electronico ? 'Deshabilitar Exp. Electrónico' : 'Habilitar Exp. Electrónico'}
-                                                        className={`p-1.5 rounded-lg transition-colors ${
-                                                            actor.acceso_expediente_electronico
-                                                                ? 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'
-                                                                : 'text-gray-300 hover:text-indigo-600 hover:bg-indigo-50'
-                                                        }`}
-                                                    >
-                                                        <Monitor size={14} />
-                                                    </button>
-                                                )}
+                                                {/* Acceso a Mesa de Partes — solo lectura, se otorga desde movimientos */}
+                                                <span
+                                                    title="El acceso se otorga al crear un movimiento de Traslado/Notificación"
+                                                    className={`p-1.5 rounded-lg cursor-default ${
+                                                        actor.acceso_mesa_partes
+                                                            ? 'bg-emerald-100 text-emerald-600'
+                                                            : 'text-gray-200'
+                                                    }`}
+                                                >
+                                                    <FileText size={14} />
+                                                </span>
+                                                {/* Acceso a Expediente Electrónico — solo lectura */}
+                                                <span
+                                                    title="El acceso se otorga al crear un movimiento con credenciales de expediente electrónico"
+                                                    className={`p-1.5 rounded-lg cursor-default ${
+                                                        actor.acceso_expediente_electronico
+                                                            ? 'bg-indigo-100 text-indigo-600'
+                                                            : 'text-gray-200'
+                                                    }`}
+                                                >
+                                                    <Monitor size={14} />
+                                                </span>
                                                 {puedeEditar && (
                                                     <button
                                                         onClick={() => mostrandoFormEmail ? cerrarFormEmail() : abrirFormEmail(actor.id)}
@@ -340,6 +336,11 @@ export default function TabActores({
                             })}
                         </div>
                     )}
+                    {/* Nota informativa sobre acceso */}
+                    <p className="text-[11px] text-gray-400 mt-3 px-1 leading-relaxed">
+                        <span className="font-semibold text-gray-500">ℹ Acceso al portal:</span>{' '}
+                        El acceso a Mesa de Partes y Expediente Electrónico se otorga automáticamente al crear un movimiento de Traslado/Notificación con la opción correspondiente. No se puede habilitar manualmente.
+                    </p>
                 </div>
             </div>
 

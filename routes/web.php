@@ -72,6 +72,7 @@ Route::middleware('portal.auth')->group(function () {
     Route::get('/mesa-partes/solicitud/{slug}', [MesaPartesController::class, 'formularioPorSlug'])->name('mesa-partes.solicitud');
     Route::get('/mesa-partes/logout', [PortalController::class, 'logout'])->name('mesa-partes.logout');
     Route::post('/mesa-partes/movimientos/{movimiento}/responder', [PortalController::class, 'responder'])->name('mesa-partes.responder');
+    Route::post('/mesa-partes/expedientes/{expediente}/aceptar-conocimiento', [PortalController::class, 'aceptarConocimiento'])->name('mesa-partes.aceptarConocimiento');
 });
 
 
