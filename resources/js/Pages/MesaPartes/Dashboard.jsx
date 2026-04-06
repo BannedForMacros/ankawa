@@ -36,6 +36,17 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
             <Head title="Mesa de Partes — Ankawa" />
             <Toaster position="top-right" />
 
+            {/* Definición de la animación de latido interno */}
+            <style>{`
+                @keyframes latidoCard {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.02); }
+                }
+                .animacion-latido {
+                    animation: latidoCard 2s ease-in-out infinite;
+                }
+            `}</style>
+
             {/* Modal bloqueante de Toma de Conocimiento */}
             {pendientesAceptacion.length > 0 && (
                 <ModalTomaConocimiento pendientes={pendientesAceptacion} />
@@ -123,13 +134,10 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
                                     {(exp.movimientos_pendientes ?? []).length > 0 && (
                                         <div className="mt-4 space-y-4">
                                             {(exp.movimientos_pendientes ?? []).map((mov, idx) => (
-                                                /* ── Card de requerimiento con animación "ping" ── */
+                                                /* ── Card de requerimiento con la animación inyectada ── */
                                                 <div key={mov.id} className="relative">
-                                                    {/* Anillo pulsante — sale y vuelve alrededor de la card */}
-                                                    <div className="absolute -inset-px rounded-xl bg-[#BE0F4A]/25 animate-ping pointer-events-none"/>
-
-                                                    {/* Card real */}
-                                                    <div className="relative bg-white border border-[#BE0F4A]/40 rounded-xl p-4 space-y-3 shadow-sm">
+                                                    {/* Card real con clase 'animacion-latido' */}
+                                                    <div className="relative bg-white border border-[#BE0F4A]/40 rounded-xl p-4 space-y-3 shadow-md animacion-latido">
                                                         <div className="flex items-start gap-2">
                                                             {/* Icono urgencia */}
                                                             <div className="w-7 h-7 rounded-full bg-[#BE0F4A]/10 flex items-center justify-center shrink-0 mt-0.5">
