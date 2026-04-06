@@ -2,7 +2,7 @@ import { router } from '@inertiajs/react';
 import { useState, useMemo, useRef, useEffect, Children } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 import toast from 'react-hot-toast';
-import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail } from 'lucide-react';
+import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail, Layers, ArrowRight } from 'lucide-react';
 
 export const movVacioBase = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
@@ -45,7 +45,7 @@ const TIPOS = {
 };
 
 /* ── Select estilizado propio ─────────────────────────────────────────────── */
-function AnkawaSelect({ value, onChange, disabled, children, className = '' }) {
+function AnkawaSelect({ value, onChange, disabled, children, className = '', hasError = false }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
 
@@ -80,8 +80,10 @@ function AnkawaSelect({ value, onChange, disabled, children, className = '' }) {
     return (
         <div ref={ref} className={`relative ${className}`}>
             <button type="button" onClick={() => setOpen(o => !o)}
-                className={`w-full text-sm border rounded-xl px-3.5 py-2.5 pr-9 bg-white text-left focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 transition-colors ${
-                    open ? 'border-[#BE0F4A]' : 'border-gray-200 hover:border-gray-300'
+                className={`w-full text-sm border rounded-xl px-3.5 py-2.5 pr-9 bg-white text-left focus:outline-none focus:ring-2 transition-colors ${
+                    hasError
+                        ? 'border-red-400 focus:ring-red-200 focus:border-red-500'
+                        : open ? 'border-[#BE0F4A] focus:ring-[#BE0F4A]/20' : 'border-gray-200 hover:border-gray-300 focus:ring-[#BE0F4A]/20'
                 }`}>
                 <span className={`block truncate font-medium ${!selected || selected.value === '' ? 'text-gray-400' : 'text-gray-800'}`}>
                     {selected?.label ?? 'Seleccionar...'}
@@ -112,12 +114,19 @@ function AnkawaSelect({ value, onChange, disabled, children, className = '' }) {
 }
 
 const inputCls   = "w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A] bg-white resize-none transition-colors";
+const inputClsErr = "w-full text-sm border border-red-400 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-500 bg-white resize-none transition-colors";
 const SectionLabel = ({ children }) => (
     <p className="text-xs font-black uppercase tracking-widest text-[#BE0F4A] mb-2">{children}</p>
 );
 const FieldLabel = ({ children }) => (
     <label className="block text-sm font-semibold text-gray-500 mb-1.5">{children}</label>
 );
+const FieldError = ({ msg }) => msg ? (
+    <p className="text-xs text-red-500 mt-1 font-medium flex items-center gap-1">
+        <span className="inline-block w-1 h-1 rounded-full bg-red-500 shrink-0"/>
+        {msg}
+    </p>
+) : null;
 
 // ── Card de un movimiento individual (exportado para reutilización) ──────────
 export function MovimientoCard({
@@ -125,6 +134,7 @@ export function MovimientoCard({
     etapas, tiposActorEnExpediente, actoresExpediente,
     tiposDocumento, actoresSinMesaPartes, actoresSinExpElectronico, actoresNotificables,
     archivos, onArchivos, onChange, onMover, onQuitar,
+    errores = {}, etapaActualId = null,
 }) {
     const tipo     = mov.tipo ?? 'requerimiento';
     const tipoInfo = TIPOS[tipo];
@@ -136,6 +146,26 @@ export function MovimientoCard({
         const et = etapas.find(e => String(e.id) === String(mov.etapa_id));
         return et?.sub_etapas ?? [];
     }, [mov.etapa_id, etapas]);
+
+    // ── Lógica de avance de etapa ──────────────────────────────────────────
+    const etapaActual = useMemo(() =>
+        etapas.find(e => String(e.id) === String(etapaActualId)),
+    [etapas, etapaActualId]);
+
+    const siguienteEtapa = useMemo(() => {
+        const ordenActual = etapaActual?.orden ?? 0;
+        return etapas
+            .filter(e => e.orden > ordenActual)
+            .sort((a, b) => a.orden - b.orden)[0] ?? null;
+    }, [etapas, etapaActual]);
+
+    const avanzandoEtapa = !!(siguienteEtapa && String(mov.etapa_id) === String(siguienteEtapa.id));
+
+    function toggleAvanzarEtapa(checked) {
+        const nuevoId = checked && siguienteEtapa ? String(siguienteEtapa.id) : String(etapaActualId ?? '');
+        onChange('etapa_id', nuevoId);
+        onChange('sub_etapa_id', '');
+    }
 
     // Solo actores con acceso a Mesa de Partes (pueden recibir requerimientos y responder)
     const actoresConAcceso = useMemo(() =>
@@ -218,24 +248,52 @@ export function MovimientoCard({
                 {/* ── SECCIÓN 1: Etapa ── */}
                 <div>
                     <SectionLabel>Etapa</SectionLabel>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <FieldLabel>Etapa *</FieldLabel>
-                            <AnkawaSelect value={mov.etapa_id}
-                                onChange={e => { onChange('etapa_id', e.target.value); onChange('sub_etapa_id', ''); }}>
-                                <option value="">Seleccionar...</option>
-                                {etapas.map(et => <option key={et.id} value={et.id}>{et.orden}. {et.nombre}</option>)}
-                            </AnkawaSelect>
+                    <div className="space-y-2">
+                        {/* Etapa actual — no editable */}
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-[#291136]/5 rounded-xl border border-[#291136]/10">
+                            <Layers size={13} className="text-[#291136] shrink-0"/>
+                            <span className="text-xs text-gray-500 font-medium">Etapa actual:</span>
+                            <span className="text-xs font-bold text-[#291136]">{etapaActual?.nombre ?? '—'}</span>
                         </div>
-                        <div>
-                            <FieldLabel>Sub-etapa</FieldLabel>
-                            <AnkawaSelect value={mov.sub_etapa_id}
-                                onChange={e => onChange('sub_etapa_id', e.target.value)}
-                                disabled={subEtapas.length === 0}>
-                                <option value="">Ninguna</option>
-                                {subEtapas.map(se => <option key={se.id} value={se.id}>{se.orden}. {se.nombre}</option>)}
-                            </AnkawaSelect>
-                        </div>
+                        {/* Avanzar a la siguiente etapa */}
+                        {siguienteEtapa ? (
+                            <label className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border cursor-pointer transition-colors select-none ${
+                                avanzandoEtapa
+                                    ? 'bg-amber-50 border-amber-300'
+                                    : 'bg-white border-gray-200 hover:border-gray-300'
+                            }`}>
+                                <input type="checkbox" checked={avanzandoEtapa}
+                                    onChange={e => toggleAvanzarEtapa(e.target.checked)}
+                                    className="w-4 h-4 accent-amber-500 rounded shrink-0"/>
+                                <ArrowRight size={13} className={avanzandoEtapa ? 'text-amber-500' : 'text-gray-400'}/>
+                                <div className="flex-1 min-w-0">
+                                    <span className={`text-sm font-semibold ${avanzandoEtapa ? 'text-amber-800' : 'text-gray-600'}`}>
+                                        Avanzar a siguiente etapa
+                                    </span>
+                                    <span className={`block text-xs ${avanzandoEtapa ? 'text-amber-700 font-bold' : 'text-gray-400'}`}>
+                                        {siguienteEtapa.orden}. {siguienteEtapa.nombre}
+                                    </span>
+                                </div>
+                                {avanzandoEtapa && (
+                                    <span className="text-[10px] font-black uppercase tracking-wide text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0 border border-amber-200">
+                                        Avance de etapa
+                                    </span>
+                                )}
+                            </label>
+                        ) : (
+                            <p className="text-xs text-gray-400 italic px-1">Esta es la última etapa del proceso.</p>
+                        )}
+                        {/* Sub-etapa — opcional */}
+                        {subEtapas.length > 0 && (
+                            <div>
+                                <FieldLabel>Sub-etapa <span className="font-normal text-gray-400">(opcional)</span></FieldLabel>
+                                <AnkawaSelect value={mov.sub_etapa_id}
+                                    onChange={e => onChange('sub_etapa_id', e.target.value)}>
+                                    <option value="">Ninguna</option>
+                                    {subEtapas.map(se => <option key={se.id} value={se.id}>{se.orden}. {se.nombre}</option>)}
+                                </AnkawaSelect>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -245,13 +303,14 @@ export function MovimientoCard({
                         {esPropia ? 'Acción realizada' : esNotif ? 'Descripción del traslado' : 'Instrucción'}
                     </SectionLabel>
                     <textarea value={mov.instruccion} onChange={e => onChange('instruccion', e.target.value)}
-                        rows={3} className={inputCls}
+                        rows={3} className={errores.instruccion ? inputClsErr : inputCls}
                         placeholder={
                             esPropia ? 'Describa la acción realizada por el gestor...'
                             : esNotif ? 'Describa el contenido del traslado o notificación...'
                             : 'Describa la instrucción o acción a realizar...'
                         }
                     />
+                    <FieldError msg={errores.instruccion ? 'Este campo es obligatorio.' : null}/>
                 </div>
 
                 {/* ── SECCIÓN 3: Responsable + Plazo (solo requerimiento) ── */}
@@ -260,29 +319,33 @@ export function MovimientoCard({
                         <SectionLabel>Responsable y Plazo</SectionLabel>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                                <FieldLabel>Tipo Actor</FieldLabel>
+                                <FieldLabel>Tipo Actor *</FieldLabel>
                                 <AnkawaSelect value={mov.tipo_actor_responsable_id}
+                                    hasError={!!errores.tipo_actor_responsable_id}
                                     onChange={e => { onChange('tipo_actor_responsable_id', e.target.value); onChange('usuario_responsable_id', ''); }}>
-                                    <option value="">— Ninguno —</option>
+                                    <option value="">— Seleccionar —</option>
                                     {tiposActorConAcceso.map(ta => <option key={ta.id} value={ta.id}>{ta.nombre}</option>)}
                                 </AnkawaSelect>
+                                <FieldError msg={errores.tipo_actor_responsable_id ? 'Selecciona el tipo de actor.' : null}/>
                             </div>
                             <div>
-                                <FieldLabel>Usuario</FieldLabel>
+                                <FieldLabel>Usuario *</FieldLabel>
                                 <AnkawaSelect value={mov.usuario_responsable_id}
+                                    hasError={!!errores.usuario_responsable_id}
                                     onChange={e => onChange('usuario_responsable_id', e.target.value)}>
-                                    <option value="">— Ninguno —</option>
+                                    <option value="">— Seleccionar —</option>
                                     {usuariosFiltrados.map(a => (
                                         <option key={a.usuario.id} value={a.usuario.id}>{a.usuario.name} — {a.tipo_actor?.nombre}</option>
                                     ))}
                                 </AnkawaSelect>
+                                <FieldError msg={errores.usuario_responsable_id ? 'Selecciona el usuario responsable.' : null}/>
                             </div>
                             <div>
-                                <FieldLabel>Plazo (días)</FieldLabel>
+                                <FieldLabel>Plazo (días) *</FieldLabel>
                                 <div className="flex gap-2 items-stretch">
                                     <input type="number" min="1" max="365" value={mov.dias_plazo}
                                         onChange={e => onChange('dias_plazo', e.target.value)}
-                                        className={`${inputCls} flex-1`} placeholder="Ej: 5"/>
+                                        className={`${errores.dias_plazo ? inputClsErr : inputCls} flex-1`} placeholder="Ej: 5"/>
                                     <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
                                         {[
                                             { v: 'calendario', label: 'Cal.' },
@@ -301,6 +364,7 @@ export function MovimientoCard({
                                         ))}
                                     </div>
                                 </div>
+                                <FieldError msg={errores.dias_plazo ? 'Ingresa un plazo válido (mínimo 1 día).' : null}/>
                             </div>
                         </div>
                     </div>
@@ -309,7 +373,7 @@ export function MovimientoCard({
                 {/* ── SECCIÓN 4: Tipo documento requerido (solo requerimiento) ── */}
                 {esReq && (
                     <div>
-                        <SectionLabel>Documento requerido</SectionLabel>
+                        <SectionLabel>Documento requerido *</SectionLabel>
                         {(() => {
                             const docsFiltered = mov.tipo_actor_responsable_id
                                 ? tiposDocumento.filter(td =>
@@ -323,11 +387,15 @@ export function MovimientoCard({
                                     Sin documentos configurados para requerir a este actor.
                                 </p>
                             ) : (
+                                <>
                                 <AnkawaSelect value={mov.tipo_documento_requerido_id}
+                                    hasError={!!errores.tipo_documento_requerido}
                                     onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}>
-                                    <option value="">— Ninguno —</option>
+                                    <option value="">— Seleccionar —</option>
                                     {docsFiltered.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
                                 </AnkawaSelect>
+                                <FieldError msg={errores.tipo_documento_requerido ? 'Selecciona el tipo de documento requerido.' : null}/>
+                                </>
                             );
                         })()}
                     </div>
@@ -609,6 +677,7 @@ export default function TabNuevoMovimiento({
     const [archivosMovimientos, setArchivos] = useState({ 0: [] });
     const [procesando, setProcesando]        = useState(false);
     const [confirm, setConfirm] = useState(false);
+    const [errores, setErrores]  = useState([{}]);
 
     const actoresExpediente = useMemo(() =>
         (expediente.actores ?? []).filter(a => a.activo && a.usuario),
@@ -671,8 +740,33 @@ export default function TabNuevoMovimiento({
         });
     }
 
+    function validarMovimientos() {
+        return movimientos.map(mov => {
+            const e = {};
+            if (!mov.instruccion?.trim()) e.instruccion = true;
+            if (mov.tipo === 'requerimiento') {
+                if (!mov.tipo_actor_responsable_id) e.tipo_actor_responsable_id = true;
+                if (!mov.usuario_responsable_id)    e.usuario_responsable_id = true;
+                if (!mov.dias_plazo || Number(mov.dias_plazo) < 1) e.dias_plazo = true;
+                const docsDisponibles = mov.tipo_actor_responsable_id
+                    ? tiposDocumento.filter(td => td.permisos?.some(p =>
+                        String(p.tipo_actor_id) === String(mov.tipo_actor_responsable_id) && p.puede_subir))
+                    : tiposDocumento;
+                if (docsDisponibles.length > 0 && !mov.tipo_documento_requerido_id) e.tipo_documento_requerido = true;
+            }
+            return e;
+        });
+    }
+
     function handleSubmit(e) {
         e.preventDefault();
+        const errs = validarMovimientos();
+        if (errs.some(e => Object.keys(e).length > 0)) {
+            setErrores(errs);
+            toast.error('Completa los campos requeridos antes de continuar.');
+            return;
+        }
+        setErrores(movimientos.map(() => ({})));
         setConfirm(true);
     }
 
@@ -708,6 +802,7 @@ export default function TabNuevoMovimiento({
                     toast.success('Movimiento creado correctamente.');
                     setMovimientos([movVacio(expediente, defaultNotificarIds)]);
                     setArchivos({ 0: [] });
+                    setErrores([{}]);
                 },
                 onError: () => toast.error('Error al crear el movimiento. Revise los campos.'),
             });
@@ -740,6 +835,7 @@ export default function TabNuevoMovimiento({
                     toast.success(`${movimientos.length} movimientos creados correctamente.`);
                     setMovimientos([movVacio(expediente, defaultNotificarIds)]);
                     setArchivos({ 0: [] });
+                    setErrores([{}]);
                 },
                 onError: () => toast.error('Error al crear los movimientos. Revise los campos.'),
             });
@@ -755,51 +851,73 @@ export default function TabNuevoMovimiento({
             const tipo  = mov?.tipo ?? 'requerimiento';
             const esBatch = movimientos.length > 1;
 
-            const tipoActorNombre = tiposActorEnExpediente.find(t => String(t.id) === String(mov?.tipo_actor_responsable_id))?.nombre;
-            const responsableNombre = actoresExpediente.find(a => String(a.id) === String(mov?.usuario_responsable_id))?.usuario?.name;
-            const docNombre = tiposDocumento.find(d => String(d.id) === String(mov?.tipo_documento_requerido_id))?.nombre;
-            const etapaNombre = etapas.find(e => String(e.id) === String(mov?.etapa_id))?.nombre;
-            const expNumero = expediente.numero_expediente ?? `EXP-${expediente.id}`;
+            const tipoActorNombre   = tiposActorEnExpediente.find(t => String(t.id) === String(mov?.tipo_actor_responsable_id))?.nombre;
+            const responsableNombre = actoresExpediente.find(a => String(a.usuario?.id) === String(mov?.usuario_responsable_id))?.usuario?.name;
+            const docNombre         = tiposDocumento.find(d => String(d.id) === String(mov?.tipo_documento_requerido_id))?.nombre;
+            const expNumero         = expediente.numero_expediente ?? `EXP-${expediente.id}`;
+
+            // Detectar avance de etapa
+            const etapaActualNombre = etapas.find(e => String(e.id) === String(expediente.etapa_actual_id))?.nombre;
+            const etapaNuevaNombre  = etapas.find(e => String(e.id) === String(mov?.etapa_id))?.nombre;
+            const hayAvanceEtapa    = !esBatch && String(mov?.etapa_id) !== String(expediente.etapa_actual_id);
+            // En batch, detectar si alguno cambia de etapa
+            const batchAvanceEtapa  = esBatch && movimientos.some(m => String(m.etapa_id) !== String(expediente.etapa_actual_id));
 
             let titulo, resumen, detalles, variant;
 
             if (esBatch) {
                 titulo   = `Confirmar ${movimientos.length} movimientos`;
-                resumen  = 'Se crearán en secuencia para este expediente. Esta acción no se puede deshacer.';
+                resumen  = batchAvanceEtapa
+                    ? `⚠ Uno o más movimientos incluyen un avance de etapa. Al confirmar, la etapa del expediente se actualizará. Esta acción no se puede deshacer.`
+                    : 'Se crearán en secuencia para este expediente. Esta acción no se puede deshacer.';
                 detalles = [
                     { label: 'Expediente', value: expNumero },
-                    ...movimientos.map((m, i) => ({
-                        label: `Mov. ${i + 1}`,
-                        value: { requerimiento: 'Requerimiento', notificacion: 'Traslado / Notificación', propia: 'Actuación Propia' }[m.tipo] ?? m.tipo,
-                    })),
+                    ...movimientos.map((m, i) => {
+                        const avanza = String(m.etapa_id) !== String(expediente.etapa_actual_id);
+                        const eNueva = etapas.find(e => String(e.id) === String(m.etapa_id))?.nombre;
+                        return {
+                            label: `Mov. ${i + 1}`,
+                            value: `${{ requerimiento: 'Requerimiento', notificacion: 'Traslado', propia: 'Actuación Propia' }[m.tipo] ?? m.tipo}${avanza && eNueva ? ` → avanza a "${eNueva}"` : ''}`,
+                        };
+                    }),
                 ];
-                variant  = 'warning';
+                variant  = batchAvanceEtapa ? 'danger' : 'warning';
             } else if (tipo === 'requerimiento') {
                 titulo   = 'Confirmar requerimiento';
-                resumen  = 'Se asignará al actor responsable con un plazo para responder. El movimiento quedará pendiente hasta ser respondido.';
+                resumen  = hayAvanceEtapa
+                    ? `⚠ Al crear este movimiento se cerrará la etapa "${etapaActualNombre}" y el expediente avanzará a "${etapaNuevaNombre}". Esta acción no se puede deshacer.`
+                    : 'Se asignará al actor responsable con un plazo para responder. El movimiento quedará pendiente hasta ser respondido.';
                 detalles = [
                     { label: 'Expediente',          value: expNumero },
-                    tipoActorNombre  && { label: 'Actor responsable', value: tipoActorNombre },
-                    responsableNombre && { label: 'Responsable',       value: responsableNombre },
-                    mov?.dias_plazo   && { label: 'Plazo',             value: `${mov.dias_plazo} días ${mov.tipo_dias === 'habiles' ? 'hábiles' : 'calendario'}` },
+                    hayAvanceEtapa && { label: '⚠ Cierra etapa', value: etapaActualNombre },
+                    hayAvanceEtapa && { label: '→ Nueva etapa',  value: etapaNuevaNombre },
+                    tipoActorNombre   && { label: 'Actor responsable',   value: tipoActorNombre },
+                    responsableNombre && { label: 'Responsable',         value: responsableNombre },
+                    mov?.dias_plazo   && { label: 'Plazo',               value: `${mov.dias_plazo} días ${mov.tipo_dias === 'habiles' ? 'hábiles' : 'calendario'}` },
                     docNombre         && { label: 'Documento requerido', value: docNombre },
                 ].filter(Boolean);
-                variant  = 'warning';
+                variant  = hayAvanceEtapa ? 'danger' : 'warning';
             } else if (tipo === 'notificacion') {
                 titulo   = 'Confirmar traslado / notificación';
-                resumen  = 'Se comunicará a los actores seleccionados. No genera pendiente ni requiere respuesta formal.';
+                resumen  = hayAvanceEtapa
+                    ? `⚠ Al crear este movimiento se cerrará la etapa "${etapaActualNombre}" y el expediente avanzará a "${etapaNuevaNombre}".`
+                    : 'Se comunicará a los actores seleccionados. No genera pendiente ni requiere respuesta formal.';
                 detalles = [
                     { label: 'Expediente', value: expNumero },
-                    etapaNombre && { label: 'Etapa', value: etapaNombre },
+                    hayAvanceEtapa && { label: '⚠ Cierra etapa', value: etapaActualNombre },
+                    hayAvanceEtapa && { label: '→ Nueva etapa',  value: etapaNuevaNombre },
                     mov?.actores_mesa_partes_ids?.length > 0 && { label: 'Notificar a', value: `${mov.actores_mesa_partes_ids.length} actor(es)` },
                 ].filter(Boolean);
-                variant  = 'info';
+                variant  = hayAvanceEtapa ? 'danger' : 'info';
             } else {
                 titulo   = 'Confirmar actuación propia';
-                resumen  = 'Se registrará como acción ejecutada por el gestor y aparecerá en el historial del expediente.';
+                resumen  = hayAvanceEtapa
+                    ? `⚠ Al crear este movimiento se cerrará la etapa "${etapaActualNombre}" y el expediente avanzará a "${etapaNuevaNombre}".`
+                    : 'Se registrará como acción ejecutada por el gestor y aparecerá en el historial del expediente.';
                 detalles = [
                     { label: 'Expediente', value: expNumero },
-                    etapaNombre && { label: 'Etapa', value: etapaNombre },
+                    hayAvanceEtapa && { label: '⚠ Cierra etapa', value: etapaActualNombre },
+                    hayAvanceEtapa && { label: '→ Nueva etapa',  value: etapaNuevaNombre },
                     mov?.instruccion && { label: 'Acción', value: mov.instruccion.length > 60 ? mov.instruccion.substring(0, 60) + '…' : mov.instruccion },
                 ].filter(Boolean);
                 variant  = 'info';
@@ -851,6 +969,8 @@ export default function TabNuevoMovimiento({
                             onChange={(field, value) => actualizar(idx, field, value)}
                             onMover={dir => mover(idx, dir)}
                             onQuitar={() => quitar(idx)}
+                            errores={errores[idx] ?? {}}
+                            etapaActualId={expediente.etapa_actual_id}
                         />
                     ))}
                 </div>

@@ -16,6 +16,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     const [archivosMovimientos, setArchivos] = useState({});
     const [procesando, setProcesando]     = useState(false);
     const [errores, setErrores]           = useState({});
+    const [erroresMov, setErroresMov]     = useState([]);
 
     const defaultNotificarIds = actoresNotificables.map(a => a.id);
 
@@ -113,18 +114,25 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             setErrores({ motivo_no_conformidad: 'El motivo es obligatorio.' });
             return;
         }
-        for (let i = 0; i < movimientos.length; i++) {
-            const instrEfectiva = movimientos[i].instruccion.trim() ||
+        // Validar campos de cada movimiento
+        const nuevosMov = movimientos.map((mov, i) => {
+            const e = {};
+            const instrEfectiva = mov.instruccion.trim() ||
                 (resultado === 'no_conforme' ? `Subsanación requerida: ${motivoNoConforme}` : '');
-            if (!instrEfectiva) {
-                setErrores({ [`mov_${i}_instruccion`]: `Movimiento ${i + 1}: La instrucción es obligatoria.` });
-                return;
+            if (!instrEfectiva) e.instruccion = true;
+            if (mov.tipo === 'requerimiento') {
+                if (!mov.tipo_actor_responsable_id) e.tipo_actor_responsable_id = true;
+                if (!mov.usuario_responsable_id)    e.usuario_responsable_id = true;
+                if (!mov.dias_plazo || Number(mov.dias_plazo) < 1) e.dias_plazo = true;
             }
-            if (!movimientos[i].etapa_id) {
-                setErrores({ [`mov_${i}_etapa`]: `Movimiento ${i + 1}: Selecciona una etapa.` });
-                return;
-            }
+            return e;
+        });
+        if (nuevosMov.some(e => Object.keys(e).length > 0)) {
+            setErroresMov(nuevosMov);
+            setErrores({ general: 'Completa los campos requeridos en los movimientos.' });
+            return;
         }
+        setErroresMov([]);
         setProcesando(true);
         setErrores({});
 
@@ -256,9 +264,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             onChange={(field, value) => actualizar(idx, field, value)}
                             onMover={dir => mover(idx, dir)}
                             onQuitar={() => quitar(idx)}
+                            errores={erroresMov[idx] ?? {}}
+                            etapaActualId={expediente.etapa_actual_id}
                         />
-                        {errores[`mov_${idx}_instruccion`] && <p className="text-xs text-red-500 mt-1">{errores[`mov_${idx}_instruccion`]}</p>}
-                        {errores[`mov_${idx}_etapa`]       && <p className="text-xs text-red-500 mt-1">{errores[`mov_${idx}_etapa`]}</p>}
                     </div>
                 ))}
 
@@ -273,6 +281,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                     <PlusCircle size={14}/> Agregar otro movimiento
                 </button>
 
+                {errores.general && (
+                    <p className="text-xs text-red-500 font-medium">{errores.general}</p>
+                )}
                 <div className="flex gap-2 pt-2 border-t border-gray-100">
                     <button onClick={() => confirmar(resultado)} disabled={procesando}
                         className={`px-5 py-2 text-sm font-bold text-white rounded-lg disabled:opacity-50 ${colorBtn}`}>
