@@ -154,8 +154,19 @@ export function MovimientoCard({
         return base.filter(a => String(a.tipo_actor_id) === String(mov.tipo_actor_responsable_id));
     }, [mov.tipo_actor_responsable_id, actoresConAcceso]);
 
+    const [previewFile, setPreviewFile] = useState(null);
+
     function removeFile(i) {
         onArchivos(archivos.filter((_, j) => j !== i));
+    }
+
+    function openPreview(f) {
+        setPreviewFile(f);
+    }
+
+    function closePreview() {
+        if (previewFile) URL.revokeObjectURL(previewFile._objectUrl);
+        setPreviewFile(null);
     }
 
     return (
@@ -325,28 +336,75 @@ export function MovimientoCard({
                 {/* ── SECCIÓN 5: Documentos adjuntos ── */}
                 <div>
                     <SectionLabel>Documentos adjuntos</SectionLabel>
-                    <label className="flex items-center gap-2 cursor-pointer w-fit px-3 py-2 rounded-lg border border-dashed border-[#BE0F4A]/40 text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors text-sm font-semibold">
-                        <Paperclip size={13}/>
+                    <label className="flex items-center gap-2 cursor-pointer w-fit px-4 py-2.5 rounded-lg border border-dashed border-[#BE0F4A]/40 text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors text-sm font-semibold">
+                        <Paperclip size={15}/>
                         Adjuntar archivos
                         <input type="file" multiple className="sr-only"
                             onChange={e => onArchivos([...archivos, ...Array.from(e.target.files)])}/>
                     </label>
                     {archivos.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <div className="mt-3 flex flex-col gap-2">
                             {archivos.map((f, i) => (
-                                <div key={i} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs max-w-[220px]">
-                                    <FileText size={11} className="text-[#BE0F4A] shrink-0"/>
-                                    <span className="truncate font-medium text-gray-700">{f.name}</span>
-                                    <span className="text-gray-400 shrink-0">{(f.size/1024).toFixed(0)}KB</span>
+                                <div key={i} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                                    <FileText size={18} className="text-[#BE0F4A] shrink-0"/>
+                                    <button type="button" onClick={() => openPreview(f)}
+                                        className="truncate flex-1 text-sm font-medium text-gray-700 hover:text-[#BE0F4A] hover:underline text-left transition-colors">
+                                        {f.name}
+                                    </button>
+                                    <span className="text-sm text-gray-400 shrink-0">{(f.size/1024).toFixed(0)} KB</span>
                                     <button type="button" onClick={() => removeFile(i)}
-                                        className="text-gray-300 hover:text-red-400 transition-colors shrink-0 ml-0.5">
-                                        <X size={11}/>
+                                        className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
+                                        <X size={16}/>
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+
+                {/* ── Modal de previsualización ── */}
+                {previewFile && (() => {
+                    const url = URL.createObjectURL(previewFile);
+                    const ext = previewFile.name.split('.').pop().toLowerCase();
+                    const esImagen = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                    const esPdf   = ext === 'pdf';
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                            onClick={closePreview}>
+                            <div className="absolute inset-0 bg-black/60"/>
+                            <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+                                onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
+                                    <div className="flex items-center gap-2">
+                                        <FileText size={16} className="text-[#BE0F4A]"/>
+                                        <span className="text-sm font-semibold text-gray-800 truncate max-w-[400px]">{previewFile.name}</span>
+                                    </div>
+                                    <button type="button" onClick={closePreview}
+                                        className="text-gray-400 hover:text-gray-700 transition-colors">
+                                        <X size={20}/>
+                                    </button>
+                                </div>
+                                <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[300px]">
+                                    {esImagen && (
+                                        <img src={url} alt={previewFile.name}
+                                            className="max-w-full max-h-[70vh] rounded object-contain"/>
+                                    )}
+                                    {esPdf && (
+                                        <iframe src={url} title={previewFile.name}
+                                            className="w-full h-[70vh] rounded border-0"/>
+                                    )}
+                                    {!esImagen && !esPdf && (
+                                        <div className="text-center text-gray-400">
+                                            <FileText size={48} className="mx-auto mb-3 text-gray-300"/>
+                                            <p className="text-base font-medium text-gray-500">Vista previa no disponible</p>
+                                            <p className="text-sm mt-1">Este tipo de archivo no puede previsualizarse en el navegador.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* ── SEPARADOR: Opciones adicionales ── */}
                 <div className="border-t border-gray-100 pt-4 space-y-3">
