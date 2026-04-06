@@ -48,6 +48,7 @@ function Seccion({ icono: Icono, titulo, children }) {
 /* ─── Multi-archivo con append/remove ─── */
 function MultiArchivoInput({ label, value = [], onChange, accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png' }) {
     const inputRef = useRef();
+    const [previewFile, setPreviewFile] = useState(null);
 
     function agregar(e) {
         const nuevos = Array.from(e.target.files).filter(
@@ -57,27 +58,69 @@ function MultiArchivoInput({ label, value = [], onChange, accept = '.pdf,.doc,.d
         e.target.value = '';
     }
 
+    function closePreview() {
+        if (previewFile) URL.revokeObjectURL(previewFile._objectUrl);
+        setPreviewFile(null);
+    }
+
     return (
         <div>
             {label && <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">{label}</label>}
             <button type="button" onClick={() => inputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#291136] hover:text-[#291136] transition-colors w-full justify-center">
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors w-full justify-center">
                 <Paperclip size={15}/> Agregar archivos
             </button>
             <input ref={inputRef} type="file" multiple accept={accept} onChange={agregar} className="hidden" />
             {value.length > 0 && (
-                <ul className="mt-3 space-y-2">
+                <div className="mt-3 flex flex-col gap-2">
                     {value.map((f, i) => (
-                        <li key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                            <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
-                            <span className="truncate flex-1 text-[#291136] font-medium">{f.name}</span>
-                            <span className="text-xs text-gray-400 shrink-0">{(f.size/1024/1024).toFixed(2)} MB</span>
+                        <div key={i} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                            <FileText size={18} className="text-[#BE0F4A] shrink-0"/>
+                            <button type="button" onClick={() => setPreviewFile(f)}
+                                className="truncate flex-1 text-sm font-medium text-gray-700 hover:text-[#BE0F4A] hover:underline text-left transition-colors">
+                                {f.name}
+                            </button>
+                            <span className="text-sm text-gray-400 shrink-0">{(f.size/1024).toFixed(0)} KB</span>
                             <button type="button" onClick={() => onChange(value.filter((_,j) => j !== i))}
-                                className="text-gray-300 hover:text-red-500 transition-colors"><X size={14}/></button>
-                        </li>
+                                className="text-gray-300 hover:text-red-500 transition-colors shrink-0"><X size={16}/></button>
+                        </div>
                     ))}
-                </ul>
+                </div>
             )}
+            {previewFile && (() => {
+                const url = URL.createObjectURL(previewFile);
+                const ext = previewFile.name.split('.').pop().toLowerCase();
+                const esImagen = ['jpg','jpeg','png','gif','webp'].includes(ext);
+                const esPdf   = ext === 'pdf';
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={closePreview}>
+                        <div className="absolute inset-0 bg-black/60"/>
+                        <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+                            onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
+                                <div className="flex items-center gap-2">
+                                    <FileText size={16} className="text-[#BE0F4A]"/>
+                                    <span className="text-sm font-semibold text-gray-800 truncate max-w-[400px]">{previewFile.name}</span>
+                                </div>
+                                <button type="button" onClick={closePreview} className="text-gray-400 hover:text-gray-700 transition-colors">
+                                    <X size={20}/>
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[300px]">
+                                {esImagen && <img src={url} alt={previewFile.name} className="max-w-full max-h-[70vh] rounded object-contain"/>}
+                                {esPdf && <iframe src={url} title={previewFile.name} className="w-full h-[70vh] rounded border-0"/>}
+                                {!esImagen && !esPdf && (
+                                    <div className="text-center">
+                                        <FileText size={48} className="mx-auto mb-3 text-gray-300"/>
+                                        <p className="text-base font-medium text-gray-500">Vista previa no disponible</p>
+                                        <p className="text-sm mt-1 text-gray-400">Este tipo de archivo no puede previsualizarse en el navegador.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
