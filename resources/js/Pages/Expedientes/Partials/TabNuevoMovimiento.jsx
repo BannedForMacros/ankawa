@@ -750,16 +750,74 @@ export default function TabNuevoMovimiento({
 
     return (
         <>
-        <ConfirmModal
-            open={confirm}
-            titulo="Confirmar movimiento"
-            resumen={movimientos.length > 1
-                ? `Se crearán ${movimientos.length} movimientos en secuencia para este expediente.`
-                : 'Se creará el movimiento y se notificará a los actores seleccionados.'}
-            onConfirm={doSubmit}
-            onCancel={() => setConfirm(false)}
-            confirmando={procesando}
-        />
+        {confirm && (() => {
+            const mov   = movimientos[0];
+            const tipo  = mov?.tipo ?? 'requerimiento';
+            const esBatch = movimientos.length > 1;
+
+            const tipoActorNombre = tiposActorEnExpediente.find(t => String(t.id) === String(mov?.tipo_actor_responsable_id))?.nombre;
+            const responsableNombre = actoresExpediente.find(a => String(a.id) === String(mov?.usuario_responsable_id))?.usuario?.name;
+            const docNombre = tiposDocumento.find(d => String(d.id) === String(mov?.tipo_documento_requerido_id))?.nombre;
+            const etapaNombre = etapas.find(e => String(e.id) === String(mov?.etapa_id))?.nombre;
+            const expNumero = expediente.numero_expediente ?? `EXP-${expediente.id}`;
+
+            let titulo, resumen, detalles, variant;
+
+            if (esBatch) {
+                titulo   = `Confirmar ${movimientos.length} movimientos`;
+                resumen  = 'Se crearán en secuencia para este expediente. Esta acción no se puede deshacer.';
+                detalles = [
+                    { label: 'Expediente', value: expNumero },
+                    ...movimientos.map((m, i) => ({
+                        label: `Mov. ${i + 1}`,
+                        value: { requerimiento: 'Requerimiento', notificacion: 'Traslado / Notificación', propia: 'Actuación Propia' }[m.tipo] ?? m.tipo,
+                    })),
+                ];
+                variant  = 'warning';
+            } else if (tipo === 'requerimiento') {
+                titulo   = 'Confirmar requerimiento';
+                resumen  = 'Se asignará al actor responsable con un plazo para responder. El movimiento quedará pendiente hasta ser respondido.';
+                detalles = [
+                    { label: 'Expediente',          value: expNumero },
+                    tipoActorNombre  && { label: 'Actor responsable', value: tipoActorNombre },
+                    responsableNombre && { label: 'Responsable',       value: responsableNombre },
+                    mov?.dias_plazo   && { label: 'Plazo',             value: `${mov.dias_plazo} días ${mov.tipo_dias === 'habiles' ? 'hábiles' : 'calendario'}` },
+                    docNombre         && { label: 'Documento requerido', value: docNombre },
+                ].filter(Boolean);
+                variant  = 'warning';
+            } else if (tipo === 'notificacion') {
+                titulo   = 'Confirmar traslado / notificación';
+                resumen  = 'Se comunicará a los actores seleccionados. No genera pendiente ni requiere respuesta formal.';
+                detalles = [
+                    { label: 'Expediente', value: expNumero },
+                    etapaNombre && { label: 'Etapa', value: etapaNombre },
+                    mov?.actores_mesa_partes_ids?.length > 0 && { label: 'Notificar a', value: `${mov.actores_mesa_partes_ids.length} actor(es)` },
+                ].filter(Boolean);
+                variant  = 'info';
+            } else {
+                titulo   = 'Confirmar actuación propia';
+                resumen  = 'Se registrará como acción ejecutada por el gestor y aparecerá en el historial del expediente.';
+                detalles = [
+                    { label: 'Expediente', value: expNumero },
+                    etapaNombre && { label: 'Etapa', value: etapaNombre },
+                    mov?.instruccion && { label: 'Acción', value: mov.instruccion.length > 60 ? mov.instruccion.substring(0, 60) + '…' : mov.instruccion },
+                ].filter(Boolean);
+                variant  = 'info';
+            }
+
+            return (
+                <ConfirmModal
+                    open={confirm}
+                    titulo={titulo}
+                    resumen={resumen}
+                    detalles={detalles}
+                    variant={variant}
+                    onConfirm={doSubmit}
+                    onCancel={() => setConfirm(false)}
+                    confirmando={procesando}
+                />
+            );
+        })()}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {/* Header */}
             <div

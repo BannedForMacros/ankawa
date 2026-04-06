@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 import { AlertCircle, ChevronDown, ChevronUp, FileText, PlusCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmModal from '@/Components/ConfirmModal';
 
 export default function TabAccionPendiente({
     expediente,
@@ -14,6 +15,7 @@ export default function TabAccionPendiente({
     tiposDocumento = [],
 }) {
     const [crearSiguiente, setCrearSiguiente] = useState(false);
+    const [confirm, setConfirm] = useState(false);
 
     const form = useForm({
         // Respuesta
@@ -51,6 +53,10 @@ export default function TabAccionPendiente({
 
     function handleSubmit(e) {
         e.preventDefault();
+        setConfirm(true);
+    }
+
+    function doResponder() {
         const routeName = crearSiguiente
             ? 'expedientes.movimientos.responder-y-crear'
             : 'expedientes.movimientos.responder';
@@ -58,14 +64,36 @@ export default function TabAccionPendiente({
         form.post(route(routeName, [expediente.id, movimiento.id]), {
             forceFormData: true,
             onSuccess: () => {
+                setConfirm(false);
                 toast.success(crearSiguiente ? 'Respuesta enviada y nuevo movimiento creado.' : 'Respuesta enviada correctamente.');
                 form.reset();
             },
-            onError: () => toast.error('Error al enviar la respuesta. Revise los campos.'),
+            onError: () => { setConfirm(false); toast.error('Error al enviar la respuesta. Revise los campos.'); },
         });
     }
 
+    const expNumero = expediente.numero_expediente ?? `EXP-${expediente.id}`;
+    const detallesConfirm = [
+        { label: 'Expediente', value: expNumero },
+        { label: 'Instrucción', value: movimiento.instruccion?.length > 70 ? movimiento.instruccion.substring(0, 70) + '…' : movimiento.instruccion },
+        movimiento.tipo_documento_requerido && { label: 'Doc. requerido', value: movimiento.tipo_documento_requerido.nombre },
+        crearSiguiente && { label: 'Acción', value: 'Responder y crear siguiente movimiento' },
+    ].filter(Boolean);
+
     return (
+        <>
+        <ConfirmModal
+            open={confirm}
+            titulo={crearSiguiente ? 'Confirmar respuesta y nuevo movimiento' : 'Confirmar respuesta'}
+            resumen={crearSiguiente
+                ? 'Se enviará tu respuesta al expediente y se creará el siguiente movimiento en la secuencia.'
+                : 'Se enviará tu respuesta al expediente. Se generará un cargo de recepción.'}
+            detalles={detallesConfirm}
+            variant="warning"
+            onConfirm={doResponder}
+            onCancel={() => setConfirm(false)}
+            confirmando={form.processing}
+        />
         <div className="space-y-4">
             {/* Detalle del movimiento pendiente */}
             <div className="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-5">
@@ -384,5 +412,6 @@ export default function TabAccionPendiente({
                 </div>
             </form>
         </div>
+        </>
     );
 }

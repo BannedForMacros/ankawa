@@ -237,10 +237,14 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
         <AnkawaLoader visible={mostrarLoader} />
         <ConfirmModal
             open={confirm}
-            titulo="Confirmar respuesta"
-            resumen={mov.tipo_documento_requerido
-                ? `Enviarás tu respuesta al expediente ${expediente}. Recuerda que te solicitaron adjuntar: "${mov.tipo_documento_requerido}". Se generará un cargo de recepción.`
-                : `Enviarás tu respuesta al expediente ${expediente}. Se generará un cargo de recepción y se enviará a tu correo.`}
+            titulo="Confirmar envío de respuesta"
+            resumen="Se registrará tu respuesta en el expediente y se generará un cargo de recepción que llegará a tu correo."
+            detalles={[
+                { label: 'Expediente', value: expediente },
+                mov.tipo_documento_requerido && { label: 'Doc. requerido', value: mov.tipo_documento_requerido },
+                archivos.length > 0 && { label: 'Archivos adjuntos', value: `${archivos.length} archivo(s)` },
+            ].filter(Boolean)}
+            variant="warning"
             onConfirm={confirmar}
             onCancel={() => setConfirm(false)}
             confirmando={procesando}

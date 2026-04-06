@@ -10,6 +10,7 @@ import { LayoutGrid, Plus, Pencil, Trash2 } from 'lucide-react';
 // ── Modal Crear / Editar ──────────────────────────────────────────────────────
 
 function ModalModulo({ show, onClose, editando, padres }) {
+    const [confirming, setConfirming] = useState(false);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:    '',
         slug:      '',
@@ -38,13 +39,18 @@ function ModalModulo({ show, onClose, editando, padres }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setConfirming(true);
+    };
+
+    const doSave = () => {
         const opts = {
             onSuccess: (page) => {
+                setConfirming(false);
                 onClose();
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
                 if (page.props.flash?.error)   toast.error(page.props.flash.error);
             },
-            onError: () => toast.error('Revisa los errores del formulario.'),
+            onError: () => { setConfirming(false); toast.error('Revisa los errores del formulario.'); },
         };
         editando
             ? put(route('configuracion.modulos.update', editando.id), opts)
@@ -67,6 +73,20 @@ function ModalModulo({ show, onClose, editando, padres }) {
     );
 
     return (
+        <>
+        <ConfirmDialog
+            show={confirming}
+            title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear módulo "${data.nombre}"?`}
+            message={editando
+                ? 'Se actualizará la configuración de este módulo del sistema.'
+                : 'Se registrará como un nuevo módulo de navegación del sistema.'}
+            confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
+            processing={processing}
+            onConfirm={doSave}
+            onCancel={() => setConfirming(false)}
+            detalles={[{ label: 'Módulo', value: data.nombre }, data.slug && { label: 'Slug', value: data.slug }].filter(Boolean)}
+            variant={editando ? 'info' : 'warning'}
+        />
         <Modal show={show} onClose={onClose} maxWidth="md">
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <h2 className="text-lg font-black text-[#291136] uppercase tracking-tight">
@@ -126,6 +146,7 @@ function ModalModulo({ show, onClose, editando, padres }) {
                 </div>
             </form>
         </Modal>
+        </>
     );
 }
 
@@ -263,11 +284,13 @@ export default function ModulosIndex({ modulos }) {
             <ConfirmDialog
                 show={confirmOpen}
                 title="Eliminar Módulo"
-                message={`¿Eliminar "${aEliminar?.nombre}"? Se borrarán también sus permisos asignados.`}
+                message="Se eliminarán también todos los permisos asignados a este módulo. Esta acción no se puede deshacer."
                 confirmText="Sí, eliminar"
                 processing={deleting}
                 onConfirm={handleDelete}
                 onCancel={() => { setConfirm(false); setAEliminar(null); }}
+                detalles={[{ label: 'Módulo', value: aEliminar?.nombre }]}
+                variant="danger"
             />
         </AuthenticatedLayout>
     );

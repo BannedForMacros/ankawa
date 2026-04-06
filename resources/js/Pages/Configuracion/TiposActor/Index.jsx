@@ -27,6 +27,7 @@ function ServicioChip({ nombre, esAuto }) {
 // ── Modal: Crear / Editar nombre del tipo de actor ────────────────────────────
 
 function ModalTipoActor({ show, onClose, editando }) {
+    const [confirming, setConfirming] = useState(false);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre: '',
         activo: 1,
@@ -40,6 +41,10 @@ function ModalTipoActor({ show, onClose, editando }) {
 
     const submit = (e) => {
         e.preventDefault();
+        setConfirming(true);
+    };
+
+    const doSave = () => {
         const method    = editando ? put  : post;
         const routeName = editando
             ? route('configuracion.tipos-actor.update', editando.id)
@@ -48,14 +53,29 @@ function ModalTipoActor({ show, onClose, editando }) {
         method(routeName, {
             preserveScroll: true,
             onSuccess: (page) => {
+                setConfirming(false);
                 onClose(); reset();
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
             },
-            onError: () => toast.error('Revise los campos e intente de nuevo.'),
+            onError: () => { setConfirming(false); toast.error('Revise los campos e intente de nuevo.'); },
         });
     };
 
     return (
+        <>
+        <ConfirmDialog
+            show={confirming}
+            title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear tipo de actor "${data.nombre}"?`}
+            message={editando
+                ? 'Se actualizará el nombre y estado de este tipo de actor en el sistema.'
+                : 'Se registrará como un nuevo tipo de actor disponible para los servicios.'}
+            confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
+            processing={processing}
+            onConfirm={doSave}
+            onCancel={() => setConfirming(false)}
+            detalles={[{ label: 'Nombre', value: data.nombre }]}
+            variant={editando ? 'info' : 'warning'}
+        />
         <Modal show={show} onClose={onClose} maxWidth="sm">
             <form onSubmit={submit}>
                 <div className="p-6">
@@ -104,6 +124,7 @@ function ModalTipoActor({ show, onClose, editando }) {
                 </div>
             </form>
         </Modal>
+        </>
     );
 }
 
@@ -455,12 +476,14 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
 
             <ConfirmDialog
                 show={confirmOpen}
-                title="Desactivar tipo de actor"
-                message={`¿Seguro que deseas desactivar "${itemAEliminar?.nombre}"?`}
+                title="Desactivar Tipo de Actor"
+                message="Ya no podrá asignarse a nuevos expedientes. Los actores ya asignados no se verán afectados."
                 confirmText="Sí, desactivar"
                 processing={deleting}
                 onConfirm={handleDelete}
                 onCancel={() => { setConfirmOpen(false); setItemAEliminar(null); }}
+                detalles={[{ label: 'Tipo de actor', value: itemAEliminar?.nombre }]}
+                variant="danger"
             />
         </AuthenticatedLayout>
     );

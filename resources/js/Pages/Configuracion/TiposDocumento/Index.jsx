@@ -46,6 +46,7 @@ function ActorChip({ nombre, puedeSubir, puedeVer }) {
 // ── Modal: Crear / Editar ─────────────────────────────────────────────────────
 
 function ModalTipoDocumento({ show, onClose, editando }) {
+    const [confirming, setConfirming] = useState(false);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:              '',
         descripcion:         '',
@@ -68,6 +69,10 @@ function ModalTipoDocumento({ show, onClose, editando }) {
 
     const submit = (e) => {
         e.preventDefault();
+        setConfirming(true);
+    };
+
+    const doSave = () => {
         const method    = editando ? put  : post;
         const routeName = editando
             ? route('configuracion.tipos-documentos.update', editando.id)
@@ -76,15 +81,30 @@ function ModalTipoDocumento({ show, onClose, editando }) {
         method(routeName, {
             preserveScroll: true,
             onSuccess: (page) => {
+                setConfirming(false);
                 onClose();
                 reset();
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
             },
-            onError: () => toast.error('Revise los campos e intente de nuevo.'),
+            onError: () => { setConfirming(false); toast.error('Revise los campos e intente de nuevo.'); },
         });
     };
 
     return (
+        <>
+        <ConfirmDialog
+            show={confirming}
+            title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear tipo de documento "${data.nombre}"?`}
+            message={editando
+                ? 'Se actualizará la configuración de este tipo de documento en todos los servicios y actores.'
+                : 'Se registrará como un nuevo tipo de documento disponible para configurar en servicios.'}
+            confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
+            processing={processing}
+            onConfirm={doSave}
+            onCancel={() => setConfirming(false)}
+            detalles={[{ label: 'Nombre', value: data.nombre }]}
+            variant={editando ? 'info' : 'warning'}
+        />
         <Modal show={show} onClose={onClose} maxWidth="md">
             <form onSubmit={submit}>
                 <div className="p-6">
@@ -173,6 +193,7 @@ function ModalTipoDocumento({ show, onClose, editando }) {
                 </div>
             </form>
         </Modal>
+        </>
     );
 }
 
@@ -687,11 +708,13 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
             <ConfirmDialog
                 show={confirmOpen}
                 title="Desactivar Tipo de Documento"
-                message={`¿Desactivar "${itemAEliminar?.nombre}"? No se podrá usar en nuevas solicitudes.`}
+                message="No podrá usarse en nuevas solicitudes ni asignarse a servicios."
                 confirmText="Sí, desactivar"
                 processing={deleting}
                 onConfirm={handleDelete}
                 onCancel={() => { setConfirmOpen(false); setItemAEliminar(null); }}
+                detalles={[{ label: 'Tipo de documento', value: itemAEliminar?.nombre }]}
+                variant="danger"
             />
         </AuthenticatedLayout>
     );

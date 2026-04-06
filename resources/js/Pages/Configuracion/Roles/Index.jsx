@@ -23,6 +23,9 @@ export default function Index({ roles }) {
     const [rolAEliminar, setRolAEliminar] = useState(null);
     const [deleting, setDeleting]         = useState(false);
 
+    // Estado para confirmación de crear/editar
+    const [confirmSave, setConfirmSave] = useState(false);
+
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:      '',
         descripcion: '',
@@ -55,25 +58,31 @@ export default function Index({ roles }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setConfirmSave(true);
+    };
+
+    const doSave = () => {
         if (editando) {
             put(route('configuracion.roles.update', editando.id), {
                 preserveScroll: true,
                 onSuccess: (page) => {
+                    setConfirmSave(false);
                     cerrarModal();
                     const msg = page.props.flash?.success;
                     if (msg) toast.success(msg);
                 },
-                onError: () => toast.error('Error al actualizar el rol.'),
+                onError: () => { setConfirmSave(false); toast.error('Error al actualizar el rol.'); },
             });
         } else {
             post(route('configuracion.roles.store'), {
                 preserveScroll: true,
                 onSuccess: (page) => {
+                    setConfirmSave(false);
                     cerrarModal();
                     const msg = page.props.flash?.success;
                     if (msg) toast.success(msg);
                 },
-                onError: () => toast.error('Error al crear el rol.'),
+                onError: () => { setConfirmSave(false); toast.error('Error al crear el rol.'); },
             });
         }
     };
@@ -231,15 +240,31 @@ export default function Index({ roles }) {
                 </form>
             </Modal>
 
-            {/* 5. Componente ConfirmDialog (Antes del cierre del Layout) */}
+            {/* Confirmación crear/editar */}
+            <ConfirmDialog
+                show={confirmSave}
+                title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear rol "${data.nombre}"?`}
+                message={editando
+                    ? 'Se actualizará la configuración de este rol. Los permisos asignados se mantendrán.'
+                    : 'Se registrará como un nuevo rol disponible para asignar a usuarios.'}
+                confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
+                processing={processing}
+                onConfirm={doSave}
+                onCancel={() => setConfirmSave(false)}
+                detalles={[{ label: 'Rol', value: data.nombre }]}
+                variant={editando ? 'info' : 'warning'}
+            />
+            {/* Confirmación eliminar/desactivar */}
             <ConfirmDialog
                 show={confirmOpen}
                 title="Desactivar Rol"
-                message={`¿Está seguro de desactivar el rol "${rolAEliminar?.nombre}"? Los usuarios vinculados podrían perder acceso.`}
+                message="Los usuarios vinculados a este rol podrían perder acceso al sistema."
                 confirmText="Sí, desactivar"
                 processing={deleting}
                 onConfirm={handleDelete}
                 onCancel={() => { setConfirmOpen(false); setRolAEliminar(null); }}
+                detalles={[{ label: 'Rol', value: rolAEliminar?.nombre }]}
+                variant="danger"
             />
         </AuthenticatedLayout>
     );

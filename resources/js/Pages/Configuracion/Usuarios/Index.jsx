@@ -21,6 +21,7 @@ export default function Index({ usuarios, roles }) {
     const [confirmOpen, setConfirmOpen]           = useState(false);
     const [usuarioAEliminar, setUsuarioAEliminar] = useState(null);
     const [deleting, setDeleting]                 = useState(false);
+    const [confirmSave, setConfirmSave]           = useState(false);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name:                  '',
@@ -58,25 +59,31 @@ export default function Index({ usuarios, roles }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setConfirmSave(true);
+    };
+
+    const doSave = () => {
         if (editando) {
             put(route('configuracion.usuarios.update', editando.id), {
                 preserveScroll: true,
                 onSuccess: (page) => {
+                    setConfirmSave(false);
                     cerrarModal();
                     const msg = page.props.flash?.success;
                     if (msg) toast.success(msg);
                 },
-                onError: () => toast.error('Error al actualizar el usuario.'),
+                onError: () => { setConfirmSave(false); toast.error('Error al actualizar el usuario.'); },
             });
         } else {
             post(route('configuracion.usuarios.store'), {
                 preserveScroll: true,
                 onSuccess: (page) => {
+                    setConfirmSave(false);
                     cerrarModal();
                     const msg = page.props.flash?.success;
                     if (msg) toast.success(msg);
                 },
-                onError: () => toast.error('Error al crear el usuario.'),
+                onError: () => { setConfirmSave(false); toast.error('Error al crear el usuario.'); },
             });
         }
     };
@@ -281,15 +288,34 @@ export default function Index({ usuarios, roles }) {
                 </form>
             </Modal>
 
-            {/* Confirm Dialog */}
+            {/* Confirmación crear/editar */}
+            <ConfirmDialog
+                show={confirmSave}
+                title={editando ? `¿Guardar cambios en "${data.name}"?` : `¿Crear usuario "${data.name}"?`}
+                message={editando
+                    ? 'Se actualizarán los datos del usuario. Si se ingresó una nueva contraseña, será reemplazada.'
+                    : 'Se creará el usuario y se le asignará el rol seleccionado.'}
+                confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
+                processing={processing}
+                onConfirm={doSave}
+                onCancel={() => setConfirmSave(false)}
+                detalles={[
+                    { label: 'Usuario', value: data.name },
+                    data.email && { label: 'Correo', value: data.email },
+                ].filter(Boolean)}
+                variant={editando ? 'info' : 'warning'}
+            />
+            {/* Confirmación desactivar */}
             <ConfirmDialog
                 show={confirmOpen}
                 title="Desactivar Usuario"
-                message={`¿Desactivar al usuario "${usuarioAEliminar?.name}"? No podrá ingresar al sistema.`}
+                message="El usuario no podrá ingresar al sistema. Puede reactivarlo en cualquier momento."
                 confirmText="Sí, desactivar"
                 processing={deleting}
                 onConfirm={handleDelete}
                 onCancel={() => { setConfirmOpen(false); setUsuarioAEliminar(null); }}
+                detalles={[{ label: 'Usuario', value: usuarioAEliminar?.name }]}
+                variant="danger"
             />
         </AuthenticatedLayout>
     );

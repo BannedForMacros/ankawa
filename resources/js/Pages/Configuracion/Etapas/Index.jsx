@@ -353,11 +353,15 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
 
             {/* ── Confirm Dialog ── */}
             <ConfirmDialog
-                isOpen={confirmOpen}
-                onClose={() => setConfirmOpen(false)}
+                show={confirmOpen}
+                title={`Desactivar ${tipoEliminar === 'etapa' ? 'Etapa' : 'Sub-etapa'}`}
+                message="Puede reactivarla posteriormente desde esta misma pantalla."
+                confirmText="Sí, desactivar"
+                processing={false}
                 onConfirm={handleDelete}
-                title={`¿Desactivar ${tipoEliminar}?`}
-                message={`La ${tipoEliminar} "${itemAEliminar?.nombre}" será desactivada. Puede reactivarla después.`}
+                onCancel={() => { setConfirmOpen(false); setItemAEliminar(null); }}
+                detalles={[{ label: tipoEliminar === 'etapa' ? 'Etapa' : 'Sub-etapa', value: itemAEliminar?.nombre }]}
+                variant="danger"
             />
         </AuthenticatedLayout>
     );
