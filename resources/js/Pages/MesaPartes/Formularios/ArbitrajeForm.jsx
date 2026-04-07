@@ -563,7 +563,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                     placeholder="Ej: 50000.00" error={errors.monto_involucrado} />
                 <div className="mt-4">
                     <MultiArchivoInput
-                        label="Documentos de la Controversia (contratos, evidencias — opcional)"
+                        label="Convenio Arbitral(Contrato donde figura la clausula arbitral, orden de servicio u orden de compra, si existe)"
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
                 </div>
@@ -600,7 +600,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
             </Seccion>
 
             {/* Adjuntos */}
-            <Seccion icono={Paperclip} titulo="Documentos Adjuntos (opcional)">
+            <Seccion icono={Paperclip} titulo="Documentos Adjuntos (Anexos)">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
                     <p className="text-sm text-blue-800">
                         Adjunte DNI, poderes notariales, comprobantes u otros documentos de respaldo.
