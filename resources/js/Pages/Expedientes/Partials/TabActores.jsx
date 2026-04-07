@@ -164,13 +164,13 @@ export default function TabActores({
                                             }`}>
                                                 {actor.es_gestor
                                                     ? <Star size={14} />
-                                                    : (actor.usuario?.name ?? '?').charAt(0).toUpperCase()
+                                                    : (actor.usuario?.name ?? actor.nombre_externo ?? '?').charAt(0).toUpperCase()
                                                 }
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-base font-bold text-[#291136] truncate">
-                                                        {actor.usuario?.name ?? 'Sin nombre'}
+                                                        {actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre'}
                                                     </span>
                                                     {actor.es_gestor && (
                                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
@@ -496,7 +496,7 @@ export default function TabActores({
                             <option value="">Seleccionar actor...</option>
                             {actoresParaGestor.map(a => (
                                 <option key={a.id} value={a.id}>
-                                    {a.usuario?.name ?? 'Sin nombre'} — {a.tipo_actor?.nombre}
+                                    {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {a.tipo_actor?.nombre}
                                     {a.es_gestor ? ' (Gestor actual)' : ''}
                                 </option>
                             ))}

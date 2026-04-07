@@ -542,7 +542,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 </div>
                 <Input label="Teléfono del demandado" type="text"
                     value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
-                    placeholder="987654321" />
+                    placeholder="987654321" error={errors.telefono_demandado} />
             </div>
 
             {/* Controversia */}

@@ -66,8 +66,15 @@ class SolicitudArbitrajeController extends Controller
 
         try {
             // ── 2. Crear o recuperar usuario demandante ──────────────────────
-            $userId      = \Illuminate\Support\Facades\Auth::id();
+            $authUser    = \Illuminate\Support\Facades\Auth::user();
             $passwordRaw = null;
+
+            // Solo usar el usuario autenticado como demandante si es rol 'usuario'
+            // (portal). Si es staff, se crea/busca por los datos del formulario.
+            $esDemandantePortal = $authUser
+                && optional($authUser->rol)->slug === 'usuario';
+
+            $userId = $esDemandantePortal ? $authUser->id : null;
 
             if (!$userId) {
                 $existingUser = User::where('email', $request->email_demandante)
@@ -153,11 +160,12 @@ class SolicitudArbitrajeController extends Controller
             $tipoActorDemandante = TipoActorExpediente::where('slug', 'demandante')->first();
             if ($tipoActorDemandante) {
                 ExpedienteActor::create([
-                    'expediente_id'        => $expediente->id,
-                    'usuario_id'           => $userId,
-                    'tipo_actor_id'        => $tipoActorDemandante->id,
-                    'activo'               => 1,
+                    'expediente_id'         => $expediente->id,
+                    'usuario_id'            => $userId,
+                    'tipo_actor_id'         => $tipoActorDemandante->id,
+                    'activo'                => 1,
                     'credenciales_enviadas' => true,
+                    'acceso_mesa_partes'    => 1,
                 ]);
             }
 
@@ -193,20 +201,23 @@ class SolicitudArbitrajeController extends Controller
             }
 
             // 5c. Guardar emails adicionales del demandante
-            $emailsDemandante = json_decode($request->input('emails_demandante', '[]'), true) ?? [];
+            // Se omite el email que ya es el email principal de la cuenta del usuario
+            $emailsDemandante   = json_decode($request->input('emails_demandante', '[]'), true) ?? [];
+            $emailCuentaDem     = User::where('id', $userId)->value('email');
             if (!empty($emailsDemandante)) {
                 $actorDemandante = ExpedienteActor::where('expediente_id', $expediente->id)
                     ->where('tipo_actor_id', $tipoActorDemandante?->id)->first();
                 if ($actorDemandante) {
-                    foreach (array_values($emailsDemandante) as $orden => $item) {
-                        if (!empty($item['email'])) {
-                            ExpedienteActorEmail::create([
-                                'expediente_actor_id' => $actorDemandante->id,
-                                'email'               => $item['email'],
-                                'label'               => $item['label'] ?? null,
-                                'orden'               => $orden + 1,
-                            ]);
-                        }
+                    $ordenExtra = 1;
+                    foreach ($emailsDemandante as $item) {
+                        $email = trim($item['email'] ?? '');
+                        if ($email === '' || strtolower($email) === strtolower($emailCuentaDem)) continue;
+                        ExpedienteActorEmail::create([
+                            'expediente_actor_id' => $actorDemandante->id,
+                            'email'               => $email,
+                            'label'               => $item['label'] ?? null,
+                            'orden'               => $ordenExtra++,
+                        ]);
                     }
                 }
             }

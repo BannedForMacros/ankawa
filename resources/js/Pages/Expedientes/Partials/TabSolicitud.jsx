@@ -308,7 +308,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             <div key={actor.id} className="bg-gray-50 rounded-xl border border-gray-100 p-3 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                     <div>
-                        <p className="text-sm font-bold text-[#291136]">{actor.usuario?.name ?? '—'}</p>
+                        <p className="text-sm font-bold text-[#291136]">{actor.usuario?.name ?? actor.nombre_externo ?? '—'}</p>
                         <p className="text-xs text-gray-400">{actor.tipo_actor?.nombre}</p>
                     </div>
                     {esGestor && (
