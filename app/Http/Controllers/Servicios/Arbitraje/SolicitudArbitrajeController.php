@@ -170,16 +170,22 @@ class SolicitudArbitrajeController extends Controller
             }
 
             // 5b. Demandado (se crea cuenta si no existe)
-            // credenciales_enviadas = false: el gestor deberá enviar sus credenciales manualmente
-            $tipoActorDemandado = TipoActorExpediente::where('slug', 'demandado')->first();
+            // Si email_demandado está vacío pero hay correos en emails_demandado, usar el primero como principal
+            $tipoActorDemandado  = TipoActorExpediente::where('slug', 'demandado')->first();
+            $emailsDemandadoArr  = json_decode($request->input('emails_demandado', '[]'), true) ?? [];
+            $emailPrincipalDado  = trim($request->email_demandado ?? '');
+            if ($emailPrincipalDado === '') {
+                $emailPrincipalDado = trim($emailsDemandadoArr[0]['email'] ?? '');
+            }
+
             if ($tipoActorDemandado) {
                 $userDemandado = null;
-                if ($request->email_demandado) {
-                    $userDemandado = User::where('email', $request->email_demandado)->first();
+                if ($emailPrincipalDado) {
+                    $userDemandado = User::where('email', $emailPrincipalDado)->first();
                     if (!$userDemandado) {
                         $userDemandado = User::create([
                             'name'      => $request->nombre_demandado,
-                            'email'     => $request->email_demandado,
+                            'email'     => $emailPrincipalDado,
                             'password'  => Hash::make(Str::random(10)),
                             'rol_id'    => Rol::where('slug', 'usuario')->value('id'),
                             'direccion' => $request->domicilio_demandado,
@@ -194,7 +200,7 @@ class SolicitudArbitrajeController extends Controller
                     'usuario_id'           => $userDemandado?->id,
                     'tipo_actor_id'        => $tipoActorDemandado->id,
                     'nombre_externo'       => $userDemandado ? null : $request->nombre_demandado,
-                    'email_externo'        => $userDemandado ? null : $request->email_demandado,
+                    'email_externo'        => $userDemandado ? null : ($emailPrincipalDado ?: null),
                     'activo'               => 1,
                     'credenciales_enviadas' => false,
                 ]);
@@ -223,20 +229,22 @@ class SolicitudArbitrajeController extends Controller
             }
 
             // 5d. Guardar emails adicionales del demandado
-            $emailsDemandado = json_decode($request->input('emails_demandado', '[]'), true) ?? [];
-            if (!empty($emailsDemandado)) {
+            // Se omite el email principal (ya usado como cuenta o email_externo)
+            $emailCuentaDado = $userDemandado?->email ?? $emailPrincipalDado;
+            if (!empty($emailsDemandadoArr)) {
                 $actorDemandado = ExpedienteActor::where('expediente_id', $expediente->id)
                     ->where('tipo_actor_id', $tipoActorDemandado?->id)->first();
                 if ($actorDemandado) {
-                    foreach (array_values($emailsDemandado) as $orden => $item) {
-                        if (!empty($item['email'])) {
-                            ExpedienteActorEmail::create([
-                                'expediente_actor_id' => $actorDemandado->id,
-                                'email'               => $item['email'],
-                                'label'               => $item['label'] ?? null,
-                                'orden'               => $orden + 1,
-                            ]);
-                        }
+                    $ordenExtra = 1;
+                    foreach ($emailsDemandadoArr as $item) {
+                        $email = trim($item['email'] ?? '');
+                        if ($email === '' || strtolower($email) === strtolower($emailCuentaDado)) continue;
+                        ExpedienteActorEmail::create([
+                            'expediente_actor_id' => $actorDemandado->id,
+                            'email'               => $email,
+                            'label'               => $item['label'] ?? null,
+                            'orden'               => $ordenExtra++,
+                        ]);
                     }
                 }
             }

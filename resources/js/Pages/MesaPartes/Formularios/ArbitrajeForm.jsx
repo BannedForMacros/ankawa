@@ -531,18 +531,21 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
 
             {/* Email(s) y teléfono del demandado */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
-                <div className="mb-4">
-                    <EmailsInput
-                        label="Correos del demandado (opcional, para notificaciones)"
-                        value={emailsDado}
-                        onChange={setEmailsDado}
-                        required={false}
-                        placeholder="correo@ejemplo.com"
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <Input label="Correo electrónico del demandado" type="email"
+                        value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
+                        placeholder="correo@ejemplo.com" error={errors.email_demandado} />
+                    <Input label="Teléfono del demandado" type="text"
+                        value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
+                        placeholder="987654321" error={errors.telefono_demandado} />
                 </div>
-                <Input label="Teléfono del demandado" type="text"
-                    value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
-                    placeholder="987654321" error={errors.telefono_demandado} />
+                <EmailsInput
+                    label="Correos adicionales del demandado (para notificaciones)"
+                    value={emailsDado}
+                    onChange={setEmailsDado}
+                    required={false}
+                    placeholder="correo@ejemplo.com"
+                />
             </div>
 
             {/* Controversia */}

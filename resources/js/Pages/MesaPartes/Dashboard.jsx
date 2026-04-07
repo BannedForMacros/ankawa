@@ -77,7 +77,7 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
                     <div className="flex items-center gap-4">
                         <img src="/logo.png" alt="Ankawa" className="h-9 object-contain" />
                         <div className="hidden md:block pl-4 border-l-2 border-gray-100">
-                            <h1 className="text-sm font-black text-[#291136] tracking-tight uppercase">Portal del Administrado</h1>
+                            <h1 className="text-sm font-black text-[#291136] tracking-tight uppercase">MESA DE PARTES</h1>
                             <p className="text-xs text-gray-500 font-semibold mt-0.5">{portalEmail}</p>
                         </div>
                     </div>
