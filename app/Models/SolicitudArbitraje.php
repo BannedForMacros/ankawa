@@ -22,6 +22,11 @@ class SolicitudArbitraje extends Model
         'email_arbitro_propuesto', 'domicilio_arbitro_propuesto',
         'reglas_aplicables', 'estado', 'activo',
         'resultado_revision', 'fecha_revision', 'revisado_por', 'motivo_no_conformidad',
+        'subtipo_juridico_demandante', 'subtipo_juridico_demandado',
+        'empresas_consorcio_demandante', 'empresas_consorcio_demandado',
+        'nombre_representante_demandado', 'documento_representante_demandado',
+        'email_representante_consorcio_demandado',
+        'acepta_reglamento_card', 'precision_reglas', 'tiene_medida_cautelar',
     ];
 
     public function servicio(): BelongsTo

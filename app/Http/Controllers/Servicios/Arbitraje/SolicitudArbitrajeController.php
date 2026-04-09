@@ -58,8 +58,28 @@ class SolicitudArbitrajeController extends Controller
 
             'documentos_controversia'        => 'nullable|array',
             'documentos_controversia.*'      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'documentos_anexos'             => 'nullable|array',
-            'documentos_anexos.*'           => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_anexos'              => 'nullable|array',
+            'documentos_anexos.*'            => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+
+            'subtipo_juridico_demandante'             => 'nullable|in:empresa,consorcio,entidad_publica',
+            'empresas_consorcio_demandante'           => 'nullable|string',
+            'subtipo_juridico_demandado'              => 'nullable|in:empresa,consorcio,entidad_publica',
+            'empresas_consorcio_demandado'            => 'nullable|string',
+            'nombre_representante_demandado'          => 'nullable|string|max:255',
+            'documento_representante_demandado'       => 'nullable|string|max:50',
+            'email_representante_consorcio_demandado' => 'nullable|email|max:255',
+            'acepta_reglamento_card'                  => 'nullable|in:0,1',
+            'precision_reglas'                        => 'nullable|string|max:100',
+            'tiene_medida_cautelar'                   => 'nullable|in:0,1',
+
+            'doc_vigencia_poder_dem.*'         => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_contrato_consorcio_dem.*'     => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_resolucion_facultades_dem.*'  => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_vigencia_poder_dado.*'        => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_contrato_consorcio_dado.*'    => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_resolucion_facultades_dado.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_medida_cautelar.*'     => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'comprobante_pago_tasa.*'          => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
         DB::beginTransaction();
@@ -109,7 +129,13 @@ class SolicitudArbitrajeController extends Controller
 
             // ── 3. Crear solicitud ───────────────────────────────────────────
             $solicitud = SolicitudArbitraje::create(array_merge(
-                $request->except('documentos_anexos', 'documentos_controversia'),
+                $request->except(
+                    'documentos_anexos', 'documentos_controversia',
+                    'doc_vigencia_poder_dem', 'doc_contrato_consorcio_dem', 'doc_resolucion_facultades_dem',
+                    'doc_vigencia_poder_dado', 'doc_contrato_consorcio_dado', 'doc_resolucion_facultades_dado',
+                    'documentos_medida_cautelar', 'comprobante_pago_tasa',
+                    'emails_demandante', 'emails_demandado'
+                ),
                 [
                     'usuario_id' => $userId,
                     'estado'     => 'pendiente',
@@ -282,6 +308,34 @@ class SolicitudArbitrajeController extends Controller
                         'peso_bytes'      => $archivo->getSize(),
                         'activo'          => 1,
                     ]);
+                }
+            }
+
+            // ── 6b. Guardar documentos de subtipo jurídico y nuevas secciones ──
+            $gruposDoc = [
+                'doc_vigencia_poder_dem'          => 'vigencia_poder_demandante',
+                'doc_contrato_consorcio_dem'      => 'contrato_consorcio_demandante',
+                'doc_resolucion_facultades_dem'   => 'resolucion_facultades_demandante',
+                'doc_vigencia_poder_dado'         => 'vigencia_poder_demandado',
+                'doc_contrato_consorcio_dado'     => 'contrato_consorcio_demandado',
+                'doc_resolucion_facultades_dado'  => 'resolucion_facultades_demandado',
+                'documentos_medida_cautelar'      => 'medida_cautelar',
+                'comprobante_pago_tasa'           => 'comprobante_pago_tasa',
+            ];
+            foreach ($gruposDoc as $campo => $tipoDoc) {
+                if ($request->hasFile($campo)) {
+                    foreach ($request->file($campo) as $archivo) {
+                        $ruta = $archivo->store($carpeta, 'public');
+                        Documento::create([
+                            'modelo_tipo'     => SolicitudArbitraje::class,
+                            'modelo_id'       => $solicitud->id,
+                            'tipo_documento'  => $tipoDoc,
+                            'ruta_archivo'    => $ruta,
+                            'nombre_original' => $archivo->getClientOriginalName(),
+                            'peso_bytes'      => $archivo->getSize(),
+                            'activo'          => 1,
+                        ]);
+                    }
                 }
             }
 
