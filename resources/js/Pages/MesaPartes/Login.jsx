@@ -50,6 +50,26 @@ export default function MesaPartesLogin() {
         }
     }
 
+    function handlePaste(e, i) {
+        e.preventDefault();
+        const pasteData = e.clipboardData.getData('text').replace(/\D/g, '').split('');
+        if (pasteData.length === 0) return;
+
+        const nuevo = [...codigo];
+        let nextFocus = i;
+        
+        pasteData.forEach((char, index) => {
+            if (i + index < 6) {
+                nuevo[i + index] = char;
+                nextFocus = i + index;
+            }
+        });
+        
+        setCodigo(nuevo);
+        // Focus the last filled input or keep current if nothing was added
+        inputsRef.current[Math.min(nextFocus + 1, 5)]?.focus();
+    }
+
     async function verificarCodigo(e) {
         e.preventDefault();
         const codigoStr = codigo.join('');
@@ -133,6 +153,7 @@ export default function MesaPartesLogin() {
                                             value={d}
                                             onChange={e => onDigit(i, e.target.value)}
                                             onKeyDown={e => onKeyDown(i, e)}
+                                            onPaste={e => handlePaste(e, i)}
                                             className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#BE0F4A] transition-colors"
                                         />
                                     ))}
