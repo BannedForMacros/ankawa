@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 class SolicitudArbitraje extends Model
 {
     protected $table = 'solicitudes_arbitraje';
@@ -49,9 +49,9 @@ class SolicitudArbitraje extends Model
         return $query->where('activo', 1);
     }
 
-    public function expediente(): HasOne
+    public function expediente(): MorphOne
     {
-        return $this->hasOne(Expediente::class, 'solicitud_id');
+        return $this->morphOne(Expediente::class, 'solicitud', 'solicitud_type', 'solicitud_id');
     }
 
     public function subsanaciones(): HasMany

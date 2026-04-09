@@ -5,13 +5,19 @@ namespace App\Services;
 use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteActor;
 use App\Models\MovimientoNotificacion;
+use App\Models\TipoCorrelativo;
 use App\Mail\MovimientoNotificacionMail;
 use Illuminate\Support\Facades\Mail;
 
 class NotificacionService
 {
+    public function __construct(
+        private readonly CorrelativoService $correlativoService,
+    ) {}
+
     /**
      * Notificar a los actores seleccionados sobre un movimiento.
+     * Genera una Cédula de Notificación por actor (correlativo por servicio).
      * Envía a TODOS los emails del actor (principal + adicionales).
      */
     public function notificarActores(ExpedienteMovimiento $movimiento, array $actorIds): void
@@ -25,6 +31,11 @@ class NotificacionService
 
         $asunto = $this->generarAsunto($movimiento);
 
+        $movimiento->loadMissing('expediente');
+        $servicioId   = $movimiento->expediente?->servicio_id;
+        $tipoCedulaId = TipoCorrelativo::where('codigo', 'CEDULA')->value('id')
+            ?? throw new \RuntimeException('TipoCorrelativo CEDULA no encontrado en la base de datos.');
+
         foreach ($actores as $actor) {
             $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Participante';
             $emails = $actor->todosLosEmails();
@@ -33,7 +44,8 @@ class NotificacionService
                 continue;
             }
 
-            $esPortal = (bool) $actor->acceso_mesa_partes && !$actor->usuario_id;
+            $esPortal     = (bool) $actor->acceso_mesa_partes && !$actor->usuario_id;
+            $numeroCedula = $this->correlativoService->generarNumero($servicioId, $tipoCedulaId);
 
             foreach ($emails as $email) {
                 $notificacion = MovimientoNotificacion::create([
@@ -43,6 +55,7 @@ class NotificacionService
                     'nombre_destino' => $nombre,
                     'asunto'         => $asunto,
                     'estado_envio'   => 'pendiente',
+                    'numero_cedula'  => $numeroCedula,
                     'created_at'     => now(),
                 ]);
 
@@ -51,6 +64,7 @@ class NotificacionService
                         $movimiento,
                         $nombre,
                         $esPortal,
+                        $numeroCedula,
                     ));
 
                     $notificacion->update([

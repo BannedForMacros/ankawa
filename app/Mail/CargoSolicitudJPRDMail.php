@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Cargo;
+use App\Models\Expediente;
 use App\Models\SolicitudJPRD;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -17,6 +18,7 @@ class CargoSolicitudJPRDMail extends Mailable
     public function __construct(
         public Cargo $cargo,
         public SolicitudJPRD $solicitud,
+        public ?Expediente $expediente = null,
     ) {}
 
     public function envelope(): Envelope

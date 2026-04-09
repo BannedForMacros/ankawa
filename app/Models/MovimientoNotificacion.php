@@ -18,6 +18,7 @@ class MovimientoNotificacion extends Model
         'nombre_destino',
         'asunto',
         'estado_envio',
+        'numero_cedula',
         'enviado_at',
         'created_at',
     ];

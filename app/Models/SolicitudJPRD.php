@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class SolicitudJPRD extends Model
 {
@@ -40,9 +41,9 @@ class SolicitudJPRD extends Model
         return $this->belongsTo(Servicio::class);
     }
 
-    public function expediente()
+    public function expediente(): MorphOne
     {
-        return $this->belongsTo(Expediente::class);
+        return $this->morphOne(Expediente::class, 'solicitud', 'solicitud_type', 'solicitud_id');
     }
 
     public function documentos()

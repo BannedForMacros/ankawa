@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Expediente extends Model
 {
     protected $table = 'expedientes';
 
     protected $fillable = [
+        'solicitud_type',
         'solicitud_id',
         'servicio_id',
         'numero_expediente',
@@ -19,9 +21,9 @@ class Expediente extends Model
         'estado',
     ];
 
-    public function solicitud(): BelongsTo
+    public function solicitud()
     {
-        return $this->belongsTo(SolicitudArbitraje::class, 'solicitud_id');
+        return $this->morphTo('solicitud', 'solicitud_type', 'solicitud_id');
     }
 
     public function servicio(): BelongsTo

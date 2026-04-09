@@ -31,23 +31,19 @@ class Cargo extends Model
     }
 
     /**
-     * Genera el siguiente número de cargo usando la sequence de PostgreSQL.
-     * La sequence es global (no por servicio): CARGO-2026-0001, 0002, 0003...
-     */
-    public static function generarNumero(): string
-    {
-        $seq = DB::selectOne("SELECT nextval('cargo_seq') AS val")->val;
-        return 'CARGO-' . now()->year . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
-    }
-
-    /**
      * Crea un registro de cargo vinculado polimórficamente al modelo dado.
+     *
+     * Obtiene el nextval UNA SOLA VEZ y lo pasa explícitamente a ambos campos
+     * (numero_cargo y seq) para evitar que el DEFAULT de la columna seq llame
+     * a nextval() una segunda vez, lo que generaba saltos en la numeración.
      */
     public static function crear(string $tipo, Model $cargable, ?int $userId): static
     {
         return DB::transaction(function () use ($tipo, $cargable, $userId) {
+            $seq = DB::selectOne("SELECT nextval('cargo_seq') AS val")->val;
             return static::create([
-                'numero_cargo'    => static::generarNumero(),
+                'numero_cargo'    => 'CARGO-' . now()->year . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT),
+                'seq'             => $seq,
                 'tipo'            => $tipo,
                 'cargable_type'   => get_class($cargable),
                 'cargable_id'     => $cargable->id,

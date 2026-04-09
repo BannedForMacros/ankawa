@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
-export default function CustomSelect({ value, onChange, options, placeholder, error }) {
+export default function CustomSelect({ value, onChange, options, placeholder, error, disabled = false }) {
     const [isOpen, setIsOpen] = useState(false);
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
     const buttonRef = useRef(null);
@@ -15,13 +15,14 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
             setCoords({
                 // Sumamos el scroll actual para que la posición sea relativa al body
                 left: rect.left + window.scrollX,
-                top: rect.bottom + window.scrollY + 4, 
+                top: rect.bottom + window.scrollY + 4,
                 width: rect.width
             });
         }
     }, []);
 
     const toggleMenu = () => {
+        if (disabled) return;
         if (!isOpen) updatePosition();
         setIsOpen(!isOpen);
     };
@@ -58,8 +59,9 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                 <button
                     type="button"
                     onClick={toggleMenu}
+                    disabled={disabled}
                     className={`w-full px-4 py-2.5 text-sm bg-white border rounded-xl flex items-center justify-between focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all ${
-                        error ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                        error ? 'border-red-400 bg-red-50' : disabled ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-70' : 'border-gray-200'
                     }`}
                 >
                     <span className={selectedOption ? 'text-[#291136]' : 'text-gray-400'}>

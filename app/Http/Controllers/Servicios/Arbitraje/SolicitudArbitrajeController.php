@@ -31,8 +31,8 @@ class SolicitudArbitrajeController extends Controller
         $request->validate([
             'servicio_id'                   => 'required|exists:servicios,id',
             'tipo_persona'                  => 'required|in:natural,juridica',
-            'nombre_demandante'             => 'required|string|max:255',
-            'documento_demandante'          => 'required|string|max:20',
+            'nombre_demandante'             => 'required_unless:subtipo_juridico_demandante,consorcio|nullable|string|max:255',
+            'documento_demandante'          => 'required_unless:subtipo_juridico_demandante,consorcio|nullable|string|max:20',
             'nombre_representante'          => 'nullable|string|max:255',
             'documento_representante'       => 'nullable|string|max:20',
             'domicilio_demandante'          => 'required|string|max:500',
@@ -97,8 +97,9 @@ class SolicitudArbitrajeController extends Controller
             $userId = $esDemandantePortal ? $authUser->id : null;
 
             if (!$userId) {
+                $docBusqueda  = $request->documento_demandante ?: $request->documento_representante;
                 $existingUser = User::where('email', $request->email_demandante)
-                    ->orWhere('numero_documento', $request->documento_demandante)
+                    ->when($docBusqueda, fn($q) => $q->orWhere('numero_documento', $docBusqueda))
                     ->first();
 
                 $esPortal = session('portal_email') &&
@@ -111,14 +112,17 @@ class SolicitudArbitrajeController extends Controller
                 if ($existingUser) {
                     $userId = $existingUser->id;
                 } else {
-                $passwordRaw  = $request->documento_demandante . Str::random(6);
+                // Para consorcio, nombre/doc pueden venir vacíos → usar los del representante
+                $nombreCuenta    = $request->nombre_demandante    ?: $request->nombre_representante;
+                $documentoCuenta = $request->documento_demandante ?: $request->documento_representante;
+                $passwordRaw     = ($documentoCuenta ?: Str::random(8)) . Str::random(6);
                 $usuarioNuevo = User::create([
-                    'name'             => $request->nombre_demandante,
+                    'name'             => $nombreCuenta,
                     'email'            => $request->email_demandante,
                     'password'         => Hash::make($passwordRaw),
                     'rol_id'           => Rol::where('slug', 'usuario')->value('id'),
                     'tipo_persona'     => $request->tipo_persona,
-                    'numero_documento' => $request->documento_demandante,
+                    'numero_documento' => $documentoCuenta,
                     'telefono'         => $request->telefono_demandante,
                     'direccion'        => $request->domicilio_demandante,
                     'activo'           => 1,
@@ -159,6 +163,7 @@ class SolicitudArbitrajeController extends Controller
                 ->first();
 
             $expediente = Expediente::create([
+                'solicitud_type'    => SolicitudArbitraje::class,
                 'solicitud_id'      => $solicitud->id,
                 'servicio_id'       => $request->servicio_id,
                 'numero_expediente' => $numeroExpediente,

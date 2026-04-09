@@ -886,8 +886,15 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
 
         // Consorcio demandante
         fd.append('empresas_consorcio_demandante', JSON.stringify(empresasConsorcioDem));
-        fd.append('nombre_representante',          repConsorcioDem.nombre ?? '');
-        fd.append('documento_representante',       repConsorcioDem.dni ?? '');
+        if (subtipoJuridicoDem === 'consorcio') {
+            fd.set('nombre_representante',    repConsorcioDem.nombre ?? '');
+            fd.set('documento_representante', repConsorcioDem.dni ?? '');
+            // Para consorcio, usar el representante como nombre/doc de la cuenta
+            if (!fd.get('nombre_demandante')) {
+                fd.set('nombre_demandante',    repConsorcioDem.nombre ?? '');
+                fd.set('documento_demandante', repConsorcioDem.dni ?? '');
+            }
+        }
 
         // Consorcio demandado
         fd.append('empresas_consorcio_demandado',            JSON.stringify(empresasConsorcioDado));

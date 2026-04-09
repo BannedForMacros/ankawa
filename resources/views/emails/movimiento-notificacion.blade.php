@@ -13,6 +13,7 @@
         .info-row { padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
         .label { font-weight: bold; color: #2d3748; }
         .alert { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 12px; margin: 12px 0; }
+        .cedula { background: #f3e8ff; border: 1px solid #c084fc; border-radius: 6px; padding: 10px 14px; margin: 14px 0; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -28,6 +29,13 @@
                 <p>Se le ha generado un <strong>requerimiento</strong> que requiere su atención:</p>
             @else
                 <p>Se le informa del siguiente traslado en el expediente:</p>
+            @endif
+
+            @if(!empty($numeroCedula))
+            <div class="cedula">
+                <span style="color:#7c3aed;font-weight:bold;">Cédula de Notificación:</span>
+                <span style="font-family:monospace;font-weight:bold;font-size:14px;">{{ $numeroCedula }}</span>
+            </div>
             @endif
 
             @if($movimiento->etapa)

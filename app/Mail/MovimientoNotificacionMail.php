@@ -17,6 +17,7 @@ class MovimientoNotificacionMail extends Mailable
         public ExpedienteMovimiento $movimiento,
         public string $nombreDestinatario,
         public bool $esPortal = false,
+        public ?string $numeroCedula = null,
     ) {}
 
     public function envelope(): Envelope
