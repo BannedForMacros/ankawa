@@ -1,20 +1,31 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { Building2, HardHat, User, Paperclip, FileText, X, Send, Loader2, CheckCircle2, Lock, Unlock } from 'lucide-react';
+import {
+    Building2, HardHat, User, Paperclip, FileText, X, Send,
+    Loader2, CheckCircle2, Lock, ChevronRight, AlertCircle, Plus, Trash2
+} from 'lucide-react';
 import EmailsInput from '@/Components/EmailsInput';
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import toast from 'react-hot-toast';
 
-const ICONOS_EXT = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️' };
-function ext(n) { return n.split('.').pop().toLowerCase(); }
+/* ─── Constantes ─── */
+const TIPOS_PERSONA = [
+    { id: 'natural',  nombre: 'Persona Natural'  },
+    { id: 'juridica', nombre: 'Persona Jurídica' },
+];
+const SUBTIPOS_JURIDICA = [
+    { id: 'empresa',         nombre: 'Empresa'          },
+    { id: 'consorcio',       nombre: 'Consorcio'        },
+    { id: 'entidad_publica', nombre: 'Entidad Pública'  },
+];
 
-/* ─── Sección ─── */
-function Seccion({ icono: Icono, titulo, children }) {
+/* ─── Sección visual ─── */
+function Seccion({ icono: Icono, titulo, children, accent = false }) {
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+            <div className={`flex items-center gap-3 px-6 py-4 border-b border-gray-100 ${accent ? 'bg-[#291136]/5' : 'bg-gray-50/60'}`}>
                 <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
                     <Icono size={16} className="text-[#BE0F4A]" />
                 </div>
@@ -25,7 +36,6 @@ function Seccion({ icono: Icono, titulo, children }) {
     );
 }
 
-/* ─── Campo de texto base ─── */
 function Campo({ label, required, error, children }) {
     return (
         <div>
@@ -38,91 +48,403 @@ function Campo({ label, required, error, children }) {
     );
 }
 
-function Input({ label, required, error, ...props }) {
+function InputBase({ error, className = '', ...props }) {
     return (
-        <Campo label={label} required={required} error={error}>
-            <input {...props}
-                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20" />
-        </Campo>
+        <input {...props}
+            className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${error ? 'border-red-300' : 'border-gray-200'} ${className}`} />
     );
 }
 
-/* ─── Bloque con lookup RENIEC/SUNAT ─── */
-function BloqueEntidad({ titulo, icono: Icono, datos, onChange, errors = {} }) {
+/* ─── Lookup RUC vía SUNAT ─── */
+function CampoRuc({ value, onChange, onNombreResuelto, error, disabled }) {
     const [cargando,  setCargando]  = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const timerRef = useRef();
 
-    function onRucChange(val) {
+    function handleChange(val) {
         const clean = val.replace(/\D/g, '').slice(0, 11);
-        onChange({ ...datos, ruc: clean });
+        onChange(clean);
+        setBloqueado(false);
         clearTimeout(timerRef.current);
         if (clean.length === 11) {
-            timerRef.current = setTimeout(() => consultarRuc(clean), 500);
-        } else {
-            setBloqueado(false);
+            timerRef.current = setTimeout(() => consultar(clean), 500);
         }
     }
 
-    async function consultarRuc(ruc) {
+    async function consultar(ruc) {
         setCargando(true);
         try {
             const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
-            onChange({ ...datos, ruc, nombre: data.nombre ?? datos.nombre });
+            onNombreResuelto(data.nombre ?? '');
             setBloqueado(true);
         } catch {
-            toast('No se encontró el RUC. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
-            setBloqueado(false);
+            toast('RUC no encontrado en SUNAT. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
         } finally {
             setCargando(false);
         }
     }
 
+    function limpiar() {
+        setBloqueado(false);
+        onChange('');
+        onNombreResuelto('');
+    }
+
     return (
-        <Seccion icono={Icono} titulo={titulo}>
-            <div className="grid grid-cols-2 gap-4">
-                <Campo label="RUC" required error={errors.ruc}>
-                    <div className="relative">
-                        <input type="text" value={datos.ruc ?? ''} onChange={e => onRucChange(e.target.value)}
-                            placeholder="20xxxxxxxxx" maxLength={11}
-                            className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] ${
-                                bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
-                            }`} />
-                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                            {cargando && <Loader2 size={14} className="animate-spin text-gray-400"/>}
-                            {!cargando && bloqueado && <CheckCircle2 size={14} className="text-emerald-500"/>}
+        <div>
+            <div className="relative">
+                <input type="text" value={value} onChange={e => handleChange(e.target.value)}
+                    disabled={disabled}
+                    placeholder="20xxxxxxxxx" maxLength={11}
+                    className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${
+                        bloqueado ? 'border-emerald-400 bg-emerald-50' : error ? 'border-red-300' : 'border-gray-200'
+                    } ${disabled ? 'bg-gray-50 text-gray-500' : ''}`} />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    {cargando && <Loader2 size={14} className="animate-spin text-gray-400"/>}
+                    {!cargando && bloqueado && (
+                        <button type="button" onClick={limpiar}><X size={13} className="text-gray-400 hover:text-red-500"/></button>
+                    )}
+                    {!cargando && !bloqueado && value.length === 11 && (
+                        <CheckCircle2 size={14} className="text-emerald-500"/>
+                    )}
+                </div>
+            </div>
+            {bloqueado && (
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> Verificado vía SUNAT</p>
+            )}
+        </div>
+    );
+}
+
+/* ─── Lookup DNI vía RENIEC ─── */
+function CampoDni({ value, onChange, onNombreResuelto, error, disabled }) {
+    const [cargando,  setCargando]  = useState(false);
+    const [bloqueado, setBloqueado] = useState(false);
+    const timerRef = useRef();
+
+    function handleChange(val) {
+        const clean = val.replace(/\D/g, '').slice(0, 8);
+        onChange(clean);
+        setBloqueado(false);
+        clearTimeout(timerRef.current);
+        if (clean.length === 8) {
+            timerRef.current = setTimeout(() => consultar(clean), 500);
+        }
+    }
+
+    async function consultar(dni) {
+        setCargando(true);
+        try {
+            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: dni } });
+            onNombreResuelto(data.nombre ?? '');
+            setBloqueado(true);
+        } catch {
+            toast('DNI no encontrado en RENIEC. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
+        } finally {
+            setCargando(false);
+        }
+    }
+
+    function limpiar() {
+        setBloqueado(false);
+        onChange('');
+        onNombreResuelto('');
+    }
+
+    return (
+        <div>
+            <div className="relative">
+                <input type="text" value={value} onChange={e => handleChange(e.target.value)}
+                    disabled={disabled}
+                    placeholder="12345678" maxLength={8}
+                    className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${
+                        bloqueado ? 'border-emerald-400 bg-emerald-50' : error ? 'border-red-300' : 'border-gray-200'
+                    } ${disabled ? 'bg-gray-50 text-gray-500' : ''}`} />
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    {cargando && <Loader2 size={14} className="animate-spin text-gray-400"/>}
+                    {!cargando && bloqueado && (
+                        <button type="button" onClick={limpiar}><X size={13} className="text-gray-400 hover:text-red-500"/></button>
+                    )}
+                    {!cargando && !bloqueado && value.length === 8 && (
+                        <CheckCircle2 size={14} className="text-emerald-500"/>
+                    )}
+                </div>
+            </div>
+            {bloqueado && (
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> Verificado vía RENIEC</p>
+            )}
+        </div>
+    );
+}
+
+/* ─── Representante legal (DNI lookup) ─── */
+function BloqueRepresentante({ dni, nombre, onDniChange, onNombreChange, label = 'Representante Legal' }) {
+    const [cargando, setCargando]   = useState(false);
+    const [bloqueado, setBloqueado] = useState(false);
+    const timerRef = useRef();
+
+    function handleDni(val) {
+        const clean = val.replace(/\D/g, '').slice(0, 8);
+        if (bloqueado && clean !== dni) { setBloqueado(false); onNombreChange(''); }
+        onDniChange(clean);
+        clearTimeout(timerRef.current);
+        if (clean.length === 8) timerRef.current = setTimeout(() => buscar(clean), 500);
+    }
+
+    async function buscar(d) {
+        setCargando(true);
+        try {
+            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: d } });
+            onNombreChange(data.nombre ?? '');
+            setBloqueado(true);
+        } catch {
+            toast('DNI no encontrado. Complete el nombre manualmente.', { icon: 'ℹ️', duration: 3000 });
+            setBloqueado(false);
+        } finally { setCargando(false); }
+    }
+
+    return (
+        <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div>
+                <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                    DNI del {label} <span className="text-[#BE0F4A]">*</span>
+                </label>
+                <div className="relative">
+                    <input type="text" value={dni} onChange={e => handleDni(e.target.value)}
+                        maxLength={8} placeholder="12345678"
+                        className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 ${
+                            bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
+                        }`} />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                        {cargando && <Loader2 size={13} className="animate-spin text-gray-400"/>}
+                        {!cargando && bloqueado && (
+                            <button type="button" onClick={() => { setBloqueado(false); onDniChange(''); onNombreChange(''); }}>
+                                <X size={13} className="text-gray-400 hover:text-red-500"/>
+                            </button>
+                        )}
+                    </div>
+                </div>
+                {bloqueado && <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> RENIEC</p>}
+            </div>
+            <div>
+                <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                    Nombre del {label} <span className="text-[#BE0F4A]">*</span>
+                </label>
+                <input type="text" value={nombre} onChange={e => onNombreChange(e.target.value)}
+                    disabled={bloqueado} placeholder="Nombre completo"
+                    className={`w-full text-sm border rounded-xl px-3 py-2.5 ${bloqueado ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'}`} />
+            </div>
+        </div>
+    );
+}
+
+/* ─── Empresas de consorcio ─── */
+function EmpresasConsorcio({ empresas, onChange }) {
+    const [cargas, setCargas] = useState({});
+    const timers = useRef({});
+
+    function agregar() { onChange([...empresas, { ruc: '', nombre: '' }]); }
+    function eliminar(i) { onChange(empresas.filter((_, j) => j !== i)); }
+    function actualizar(i, campo, val) {
+        onChange(empresas.map((e, j) => j === i ? { ...e, [campo]: val } : e));
+    }
+
+    async function consultarRuc(i, ruc) {
+        setCargas(c => ({ ...c, [i]: true }));
+        try {
+            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
+            actualizar(i, 'nombre', data.nombre ?? '');
+        } catch {
+            toast('RUC no encontrado.', { icon: 'ℹ️', duration: 2000 });
+        } finally {
+            setCargas(c => ({ ...c, [i]: false }));
+        }
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-[#291136] uppercase tracking-wide opacity-70">
+                    Empresas del consorcio <span className="text-[#BE0F4A]">*</span>
+                </label>
+                <button type="button" onClick={agregar}
+                    className="flex items-center gap-1 text-xs font-semibold text-[#BE0F4A] hover:text-[#9c0a3b]">
+                    <Plus size={12}/> Agregar empresa
+                </button>
+            </div>
+            {empresas.length === 0 && (
+                <p className="text-xs text-gray-400 italic">Agrega al menos una empresa.</p>
+            )}
+            {empresas.map((emp, i) => (
+                <div key={i} className="grid grid-cols-5 gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">RUC</label>
+                        <div className="relative">
+                            <input type="text" value={emp.ruc}
+                                onChange={e => {
+                                    const v = e.target.value.replace(/\D/g,'').slice(0,11);
+                                    actualizar(i, 'ruc', v);
+                                    clearTimeout(timers.current[i]);
+                                    if (v.length === 11) timers.current[i] = setTimeout(() => consultarRuc(i, v), 500);
+                                }}
+                                maxLength={11} placeholder="20xxxxxxxxx"
+                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 pr-8" />
+                            {cargas[i] && (
+                                <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin text-gray-400"/>
+                            )}
                         </div>
                     </div>
-                </Campo>
-                <Input label="Teléfono de contacto" value={datos.telefono ?? ''} onChange={e => onChange({ ...datos, telefono: e.target.value })}
-                    placeholder="01-234-5678 / 987654321" error={errors.telefono} />
-            </div>
-            <Campo label="Nombre / Razón social" required error={errors.nombre}>
-                <input type="text" value={datos.nombre ?? ''} onChange={e => onChange({ ...datos, nombre: e.target.value })}
-                    disabled={bloqueado}
-                    placeholder="Nombre completo de la entidad"
-                    className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] ${bloqueado ? 'border-emerald-400 bg-emerald-50 text-gray-500' : 'border-gray-200'}`} />
-                {bloqueado && (
-                    <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-700">
-                        <Lock size={11}/> Verificado vía SUNAT
-                        <button type="button" onClick={() => { setBloqueado(false); onChange({ ...datos, nombre: '' }); }}
-                            className="ml-2 text-gray-400 hover:text-red-500"><X size={11}/></button>
+                    <div className="col-span-2">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Razón Social</label>
+                        <input type="text" value={emp.nombre}
+                            onChange={e => actualizar(i, 'nombre', e.target.value)}
+                            placeholder="Nombre de la empresa"
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2" />
                     </div>
+                    <div>
+                        <button type="button" onClick={() => eliminar(i)}
+                            className="w-full py-2 rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center justify-center">
+                            <Trash2 size={14}/>
+                        </button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/* ─── Bloque de datos de un actor (entidad o contratista) ─── */
+function BloqueActor({
+    titulo, icono: Icono,
+    datos, onChange,
+    emailBloqueado, emailFijo,
+    errors = {},
+    isSolicitante = false,
+}) {
+    function set(campo, val) { onChange({ ...datos, [campo]: val }); }
+    function setRep(campo, val) { onChange({ ...datos, representante: { ...datos.representante, [campo]: val } }); }
+
+    const esNatural  = datos.tipo_persona === 'natural';
+    const esJuridica = datos.tipo_persona === 'juridica';
+    const esConsorcio = datos.subtipo === 'consorcio';
+
+    return (
+        <Seccion icono={Icono} titulo={titulo} accent={isSolicitante}>
+            {isSolicitante && (
+                <div className="flex items-center gap-2 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-[#291136] mb-2">
+                    <CheckCircle2 size={14} className="text-[#BE0F4A]"/>
+                    Estos son tus datos como solicitante
+                </div>
+            )}
+
+            {/* Tipo de persona */}
+            <div className="grid grid-cols-2 gap-4">
+                <Campo label="Tipo de persona" required>
+                    <select value={datos.tipo_persona}
+                        onChange={e => onChange({ ...datos, tipo_persona: e.target.value, subtipo: '', documento: '', nombre: '', representante: { dni: '', nombre: '' }, empresas: [] })}
+                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
+                        {TIPOS_PERSONA.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                    </select>
+                </Campo>
+
+                {esJuridica && (
+                    <Campo label="Tipo de entidad jurídica" required>
+                        <select value={datos.subtipo}
+                            onChange={e => onChange({ ...datos, subtipo: e.target.value, empresas: e.target.value === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] })}
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
+                            <option value="">Selecciona...</option>
+                            {SUBTIPOS_JURIDICA.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                        </select>
+                    </Campo>
                 )}
+            </div>
+
+            {/* Documento y nombre */}
+            {esNatural ? (
+                <div className="grid grid-cols-2 gap-4">
+                    <Campo label="DNI" required error={errors.documento}>
+                        <CampoDni
+                            value={datos.documento ?? ''}
+                            onChange={v => set('documento', v)}
+                            onNombreResuelto={n => set('nombre', n)}
+                            error={errors.documento}
+                        />
+                    </Campo>
+                    <Campo label="Nombre completo" required error={errors.nombre}>
+                        <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
+                            placeholder="Nombre del solicitante" error={errors.nombre} />
+                    </Campo>
+                </div>
+            ) : (
+                <>
+                    {!esConsorcio ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            <Campo label="RUC" required error={errors.documento}>
+                                <CampoRuc
+                                    value={datos.documento ?? ''}
+                                    onChange={v => set('documento', v)}
+                                    onNombreResuelto={n => set('nombre', n)}
+                                    error={errors.documento}
+                                />
+                            </Campo>
+                            <Campo label="Razón Social" required error={errors.nombre}>
+                                <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
+                                    placeholder="Nombre / Razón Social" error={errors.nombre} />
+                            </Campo>
+                        </div>
+                    ) : (
+                        <EmpresasConsorcio
+                            empresas={datos.empresas ?? []}
+                            onChange={emps => onChange({ ...datos, empresas: emps })}
+                        />
+                    )}
+
+                    {/* Representante legal */}
+                    {datos.subtipo && (
+                        <BloqueRepresentante
+                            dni={datos.representante?.dni ?? ''}
+                            nombre={datos.representante?.nombre ?? ''}
+                            onDniChange={v => setRep('dni', v)}
+                            onNombreChange={v => setRep('nombre', v)}
+                            label={datos.subtipo === 'consorcio' ? 'Representante del Consorcio' : 'Representante Legal'}
+                        />
+                    )}
+                </>
+            )}
+
+            {/* Teléfono */}
+            <Campo label="Teléfono de contacto">
+                <InputBase value={datos.telefono ?? ''} onChange={e => set('telefono', e.target.value)}
+                    placeholder="01-234-5678 / 987654321" />
             </Campo>
-            <EmailsInput
-                label="Correos para notificación"
-                value={datos.emails ?? []}
-                onChange={emails => onChange({ ...datos, emails })}
-                required={false}
-                placeholder="correo@entidad.gob.pe"
-            />
+
+            {/* Email */}
+            {emailBloqueado ? (
+                <div>
+                    <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
+                        Correo principal <span className="text-[#BE0F4A]">*</span>
+                    </label>
+                    <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2.5 text-sm text-emerald-800 font-medium">
+                        <Lock size={13}/> {emailFijo}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no editable</p>
+                </div>
+            ) : (
+                <EmailsInput
+                    label="Correos para notificación"
+                    value={datos.emails ?? []}
+                    onChange={emails => set('emails', emails)}
+                    required={isSolicitante}
+                    placeholder="correo@ejemplo.com"
+                    error={errors.emails}
+                />
+            )}
         </Seccion>
     );
 }
 
-/* ─── Multi-archivo con preview ─── */
-function MultiArchivo({ archivos, onChange, label }) {
+/* ─── Sección de documentos con upload ─── */
+function SeccionDoc({ icono: Icono, titulo, descripcion, archivos, onChange, required, error }) {
     const inputRef = useRef();
 
     function agregar(e) {
@@ -134,70 +456,135 @@ function MultiArchivo({ archivos, onChange, label }) {
     }
 
     return (
-        <div>
-            {label && <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">{label}</label>}
-            <button type="button" onClick={() => inputRef.current?.click()}
-                className="flex items-center gap-2 w-full px-4 py-3 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors justify-center">
-                <Paperclip size={15}/> Seleccionar archivos
-            </button>
-            <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={agregar} className="hidden"/>
-            {archivos.length > 0 && (
-                <ul className="mt-3 space-y-2">
-                    {archivos.map((f, i) => (
-                        <li key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm">
-                            <span className="text-lg shrink-0">{ICONOS_EXT[ext(f.name)] ?? '📎'}</span>
-                            <span className="truncate flex-1 text-[#291136] font-medium">{f.name}</span>
-                            <span className="text-xs text-gray-400 shrink-0">{(f.size/1024/1024).toFixed(2)} MB</span>
-                            <button type="button" onClick={() => onChange(archivos.filter((_, j) => j !== i))}
-                                className="text-gray-300 hover:text-red-500 transition-colors"><X size={14}/></button>
-                        </li>
-                    ))}
-                </ul>
-            )}
+        <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden mb-4 ${error ? 'border-red-300' : 'border-gray-100'}`}>
+            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-gray-50/60">
+                <div className="w-7 h-7 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                    <Icono size={14} className="text-[#BE0F4A]" />
+                </div>
+                <div className="flex-1">
+                    <span className="text-sm font-bold text-[#291136] uppercase tracking-wide">{titulo}</span>
+                    {required && <span className="ml-2 text-xs text-[#BE0F4A] font-semibold">(obligatorio)</span>}
+                </div>
+                {archivos.length > 0 && (
+                    <span className="text-xs font-semibold bg-[#291136]/10 text-[#291136] px-2 py-0.5 rounded-full">
+                        {archivos.length} archivo{archivos.length > 1 ? 's' : ''}
+                    </span>
+                )}
+            </div>
+            <div className="p-4">
+                {descripcion && (
+                    <p className="text-xs text-gray-500 mb-3">{descripcion}</p>
+                )}
+                <button type="button" onClick={() => inputRef.current?.click()}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors justify-center">
+                    <Paperclip size={14}/> Seleccionar archivos
+                </button>
+                <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={agregar} className="hidden"/>
+                {archivos.length > 0 && (
+                    <ul className="mt-3 space-y-1.5">
+                        {archivos.map((f, i) => (
+                            <li key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                                <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
+                                <span className="truncate flex-1 text-[#291136] font-medium text-xs">{f.name}</span>
+                                <span className="text-xs text-gray-400 shrink-0">{(f.size/1024).toFixed(0)} KB</span>
+                                <button type="button" onClick={() => onChange(archivos.filter((_, j) => j !== i))}
+                                    className="text-gray-300 hover:text-red-500 transition-colors"><X size={13}/></button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+            </div>
         </div>
     );
+}
+
+/* ─── Estado inicial de un actor ─── */
+function actorVacio(emailFijo = null) {
+    return {
+        tipo_persona: 'juridica',
+        subtipo: '',
+        documento: '',
+        nombre: '',
+        telefono: '',
+        emails: emailFijo ? [{ email: emailFijo, label: '' }] : [{ email: '', label: '' }],
+        representante: { dni: '', nombre: '' },
+        empresas: [],
+    };
 }
 
 /* ─── Formulario JPRD ─── */
 export default function JPRDForm({ servicio, portalEmail, portalUser }) {
     const isPortal = !!portalEmail;
 
-    const [procesando,      setProcesando]      = useState(false);
-    const [confirm,         setConfirm]         = useState(false);
-    const [mostrarLoader,   setMostrarLoader]   = useState(false);
-    const [errores,         setErrores]         = useState({});
-    const loaderTimer                           = useRef(null);
+    const [procesando,    setProcesando]    = useState(false);
+    const [confirm,       setConfirm]       = useState(false);
+    const [mostrarLoader, setMostrarLoader] = useState(false);
+    const [errores,       setErrores]       = useState({});
+    const loaderTimer                       = useRef(null);
 
-    const [solicitante, setSolicitante] = useState({
-        nombre:         portalUser?.name ?? '',
-        tipo_documento: 'dni',
-        documento:      portalUser?.numero_documento ?? '',
-        emails:         portalEmail ? [{ email: portalEmail, label: '' }] : [{ email: '', label: '' }],
-    });
+    // Paso 1: selección de rol
+    const [rolSolicitante, setRolSolicitante] = useState(null); // 'entidad' | 'contratista'
 
-    const [entidad, setEntidad] = useState({
-        nombre: '', ruc: '', telefono: '', emails: [],
-    });
+    // Pre-llenado con datos del portal si existe
+    function datosDesdePortal() {
+        if (!portalUser) return actorVacio(portalEmail);
+        return {
+            ...actorVacio(portalEmail),
+            nombre:    portalUser.name ?? '',
+            documento: portalUser.numero_documento ?? '',
+        };
+    }
 
-    const [contratista, setContratista] = useState({
-        nombre: '', ruc: '', telefono: '', emails: [],
-    });
+    const [entidad,     setEntidad]     = useState(actorVacio());
+    const [contratista, setContratista] = useState(actorVacio());
 
-    const [descripcion,   setDescripcion]   = useState('');
-    const [observacion,   setObservacion]   = useState('');
-    const [archivos,      setArchivos]      = useState([]);
+    // Cuando el usuario elige rol, pre-llena sus datos
+    function elegirRol(rol) {
+        setRolSolicitante(rol);
+        const datosMios = datosDesdePortal();
+        if (rol === 'entidad') {
+            setEntidad(datosMios);
+            setContratista(actorVacio());
+        } else {
+            setContratista(datosMios);
+            setEntidad(actorVacio());
+        }
+        setErrores({});
+    }
+
+    const [descripcion, setDescripcion] = useState('');
+    const [observacion, setObservacion] = useState('');
+
+    const [docSolicitudConformacion, setDocSolicitudConformacion] = useState([]);
+    const [docContratoObra,          setDocContratoObra]          = useState([]);
+    const [docAdendas,               setDocAdendas]               = useState([]);
+    const [docAnexos,                setDocAnexos]                = useState([]);
 
     function validar() {
-        const errs = {};
-        if (!solicitante.nombre.trim())    errs.sol_nombre    = 'Requerido';
-        if (!solicitante.documento.trim()) errs.sol_documento = 'Requerido';
-        if (!solicitante.emails.some(e => e.email.trim())) errs.sol_email = 'Ingresa al menos un correo';
-        if (!entidad.nombre.trim())        errs.ent_nombre    = 'Requerido';
-        if (!entidad.ruc.trim())           errs.ent_ruc       = 'Requerido';
-        if (!contratista.nombre.trim())    errs.con_nombre    = 'Requerido';
-        if (!contratista.ruc.trim())       errs.con_ruc       = 'Requerido';
-        if (!descripcion.trim())           errs.descripcion   = 'Requerido';
-        return errs;
+        const e = {};
+        if (!rolSolicitante) { e.rol = 'Debes seleccionar tu rol'; return e; }
+
+        // Entidad
+        if (!entidad.nombre.trim())    e.ent_nombre    = 'Requerido';
+        if (!entidad.documento.trim()) e.ent_documento = 'Requerido';
+        if (entidad.tipo_persona === 'juridica' && !entidad.subtipo) e.ent_subtipo = 'Selecciona el tipo';
+        if (entidad.tipo_persona === 'juridica' && entidad.subtipo && !entidad.representante?.dni?.trim()) e.ent_rep_dni = 'Requerido';
+
+        // Contratista
+        if (!contratista.nombre.trim())    e.con_nombre    = 'Requerido';
+        if (!contratista.documento.trim()) e.con_documento = 'Requerido';
+        if (contratista.tipo_persona === 'juridica' && !contratista.subtipo) e.con_subtipo = 'Selecciona el tipo';
+        if (contratista.tipo_persona === 'juridica' && contratista.subtipo && !contratista.representante?.dni?.trim()) e.con_rep_dni = 'Requerido';
+
+        // Email del solicitante
+        const emailsSol = rolSolicitante === 'entidad' ? entidad.emails : contratista.emails;
+        if (!isPortal && !emailsSol.some(em => em.email.trim())) e.sol_email = 'Ingresa al menos un correo';
+
+        if (!descripcion.trim())               e.descripcion = 'Requerido';
+        if (docSolicitudConformacion.length === 0) e.doc_solicitud = 'Adjunta la solicitud de conformación';
+        if (docContratoObra.length === 0)          e.doc_contrato  = 'Adjunta el contrato de obra';
+        return e;
     }
 
     function handleSubmit(e) {
@@ -217,22 +604,50 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
 
         const fd = new FormData();
-        fd.append('servicio_id',                   servicio.id);
-        fd.append('nombre_solicitante',            solicitante.nombre);
-        fd.append('tipo_documento_solicitante',    solicitante.tipo_documento);
-        fd.append('documento_solicitante',         solicitante.documento);
-        fd.append('emails_solicitante',            JSON.stringify(solicitante.emails.filter(e => e.email.trim())));
-        fd.append('nombre_entidad',                entidad.nombre);
-        fd.append('ruc_entidad',                   entidad.ruc);
-        fd.append('telefono_entidad',              entidad.telefono ?? '');
-        fd.append('emails_entidad',                JSON.stringify(entidad.emails.filter(e => e.email.trim())));
-        fd.append('nombre_contratista',            contratista.nombre);
-        fd.append('ruc_contratista',               contratista.ruc);
-        fd.append('telefono_contratista',          contratista.telefono ?? '');
-        fd.append('emails_contratista',            JSON.stringify(contratista.emails.filter(e => e.email.trim())));
-        fd.append('descripcion',                   descripcion);
+        fd.append('servicio_id',        servicio.id);
+        fd.append('rol_solicitante',    rolSolicitante);
+
+        // Email principal del solicitante (del portal o ingresado)
+        const emailsSolFinal = isPortal
+            ? [{ email: portalEmail, label: '' }]
+            : (rolSolicitante === 'entidad' ? entidad.emails : contratista.emails).filter(em => em.email.trim());
+
+        // Entidad
+        const emailsEntFinal = isPortal && rolSolicitante === 'entidad'
+            ? emailsSolFinal
+            : entidad.emails.filter(em => em.email.trim());
+
+        fd.append('nombre_entidad',                 entidad.nombre);
+        fd.append('ruc_entidad',                    entidad.documento);
+        fd.append('telefono_entidad',               entidad.telefono ?? '');
+        fd.append('tipo_persona_entidad',           entidad.tipo_persona);
+        fd.append('subtipo_entidad',                entidad.subtipo ?? '');
+        fd.append('representante_entidad_dni',      entidad.representante?.dni ?? '');
+        fd.append('representante_entidad_nombre',   entidad.representante?.nombre ?? '');
+        fd.append('emails_entidad',                 JSON.stringify(emailsEntFinal));
+
+        // Contratista
+        const emailsConFinal = isPortal && rolSolicitante === 'contratista'
+            ? emailsSolFinal
+            : contratista.emails.filter(em => em.email.trim());
+
+        fd.append('nombre_contratista',               contratista.nombre);
+        fd.append('ruc_contratista',                  contratista.documento);
+        fd.append('telefono_contratista',             contratista.telefono ?? '');
+        fd.append('tipo_persona_contratista',         contratista.tipo_persona);
+        fd.append('subtipo_contratista',              contratista.subtipo ?? '');
+        fd.append('representante_contratista_dni',    contratista.representante?.dni ?? '');
+        fd.append('representante_contratista_nombre', contratista.representante?.nombre ?? '');
+        fd.append('emails_contratista',               JSON.stringify(emailsConFinal));
+
+        fd.append('descripcion',  descripcion);
         if (observacion.trim()) fd.append('observacion', observacion);
-        archivos.forEach(f => fd.append('documentos[]', f));
+
+        // Documentos
+        docSolicitudConformacion.forEach(f => fd.append('doc_solicitud_conformacion[]', f));
+        docContratoObra.forEach(f => fd.append('doc_contrato_obra[]', f));
+        docAdendas.forEach(f  => fd.append('doc_adendas[]', f));
+        docAnexos.forEach(f   => fd.append('doc_anexos[]', f));
 
         router.post(route('solicitud.jprd.store'), fd, {
             forceFormData: true,
@@ -251,88 +666,103 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         });
     }
 
+    /* ─── Selector de rol ─── */
+    if (!rolSolicitante) {
+        return (
+            <div className="max-w-lg mx-auto">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/60">
+                        <h2 className="text-base font-bold text-[#291136] uppercase tracking-wide">
+                            ¿En qué calidad presentas esta solicitud?
+                        </h2>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Selecciona el rol que cumples en esta controversia JPRD.
+                        </p>
+                    </div>
+                    <div className="p-6 space-y-3">
+                        <button type="button" onClick={() => elegirRol('entidad')}
+                            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-all group text-left">
+                            <div className="w-12 h-12 rounded-xl bg-[#291136]/10 flex items-center justify-center shrink-0 group-hover:bg-[#BE0F4A]/10">
+                                <Building2 size={22} className="text-[#291136] group-hover:text-[#BE0F4A]"/>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-[#291136]">Soy la Entidad Contratante</p>
+                                <p className="text-xs text-gray-500 mt-0.5">Presento la solicitud en nombre de la entidad pública o empresa contratante.</p>
+                            </div>
+                            <ChevronRight size={18} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0"/>
+                        </button>
+
+                        <button type="button" onClick={() => elegirRol('contratista')}
+                            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-all group text-left">
+                            <div className="w-12 h-12 rounded-xl bg-[#291136]/10 flex items-center justify-center shrink-0 group-hover:bg-[#BE0F4A]/10">
+                                <HardHat size={22} className="text-[#291136] group-hover:text-[#BE0F4A]"/>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-bold text-[#291136]">Soy el Contratista</p>
+                                <p className="text-xs text-gray-500 mt-0.5">Presento la solicitud en calidad de contratista ejecutor de la obra.</p>
+                            </div>
+                            <ChevronRight size={18} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0"/>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const nombreOtraParte = rolSolicitante === 'entidad' ? 'el Contratista' : 'la Entidad Contratante';
+
     return (
         <>
         <AnkawaLoader visible={mostrarLoader} />
         <ConfirmModal
             open={confirm}
             titulo="Confirmar solicitud JPRD"
-            resumen={`Se enviará la solicitud de conformación de JPRD del servicio "${servicio.nombre}". Se enviará un cargo de recepción al correo del solicitante.`}
+            resumen={`Se enviará la solicitud de constitución de JPRD del servicio "${servicio.nombre}". Se enviará un cargo de recepción al correo registrado.`}
             onConfirm={confirmar}
             onCancel={() => setConfirm(false)}
             confirmando={procesando}
         />
 
         <form onSubmit={handleSubmit}>
-
-            {/* Solicitante */}
-            <Seccion icono={User} titulo="Datos del Solicitante">
-                <div className="grid grid-cols-3 gap-4">
-                    <div>
-                        <Campo label="Tipo de documento" required>
-                            <select value={solicitante.tipo_documento}
-                                onChange={e => setSolicitante(s => ({ ...s, tipo_documento: e.target.value }))}
-                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
-                                <option value="dni">DNI</option>
-                                <option value="ruc">RUC</option>
-                                <option value="ce">C.E.</option>
-                            </select>
-                        </Campo>
-                    </div>
-                    <div>
-                        <Input label="N° Documento" required
-                            value={solicitante.documento}
-                            onChange={e => setSolicitante(s => ({ ...s, documento: e.target.value.replace(/\D/g, '') }))}
-                            placeholder="12345678"
-                            error={errores.sol_documento} />
-                    </div>
-                    <div>
-                        {/* placeholder col */}
-                    </div>
+            {/* Indicador de rol elegido */}
+            <div className="flex items-center justify-between mb-4 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#291136]">
+                    {rolSolicitante === 'entidad'
+                        ? <><Building2 size={15} className="text-[#BE0F4A]"/> Presentas como: Entidad Contratante</>
+                        : <><HardHat size={15} className="text-[#BE0F4A]"/> Presentas como: Contratista</>
+                    }
                 </div>
-                <Input label="Nombre completo / Razón Social" required
-                    value={solicitante.nombre}
-                    onChange={e => setSolicitante(s => ({ ...s, nombre: e.target.value }))}
-                    placeholder="Nombre del solicitante o empresa"
-                    error={errores.sol_nombre} />
-                {isPortal ? (
-                    <div>
-                        <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
-                            Correo del solicitante <span className="text-[#BE0F4A]">*</span>
-                        </label>
-                        <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2.5 text-sm text-emerald-800 font-medium">
-                            {portalEmail}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP</p>
-                    </div>
-                ) : (
-                    <EmailsInput
-                        label="Correos del solicitante"
-                        value={solicitante.emails}
-                        onChange={emails => setSolicitante(s => ({ ...s, emails }))}
-                        required
-                        placeholder="correo@ejemplo.com"
-                        error={errores.sol_email}
-                    />
-                )}
-            </Seccion>
+                <button type="button" onClick={() => setRolSolicitante(null)}
+                    className="text-xs text-gray-400 hover:text-[#BE0F4A] font-semibold transition-colors">
+                    Cambiar rol
+                </button>
+            </div>
 
-            {/* Entidad */}
-            <BloqueEntidad
-                titulo="Datos de la Entidad"
-                icono={Building2}
-                datos={entidad}
-                onChange={setEntidad}
-                errors={{ nombre: errores.ent_nombre, ruc: errores.ent_ruc }}
+            {/* Mis datos (el solicitante) */}
+            <BloqueActor
+                titulo={rolSolicitante === 'entidad' ? 'Mis datos — Entidad Contratante' : 'Mis datos — Contratista'}
+                icono={rolSolicitante === 'entidad' ? Building2 : HardHat}
+                datos={rolSolicitante === 'entidad' ? entidad : contratista}
+                onChange={rolSolicitante === 'entidad' ? setEntidad : setContratista}
+                emailBloqueado={isPortal}
+                emailFijo={portalEmail}
+                errors={rolSolicitante === 'entidad'
+                    ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo }
+                    : { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo }}
+                isSolicitante
             />
 
-            {/* Contratista */}
-            <BloqueEntidad
-                titulo="Datos del Contratista"
-                icono={HardHat}
-                datos={contratista}
-                onChange={setContratista}
-                errors={{ nombre: errores.con_nombre, ruc: errores.con_ruc }}
+            {/* Datos de la otra parte */}
+            <BloqueActor
+                titulo={`Datos de ${nombreOtraParte}`}
+                icono={rolSolicitante === 'entidad' ? HardHat : Building2}
+                datos={rolSolicitante === 'entidad' ? contratista : entidad}
+                onChange={rolSolicitante === 'entidad' ? setContratista : setEntidad}
+                emailBloqueado={false}
+                errors={rolSolicitante === 'entidad'
+                    ? { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo }
+                    : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo }}
+                isSolicitante={false}
             />
 
             {/* Descripción */}
@@ -340,7 +770,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                 <Campo label="Descripción" required error={errores.descripcion}>
                     <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)}
                         rows={4} placeholder="Describa brevemente la controversia..."
-                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]" />
+                        className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] ${errores.descripcion ? 'border-red-300' : 'border-gray-200'}`} />
                 </Campo>
                 <Campo label="Observación (opcional)">
                     <textarea value={observacion} onChange={e => setObservacion(e.target.value)}
@@ -350,12 +780,50 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
             </Seccion>
 
             {/* Documentos */}
-            <Seccion icono={Paperclip} titulo="Documentos adjuntos">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 mb-2">
-                    Adjunte: solicitud de conformación de JPRD, contrato de obra, y demás documentos de respaldo.
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+                    <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                        <Paperclip size={16} className="text-[#BE0F4A]"/>
+                    </div>
+                    <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Documentos</h2>
                 </div>
-                <MultiArchivo archivos={archivos} onChange={setArchivos} />
-            </Seccion>
+                <div className="p-6 space-y-3">
+                    <SeccionDoc
+                        icono={FileText}
+                        titulo="Solicitud de Conformación de JPRD"
+                        descripcion="Documento formal de solicitud de constitución de la Junta de Prevención y Resolución de Disputas."
+                        archivos={docSolicitudConformacion}
+                        onChange={setDocSolicitudConformacion}
+                        required
+                        error={errores.doc_solicitud}
+                    />
+                    <SeccionDoc
+                        icono={FileText}
+                        titulo="Contrato de Obra"
+                        descripcion="Contrato principal de obra materia de la controversia."
+                        archivos={docContratoObra}
+                        onChange={setDocContratoObra}
+                        required
+                        error={errores.doc_contrato}
+                    />
+                    <SeccionDoc
+                        icono={FileText}
+                        titulo="Adendas"
+                        descripcion="Adendas o modificaciones al contrato de obra (opcional)."
+                        archivos={docAdendas}
+                        onChange={setDocAdendas}
+                        required={false}
+                    />
+                    <SeccionDoc
+                        icono={Paperclip}
+                        titulo="Anexos / Otros documentos"
+                        descripcion="Documentación adicional de respaldo (opcional)."
+                        archivos={docAnexos}
+                        onChange={setDocAnexos}
+                        required={false}
+                    />
+                </div>
+            </div>
 
             <div className="flex justify-end mt-2">
                 <button type="submit" disabled={procesando}

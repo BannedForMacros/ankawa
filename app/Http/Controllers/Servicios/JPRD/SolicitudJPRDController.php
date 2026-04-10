@@ -27,66 +27,109 @@ class SolicitudJPRDController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'servicio_id'               => 'required|exists:servicios,id',
-            'nombre_solicitante'        => 'required|string|max:255',
-            'tipo_documento_solicitante'=> 'required|string|in:dni,ruc,ce',
-            'documento_solicitante'     => 'required|string|max:20',
-            'emails_solicitante'        => 'required|string',
-            'nombre_entidad'            => 'required|string|max:255',
-            'ruc_entidad'               => 'required|string|max:11',
-            'nombre_contratista'        => 'required|string|max:255',
-            'ruc_contratista'           => 'required|string|max:11',
-            'descripcion'               => 'required|string|max:3000',
-            'documentos'                => 'nullable|array',
-            'documentos.*'              => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'servicio_id'                       => 'required|exists:servicios,id',
+            'rol_solicitante'                   => 'required|in:entidad,contratista',
+            // Entidad
+            'nombre_entidad'                    => 'required|string|max:255',
+            'ruc_entidad'                       => 'nullable|string|max:11',
+            'tipo_persona_entidad'              => 'required|in:natural,juridica',
+            'subtipo_entidad'                   => 'nullable|string|max:30',
+            'representante_entidad_dni'         => 'nullable|string|max:20',
+            'representante_entidad_nombre'      => 'nullable|string|max:255',
+            'emails_entidad'                    => 'required|string',
+            // Contratista
+            'nombre_contratista'                => 'required|string|max:255',
+            'ruc_contratista'                   => 'nullable|string|max:11',
+            'tipo_persona_contratista'          => 'required|in:natural,juridica',
+            'subtipo_contratista'               => 'nullable|string|max:30',
+            'representante_contratista_dni'     => 'nullable|string|max:20',
+            'representante_contratista_nombre'  => 'nullable|string|max:255',
+            'emails_contratista'                => 'required|string',
+            // Común
+            'descripcion'                       => 'required|string|max:3000',
+            // Documentos
+            'doc_solicitud_conformacion'        => 'required|array|min:1',
+            'doc_solicitud_conformacion.*'      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_contrato_obra'                 => 'required|array|min:1',
+            'doc_contrato_obra.*'               => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_adendas'                       => 'nullable|array',
+            'doc_adendas.*'                     => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_anexos'                        => 'nullable|array',
+            'doc_anexos.*'                      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
-        $emailsSolicitante = json_decode($request->emails_solicitante, true) ?? [];
+        $rolSolicitante    = $request->rol_solicitante; // 'entidad' | 'contratista'
+
+        // El email del solicitante es el de su rol
+        $emailsKey         = "emails_{$rolSolicitante}";
+        $emailsSolicitante = json_decode($request->$emailsKey, true) ?? [];
         $emailPrincipal    = collect($emailsSolicitante)->first(fn($e) => !empty($e['email']));
 
         abort_unless($emailPrincipal, 422, 'Debe registrar al menos un correo del solicitante.');
+
+        // Determinar nombre y documento del solicitante según su rol
+        if ($rolSolicitante === 'entidad') {
+            $nombreSol    = $request->nombre_entidad;
+            $tipoDocSol   = $request->tipo_persona_entidad === 'natural' ? 'dni' : 'ruc';
+            $documentoSol = $request->ruc_entidad ?? '';
+        } else {
+            $nombreSol    = $request->nombre_contratista;
+            $tipoDocSol   = $request->tipo_persona_contratista === 'natural' ? 'dni' : 'ruc';
+            $documentoSol = $request->ruc_contratista ?? '';
+        }
 
         DB::beginTransaction();
 
         try {
             // ── 1. Crear o recuperar usuario solicitante ─────────────────────
             $emailSol = $emailPrincipal['email'];
-            $usuario  = User::where('email', $emailSol)
-                ->orWhere('numero_documento', $request->documento_solicitante)
-                ->first();
+            $usuario  = User::where('email', $emailSol)->first()
+                      ?? User::where('numero_documento', $documentoSol)->first();
 
             $passwordRaw = null;
             if (!$usuario) {
-                $passwordRaw = $request->documento_solicitante . Str::random(6);
+                $passwordRaw = $documentoSol . Str::random(6);
                 $usuario = User::create([
-                    'name'             => $request->nombre_solicitante,
+                    'name'             => $nombreSol,
                     'email'            => $emailSol,
                     'password'         => Hash::make($passwordRaw),
                     'rol_id'           => Rol::where('slug', 'usuario')->value('id'),
-                    'numero_documento' => $request->documento_solicitante,
+                    'numero_documento' => $documentoSol,
                     'activo'           => 1,
                 ]);
             }
 
             // ── 2. Crear solicitud ───────────────────────────────────────────
+            $emailsEntidad     = json_decode($request->emails_entidad, true) ?? [];
+            $emailsContratista = json_decode($request->emails_contratista, true) ?? [];
+
             $solicitud = SolicitudJPRD::create([
-                'servicio_id'                => $request->servicio_id,
-                'usuario_id'                 => $usuario->id,
-                'nombre_solicitante'         => $request->nombre_solicitante,
-                'tipo_documento_solicitante' => $request->tipo_documento_solicitante,
-                'documento_solicitante'      => $request->documento_solicitante,
-                'emails_solicitante'         => $emailsSolicitante,
-                'nombre_entidad'             => $request->nombre_entidad,
-                'ruc_entidad'                => $request->ruc_entidad,
-                'telefono_entidad'           => $request->telefono_entidad,
-                'emails_entidad'             => json_decode($request->emails_entidad ?? '[]', true) ?? [],
-                'nombre_contratista'         => $request->nombre_contratista,
-                'ruc_contratista'            => $request->ruc_contratista,
-                'telefono_contratista'       => $request->telefono_contratista,
-                'emails_contratista'         => json_decode($request->emails_contratista ?? '[]', true) ?? [],
-                'descripcion'                => $request->descripcion,
-                'observacion'                => $request->observacion,
-                'estado'                     => 'pendiente',
+                'servicio_id'                      => $request->servicio_id,
+                'usuario_id'                       => $usuario->id,
+                'rol_solicitante'                  => $rolSolicitante,
+                'nombre_solicitante'               => $nombreSol,
+                'tipo_documento_solicitante'       => $tipoDocSol,
+                'documento_solicitante'            => $documentoSol,
+                'emails_solicitante'               => $emailsSolicitante,
+                'nombre_entidad'                   => $request->nombre_entidad,
+                'ruc_entidad'                      => $request->ruc_entidad,
+                'telefono_entidad'                 => $request->telefono_entidad,
+                'emails_entidad'                   => $emailsEntidad,
+                'tipo_persona_entidad'             => $request->tipo_persona_entidad,
+                'subtipo_entidad'                  => $request->subtipo_entidad,
+                'representante_entidad_dni'        => $request->representante_entidad_dni,
+                'representante_entidad_nombre'     => $request->representante_entidad_nombre,
+                'nombre_contratista'               => $request->nombre_contratista,
+                'ruc_contratista'                  => $request->ruc_contratista,
+                'telefono_contratista'             => $request->telefono_contratista,
+                'emails_contratista'               => $emailsContratista,
+                'tipo_persona_contratista'         => $request->tipo_persona_contratista,
+                'subtipo_contratista'              => $request->subtipo_contratista,
+                'representante_contratista_dni'    => $request->representante_contratista_dni,
+                'representante_contratista_nombre' => $request->representante_contratista_nombre,
+                'descripcion'                      => $request->descripcion,
+                'observacion'                      => $request->observacion,
+                'estado'                           => 'pendiente',
             ]);
 
             $cargo = Cargo::crear('solicitud', $solicitud, $usuario->id);
@@ -127,51 +170,61 @@ class SolicitudJPRDController extends Controller
             );
 
             // ── 5. Registrar actores del expediente ──────────────────────────
+            $tipoActorEntidad     = TipoActorExpediente::where('slug', 'demandante')->first();
+            $tipoActorContratista = TipoActorExpediente::where('slug', 'demandado')->first();
 
-            // 5a. Entidad contratante → demandante (externo)
-            $tipoActorDemandante = TipoActorExpediente::where('slug', 'demandante')->first();
-            $emailsEntidad       = json_decode($request->emails_entidad ?? '[]', true) ?? [];
-            $emailEntidad        = trim(collect($emailsEntidad)->first(fn($e) => !empty($e['email']))['email'] ?? '');
+            $emailEntidad     = trim(collect($emailsEntidad)->first(fn($e) => !empty($e['email']))['email'] ?? '');
+            $emailContratista = trim(collect($emailsContratista)->first(fn($e) => !empty($e['email']))['email'] ?? '');
 
-            if ($tipoActorDemandante) {
+            // Entidad → demandante
+            // Si el solicitante ES la entidad: acceso_mesa_partes = 1 y vinculamos usuario
+            $esEntidadSolicitante     = ($rolSolicitante === 'entidad');
+            $esContratistaSolicitante = ($rolSolicitante === 'contratista');
+
+            if ($tipoActorEntidad) {
                 ExpedienteActor::create([
-                    'expediente_id'  => $expediente->id,
-                    'usuario_id'     => null,
-                    'tipo_actor_id'  => $tipoActorDemandante->id,
-                    'nombre_externo' => $request->nombre_entidad,
-                    'email_externo'  => $emailEntidad ?: null,
-                    'activo'         => 1,
+                    'expediente_id'     => $expediente->id,
+                    'usuario_id'        => $esEntidadSolicitante ? $usuario->id : null,
+                    'tipo_actor_id'     => $tipoActorEntidad->id,
+                    'nombre_externo'    => $esEntidadSolicitante ? null : $request->nombre_entidad,
+                    'email_externo'     => $esEntidadSolicitante ? null : ($emailEntidad ?: null),
+                    'acceso_mesa_partes'=> $esEntidadSolicitante ? 1 : 0,
+                    'activo'            => 1,
                 ]);
             }
 
-            // 5b. Contratista → demandado (externo)
-            $tipoActorDemandado  = TipoActorExpediente::where('slug', 'demandado')->first();
-            $emailsContratista   = json_decode($request->emails_contratista ?? '[]', true) ?? [];
-            $emailContratista    = trim(collect($emailsContratista)->first(fn($e) => !empty($e['email']))['email'] ?? '');
-
-            if ($tipoActorDemandado) {
+            // Contratista → demandado
+            if ($tipoActorContratista) {
                 ExpedienteActor::create([
-                    'expediente_id'  => $expediente->id,
-                    'usuario_id'     => null,
-                    'tipo_actor_id'  => $tipoActorDemandado->id,
-                    'nombre_externo' => $request->nombre_contratista,
-                    'email_externo'  => $emailContratista ?: null,
-                    'activo'         => 1,
+                    'expediente_id'     => $expediente->id,
+                    'usuario_id'        => $esContratistaSolicitante ? $usuario->id : null,
+                    'tipo_actor_id'     => $tipoActorContratista->id,
+                    'nombre_externo'    => $esContratistaSolicitante ? null : $request->nombre_contratista,
+                    'email_externo'     => $esContratistaSolicitante ? null : ($emailContratista ?: null),
+                    'acceso_mesa_partes'=> $esContratistaSolicitante ? 1 : 0,
+                    'activo'            => 1,
                 ]);
             }
 
-            // 5c. Auto-asignar Secretaria General Adjunta
+            // Auto-asignar: Secretaria General Adjunta + Gestor de JPRD
             $this->autoAsignarActores($expediente, $request->servicio_id);
 
-            // ── 6. Guardar documentos adjuntos ───────────────────────────────
-            if ($request->hasFile('documentos')) {
-                $carpeta = "expedientes/{$expediente->id}/solicitud";
-                foreach ($request->file('documentos') as $archivo) {
+            // ── 6. Guardar documentos por tipo ──────────────────────────────
+            $carpeta = "expedientes/{$expediente->id}/solicitud";
+            $tiposDoc = [
+                'solicitud_conformacion' => $request->file('doc_solicitud_conformacion') ?? [],
+                'contrato_obra'          => $request->file('doc_contrato_obra') ?? [],
+                'adenda'                 => $request->file('doc_adendas') ?? [],
+                'anexo'                  => $request->file('doc_anexos') ?? [],
+            ];
+
+            foreach ($tiposDoc as $tipoDoc => $archivos) {
+                foreach ($archivos as $archivo) {
                     $ruta = $archivo->store($carpeta, 'public');
                     Documento::create([
                         'modelo_tipo'     => SolicitudJPRD::class,
                         'modelo_id'       => $solicitud->id,
-                        'tipo_documento'  => 'solicitud',
+                        'tipo_documento'  => $tipoDoc,
                         'ruta_archivo'    => $ruta,
                         'nombre_original' => $archivo->getClientOriginalName(),
                         'peso_bytes'      => $archivo->getSize(),
