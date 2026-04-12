@@ -26,28 +26,25 @@ class SolicitudJPRDController extends Controller
 {
     public function store(Request $request)
     {
+        // Validación flexible: nombre/ruc pueden ser vacíos para consorcio
         $request->validate([
             'servicio_id'                       => 'required|exists:servicios,id',
             'rol_solicitante'                   => 'required|in:entidad,contratista',
-            // Entidad
-            'nombre_entidad'                    => 'required|string|max:255',
-            'ruc_entidad'                       => 'nullable|string|max:11',
             'tipo_persona_entidad'              => 'required|in:natural,juridica',
             'subtipo_entidad'                   => 'nullable|string|max:30',
+            'nombre_entidad'                    => 'nullable|string|max:255',
+            'ruc_entidad'                       => 'nullable|string|max:20',
             'representante_entidad_dni'         => 'nullable|string|max:20',
             'representante_entidad_nombre'      => 'nullable|string|max:255',
             'emails_entidad'                    => 'required|string',
-            // Contratista
-            'nombre_contratista'                => 'required|string|max:255',
-            'ruc_contratista'                   => 'nullable|string|max:11',
             'tipo_persona_contratista'          => 'required|in:natural,juridica',
             'subtipo_contratista'               => 'nullable|string|max:30',
+            'nombre_contratista'                => 'nullable|string|max:255',
+            'ruc_contratista'                   => 'nullable|string|max:20',
             'representante_contratista_dni'     => 'nullable|string|max:20',
             'representante_contratista_nombre'  => 'nullable|string|max:255',
             'emails_contratista'                => 'required|string',
-            // Común
             'descripcion'                       => 'required|string|max:3000',
-            // Documentos
             'doc_solicitud_conformacion'        => 'required|array|min:1',
             'doc_solicitud_conformacion.*'      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
             'doc_contrato_obra'                 => 'required|array|min:1',
@@ -58,22 +55,29 @@ class SolicitudJPRDController extends Controller
             'doc_anexos.*'                      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ]);
 
-        $rolSolicitante    = $request->rol_solicitante; // 'entidad' | 'contratista'
-
-        // El email del solicitante es el de su rol
-        $emailsKey         = "emails_{$rolSolicitante}";
-        $emailsSolicitante = json_decode($request->$emailsKey, true) ?? [];
-        $emailPrincipal    = collect($emailsSolicitante)->first(fn($e) => !empty($e['email']));
+        $rolSolicitante   = $request->rol_solicitante;
+        $emailsKey        = "emails_{$rolSolicitante}";
+        $emailsSolicData  = json_decode($request->$emailsKey, true) ?? [];
+        $emailPrincipal   = collect($emailsSolicData)->first(fn($e) => !empty($e['email']));
 
         abort_unless($emailPrincipal, 422, 'Debe registrar al menos un correo del solicitante.');
 
-        // Determinar nombre y documento del solicitante según su rol
+        // Para consorcio, el nombre viene pre-calculado desde el frontend (join de empresas)
+        $empresasEntData  = json_decode($request->empresas_entidad ?? '[]', true) ?? [];
+        $empresasConData  = json_decode($request->empresas_contratista ?? '[]', true) ?? [];
+
+        $nombreEntidad    = $request->nombre_entidad
+                         ?: $this->nombreDesdeEmpresas($empresasEntData, 'Entidad');
+        $nombreContratista = $request->nombre_contratista
+                          ?: $this->nombreDesdeEmpresas($empresasConData, 'Contratista');
+
+        // Datos del solicitante según su rol
         if ($rolSolicitante === 'entidad') {
-            $nombreSol    = $request->nombre_entidad;
+            $nombreSol    = $nombreEntidad;
             $tipoDocSol   = $request->tipo_persona_entidad === 'natural' ? 'dni' : 'ruc';
             $documentoSol = $request->ruc_entidad ?? '';
         } else {
-            $nombreSol    = $request->nombre_contratista;
+            $nombreSol    = $nombreContratista;
             $tipoDocSol   = $request->tipo_persona_contratista === 'natural' ? 'dni' : 'ruc';
             $documentoSol = $request->ruc_contratista ?? '';
         }
@@ -110,8 +114,8 @@ class SolicitudJPRDController extends Controller
                 'nombre_solicitante'               => $nombreSol,
                 'tipo_documento_solicitante'       => $tipoDocSol,
                 'documento_solicitante'            => $documentoSol,
-                'emails_solicitante'               => $emailsSolicitante,
-                'nombre_entidad'                   => $request->nombre_entidad,
+                'emails_solicitante'               => $emailsSolicData,
+                'nombre_entidad'                   => $nombreEntidad,
                 'ruc_entidad'                      => $request->ruc_entidad,
                 'telefono_entidad'                 => $request->telefono_entidad,
                 'emails_entidad'                   => $emailsEntidad,
@@ -119,7 +123,8 @@ class SolicitudJPRDController extends Controller
                 'subtipo_entidad'                  => $request->subtipo_entidad,
                 'representante_entidad_dni'        => $request->representante_entidad_dni,
                 'representante_entidad_nombre'     => $request->representante_entidad_nombre,
-                'nombre_contratista'               => $request->nombre_contratista,
+                'empresas_entidad'                 => $empresasEntData,
+                'nombre_contratista'               => $nombreContratista,
                 'ruc_contratista'                  => $request->ruc_contratista,
                 'telefono_contratista'             => $request->telefono_contratista,
                 'emails_contratista'               => $emailsContratista,
@@ -127,6 +132,7 @@ class SolicitudJPRDController extends Controller
                 'subtipo_contratista'              => $request->subtipo_contratista,
                 'representante_contratista_dni'    => $request->representante_contratista_dni,
                 'representante_contratista_nombre' => $request->representante_contratista_nombre,
+                'empresas_contratista'             => $empresasConData,
                 'descripcion'                      => $request->descripcion,
                 'observacion'                      => $request->observacion,
                 'estado'                           => 'pendiente',
@@ -247,9 +253,21 @@ class SolicitudJPRDController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error solicitud JPRD: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
-            return back()->withErrors(['general' => 'Ocurrió un error. Por favor intente nuevamente.']);
+            \Log::error('Error solicitud JPRD: ' . $e->getMessage()
+                . ' | ' . $e->getFile() . ':' . $e->getLine()
+                . ' | Trace: ' . $e->getTraceAsString());
+            return back()->withErrors(['general' => 'Ocurrió un error al procesar la solicitud: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Para consorcio, genera un nombre descriptivo desde el array de empresas.
+     */
+    private function nombreDesdeEmpresas(array $empresas, string $fallback): string
+    {
+        $nombres = array_filter(array_column($empresas, 'nombre'));
+        if (empty($nombres)) return $fallback;
+        return 'Consorcio: ' . implode(' / ', $nombres);
     }
 
     private function autoAsignarActores(Expediente $expediente, int $servicioId): void

@@ -33,6 +33,8 @@ class SolicitudJPRD extends Model
         'subtipo_contratista',
         'representante_contratista_dni',
         'representante_contratista_nombre',
+        'empresas_entidad',
+        'empresas_contratista',
         'descripcion',
         'observacion',
         'estado',
@@ -41,9 +43,11 @@ class SolicitudJPRD extends Model
     ];
 
     protected $casts = [
-        'emails_solicitante'  => 'array',
-        'emails_entidad'      => 'array',
-        'emails_contratista'  => 'array',
+        'emails_solicitante'   => 'array',
+        'emails_entidad'       => 'array',
+        'emails_contratista'   => 'array',
+        'empresas_entidad'     => 'array',
+        'empresas_contratista' => 'array',
     ];
 
     public function servicio()

@@ -56,14 +56,15 @@ function InputBase({ error, className = '', ...props }) {
 }
 
 /* ─── Lookup RUC vía SUNAT ─── */
-function CampoRuc({ value, onChange, onNombreResuelto, error, disabled }) {
+// onResuelto(ruc, nombre) → actualiza ambos campos juntos en el parent para evitar stale closure
+function CampoRuc({ value, onResuelto, error, disabled }) {
     const [cargando,  setCargando]  = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const timerRef = useRef();
 
     function handleChange(val) {
         const clean = val.replace(/\D/g, '').slice(0, 11);
-        onChange(clean);
+        onResuelto(clean, bloqueado ? '' : null); // null = no tocar nombre todavía
         setBloqueado(false);
         clearTimeout(timerRef.current);
         if (clean.length === 11) {
@@ -75,7 +76,7 @@ function CampoRuc({ value, onChange, onNombreResuelto, error, disabled }) {
         setCargando(true);
         try {
             const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
-            onNombreResuelto(data.nombre ?? '');
+            onResuelto(ruc, data.nombre ?? ''); // un solo callback → sin stale
             setBloqueado(true);
         } catch {
             toast('RUC no encontrado en SUNAT. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
@@ -86,8 +87,7 @@ function CampoRuc({ value, onChange, onNombreResuelto, error, disabled }) {
 
     function limpiar() {
         setBloqueado(false);
-        onChange('');
-        onNombreResuelto('');
+        onResuelto('', '');
     }
 
     return (
@@ -117,14 +117,15 @@ function CampoRuc({ value, onChange, onNombreResuelto, error, disabled }) {
 }
 
 /* ─── Lookup DNI vía RENIEC ─── */
-function CampoDni({ value, onChange, onNombreResuelto, error, disabled }) {
+// onResuelto(dni, nombre) → mismo patrón que CampoRuc
+function CampoDni({ value, onResuelto, error, disabled }) {
     const [cargando,  setCargando]  = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const timerRef = useRef();
 
     function handleChange(val) {
         const clean = val.replace(/\D/g, '').slice(0, 8);
-        onChange(clean);
+        onResuelto(clean, bloqueado ? '' : null);
         setBloqueado(false);
         clearTimeout(timerRef.current);
         if (clean.length === 8) {
@@ -136,7 +137,7 @@ function CampoDni({ value, onChange, onNombreResuelto, error, disabled }) {
         setCargando(true);
         try {
             const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: dni } });
-            onNombreResuelto(data.nombre ?? '');
+            onResuelto(dni, data.nombre ?? '');
             setBloqueado(true);
         } catch {
             toast('DNI no encontrado en RENIEC. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
@@ -147,8 +148,7 @@ function CampoDni({ value, onChange, onNombreResuelto, error, disabled }) {
 
     function limpiar() {
         setBloqueado(false);
-        onChange('');
-        onNombreResuelto('');
+        onResuelto('', '');
     }
 
     return (
@@ -178,15 +178,16 @@ function CampoDni({ value, onChange, onNombreResuelto, error, disabled }) {
 }
 
 /* ─── Representante legal (DNI lookup) ─── */
-function BloqueRepresentante({ dni, nombre, onDniChange, onNombreChange, label = 'Representante Legal' }) {
+// onResuelto(dni, nombre) — callback único para evitar stale closure
+function BloqueRepresentante({ dni, nombre, onResuelto, label = 'Representante Legal' }) {
     const [cargando, setCargando]   = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const timerRef = useRef();
 
     function handleDni(val) {
         const clean = val.replace(/\D/g, '').slice(0, 8);
-        if (bloqueado && clean !== dni) { setBloqueado(false); onNombreChange(''); }
-        onDniChange(clean);
+        if (bloqueado && clean !== dni) { setBloqueado(false); onResuelto(clean, ''); return; }
+        onResuelto(clean, null); // null = no cambiar nombre todavía
         clearTimeout(timerRef.current);
         if (clean.length === 8) timerRef.current = setTimeout(() => buscar(clean), 500);
     }
@@ -195,7 +196,7 @@ function BloqueRepresentante({ dni, nombre, onDniChange, onNombreChange, label =
         setCargando(true);
         try {
             const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: d } });
-            onNombreChange(data.nombre ?? '');
+            onResuelto(d, data.nombre ?? '');
             setBloqueado(true);
         } catch {
             toast('DNI no encontrado. Complete el nombre manualmente.', { icon: 'ℹ️', duration: 3000 });
@@ -218,7 +219,7 @@ function BloqueRepresentante({ dni, nombre, onDniChange, onNombreChange, label =
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                         {cargando && <Loader2 size={13} className="animate-spin text-gray-400"/>}
                         {!cargando && bloqueado && (
-                            <button type="button" onClick={() => { setBloqueado(false); onDniChange(''); onNombreChange(''); }}>
+                            <button type="button" onClick={() => { setBloqueado(false); onResuelto('', ''); }}>
                                 <X size={13} className="text-gray-400 hover:text-red-500"/>
                             </button>
                         )}
@@ -230,7 +231,8 @@ function BloqueRepresentante({ dni, nombre, onDniChange, onNombreChange, label =
                 <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
                     Nombre del {label} <span className="text-[#BE0F4A]">*</span>
                 </label>
-                <input type="text" value={nombre} onChange={e => onNombreChange(e.target.value)}
+                <input type="text" value={nombre}
+                    onChange={e => onResuelto(dni, e.target.value)}
                     disabled={bloqueado} placeholder="Nombre completo"
                     className={`w-full text-sm border rounded-xl px-3 py-2.5 ${bloqueado ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'}`} />
             </div>
@@ -238,28 +240,88 @@ function BloqueRepresentante({ dni, nombre, onDniChange, onNombreChange, label =
     );
 }
 
-/* ─── Empresas de consorcio ─── */
-function EmpresasConsorcio({ empresas, onChange }) {
-    const [cargas, setCargas] = useState({});
-    const timers = useRef({});
+/* ─── Fila individual de empresa en consorcio (estado propio → sin stale closure) ─── */
+function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
+    const [cargando,  setCargando]  = useState(false);
+    const [bloqueado, setBloqueado] = useState(false);
+    const timerRef = useRef();
 
-    function agregar() { onChange([...empresas, { ruc: '', nombre: '' }]); }
-    function eliminar(i) { onChange(empresas.filter((_, j) => j !== i)); }
-    function actualizar(i, campo, val) {
-        onChange(empresas.map((e, j) => j === i ? { ...e, [campo]: val } : e));
-    }
-
-    async function consultarRuc(i, ruc) {
-        setCargas(c => ({ ...c, [i]: true }));
-        try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
-            actualizar(i, 'nombre', data.nombre ?? '');
-        } catch {
-            toast('RUC no encontrado.', { icon: 'ℹ️', duration: 2000 });
-        } finally {
-            setCargas(c => ({ ...c, [i]: false }));
+    function handleRuc(val) {
+        const clean = val.replace(/\D/g, '').slice(0, 11);
+        if (bloqueado && clean !== empresa.ruc) {
+            setBloqueado(false);
+            onUpdate({ ruc: clean, nombre: '' });
+            return;
+        }
+        onUpdate({ ...empresa, ruc: clean });
+        clearTimeout(timerRef.current);
+        if (clean.length === 11) {
+            timerRef.current = setTimeout(() => buscar(clean), 500);
         }
     }
+
+    async function buscar(ruc) {
+        setCargando(true);
+        try {
+            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
+            // onUpdate recibe el objeto completo → no depende de empresa del closure
+            onUpdate({ ruc, nombre: data.nombre ?? '' });
+            setBloqueado(true);
+        } catch {
+            toast('RUC no encontrado. Complete manualmente.', { icon: 'ℹ️', duration: 2500 });
+            setBloqueado(false);
+        } finally {
+            setCargando(false);
+        }
+    }
+
+    function limpiar() {
+        setBloqueado(false);
+        onUpdate({ ruc: '', nombre: '' });
+    }
+
+    return (
+        <div className="grid grid-cols-5 gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
+            <div className="col-span-2">
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">RUC</label>
+                <div className="relative">
+                    <input type="text" value={empresa.ruc} onChange={e => handleRuc(e.target.value)}
+                        maxLength={11} placeholder="20xxxxxxxxx"
+                        className={`w-full text-sm border rounded-xl px-3 py-2 pr-8 ${
+                            bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
+                        }`} />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                        {cargando && <Loader2 size={12} className="animate-spin text-gray-400"/>}
+                        {!cargando && bloqueado && (
+                            <button type="button" onClick={limpiar}><X size={12} className="text-gray-400 hover:text-red-500"/></button>
+                        )}
+                    </div>
+                </div>
+                {bloqueado && <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={9}/> SUNAT</p>}
+            </div>
+            <div className="col-span-2">
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Razón Social</label>
+                <input type="text" value={empresa.nombre}
+                    onChange={e => onUpdate({ ...empresa, nombre: e.target.value })}
+                    disabled={bloqueado}
+                    placeholder="Nombre de la empresa"
+                    className={`w-full text-sm border rounded-xl px-3 py-2 ${
+                        bloqueado ? 'bg-emerald-50 border-emerald-400 text-gray-600' : 'border-gray-200'
+                    }`} />
+            </div>
+            <div>
+                <button type="button" onClick={onRemove}
+                    className="w-full py-2 rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center justify-center">
+                    <Trash2 size={14}/>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/* ─── Contenedor de empresas del consorcio ─── */
+function EmpresasConsorcio({ empresas, onChange, error }) {
+    function agregar() { onChange([...empresas, { ruc: '', nombre: '' }]); }
 
     return (
         <div className="space-y-2">
@@ -272,42 +334,19 @@ function EmpresasConsorcio({ empresas, onChange }) {
                     <Plus size={12}/> Agregar empresa
                 </button>
             </div>
-            {empresas.length === 0 && (
+            {empresas.length === 0 && !error && (
                 <p className="text-xs text-gray-400 italic">Agrega al menos una empresa.</p>
             )}
+            {error && (
+                <p className="text-xs text-red-500">{error}</p>
+            )}
             {empresas.map((emp, i) => (
-                <div key={i} className="grid grid-cols-5 gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    <div className="col-span-2">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">RUC</label>
-                        <div className="relative">
-                            <input type="text" value={emp.ruc}
-                                onChange={e => {
-                                    const v = e.target.value.replace(/\D/g,'').slice(0,11);
-                                    actualizar(i, 'ruc', v);
-                                    clearTimeout(timers.current[i]);
-                                    if (v.length === 11) timers.current[i] = setTimeout(() => consultarRuc(i, v), 500);
-                                }}
-                                maxLength={11} placeholder="20xxxxxxxxx"
-                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 pr-8" />
-                            {cargas[i] && (
-                                <Loader2 size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 animate-spin text-gray-400"/>
-                            )}
-                        </div>
-                    </div>
-                    <div className="col-span-2">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Razón Social</label>
-                        <input type="text" value={emp.nombre}
-                            onChange={e => actualizar(i, 'nombre', e.target.value)}
-                            placeholder="Nombre de la empresa"
-                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2" />
-                    </div>
-                    <div>
-                        <button type="button" onClick={() => eliminar(i)}
-                            className="w-full py-2 rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center justify-center">
-                            <Trash2 size={14}/>
-                        </button>
-                    </div>
-                </div>
+                <FilaEmpresaConsorcio
+                    key={i}
+                    empresa={emp}
+                    onUpdate={nuevaEmp => onChange(empresas.map((e, j) => j === i ? nuevaEmp : e))}
+                    onRemove={() => onChange(empresas.filter((_, j) => j !== i))}
+                />
             ))}
         </div>
     );
@@ -348,10 +387,10 @@ function BloqueActor({
                 </Campo>
 
                 {esJuridica && (
-                    <Campo label="Tipo de entidad jurídica" required>
+                    <Campo label="Tipo de entidad jurídica" required error={errors.subtipo}>
                         <select value={datos.subtipo}
                             onChange={e => onChange({ ...datos, subtipo: e.target.value, empresas: e.target.value === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] })}
-                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
+                            className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] ${errors.subtipo ? 'border-red-300' : 'border-gray-200'}`}>
                             <option value="">Selecciona...</option>
                             {SUBTIPOS_JURIDICA.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                         </select>
@@ -365,8 +404,7 @@ function BloqueActor({
                     <Campo label="DNI" required error={errors.documento}>
                         <CampoDni
                             value={datos.documento ?? ''}
-                            onChange={v => set('documento', v)}
-                            onNombreResuelto={n => set('nombre', n)}
+                            onResuelto={(doc, nom) => onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) })}
                             error={errors.documento}
                         />
                     </Campo>
@@ -382,8 +420,7 @@ function BloqueActor({
                             <Campo label="RUC" required error={errors.documento}>
                                 <CampoRuc
                                     value={datos.documento ?? ''}
-                                    onChange={v => set('documento', v)}
-                                    onNombreResuelto={n => set('nombre', n)}
+                                    onResuelto={(doc, nom) => onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) })}
                                     error={errors.documento}
                                 />
                             </Campo>
@@ -396,6 +433,7 @@ function BloqueActor({
                         <EmpresasConsorcio
                             empresas={datos.empresas ?? []}
                             onChange={emps => onChange({ ...datos, empresas: emps })}
+                            error={errors.empresas}
                         />
                     )}
 
@@ -404,8 +442,13 @@ function BloqueActor({
                         <BloqueRepresentante
                             dni={datos.representante?.dni ?? ''}
                             nombre={datos.representante?.nombre ?? ''}
-                            onDniChange={v => setRep('dni', v)}
-                            onNombreChange={v => setRep('nombre', v)}
+                            onResuelto={(d, n) => onChange({
+                                ...datos,
+                                representante: {
+                                    dni: d,
+                                    nombre: n !== null ? n : (datos.representante?.nombre ?? ''),
+                                },
+                            })}
                             label={datos.subtipo === 'consorcio' ? 'Representante del Consorcio' : 'Representante Legal'}
                         />
                     )}
@@ -526,14 +569,9 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
     // Paso 1: selección de rol
     const [rolSolicitante, setRolSolicitante] = useState(null); // 'entidad' | 'contratista'
 
-    // Pre-llenado con datos del portal si existe
+    // Solo pre-llena el correo del portal (el autenticador es el email OTP)
     function datosDesdePortal() {
-        if (!portalUser) return actorVacio(portalEmail);
-        return {
-            ...actorVacio(portalEmail),
-            nombre:    portalUser.name ?? '',
-            documento: portalUser.numero_documento ?? '',
-        };
+        return actorVacio(portalEmail);
     }
 
     const [entidad,     setEntidad]     = useState(actorVacio());
@@ -565,37 +603,58 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         const e = {};
         if (!rolSolicitante) { e.rol = 'Debes seleccionar tu rol'; return e; }
 
-        // Entidad
-        if (!entidad.nombre.trim())    e.ent_nombre    = 'Requerido';
-        if (!entidad.documento.trim()) e.ent_documento = 'Requerido';
-        if (entidad.tipo_persona === 'juridica' && !entidad.subtipo) e.ent_subtipo = 'Selecciona el tipo';
-        if (entidad.tipo_persona === 'juridica' && entidad.subtipo && !entidad.representante?.dni?.trim()) e.ent_rep_dni = 'Requerido';
+        // ── Entidad ──
+        const entConsorcio = entidad.tipo_persona === 'juridica' && entidad.subtipo === 'consorcio';
+        if (entidad.tipo_persona === 'juridica' && !entidad.subtipo) {
+            e.ent_subtipo = 'Selecciona el tipo de entidad jurídica';
+        }
+        if (!entConsorcio) {
+            if (!(entidad.nombre ?? '').trim())    e.ent_nombre    = 'Requerido';
+            if (!(entidad.documento ?? '').trim()) e.ent_documento = 'Requerido';
+        } else {
+            if ((entidad.empresas ?? []).length === 0) e.ent_empresas = 'Agrega al menos una empresa del consorcio';
+        }
 
-        // Contratista
-        if (!contratista.nombre.trim())    e.con_nombre    = 'Requerido';
-        if (!contratista.documento.trim()) e.con_documento = 'Requerido';
-        if (contratista.tipo_persona === 'juridica' && !contratista.subtipo) e.con_subtipo = 'Selecciona el tipo';
-        if (contratista.tipo_persona === 'juridica' && contratista.subtipo && !contratista.representante?.dni?.trim()) e.con_rep_dni = 'Requerido';
+        // ── Contratista ──
+        const conConsorcio = contratista.tipo_persona === 'juridica' && contratista.subtipo === 'consorcio';
+        if (contratista.tipo_persona === 'juridica' && !contratista.subtipo) {
+            e.con_subtipo = 'Selecciona el tipo de entidad jurídica';
+        }
+        if (!conConsorcio) {
+            if (!(contratista.nombre ?? '').trim())    e.con_nombre    = 'Requerido';
+            if (!(contratista.documento ?? '').trim()) e.con_documento = 'Requerido';
+        } else {
+            if ((contratista.empresas ?? []).length === 0) e.con_empresas = 'Agrega al menos una empresa del consorcio';
+        }
 
-        // Email del solicitante
+        // ── Email del solicitante (solo si no es portal) ──
         const emailsSol = rolSolicitante === 'entidad' ? entidad.emails : contratista.emails;
-        if (!isPortal && !emailsSol.some(em => em.email.trim())) e.sol_email = 'Ingresa al menos un correo';
+        if (!isPortal && !(emailsSol ?? []).some(em => em.email?.trim())) {
+            e.sol_email = 'Ingresa al menos un correo';
+        }
 
-        if (!descripcion.trim())               e.descripcion = 'Requerido';
-        if (docSolicitudConformacion.length === 0) e.doc_solicitud = 'Adjunta la solicitud de conformación';
-        if (docContratoObra.length === 0)          e.doc_contrato  = 'Adjunta el contrato de obra';
+        if (!(descripcion ?? '').trim())           e.descripcion  = 'Requerido';
+        if (docSolicitudConformacion.length === 0)  e.doc_solicitud = 'Adjunta la solicitud de conformación de JPRD';
+        if (docContratoObra.length === 0)            e.doc_contrato  = 'Adjunta el contrato de obra';
         return e;
     }
 
     function handleSubmit(e) {
         e.preventDefault();
-        const errs = validar();
-        if (Object.keys(errs).length) {
-            setErrores(errs);
-            toast.error('Completa los campos obligatorios', { position: 'top-center' });
-            return;
+        try {
+            const errs = validar();
+            if (Object.keys(errs).length) {
+                setErrores(errs);
+                // Mensaje descriptivo indicando qué falta
+                const primero = Object.values(errs)[0];
+                toast.error(primero, { position: 'top-center', duration: 4000 });
+                return;
+            }
+            setConfirm(true);
+        } catch (err) {
+            console.error('Error al validar formulario JPRD:', err);
+            toast.error('Error inesperado. Revisa la consola.', { position: 'top-center' });
         }
-        setConfirm(true);
     }
 
     function confirmar() {
@@ -617,13 +676,14 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
             ? emailsSolFinal
             : entidad.emails.filter(em => em.email.trim());
 
-        fd.append('nombre_entidad',                 entidad.nombre);
-        fd.append('ruc_entidad',                    entidad.documento);
+        fd.append('nombre_entidad',                 entidad.nombre ?? '');
+        fd.append('ruc_entidad',                    entidad.documento ?? '');
         fd.append('telefono_entidad',               entidad.telefono ?? '');
         fd.append('tipo_persona_entidad',           entidad.tipo_persona);
         fd.append('subtipo_entidad',                entidad.subtipo ?? '');
         fd.append('representante_entidad_dni',      entidad.representante?.dni ?? '');
         fd.append('representante_entidad_nombre',   entidad.representante?.nombre ?? '');
+        fd.append('empresas_entidad',               JSON.stringify(entidad.empresas ?? []));
         fd.append('emails_entidad',                 JSON.stringify(emailsEntFinal));
 
         // Contratista
@@ -631,13 +691,14 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
             ? emailsSolFinal
             : contratista.emails.filter(em => em.email.trim());
 
-        fd.append('nombre_contratista',               contratista.nombre);
-        fd.append('ruc_contratista',                  contratista.documento);
+        fd.append('nombre_contratista',               contratista.nombre ?? '');
+        fd.append('ruc_contratista',                  contratista.documento ?? '');
         fd.append('telefono_contratista',             contratista.telefono ?? '');
         fd.append('tipo_persona_contratista',         contratista.tipo_persona);
         fd.append('subtipo_contratista',              contratista.subtipo ?? '');
         fd.append('representante_contratista_dni',    contratista.representante?.dni ?? '');
         fd.append('representante_contratista_nombre', contratista.representante?.nombre ?? '');
+        fd.append('empresas_contratista',             JSON.stringify(contratista.empresas ?? []));
         fd.append('emails_contratista',               JSON.stringify(emailsConFinal));
 
         fd.append('descripcion',  descripcion);
@@ -747,8 +808,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                 emailBloqueado={isPortal}
                 emailFijo={portalEmail}
                 errors={rolSolicitante === 'entidad'
-                    ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo }
-                    : { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo }}
+                    ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }
+                    : { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }}
                 isSolicitante
             />
 
@@ -760,8 +821,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                 onChange={rolSolicitante === 'entidad' ? setContratista : setEntidad}
                 emailBloqueado={false}
                 errors={rolSolicitante === 'entidad'
-                    ? { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo }
-                    : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo }}
+                    ? { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }
+                    : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }}
                 isSolicitante={false}
             />
 
