@@ -30,6 +30,7 @@ class SolicitudArbitrajeController extends Controller
         // ── 1. Validaciones ──────────────────────────────────────────────────
         $request->validate([
             'servicio_id'                   => 'required|exists:servicios,id',
+            'tipo_documento_id'             => 'nullable|exists:tipo_documentos,id',
             'tipo_persona'                  => 'required|in:natural,juridica',
             'nombre_demandante'             => 'required_unless:subtipo_juridico_demandante,consorcio|nullable|string|max:255',
             'documento_demandante'          => 'required_unless:subtipo_juridico_demandante,consorcio|nullable|string|max:20',

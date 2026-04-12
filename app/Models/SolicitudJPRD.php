@@ -40,6 +40,7 @@ class SolicitudJPRD extends Model
         'estado',
         'expediente_id',
         'usuario_id',
+        'tipo_documento_id',
     ];
 
     protected $casts = [

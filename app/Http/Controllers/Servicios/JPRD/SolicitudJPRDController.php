@@ -29,6 +29,7 @@ class SolicitudJPRDController extends Controller
         // Validación flexible: nombre/ruc pueden ser vacíos para consorcio
         $request->validate([
             'servicio_id'                       => 'required|exists:servicios,id',
+            'tipo_documento_id'                 => 'nullable|exists:tipo_documentos,id',
             'rol_solicitante'                   => 'required|in:entidad,contratista',
             'tipo_persona_entidad'              => 'required|in:natural,juridica',
             'subtipo_entidad'                   => 'nullable|string|max:30',
@@ -136,6 +137,7 @@ class SolicitudJPRDController extends Controller
                 'descripcion'                      => $request->descripcion,
                 'observacion'                      => $request->observacion,
                 'estado'                           => 'pendiente',
+                'tipo_documento_id'                => $request->tipo_documento_id ?: null,
             ]);
 
             $cargo = Cargo::crear('solicitud', $solicitud, $usuario->id);

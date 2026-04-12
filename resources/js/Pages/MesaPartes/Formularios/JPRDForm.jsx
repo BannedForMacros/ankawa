@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
 import {
@@ -599,6 +599,22 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
     const [docAdendas,               setDocAdendas]               = useState([]);
     const [docAnexos,                setDocAnexos]                = useState([]);
 
+    const [tiposDocumento,  setTiposDocumento]  = useState([]);
+    const [cargandoTipos,   setCargandoTipos]   = useState(true);
+    const [tipoDocumentoId, setTipoDocumentoId] = useState('');
+
+    useEffect(() => {
+        setCargandoTipos(true);
+        fetch(route('servicios.tipos-documento', servicio.id))
+            .then(r => r.json())
+            .then(data => {
+                setTiposDocumento(data);
+                if (data.length === 1) setTipoDocumentoId(String(data[0].id));
+                setCargandoTipos(false);
+            })
+            .catch(() => setCargandoTipos(false));
+    }, [servicio.id]);
+
     function validar() {
         const e = {};
         if (!rolSolicitante) { e.rol = 'Debes seleccionar tu rol'; return e; }
@@ -701,6 +717,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         fd.append('empresas_contratista',             JSON.stringify(contratista.empresas ?? []));
         fd.append('emails_contratista',               JSON.stringify(emailsConFinal));
 
+        if (tipoDocumentoId) fd.append('tipo_documento_id', tipoDocumentoId);
         fd.append('descripcion',  descripcion);
         if (observacion.trim()) fd.append('observacion', observacion);
 
@@ -798,6 +815,51 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                     Cambiar rol
                 </button>
             </div>
+
+            {/* Tipo de solicitud */}
+            {cargandoTipos ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5">
+                    <div className="h-4 bg-gray-200 animate-pulse rounded w-1/3 mb-2"/>
+                    <div className="h-9 bg-gray-100 animate-pulse rounded-xl"/>
+                </div>
+            ) : tiposDocumento.length === 1 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+                        <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                            <FileText size={16} className="text-[#BE0F4A]"/>
+                        </div>
+                        <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
+                    </div>
+                    <div className="px-6 py-4 flex items-center gap-3">
+                        <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-[#291136]/10 text-[#291136]">
+                            {tiposDocumento[0].nombre}
+                        </span>
+                    </div>
+                </div>
+            ) : tiposDocumento.length > 1 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+                        <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                            <FileText size={16} className="text-[#BE0F4A]"/>
+                        </div>
+                        <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
+                    </div>
+                    <div className="px-6 py-4">
+                        <select value={tipoDocumentoId} onChange={e => setTipoDocumentoId(e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
+                            <option value="">Seleccionar tipo...</option>
+                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
+                        </select>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-center gap-3 p-4 mb-5 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <AlertCircle size={18} className="text-amber-500 shrink-0"/>
+                    <p className="text-sm text-amber-700 font-semibold">
+                        No hay tipos de documento configurados para este servicio.
+                    </p>
+                </div>
+            )}
 
             {/* Mis datos (el solicitante) */}
             <BloqueActor

@@ -689,6 +689,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
     const [confirm, setConfirm]             = useState(false);
     const [mostrarLoader, setMostrarLoader] = useState(false);
     const [errorValidacion, setErrorValidacion] = useState('');
+    // Controla si los datos del demandante están bloqueados (pre-cargados del usuario autenticado)
+    const [demandanteBloqueado, setDemandanteBloqueado] = useState(isAuth || isPortal);
     const emailInicial = isPortal ? portalEmail : (isAuth ? user?.email : '');
     const [emailsDem, setEmailsDem]         = useState(emailInicial ? [{ email: emailInicial, label: '' }] : [{ email: '', label: '' }]);
     const [emailsDado, setEmailsDado]       = useState([]);
@@ -788,6 +790,22 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         prevErrors.current = errors;
     }, [errors]);
 
+    const [tiposDocumento,  setTiposDocumento]  = useState([]);
+    const [cargandoTipos,   setCargandoTipos]   = useState(true);
+    const [tipoDocumentoId, setTipoDocumentoId] = useState('');
+
+    useEffect(() => {
+        setCargandoTipos(true);
+        fetch(route('servicios.tipos-documento', servicio.id))
+            .then(r => r.json())
+            .then(tiposData => {
+                setTiposDocumento(tiposData);
+                if (tiposData.length === 1) setTipoDocumentoId(String(tiposData[0].id));
+                setCargandoTipos(false);
+            })
+            .catch(() => setCargandoTipos(false));
+    }, [servicio.id]);
+
     function mostrarError(msg) {
         setErrorValidacion(msg);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -875,6 +893,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
             }
         });
 
+        // Tipo de documento de la solicitud
+        if (tipoDocumentoId) fd.append('tipo_documento_id', tipoDocumentoId);
+
         // Emails
         fd.set('email_demandante', emailsDem[0]?.email ?? '');
         fd.append('emails_demandante', JSON.stringify(emailsDem.filter(e => e.email.trim())));
@@ -944,12 +965,77 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
-            {/* Bloque Demandante */}
-            {(isAuth || isPortal) && (
-                <div className="flex items-center gap-2 mb-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-xs font-semibold text-green-700">
-                    <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
+                {/* Tipo de solicitud */}
+            {cargandoTipos ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5">
+                    <div className="h-4 bg-gray-200 animate-pulse rounded w-1/3 mb-2"/>
+                    <div className="h-9 bg-gray-100 animate-pulse rounded-xl"/>
+                </div>
+            ) : tiposDocumento.length === 1 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+                        <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                            <FileText size={16} className="text-[#BE0F4A]"/>
+                        </div>
+                        <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
+                    </div>
+                    <div className="px-6 py-4 flex items-center gap-3">
+                        <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-[#291136]/10 text-[#291136]">
+                            {tiposDocumento[0].nombre}
+                        </span>
+                    </div>
+                </div>
+            ) : tiposDocumento.length > 1 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                    <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+                        <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                            <FileText size={16} className="text-[#BE0F4A]"/>
+                        </div>
+                        <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
+                    </div>
+                    <div className="px-6 py-4">
+                        <select value={tipoDocumentoId} onChange={e => setTipoDocumentoId(e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
+                            <option value="">Seleccionar tipo...</option>
+                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
+                        </select>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-center gap-3 p-4 mb-5 bg-amber-50 border border-amber-200 rounded-2xl">
+                    <AlertTriangle size={18} className="text-amber-500 shrink-0"/>
+                    <p className="text-sm text-amber-700 font-semibold">
+                        No hay tipos de documento configurados para este servicio.
+                    </p>
                 </div>
             )}
+
+            {/* Bloque Demandante */}
+            {demandanteBloqueado ? (
+                <div className="flex items-center justify-between gap-3 mb-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-green-700">
+                        <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setDemandanteBloqueado(false);
+                            setCamposDem({ tipo_persona: 'natural', tipo_documento: 'dni', documento: '', nombre: '', domicilio: '', nombre_representante: '', documento_representante: '' });
+                            setEmailsDem([{ email: '', label: '' }]);
+                            setSubtipoJuridicoDem('');
+                            setEmpresasConsorcioDem([]);
+                            setRepConsorcioDem({ dni: '', nombre: '' });
+                        }}
+                        className="text-xs font-semibold text-green-600 hover:text-red-600 underline underline-offset-2 transition-colors shrink-0"
+                    >
+                        Cambiar persona
+                    </button>
+                </div>
+            ) : (isAuth || isPortal) ? (
+                <div className="flex items-center gap-2 mb-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
+                    <AlertTriangle size={14}/> Ingresando datos de otra persona
+                </div>
+            ) : null}
             <BloquePersona
                 icono={User} titulo="Sus Datos (Demandante)"
                 campos={{
@@ -963,7 +1049,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 }}
                 setCampos={setCamposDem}
                 errors={{ documento: errors.documento_demandante, nombre: errors.nombre_demandante, domicilio: errors.domicilio_demandante }}
-                bloquearTipoPersona={isAuth || isPortal}
+                bloquearTipoPersona={demandanteBloqueado}
                 conRepresentante={true}
                 esDemandante={true}
                 portalEmail={portalEmail}

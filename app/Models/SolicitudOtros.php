@@ -13,6 +13,9 @@ class SolicitudOtros extends Model
     protected $fillable = [
         'servicio_id',
         'tipo_documento_id',
+        'tipo_persona',
+        'tipo_doc_identidad',
+        'numero_doc_identidad',
         'nombre_remitente',
         'email_remitente',
         'descripcion',
