@@ -421,7 +421,7 @@ export function MovimientoCard({
                 {esReq && (
                     <div>
                         <SectionLabel>Responsables *</SectionLabel>
-                        <div className={`border rounded-xl overflow-hidden ${errores.responsables ? 'border-red-300' : 'border-[#BE0F4A]/20'}`}>
+                        <div className={`border rounded-xl ${errores.responsables ? 'border-red-300' : 'border-[#BE0F4A]/20'}`}>
                             <div className="px-3.5 py-2.5 bg-[#BE0F4A]/5 border-b border-[#BE0F4A]/10 flex items-center justify-between">
                                 <p className="text-xs font-black text-[#BE0F4A] uppercase tracking-widest">
                                     Actores responsables
@@ -433,13 +433,40 @@ export function MovimientoCard({
                                 )}
                             </div>
                             <div className="p-3 space-y-2">
-                                {mov.responsables.map((fila, ri) => (
+                                {mov.responsables.map((fila, ri) => {
+                                    // Actores del tipo seleccionado para esta fila
+                                    const actoresDeFila = fila.tipo_actor_id
+                                        ? actoresConAcceso.filter(a => String(a.tipo_actor_id) === String(fila.tipo_actor_id))
+                                        : [];
+
+                                    return (
                                     <div key={ri} className="flex flex-wrap items-start gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-                                        {/* Multi-select de actores con checkboxes */}
+                                        {/* Select 1: tipo de actor */}
+                                        <div className="flex-1 min-w-[140px]">
+                                            <AnkawaSelect
+                                                value={String(fila.tipo_actor_id ?? '')}
+                                                hasError={!!errores[`responsables_${ri}_tipo`]}
+                                                onChange={e => {
+                                                    const nuevoTipoId = e.target.value;
+                                                    const actoresDelTipo = actoresConAcceso
+                                                        .filter(a => String(a.tipo_actor_id) === String(nuevoTipoId))
+                                                        .map(a => String(a.id));
+                                                    onChange('responsables', mov.responsables.map((r, j) =>
+                                                        j === ri ? { ...r, tipo_actor_id: nuevoTipoId, actor_ids: actoresDelTipo } : r
+                                                    ));
+                                                }}>
+                                                <option value="">— Tipo de actor —</option>
+                                                {tiposActorConAcceso.map(ta => (
+                                                    <option key={ta.id} value={String(ta.id)}>{ta.nombre}</option>
+                                                ))}
+                                            </AnkawaSelect>
+                                        </div>
+                                        {/* Select 2: usuarios de ese tipo (multi-checkbox) */}
                                         <MultiActorSelect
                                             value={fila.actor_ids ?? []}
                                             hasError={!!errores[`responsables_${ri}_actor`]}
-                                            actores={actoresConAcceso}
+                                            actores={actoresDeFila}
+                                            disabled={!fila.tipo_actor_id}
                                             onChange={ids => {
                                                 const updated = mov.responsables.map((r, j) =>
                                                     j === ri ? { ...r, actor_ids: ids } : r
@@ -494,11 +521,12 @@ export function MovimientoCard({
                                             </button>
                                         )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                                 <button type="button"
                                     onClick={() => onChange('responsables', [
                                         ...mov.responsables,
-                                        { actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' },
+                                        { tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' },
                                     ])}
                                     className="flex items-center gap-1.5 text-xs font-bold text-[#BE0F4A] hover:text-[#291136] transition-colors mt-1">
                                     <PlusCircle size={13}/>
@@ -881,6 +909,7 @@ export default function TabNuevoMovimiento({
                     e.responsables = 'Selecciona al menos un actor responsable.';
                 } else {
                     mov.responsables.forEach((r, ri) => {
+                        if (!r.tipo_actor_id) e[`responsables_${ri}_tipo`] = true;
                         if (!r.actor_ids || r.actor_ids.length === 0) e[`responsables_${ri}_actor`] = true;
                         if (!r.dias_plazo || Number(r.dias_plazo) < 1) e[`responsables_${ri}_plazo`] = true;
                     });
