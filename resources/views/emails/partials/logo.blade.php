@@ -1,1 +1,1 @@
-<img src="https://ankawa.macsoftperu.com/logo-white.png" alt="Ankawa Internacional" style="height:48px;" />
+<img src="{{ asset('logo.png') }}" alt="Ankawa Internacional" style="height:56px; display:block; margin:0 auto;" />
