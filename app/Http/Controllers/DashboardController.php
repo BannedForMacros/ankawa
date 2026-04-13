@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Expediente;
+use App\Models\ExpedienteActor;
 use App\Models\ExpedienteMovimiento;
 use App\Models\SolicitudArbitraje;
 use Inertia\Inertia;
@@ -26,18 +27,28 @@ class DashboardController extends Controller
             $solicitudesPendientes = 0;
         }
 
-        // Movimientos pendientes del usuario
-        $misPendientes = ExpedienteMovimiento::where('usuario_responsable_id', $user->id)
-            ->where('estado', 'pendiente')
+        $misActorIds = ExpedienteActor::where('usuario_id', $user->id)->pluck('id');
+
+        $esResponsableClause = function ($q) use ($user, $misActorIds) {
+            $q->where('usuario_responsable_id', $user->id);
+            if ($misActorIds->isNotEmpty()) {
+                $q->orWhereHas('responsables', fn($q2) =>
+                    $q2->whereIn('expediente_actor_id', $misActorIds)
+                       ->where('estado', 'pendiente')
+                );
+            }
+        };
+
+        $misPendientes = ExpedienteMovimiento::where('estado', 'pendiente')
             ->where('activo', true)
+            ->where($esResponsableClause)
             ->count();
 
-        // Movimientos por vencer (próximos 3 días)
-        $porVencer = ExpedienteMovimiento::where('usuario_responsable_id', $user->id)
-            ->where('estado', 'pendiente')
+        $porVencer = ExpedienteMovimiento::where('estado', 'pendiente')
             ->where('activo', true)
             ->whereNotNull('fecha_limite')
             ->whereBetween('fecha_limite', [now()->toDateString(), now()->addDays(3)->toDateString()])
+            ->where($esResponsableClause)
             ->count();
 
         return Inertia::render('Dashboard', [

@@ -197,16 +197,19 @@ function RespuestaCard({ mov }) {
 }
 
 // ── Tarjeta de movimiento ────────────────────────────────────────────────────
-function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo }) {
+function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo, actores = [] }) {
     const cfg = estadoConfig[mov.estado] ?? estadoConfig.pendiente;
     const expandido = expandidos.has(mov.id);
     const resolucion = mov.resolucion_tipo;
     const tieneRespuesta = !!mov.respuesta;
     const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
     const todosDocsMov = [...docsCreacion, ...(docsSolicitud ?? [])];
-    const tieneExtras = todosDocsMov.length > 0 || mov.observaciones || resolucion;
-    const puedeResolver = esGestor && mov.estado === 'respondido' && mov.usuario_responsable_id && !mov.resolucion_tipo_id;
-    const puedeContinuar = esGestor && mov.estado === 'pendiente' && mov.usuario_responsable_id && onIrANuevo;
+    const pivotRows = mov.responsables ?? [];
+    const tieneExtras = todosDocsMov.length > 0 || mov.observaciones || resolucion || pivotRows.length > 0;
+    const tieneResponsable = !!mov.usuario_responsable_id || pivotRows.length > 0;
+    const puedeResolver  = esGestor && mov.estado === 'respondido' && tieneResponsable && !mov.resolucion_tipo_id;
+    const puedeContinuar = esGestor && mov.estado === 'pendiente'  && tieneResponsable && onIrANuevo;
+    let responsablesDisplay = mov.usuario_responsable?.name ?? null;
     const tipoMov = TIPO_LABELS[mov.tipo] ?? TIPO_LABELS.requerimiento;
 
     return (
@@ -255,12 +258,35 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     {mov.creado_por?.name && (
                                         <span>{mov.creado_por.name}</span>
                                     )}
-                                    {mov.usuario_responsable && (
+                                    {pivotRows.length > 0 ? (
                                         <>
                                             <span className="text-gray-300">·</span>
-                                            <span>→ <strong className="text-[#291136] font-semibold">{mov.usuario_responsable.name}</strong></span>
+                                            <span className="text-gray-400 text-xs">→</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {pivotRows.map(r => {
+                                                    const nombre = r.actor?.usuario?.name ?? r.actor?.nombre_externo ?? 'Actor';
+                                                    const tipo   = r.tipo_actor?.nombre ?? r.actor?.tipo_actor?.nombre;
+                                                    const est    = r.estado ?? 'pendiente';
+                                                    const chipCls = est === 'respondido'
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : est === 'vencido'
+                                                        ? 'bg-red-50 text-red-600 border-red-200'
+                                                        : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                    return (
+                                                        <span key={r.id} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${chipCls}`}>
+                                                            {nombre}{tipo ? ` (${tipo})` : ''}
+                                                            {est === 'respondido' ? ' ✓' : est === 'vencido' ? ' ✗' : ' ⏳'}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
                                         </>
-                                    )}
+                                    ) : responsablesDisplay ? (
+                                        <>
+                                            <span className="text-gray-300">·</span>
+                                            <span>→ <strong className="text-[#291136] font-semibold">{responsablesDisplay}</strong></span>
+                                        </>
+                                    ) : null}
                                 </div>
                             </div>
 
@@ -291,6 +317,43 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                         <div className="px-3.5 pb-3.5 border-t border-gray-50 space-y-3 pt-3">
                             {mov.observaciones && (
                                 <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
+                            )}
+                            {pivotRows.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-400 mb-1.5">Responsables del requerimiento</p>
+                                    <div className="space-y-1.5">
+                                        {pivotRows.map(r => {
+                                            const nombre = r.actor?.usuario?.name ?? r.actor?.nombre_externo ?? 'Actor';
+                                            const tipo   = r.tipo_actor?.nombre ?? r.actor?.tipo_actor?.nombre;
+                                            const est    = r.estado ?? 'pendiente';
+                                            const chipCls = est === 'respondido'
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                : est === 'vencido'
+                                                ? 'bg-red-50 text-red-600 border-red-200'
+                                                : 'bg-amber-50 text-amber-700 border-amber-200';
+                                            return (
+                                                <div key={r.id} className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs ${chipCls}`}>
+                                                    <span className="font-semibold">
+                                                        {nombre}{tipo ? ` — ${tipo}` : ''}
+                                                    </span>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        {r.dias_plazo && (
+                                                            <span className="text-[10px] font-medium opacity-70">
+                                                                {r.dias_plazo} días {r.tipo_dias === 'habiles' ? 'háb.' : 'cal.'}
+                                                            </span>
+                                                        )}
+                                                        <span className="font-bold uppercase tracking-wide text-[10px]">
+                                                            {est === 'respondido' ? '✓ Respondido' : est === 'vencido' ? '✗ Vencido' : '⏳ Pendiente'}
+                                                        </span>
+                                                        {est === 'respondido' && r.respondido_por?.name && (
+                                                            <span className="opacity-70">{r.respondido_por.name}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             )}
                             {todosDocsMov.length > 0 && (
                                 <div>
@@ -377,7 +440,7 @@ function agruparPorEtapa(movimientos) {
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
-export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, tiposResolucion = [], onIrANuevo = null }) {
+export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, tiposResolucion = [], onIrANuevo = null, actores = [] }) {
     const [expandidos, setExpandidos] = useState(new Set());
 
     function toggleExpandir(id) {
@@ -485,6 +548,7 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                             toggleExpandir={toggleExpandir}
                                             docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
                                             esUltimo={esUltimoMov}
+                                            actores={actores}
                                         />
                                     );
                                 })}

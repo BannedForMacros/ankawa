@@ -182,6 +182,7 @@ export default function Show({
                             expedienteId={expediente.id}
                             tiposResolucion={tiposResolucion ?? []}
                             onIrANuevo={esGestor && expediente.estado === 'activo' ? () => setActiveTab('nuevo') : null}
+                            actores={expediente.actores ?? []}
                         />
                     )}
 

@@ -12,6 +12,7 @@ export const movVacioBase = (expediente, notificarIds = []) => ({
     observaciones:               '',
     tipo_actor_responsable_id:   '',
     usuario_responsable_id:      '',
+    responsables:                [{ tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
     dias_plazo:                  '',
     tipo_dias:                   'calendario',
     tipo_documento_requerido_id: '',
@@ -106,6 +107,109 @@ function AnkawaSelect({ value, onChange, disabled, children, className = '', has
                                 {opt.label}
                             </button>
                         ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/* ── Multi-select con checkboxes (lista plana, ya filtrada externamente) ───── */
+function MultiActorSelect({ value = [], onChange, actores, hasError, disabled = false }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [open]);
+
+    const strValue = value.map(String);
+    const todosSeleccionados = actores.length > 0 && actores.every(a => strValue.includes(String(a.id)));
+
+    function toggleActor(id) {
+        const s = String(id);
+        onChange(strValue.includes(s) ? strValue.filter(x => x !== s) : [...strValue, s]);
+    }
+
+    function toggleTodos() {
+        if (todosSeleccionados) {
+            onChange([]);
+        } else {
+            onChange(actores.map(a => String(a.id)));
+        }
+    }
+
+    const selectedCount = strValue.length;
+    let displayText = '— Seleccionar usuarios —';
+    if (disabled || actores.length === 0) {
+        displayText = '— Selecciona un tipo primero —';
+    } else if (selectedCount === 1) {
+        const a = actores.find(a => String(a.id) === strValue[0]);
+        displayText = a?.usuario?.name ?? a?.nombre_externo ?? '1 usuario';
+    } else if (selectedCount > 1) {
+        displayText = `${selectedCount} de ${actores.length} seleccionados`;
+    }
+
+    if (disabled) return (
+        <div className="relative flex-1 min-w-[180px]">
+            <div className="w-full text-sm border border-gray-200 rounded-xl px-3.5 py-2.5 pr-9 bg-gray-50 text-gray-400 font-medium flex items-center">
+                <span className="truncate">{displayText}</span>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none"/>
+            </div>
+        </div>
+    );
+
+    return (
+        <div ref={ref} className="relative flex-1 min-w-[180px]">
+            <button type="button" onClick={() => setOpen(o => !o)}
+                className={`w-full text-sm border rounded-xl px-3.5 py-2.5 pr-9 bg-white text-left focus:outline-none focus:ring-2 transition-colors ${
+                    hasError
+                        ? 'border-red-400 focus:ring-red-200 focus:border-red-500'
+                        : open ? 'border-[#BE0F4A] focus:ring-[#BE0F4A]/20' : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                <span className={`block truncate font-medium ${selectedCount === 0 ? 'text-gray-400' : 'text-gray-800'}`}>
+                    {displayText}
+                </span>
+                <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}/>
+            </button>
+            {open && (
+                <div className="absolute z-50 mt-1 w-full min-w-[220px] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                    {/* Header: seleccionar / deseleccionar todos */}
+                    <label className="flex items-center gap-2.5 px-3.5 py-2 bg-[#BE0F4A]/5 border-b border-[#BE0F4A]/10 cursor-pointer select-none hover:bg-[#BE0F4A]/10 transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={todosSeleccionados}
+                            onChange={toggleTodos}
+                            className="w-3.5 h-3.5 accent-[#BE0F4A] rounded shrink-0"/>
+                        <span className="text-xs font-black uppercase tracking-widest text-[#BE0F4A]">
+                            Todos
+                        </span>
+                        <span className="ml-auto text-[10px] font-bold text-[#BE0F4A]/60 shrink-0">
+                            {selectedCount}/{actores.length}
+                        </span>
+                    </label>
+                    <div className="max-h-52 overflow-y-auto py-1">
+                        {actores.map(actor => {
+                            const sel = strValue.includes(String(actor.id));
+                            return (
+                                <label key={actor.id}
+                                    className={`flex items-center gap-2.5 px-3.5 py-2 cursor-pointer select-none transition-colors ${
+                                        sel ? 'bg-[#BE0F4A]/5' : 'hover:bg-gray-50'
+                                    }`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={sel}
+                                        onChange={() => toggleActor(actor.id)}
+                                        className="w-3.5 h-3.5 accent-[#BE0F4A] rounded shrink-0"/>
+                                    <span className={`text-sm font-medium ${sel ? 'text-[#291136] font-semibold' : 'text-gray-700'}`}>
+                                        {actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre'}
+                                    </span>
+                                </label>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -313,60 +417,96 @@ export function MovimientoCard({
                     <FieldError msg={errores.instruccion ? 'Este campo es obligatorio.' : null}/>
                 </div>
 
-                {/* ── SECCIÓN 3: Responsable + Plazo (solo requerimiento) ── */}
+                {/* ── SECCIÓN 3: Responsables (solo requerimiento) ── */}
                 {esReq && (
                     <div>
-                        <SectionLabel>Responsable y Plazo</SectionLabel>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                                <FieldLabel>Tipo Actor *</FieldLabel>
-                                <AnkawaSelect value={mov.tipo_actor_responsable_id}
-                                    hasError={!!errores.tipo_actor_responsable_id}
-                                    onChange={e => { onChange('tipo_actor_responsable_id', e.target.value); onChange('usuario_responsable_id', ''); }}>
-                                    <option value="">— Seleccionar —</option>
-                                    {tiposActorConAcceso.map(ta => <option key={ta.id} value={ta.id}>{ta.nombre}</option>)}
-                                </AnkawaSelect>
-                                <FieldError msg={errores.tipo_actor_responsable_id ? 'Selecciona el tipo de actor.' : null}/>
+                        <SectionLabel>Responsables *</SectionLabel>
+                        <div className={`border rounded-xl overflow-hidden ${errores.responsables ? 'border-red-300' : 'border-[#BE0F4A]/20'}`}>
+                            <div className="px-3.5 py-2.5 bg-[#BE0F4A]/5 border-b border-[#BE0F4A]/10 flex items-center justify-between">
+                                <p className="text-xs font-black text-[#BE0F4A] uppercase tracking-widest">
+                                    Actores responsables
+                                </p>
+                                {mov.responsables.reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0) > 0 && (
+                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#BE0F4A] text-white">
+                                        {mov.responsables.reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0)} actor(es)
+                                    </span>
+                                )}
                             </div>
-                            <div>
-                                <FieldLabel>Usuario *</FieldLabel>
-                                <AnkawaSelect value={mov.usuario_responsable_id}
-                                    hasError={!!errores.usuario_responsable_id}
-                                    onChange={e => onChange('usuario_responsable_id', e.target.value)}>
-                                    <option value="">— Seleccionar —</option>
-                                    {usuariosFiltrados.map(a => (
-                                        <option key={a.usuario.id} value={a.usuario.id}>{a.usuario.name} — {a.tipo_actor?.nombre}</option>
-                                    ))}
-                                </AnkawaSelect>
-                                <FieldError msg={errores.usuario_responsable_id ? 'Selecciona el usuario responsable.' : null}/>
-                            </div>
-                            <div>
-                                <FieldLabel>Plazo (días) *</FieldLabel>
-                                <div className="flex gap-2 items-stretch">
-                                    <input type="number" min="1" max="365" value={mov.dias_plazo}
-                                        onChange={e => onChange('dias_plazo', e.target.value)}
-                                        className={`${errores.dias_plazo ? inputClsErr : inputCls} flex-1`} placeholder="Ej: 5"/>
-                                    <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
-                                        {[
-                                            { v: 'calendario', label: 'Cal.' },
-                                            { v: 'habiles',    label: 'Háb.' },
-                                        ].map(opt => (
-                                            <button key={opt.v} type="button"
-                                                onClick={() => onChange('tipo_dias', opt.v)}
-                                                title={opt.v === 'calendario' ? 'Días calendario (incluye fines de semana)' : 'Días hábiles (excluye sábados y domingos)'}
-                                                className={`px-3 py-2 text-xs font-bold transition-colors ${
-                                                    mov.tipo_dias === opt.v
-                                                        ? 'bg-[#291136] text-white'
-                                                        : 'bg-white text-gray-500 hover:bg-gray-50'
-                                                }`}>
-                                                {opt.label}
+                            <div className="p-3 space-y-2">
+                                {mov.responsables.map((fila, ri) => (
+                                    <div key={ri} className="flex flex-wrap items-start gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                                        {/* Multi-select de actores con checkboxes */}
+                                        <MultiActorSelect
+                                            value={fila.actor_ids ?? []}
+                                            hasError={!!errores[`responsables_${ri}_actor`]}
+                                            actores={actoresConAcceso}
+                                            onChange={ids => {
+                                                const updated = mov.responsables.map((r, j) =>
+                                                    j === ri ? { ...r, actor_ids: ids } : r
+                                                );
+                                                onChange('responsables', updated);
+                                            }}
+                                        />
+                                        {/* Plazo input */}
+                                        <input
+                                            type="number" min="1" max="365"
+                                            value={fila.dias_plazo ?? ''}
+                                            placeholder="Días"
+                                            onChange={e => {
+                                                const updated = mov.responsables.map((r, j) =>
+                                                    j === ri ? { ...r, dias_plazo: e.target.value } : r
+                                                );
+                                                onChange('responsables', updated);
+                                            }}
+                                            className={`w-20 text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A] bg-white transition-colors shrink-0 ${
+                                                errores[`responsables_${ri}_plazo`] ? 'border-red-400' : 'border-gray-200'
+                                            }`}
+                                        />
+                                        {/* Cal/Háb toggle */}
+                                        <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
+                                            {[
+                                                { v: 'calendario', label: 'Cal.' },
+                                                { v: 'habiles',    label: 'Háb.' },
+                                            ].map(opt => (
+                                                <button key={opt.v} type="button"
+                                                    onClick={() => {
+                                                        const updated = mov.responsables.map((r, j) =>
+                                                            j === ri ? { ...r, tipo_dias: opt.v } : r
+                                                        );
+                                                        onChange('responsables', updated);
+                                                    }}
+                                                    title={opt.v === 'calendario' ? 'Días calendario' : 'Días hábiles (excluye sábados y domingos)'}
+                                                    className={`px-3 py-2 text-xs font-bold transition-colors ${
+                                                        (fila.tipo_dias ?? 'calendario') === opt.v
+                                                            ? 'bg-[#291136] text-white'
+                                                            : 'bg-white text-gray-500 hover:bg-gray-50'
+                                                    }`}>
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {/* Remove button */}
+                                        {mov.responsables.length > 1 && (
+                                            <button type="button"
+                                                onClick={() => onChange('responsables', mov.responsables.filter((_, j) => j !== ri))}
+                                                className="p-2 text-gray-300 hover:text-red-400 transition-colors shrink-0">
+                                                <X size={15}/>
                                             </button>
-                                        ))}
+                                        )}
                                     </div>
-                                </div>
-                                <FieldError msg={errores.dias_plazo ? 'Ingresa un plazo válido (mínimo 1 día).' : null}/>
+                                ))}
+                                <button type="button"
+                                    onClick={() => onChange('responsables', [
+                                        ...mov.responsables,
+                                        { actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' },
+                                    ])}
+                                    className="flex items-center gap-1.5 text-xs font-bold text-[#BE0F4A] hover:text-[#291136] transition-colors mt-1">
+                                    <PlusCircle size={13}/>
+                                    Agregar grupo de responsables
+                                </button>
                             </div>
                         </div>
+                        <FieldError msg={errores.responsables ? errores.responsables : null}/>
                     </div>
                 )}
 
@@ -374,30 +514,21 @@ export function MovimientoCard({
                 {esReq && (
                     <div>
                         <SectionLabel>Documento requerido *</SectionLabel>
-                        {(() => {
-                            const docsFiltered = mov.tipo_actor_responsable_id
-                                ? tiposDocumento.filter(td =>
-                                    td.permisos?.some(p =>
-                                        String(p.tipo_actor_id) === String(mov.tipo_actor_responsable_id) && p.puede_subir
-                                    )
-                                  )
-                                : tiposDocumento;
-                            return docsFiltered.length === 0 && mov.tipo_actor_responsable_id ? (
-                                <p className="text-xs text-gray-400 italic mt-1">
-                                    Sin documentos configurados para requerir a este actor.
-                                </p>
-                            ) : (
-                                <>
-                                <AnkawaSelect value={mov.tipo_documento_requerido_id}
-                                    hasError={!!errores.tipo_documento_requerido}
-                                    onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}>
-                                    <option value="">— Seleccionar —</option>
-                                    {docsFiltered.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                                </AnkawaSelect>
-                                <FieldError msg={errores.tipo_documento_requerido ? 'Selecciona el tipo de documento requerido.' : null}/>
-                                </>
-                            );
-                        })()}
+                        {tiposDocumento.length === 0 ? (
+                            <p className="text-xs text-gray-400 italic mt-1">
+                                Sin documentos configurados para este servicio.
+                            </p>
+                        ) : (
+                            <>
+                            <AnkawaSelect value={mov.tipo_documento_requerido_id}
+                                hasError={!!errores.tipo_documento_requerido}
+                                onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}>
+                                <option value="">— Seleccionar —</option>
+                                {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
+                            </AnkawaSelect>
+                            <FieldError msg={errores.tipo_documento_requerido ? 'Selecciona el tipo de documento requerido.' : null}/>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -745,14 +876,16 @@ export default function TabNuevoMovimiento({
             const e = {};
             if (!mov.instruccion?.trim()) e.instruccion = true;
             if (mov.tipo === 'requerimiento') {
-                if (!mov.tipo_actor_responsable_id) e.tipo_actor_responsable_id = true;
-                if (!mov.usuario_responsable_id)    e.usuario_responsable_id = true;
-                if (!mov.dias_plazo || Number(mov.dias_plazo) < 1) e.dias_plazo = true;
-                const docsDisponibles = mov.tipo_actor_responsable_id
-                    ? tiposDocumento.filter(td => td.permisos?.some(p =>
-                        String(p.tipo_actor_id) === String(mov.tipo_actor_responsable_id) && p.puede_subir))
-                    : tiposDocumento;
-                if (docsDisponibles.length > 0 && !mov.tipo_documento_requerido_id) e.tipo_documento_requerido = true;
+                const totalActores = (mov.responsables ?? []).reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0);
+                if (!mov.responsables || mov.responsables.length === 0 || totalActores === 0) {
+                    e.responsables = 'Selecciona al menos un actor responsable.';
+                } else {
+                    mov.responsables.forEach((r, ri) => {
+                        if (!r.actor_ids || r.actor_ids.length === 0) e[`responsables_${ri}_actor`] = true;
+                        if (!r.dias_plazo || Number(r.dias_plazo) < 1) e[`responsables_${ri}_plazo`] = true;
+                    });
+                }
+                if (tiposDocumento.length > 0 && !mov.tipo_documento_requerido_id) e.tipo_documento_requerido = true;
             }
             return e;
         });
@@ -783,7 +916,11 @@ export default function TabNuevoMovimiento({
             form.append('instruccion',                 mov.instruccion);
             form.append('observaciones',               mov.observaciones ?? '');
             form.append('tipo_actor_responsable_id',   mov.tipo_actor_responsable_id ?? '');
-            form.append('usuario_responsable_id',      mov.usuario_responsable_id ?? '');
+            (mov.responsables ?? []).forEach((r, ri) => {
+                (r.actor_ids ?? []).forEach(id => form.append(`responsables[${ri}][actor_ids][]`, id));
+                form.append(`responsables[${ri}][dias_plazo]`, r.dias_plazo);
+                form.append(`responsables[${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
+            });
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
             form.append('tipo_dias',                   mov.tipo_dias ?? 'calendario');
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
@@ -815,7 +952,11 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
                 form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
                 form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
-                form.append(`movimientos[${i}][usuario_responsable_id]`,      mov.usuario_responsable_id ?? '');
+                (mov.responsables ?? []).forEach((r, ri) => {
+                    (r.actor_ids ?? []).forEach(id => form.append(`movimientos[${i}][responsables][${ri}][actor_ids][]`, id));
+                    form.append(`movimientos[${i}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
+                    form.append(`movimientos[${i}][responsables][${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
+                });
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
                 form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
                 form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
@@ -852,7 +993,15 @@ export default function TabNuevoMovimiento({
             const esBatch = movimientos.length > 1;
 
             const tipoActorNombre   = tiposActorEnExpediente.find(t => String(t.id) === String(mov?.tipo_actor_responsable_id))?.nombre;
-            const responsableNombre = actoresExpediente.find(a => String(a.usuario?.id) === String(mov?.usuario_responsable_id))?.usuario?.name;
+            const responsablesNombres = (() => {
+                const nombres = (mov?.responsables ?? []).flatMap(r =>
+                    (r.actor_ids ?? [])
+                        .map(id => actoresExpediente.find(a => String(a.id) === String(id)))
+                        .filter(Boolean)
+                        .map(a => a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre')
+                );
+                return nombres.length > 0 ? nombres.join(', ') : null;
+            })();
             const docNombre         = tiposDocumento.find(d => String(d.id) === String(mov?.tipo_documento_requerido_id))?.nombre;
             const expNumero         = expediente.numero_expediente ?? `EXP-${expediente.id}`;
 
@@ -891,9 +1040,15 @@ export default function TabNuevoMovimiento({
                     { label: 'Expediente',          value: expNumero },
                     hayAvanceEtapa && { label: '⚠ Cierra etapa', value: etapaActualNombre },
                     hayAvanceEtapa && { label: '→ Nueva etapa',  value: etapaNuevaNombre },
-                    tipoActorNombre   && { label: 'Actor responsable',   value: tipoActorNombre },
-                    responsableNombre && { label: 'Responsable',         value: responsableNombre },
-                    mov?.dias_plazo   && { label: 'Plazo',               value: `${mov.dias_plazo} días ${mov.tipo_dias === 'habiles' ? 'hábiles' : 'calendario'}` },
+                    tipoActorNombre    && { label: 'Tipo actor',      value: tipoActorNombre },
+                    responsablesNombres && { label: 'Responsable(s)', value: responsablesNombres },
+                    (mov?.responsables ?? []).some(r => r.actor_ids?.length > 0) && {
+                        label: 'Plazos',
+                        value: (mov.responsables ?? [])
+                            .filter(r => r.actor_ids?.length > 0)
+                            .map(r => `${r.dias_plazo} días ${r.tipo_dias === 'habiles' ? 'hábiles' : 'cal.'}`)
+                            .join(' / '),
+                    },
                     docNombre         && { label: 'Documento requerido', value: docNombre },
                 ].filter(Boolean);
                 variant  = hayAvanceEtapa ? 'danger' : 'warning';

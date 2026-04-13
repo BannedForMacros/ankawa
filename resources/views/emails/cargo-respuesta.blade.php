@@ -2,8 +2,8 @@
 
 @section('fields')
     <tr>
-        <td class="field-label">Número de Registro</td>
-        <td class="field-value" style="font-family: monospace; font-weight: bold; font-size: 13px;">{{ $cargo->numero_cargo }}</td>
+        <td class="field-label" style="padding-right: 16px;">Número de Registro</td>
+        <td class="field-value" style="font-family: monospace; font-weight: bold; font-size: 13px; color: #222222;">{{ $cargo->numero_cargo }}</td>
     </tr>
     <tr>
         <td class="field-label">Expediente</td>

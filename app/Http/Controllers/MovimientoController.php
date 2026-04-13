@@ -31,6 +31,11 @@ class MovimientoController extends Controller
             'sub_etapa_id'               => 'nullable|exists:sub_etapas,id',
             'tipo_actor_responsable_id'  => 'nullable|exists:tipos_actor_expediente,id',
             'usuario_responsable_id'     => 'nullable|exists:users,id',
+            'responsables'                 => 'nullable|array',
+            'responsables.*.actor_ids'    => 'nullable|array',
+            'responsables.*.actor_ids.*'  => 'integer|exists:expediente_actores,id',
+            'responsables.*.dias_plazo'   => 'required_with:responsables|integer|min:1|max:365',
+            'responsables.*.tipo_dias'    => 'nullable|in:calendario,habiles',
             'instruccion'                => 'required|string|max:2000',
             'observaciones'              => 'nullable|string|max:2000',
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
@@ -55,6 +60,7 @@ class MovimientoController extends Controller
         ]), [
             'creado_por'                         => auth()->id(),
             'tipo'                               => $request->input('tipo', 'requerimiento'),
+            'responsables'                       => $request->input('responsables') ?: [],
             'habilitar_mesa_partes'              => $request->boolean('habilitar_mesa_partes'),
             'actores_mesa_partes_ids'            => $request->input('actores_mesa_partes_ids', []),
             'enviar_credenciales_expediente'     => $request->boolean('enviar_credenciales_expediente'),
@@ -67,9 +73,11 @@ class MovimientoController extends Controller
 
         // tipo: 'requerimiento' → pendiente | 'propia' → respondido | 'notificacion' → recibido
         $tipo = $request->input('tipo', 'requerimiento');
+        $totalActorIds = collect($datos['responsables'] ?? [])->sum(fn($r) => count($r['actor_ids'] ?? []));
+        $tieneResponsable = !empty($datos['usuario_responsable_id']) || $totalActorIds > 0;
         if ($tipo === 'notificacion') {
             $estadoInicial = 'recibido';     // traslado/notificación → no requiere respuesta
-        } elseif (empty($datos['usuario_responsable_id'])) {
+        } elseif (!$tieneResponsable) {
             $estadoInicial = 'respondido';   // actuación propia (sin responsable)
         } else {
             $estadoInicial = 'pendiente';    // requerimiento con responsable
@@ -95,9 +103,14 @@ class MovimientoController extends Controller
             'movimientos.*.sub_etapa_id'             => 'nullable|exists:sub_etapas,id',
             'movimientos.*.instruccion'              => 'required|string|max:2000',
             'movimientos.*.observaciones'            => 'nullable|string|max:2000',
-            'movimientos.*.tipo_actor_responsable_id'=> 'nullable|exists:tipos_actor_expediente,id',
-            'movimientos.*.usuario_responsable_id'   => 'nullable|exists:users,id',
-            'movimientos.*.dias_plazo'               => 'nullable|integer|min:1|max:365',
+            'movimientos.*.tipo_actor_responsable_id'      => 'nullable|exists:tipos_actor_expediente,id',
+            'movimientos.*.usuario_responsable_id'        => 'nullable|exists:users,id',
+            'movimientos.*.responsables'                   => 'nullable|array',
+            'movimientos.*.responsables.*.actor_ids'      => 'nullable|array',
+            'movimientos.*.responsables.*.actor_ids.*'    => 'integer|exists:expediente_actores,id',
+            'movimientos.*.responsables.*.dias_plazo'     => 'required_with:movimientos.*.responsables|integer|min:1|max:365',
+            'movimientos.*.responsables.*.tipo_dias'      => 'nullable|in:calendario,habiles',
+            'movimientos.*.dias_plazo'                    => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'movimientos.*.habilitar_mesa_partes'            => 'nullable|boolean',
@@ -118,9 +131,11 @@ class MovimientoController extends Controller
         \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $documentosPorMovimiento) {
             foreach ($request->movimientos as $i => $item) {
                 $tipo = $item['tipo'] ?? 'requerimiento';
+                $totalActorIds = collect($item['responsables'] ?? [])->sum(fn($r) => count($r['actor_ids'] ?? []));
+                $tieneResponsable = !empty($item['usuario_responsable_id']) || $totalActorIds > 0;
                 if ($tipo === 'notificacion') {
                     $estadoInicial = 'recibido';
-                } elseif (empty($item['usuario_responsable_id'])) {
+                } elseif (!$tieneResponsable) {
                     $estadoInicial = 'respondido';
                 } else {
                     $estadoInicial = 'pendiente';
@@ -138,8 +153,9 @@ class MovimientoController extends Controller
                             'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
                         ]),
                         [
-                            'creado_por'                         => auth()->id(),
-                            'tipo'                               => $tipo,
+                            'creado_por'   => auth()->id(),
+                            'responsables' => $item['responsables'] ?? [],
+                            'tipo'         => $tipo,
                             'habilitar_mesa_partes'              => !empty($item['habilitar_mesa_partes']),
                             'actores_mesa_partes_ids'            => $item['actores_mesa_partes_ids'] ?? [],
                             'enviar_credenciales_expediente'     => !empty($item['enviar_credenciales_expediente']),
@@ -164,7 +180,7 @@ class MovimientoController extends Controller
     public function responder(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
     {
         abort_unless($movimiento->expediente_id === $expediente->id, 404);
-        abort_unless($movimiento->usuario_responsable_id === auth()->id(), 403,
+        abort_unless($movimiento->esResponsable(auth()->id()), 403,
             'Solo el actor responsable puede responder este movimiento.');
         abort_unless($movimiento->estado === 'pendiente', 422,
             'Este movimiento ya no está pendiente.');
@@ -196,7 +212,7 @@ class MovimientoController extends Controller
     public function responderYCrear(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
     {
         abort_unless($movimiento->expediente_id === $expediente->id, 404);
-        abort_unless($movimiento->usuario_responsable_id === auth()->id(), 403);
+        abort_unless($movimiento->esResponsable(auth()->id()), 403);
         abort_unless($movimiento->estado === 'pendiente', 422);
         abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403,
             'Solo el Gestor puede responder y crear un nuevo movimiento simultáneamente.');
@@ -209,8 +225,13 @@ class MovimientoController extends Controller
             // Nuevo movimiento
             'nuevo_etapa_id'                  => 'required|exists:etapas,id',
             'nuevo_sub_etapa_id'              => 'nullable|exists:sub_etapas,id',
-            'nuevo_tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
-            'nuevo_usuario_responsable_id'    => 'nullable|exists:users,id',
+            'nuevo_tipo_actor_responsable_id'              => 'nullable|exists:tipos_actor_expediente,id',
+            'nuevo_usuario_responsable_id'                => 'nullable|exists:users,id',
+            'nuevo_responsables'                           => 'nullable|array',
+            'nuevo_responsables.*.actor_ids'              => 'nullable|array',
+            'nuevo_responsables.*.actor_ids.*'            => 'integer|exists:expediente_actores,id',
+            'nuevo_responsables.*.dias_plazo'             => 'required_with:nuevo_responsables|integer|min:1|max:365',
+            'nuevo_responsables.*.tipo_dias'              => 'nullable|in:calendario,habiles',
             'nuevo_instruccion'               => 'required|string|max:2000',
             'nuevo_observaciones'             => 'nullable|string|max:2000',
             'nuevo_dias_plazo'                => 'nullable|integer|min:1|max:365',
@@ -232,6 +253,7 @@ class MovimientoController extends Controller
             'sub_etapa_id'               => $request->nuevo_sub_etapa_id,
             'tipo_actor_responsable_id'  => $request->nuevo_tipo_actor_responsable_id,
             'usuario_responsable_id'     => $request->nuevo_usuario_responsable_id,
+            'responsables'               => $request->input('nuevo_responsables') ?: [],
             'instruccion'                => $request->nuevo_instruccion,
             'observaciones'              => $request->nuevo_observaciones,
             'dias_plazo'                 => $request->nuevo_dias_plazo,

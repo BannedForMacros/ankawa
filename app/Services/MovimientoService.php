@@ -8,6 +8,7 @@ use App\Models\ExpedienteActor;
 use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteHistorial;
 use App\Models\MovimientoDocumento;
+use App\Models\MovimientoResponsable;
 use App\Models\User;
 use App\Models\Rol;
 use App\Mail\AccesoMesaPartesMail;
@@ -68,6 +69,34 @@ class MovimientoService
                 'credenciales_email_destino'     => $datos['credenciales_email_destino'] ?? null,
             ]);
 
+            // Crear filas pivot de responsables (nuevo sistema multi-responsable)
+            // Cada "fila" del frontend agrupa varios actor_ids con un mismo plazo.
+            $responsablesData = $datos['responsables'] ?? [];
+            if (!empty($responsablesData)) {
+                $maxFechaLimite = $fechaLimite;
+                foreach ($responsablesData as $r) {
+                    $actorIds = $r['actor_ids'] ?? [];
+                    if (empty($actorIds)) continue;
+                    $fl = $this->calcularFechaLimite((int) $r['dias_plazo'], $r['tipo_dias'] ?? 'calendario');
+                    foreach ($actorIds as $actorId) {
+                        $actor = ExpedienteActor::find($actorId);
+                        MovimientoResponsable::create([
+                            'movimiento_id'       => $movimiento->id,
+                            'expediente_actor_id' => $actorId,
+                            'tipo_actor_id'       => $actor?->tipo_actor_id,
+                            'dias_plazo'          => $r['dias_plazo'],
+                            'tipo_dias'           => $r['tipo_dias'] ?? 'calendario',
+                            'fecha_limite'        => $fl,
+                            'estado'              => 'pendiente',
+                        ]);
+                    }
+                    if ($maxFechaLimite === null || $fl > $maxFechaLimite) {
+                        $maxFechaLimite = $fl;
+                    }
+                }
+                $movimiento->update(['fecha_limite' => $maxFechaLimite]);
+            }
+
             // Si el estado inicial es respondido o recibido, marcar fecha_respuesta
             if (in_array($estadoInicial, ['respondido', 'recibido'])) {
                 $movimiento->update([
@@ -95,6 +124,17 @@ class MovimientoService
             // Habilitar acceso a Mesa de Partes
             if (!empty($datos['habilitar_mesa_partes']) && !empty($datos['actores_mesa_partes_ids'])) {
                 $this->habilitarMesaPartes($movimiento, $expediente, $datos['actores_mesa_partes_ids']);
+
+                // Para traslados/notificaciones: los actores recién habilitados reciben
+                // automáticamente su cédula de notificación en el mismo acto procesal.
+                // habilitarMesaPartes ya corrió → acceso_mesa_partes = 1 en BD,
+                // así que notificarActores los encontrará aunque no estuvieran en el
+                // actoresNotificables que cargó el frontend al abrir la página.
+                if (($datos['tipo'] ?? 'requerimiento') === 'notificacion') {
+                    $notificarActorIds = array_unique(
+                        array_merge($notificarActorIds, $datos['actores_mesa_partes_ids'])
+                    );
+                }
             }
 
             // Enviar credenciales de Expediente Electrónico
@@ -220,6 +260,41 @@ class MovimientoService
     ): ExpedienteMovimiento {
         return DB::transaction(function () use ($movimiento, $datos, $archivos, $notificarActorIds, $generarCargo) {
 
+            $pivotRows = $movimiento->responsables;
+
+            if ($pivotRows->isNotEmpty()) {
+                // Nuevo path: actualizar la fila pivot del actor que responde
+                $actor = ExpedienteActor::where('usuario_id', $datos['respondido_por'])
+                    ->whereIn('id', $pivotRows->pluck('expediente_actor_id'))
+                    ->first();
+
+                if ($actor) {
+                    $pivotRows->where('expediente_actor_id', $actor->id)
+                        ->first()
+                        ?->update([
+                            'estado'          => 'respondido',
+                            'respuesta'       => $datos['respuesta'],
+                            'respondido_por'  => $datos['respondido_por'],
+                            'fecha_respuesta' => now(),
+                        ]);
+                }
+
+                $todosRespondieron = !$movimiento->responsables()->where('estado', 'pendiente')->exists();
+
+                if (!$todosRespondieron) {
+                    $this->guardarDocumentos($movimiento, $archivos, $datos['respondido_por'], 'respuesta');
+                    ExpedienteHistorial::create([
+                        'expediente_id' => $movimiento->expediente_id,
+                        'usuario_id'    => $datos['respondido_por'],
+                        'tipo_evento'   => 'movimiento_respondido_parcial',
+                        'descripcion'   => "Respuesta parcial al movimiento: {$movimiento->instruccion}",
+                        'datos_extra'   => ['movimiento_id' => $movimiento->id],
+                        'created_at'    => now(),
+                    ]);
+                    return $movimiento;
+                }
+            }
+
             $movimiento->update([
                 'respuesta'       => $datos['respuesta'],
                 'fecha_respuesta' => now(),
@@ -292,6 +367,12 @@ class MovimientoService
      */
     public function marcarVencidos(): int
     {
+        // Vencer filas pivot individuales
+        MovimientoResponsable::where('estado', 'pendiente')
+            ->whereNotNull('fecha_limite')
+            ->where('fecha_limite', '<', now()->toDateString())
+            ->update(['estado' => 'vencido']);
+
         return ExpedienteMovimiento::where('estado', 'pendiente')
             ->where('activo', true)
             ->whereNotNull('fecha_limite')

@@ -107,6 +107,9 @@ class ExpedienteController extends Controller
                     'resolucionTipo', 'resueltoPor',
                     'cargo',
                     'notificaciones',
+                    'responsables.actor.usuario:id,name',
+                    'responsables.tipoActor:id,nombre',
+                    'responsables.respondidoPor:id,name',
                 ]),
         ]);
 
@@ -123,8 +126,7 @@ class ExpedienteController extends Controller
 
         $miAccionPendiente = $expediente->movimientos
             ->where('estado', 'pendiente')
-            ->where('usuario_responsable_id', $user->id)
-            ->first();
+            ->first(fn($mov) => $mov->esResponsable($user->id));
 
         $etapas = $this->etapaService->etapasDelServicio($expediente->servicio_id);
 
@@ -361,9 +363,10 @@ class ExpedienteController extends Controller
             // Crear los movimientos indicados por el gestor (en orden del array)
             foreach ($request->input('movimientos', []) as $i => $datos) {
                 $tipo = $datos['tipo'] ?? 'requerimiento';
+                $tieneResponsable = !empty($datos['usuario_responsable_id']) || !empty($datos['responsables']);
                 if ($tipo === 'notificacion') {
                     $estadoMov = 'recibido';
-                } elseif (empty($datos['usuario_responsable_id'])) {
+                } elseif (!$tieneResponsable) {
                     $estadoMov = 'respondido';
                 } else {
                     $estadoMov = 'pendiente';
@@ -376,6 +379,7 @@ class ExpedienteController extends Controller
                         'sub_etapa_id'                => $datos['sub_etapa_id'] ?: null,
                         'tipo_actor_responsable_id'   => $datos['tipo_actor_responsable_id'] ?: null,
                         'usuario_responsable_id'      => $datos['usuario_responsable_id'] ?: null,
+                        'responsables'                => $datos['responsables'] ?? [],
                         'instruccion'                 => $datos['instruccion'],
                         'dias_plazo'                  => $datos['dias_plazo'] ?: null,
                         'tipo_dias'                   => $datos['tipo_dias'] ?? 'calendario',

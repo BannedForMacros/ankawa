@@ -122,11 +122,30 @@ class ExpedienteMovimiento extends Model
         return $this->morphOne(\App\Models\Cargo::class, 'cargable');
     }
 
+    public function responsables(): HasMany
+    {
+        return $this->hasMany(MovimientoResponsable::class, 'movimiento_id');
+    }
+
     public function puedeSerResuelto(): bool
     {
+        $tieneResponsable = $this->usuario_responsable_id !== null
+            || $this->responsables()->exists();
+
         return $this->estado === 'respondido'
-            && $this->usuario_responsable_id !== null
+            && $tieneResponsable
             && $this->resolucion_tipo_id === null;
+    }
+
+    public function esResponsable(int $userId): bool
+    {
+        if ((int) $this->usuario_responsable_id === $userId) {
+            return true;
+        }
+        return $this->responsables()
+            ->whereHas('actor', fn($q) => $q->where('usuario_id', $userId))
+            ->where('estado', 'pendiente')
+            ->exists();
     }
 
     public function notificaciones(): HasMany
