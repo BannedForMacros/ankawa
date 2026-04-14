@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Inertia\Middleware;
 use App\Models\RolModuloPermiso;
 use App\Models\Modulo;
+use App\Support\FileRules;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -29,6 +30,9 @@ class HandleInertiaRequests extends Middleware
                 'success' => session('success'),
                 'error'   => session('error'),
             ],
+            'upload_accept'  => FileRules::acceptAttr(),
+            'upload_max_mb'  => config('uploads.max_size_mb'),
+            'upload_mimes'   => config('uploads.allowed_mimes'), // ['pdf','png','jpg','jpeg']
         ];
     }
 

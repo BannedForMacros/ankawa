@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { usePage } from '@inertiajs/react';
 import { X, Paperclip, FileText, AlertTriangle, Clock } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
@@ -6,6 +7,8 @@ import PlazoUrgente from './PlazoUrgente';
 import toast from 'react-hot-toast';
 
 export default function ModalResponder({ mov, expediente, onClose, onRespondido }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const [respuesta,     setRespuesta]     = useState('');
     const [archivos,      setArchivos]      = useState([]);
     const [confirm,       setConfirm]       = useState(false);
@@ -140,8 +143,9 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                 className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors justify-center">
                                 <Paperclip size={15}/> Seleccionar archivos
                             </button>
-                            <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            <input ref={inputRef} type="file" multiple accept={upload_accept}
                                 onChange={agregarArchivos} className="hidden"/>
+                            <p className="text-xs text-gray-400 mt-1.5 text-center">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                             {archivos.length > 0 && (
                                 <div className="mt-3 flex flex-col gap-2">
                                     {archivos.map((f, i) => (

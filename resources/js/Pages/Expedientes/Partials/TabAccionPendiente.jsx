@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
 import { AlertCircle, ChevronDown, ChevronUp, FileText, PlusCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,6 +14,8 @@ export default function TabAccionPendiente({
     usuariosAsignables = [],
     tiposDocumento = [],
 }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const [crearSiguiente, setCrearSiguiente] = useState(false);
     const [confirm, setConfirm] = useState(false);
 
@@ -186,9 +188,11 @@ export default function TabAccionPendiente({
                     <input
                         type="file"
                         multiple
+                        accept={upload_accept}
                         onChange={e => form.setData('documentos', Array.from(e.target.files))}
                         className="text-xs"
                     />
+                    <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                 </div>
 
                 {/* Toggle: Crear siguiente movimiento (solo gestor) */}
@@ -360,9 +364,11 @@ export default function TabAccionPendiente({
                                     <input
                                         type="file"
                                         multiple
+                                        accept={upload_accept}
                                         onChange={e => form.setData('documentos_nuevo', Array.from(e.target.files))}
                                         className="text-xs"
                                     />
+                                    <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                                 </div>
 
                                 {/* Notificar */}

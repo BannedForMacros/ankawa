@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import {
     Building2, HardHat, User, Paperclip, FileText, X, Send,
@@ -488,6 +488,8 @@ function BloqueActor({
 
 /* ─── Sección de documentos con upload ─── */
 function SeccionDoc({ icono: Icono, titulo, descripcion, archivos, onChange, required, error }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const inputRef = useRef();
 
     function agregar(e) {
@@ -522,7 +524,8 @@ function SeccionDoc({ icono: Icono, titulo, descripcion, archivos, onChange, req
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors justify-center">
                     <Paperclip size={14}/> Seleccionar archivos
                 </button>
-                <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={agregar} className="hidden"/>
+                <input ref={inputRef} type="file" multiple accept={upload_accept} onChange={agregar} className="hidden"/>
+                <p className="text-xs text-gray-400 mt-1.5 text-center">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                 {archivos.length > 0 && (
                     <ul className="mt-3 space-y-1.5">
                         {archivos.map((f, i) => (

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Servicios\JPRD;
 
 use App\Http\Controllers\Controller;
+use App\Support\FileRules;
 use App\Models\Cargo;
 use App\Models\Documento;
 use App\Models\Etapa;
@@ -47,13 +48,13 @@ class SolicitudJPRDController extends Controller
             'emails_contratista'                => 'required|string',
             'descripcion'                       => 'required|string|max:3000',
             'doc_solicitud_conformacion'        => 'required|array|min:1',
-            'doc_solicitud_conformacion.*'      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_solicitud_conformacion.*'      => FileRules::accept(),
             'doc_contrato_obra'                 => 'required|array|min:1',
-            'doc_contrato_obra.*'               => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_contrato_obra.*'               => FileRules::accept(),
             'doc_adendas'                       => 'nullable|array',
-            'doc_adendas.*'                     => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_adendas.*'                     => FileRules::accept(),
             'doc_anexos'                        => 'nullable|array',
-            'doc_anexos.*'                      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_anexos.*'                      => FileRules::accept(),
         ]);
 
         $rolSolicitante   = $request->rol_solicitante;

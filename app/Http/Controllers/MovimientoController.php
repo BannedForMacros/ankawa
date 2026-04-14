@@ -8,6 +8,7 @@ use App\Services\MovimientoService;
 use App\Services\GestorExpedienteService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Support\FileRules;
 
 class MovimientoController extends Controller
 {
@@ -49,7 +50,7 @@ class MovimientoController extends Controller
             'actor_credenciales_exp_id'          => 'nullable|exists:expediente_actores,id',
             'credenciales_email_destino'         => 'nullable|email|max:255',
             'documentos'                         => 'nullable|array',
-            'documentos.*'               => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos.*'               => FileRules::accept(),
             'notificar_a'                => 'nullable|array',
             'notificar_a.*'              => 'integer|exists:expediente_actores,id',
         ]);
@@ -124,7 +125,7 @@ class MovimientoController extends Controller
             'movimientos.*.notificar_a.*'            => 'integer|exists:expediente_actores,id',
             'documentos'                             => 'nullable|array',
             'documentos.*'                           => 'nullable|array',
-            'documentos.*.*'                         => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos.*.*'                         => FileRules::accept(),
         ]);
 
         $documentosPorMovimiento = $request->file('documentos') ?? [];
@@ -189,7 +190,7 @@ class MovimientoController extends Controller
         $request->validate([
             'respuesta'       => 'required|string|max:5000',
             'documentos'      => 'nullable|array',
-            'documentos.*'    => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos.*'    => FileRules::accept(),
             'notificar_a'     => 'nullable|array',
             'notificar_a.*'   => 'integer|exists:expediente_actores,id',
         ]);
@@ -222,7 +223,7 @@ class MovimientoController extends Controller
             // Respuesta
             'respuesta'                       => 'required|string|max:5000',
             'documentos_respuesta'            => 'nullable|array',
-            'documentos_respuesta.*'          => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_respuesta.*'          => FileRules::accept(),
             // Nuevo movimiento
             'nuevo_etapa_id'                  => 'required|exists:etapas,id',
             'nuevo_sub_etapa_id'              => 'nullable|exists:sub_etapas,id',
@@ -239,7 +240,7 @@ class MovimientoController extends Controller
             'nuevo_tipo_dias'                 => 'nullable|in:calendario,habiles',
             'nuevo_tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
             'documentos_nuevo'                => 'nullable|array',
-            'documentos_nuevo.*'              => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_nuevo.*'              => FileRules::accept(),
             'notificar_a'                     => 'nullable|array',
             'notificar_a.*'                   => 'integer|exists:expediente_actores,id',
         ]);

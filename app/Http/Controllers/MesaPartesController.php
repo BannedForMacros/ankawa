@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Servicio;
+use App\Support\FileRules;
 use App\Models\SolicitudArbitraje;
 use App\Models\SolicitudSubsanacion;
 use App\Models\Documento;
@@ -240,7 +241,7 @@ class MesaPartesController extends Controller
         $request->validate([
             'respuesta'    => 'required|string|max:2000',
             'documentos'   => 'nullable|array',
-            'documentos.*' => 'file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'documentos.*' => FileRules::accept(),
         ]);
 
         DB::beginTransaction();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import {
     Paperclip, Send, FileText, X, User, Building2,
@@ -142,6 +142,8 @@ function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
 
 /* ─── Formulario principal ─── */
 export default function OtrosForm({ servicio, portalEmail, portalUser }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const isPortal = !!portalEmail;
 
     /* ── Tipos de documento del servicio ── */
@@ -519,10 +521,11 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
                     ref={inputRef}
                     type="file"
                     multiple
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    accept={upload_accept}
                     onChange={agregarArchivos}
                     className="hidden"
                 />
+                <p className="text-xs text-gray-400 mt-1.5 text-center">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                 {archivos.length > 0 && (
                     <ul className="space-y-2">
                         {archivos.map((f, i) => (

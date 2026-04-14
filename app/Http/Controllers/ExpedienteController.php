@@ -7,6 +7,7 @@ use App\Models\Etapa;
 use App\Models\SubEtapa;
 use App\Models\TipoActorExpediente;
 use App\Models\TipoDocumento;
+use App\Support\FileRules;
 use App\Models\ServicioTipoActor;
 use App\Models\SolicitudArbitraje;
 use App\Models\SolicitudSubsanacion;
@@ -309,7 +310,7 @@ class ExpedienteController extends Controller
             'movimientos.*.notificar_a.*'             => 'integer|exists:expediente_actores,id',
             'documentos'                              => 'nullable|array',
             'documentos.*'                            => 'nullable|array',
-            'documentos.*.*'                          => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos.*.*'                          => FileRules::accept(),
         ]);
 
         $documentosPorMovimiento = $request->file('documentos') ?? [];

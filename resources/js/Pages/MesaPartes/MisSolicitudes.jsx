@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router, Link } from '@inertiajs/react';
+import { router, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import {
@@ -11,6 +11,8 @@ import toast from 'react-hot-toast';
 
 // ── Formulario edición + subsanación ──
 function FormSubsanacion({ solicitud }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const [tab, setTab]           = useState('datos');
     const [procesando, setProcesando] = useState(false);
     const [dragOver, setDragOver] = useState(false);
@@ -231,7 +233,7 @@ function FormSubsanacion({ solicitud }) {
                                 <input
                                     id={`upload-edit-${solicitud.id}`}
                                     type="file" multiple
-                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    accept={upload_accept}
                                     className="hidden"
                                     onChange={e => setArchivosNuevos(prev => [...prev, ...Array.from(e.target.files)])}
                                 />
@@ -239,7 +241,7 @@ function FormSubsanacion({ solicitud }) {
                                 <p className="text-xs text-gray-500">
                                     Arrastra o <span className="text-[#BE0F4A] font-semibold">selecciona archivos</span>
                                 </p>
-                                <p className="text-xs text-gray-400 mt-1">PDF, Word, imágenes — máx. 10MB</p>
+                                <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                             </div>
 
                             {archivosNuevos.length > 0 && (

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cargo;
+use App\Support\FileRules;
 use App\Models\Expediente;
 use App\Models\MovimientoDocumento;
 use App\Models\ExpedienteActor;
@@ -222,7 +223,7 @@ class PortalController extends Controller
         $request->validate([
             'respuesta'    => 'required|string|max:5000',
             'documentos'   => 'nullable|array',
-            'documentos.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos.*' => FileRules::accept(),
         ]);
 
         $actorDelEmail = ExpedienteActor::where('email_externo', $email)

@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useState, useMemo, useRef, useEffect, Children } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
 import toast from 'react-hot-toast';
@@ -240,6 +240,8 @@ export function MovimientoCard({
     archivos, onArchivos, onChange, onMover, onQuitar,
     errores = {}, etapaActualId = null,
 }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const tipo     = mov.tipo ?? 'requerimiento';
     const tipoInfo = TIPOS[tipo];
     const esPropia = tipo === 'propia';
@@ -566,9 +568,10 @@ export function MovimientoCard({
                     <label className="flex items-center gap-2 cursor-pointer w-fit px-4 py-2.5 rounded-lg border border-dashed border-[#BE0F4A]/40 text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors text-sm font-semibold">
                         <Paperclip size={15}/>
                         Adjuntar archivos
-                        <input type="file" multiple className="sr-only"
+                        <input type="file" multiple accept={upload_accept} className="sr-only"
                             onChange={e => onArchivos([...archivos, ...Array.from(e.target.files)])}/>
                     </label>
+                    <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
                     {archivos.length > 0 && (
                         <div className="mt-3 flex flex-col gap-2">
                             {archivos.map((f, i) => (

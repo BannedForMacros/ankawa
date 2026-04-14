@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Servicios\Arbitraje;
 
 use App\Http\Controllers\Controller;
+use App\Support\FileRules;
 use App\Models\SolicitudArbitraje;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
@@ -58,9 +59,9 @@ class SolicitudArbitrajeController extends Controller
             'reglas_aplicables'             => 'nullable|string|max:255',
 
             'documentos_controversia'        => 'nullable|array',
-            'documentos_controversia.*'      => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_controversia.*'      => FileRules::accept(),
             'documentos_anexos'              => 'nullable|array',
-            'documentos_anexos.*'            => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'documentos_anexos.*'            => FileRules::accept(),
 
             'subtipo_juridico_demandante'             => 'nullable|in:empresa,consorcio,entidad_publica',
             'empresas_consorcio_demandante'           => 'nullable|string',
@@ -73,14 +74,14 @@ class SolicitudArbitrajeController extends Controller
             'precision_reglas'                        => 'nullable|string|max:100',
             'tiene_medida_cautelar'                   => 'nullable|in:0,1',
 
-            'doc_vigencia_poder_dem.*'         => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'doc_contrato_consorcio_dem.*'     => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'doc_resolucion_facultades_dem.*'  => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'doc_vigencia_poder_dado.*'        => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'doc_contrato_consorcio_dado.*'    => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'doc_resolucion_facultades_dado.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'documentos_medida_cautelar.*'     => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
-            'comprobante_pago_tasa.*'          => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'doc_vigencia_poder_dem.*'         => FileRules::accept(),
+            'doc_contrato_consorcio_dem.*'     => FileRules::accept(),
+            'doc_resolucion_facultades_dem.*'  => FileRules::accept(),
+            'doc_vigencia_poder_dado.*'        => FileRules::accept(),
+            'doc_contrato_consorcio_dado.*'    => FileRules::accept(),
+            'doc_resolucion_facultades_dado.*' => FileRules::accept(),
+            'documentos_medida_cautelar.*'     => FileRules::accept(),
+            'comprobante_pago_tasa.*'          => FileRules::accept(),
         ]);
 
         DB::beginTransaction();

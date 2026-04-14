@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TipoDocumento;
 use App\Models\Servicio;
 use App\Models\TipoActorExpediente;
+use App\Support\FileRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -81,8 +82,8 @@ class TipoDocumentoController extends Controller
             'slug'                => $slug,
             'descripcion'         => $request->descripcion,
             'aplica_para'         => 'ambos',
-            'formatos_permitidos' => $request->formatos_permitidos ?? 'pdf,doc,docx',
-            'tamanio_maximo_mb'   => $request->tamanio_maximo_mb ?? 10,
+            'formatos_permitidos' => $request->formatos_permitidos ?? implode(',', config('uploads.allowed_mimes')),
+            'tamanio_maximo_mb'   => $request->tamanio_maximo_mb ?? config('uploads.max_size_mb'),
             'activo'              => 1,
         ]);
 

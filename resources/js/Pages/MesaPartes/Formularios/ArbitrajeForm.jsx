@@ -51,7 +51,10 @@ function Seccion({ icono: Icono, titulo, children }) {
 }
 
 /* ─── Multi-archivo con append/remove ─── */
-function MultiArchivoInput({ label, value = [], onChange, accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png' }) {
+function MultiArchivoInput({ label, value = [], onChange, accept }) {
+    const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
+    const acceptValue  = accept ?? upload_accept;
+    const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const inputRef = useRef();
     const [previewFile, setPreviewFile] = useState(null);
 
@@ -75,7 +78,8 @@ function MultiArchivoInput({ label, value = [], onChange, accept = '.pdf,.doc,.d
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors w-full justify-center">
                 <Paperclip size={15}/> Agregar archivos
             </button>
-            <input ref={inputRef} type="file" multiple accept={accept} onChange={agregar} className="hidden" />
+            <input ref={inputRef} type="file" multiple accept={acceptValue} onChange={agregar} className="hidden" />
+            <p className="text-xs text-gray-400 mt-1.5 text-center">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
             {value.length > 0 && (
                 <div className="mt-3 flex flex-col gap-2">
                     {value.map((f, i) => (
