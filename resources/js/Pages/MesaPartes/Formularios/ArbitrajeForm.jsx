@@ -866,7 +866,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
             return;
         }
 
-        const emailPrincipal = emailsDem.find(e => e.email.trim());
+        const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
         if (!emailPrincipal) { mostrarError('Ingresa al menos un correo electrónico del demandante'); return; }
 
         if (data.tipo_persona !== 'juridica' || subtipoJuridicoDem !== 'consorcio') {
@@ -901,8 +901,10 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         if (tipoDocumentoId) fd.append('tipo_documento_id', tipoDocumentoId);
 
         // Emails
-        fd.set('email_demandante', emailsDem[0]?.email ?? '');
-        fd.append('emails_demandante', JSON.stringify(emailsDem.filter(e => e.email.trim())));
+        fd.set('email_demandante', isPortal ? portalEmail : (emailsDem[0]?.email ?? ''));
+        fd.append('emails_demandante', JSON.stringify(
+            isPortal ? [{ email: portalEmail, label: '' }] : emailsDem.filter(e => e.email.trim())
+        ));
         fd.append('emails_demandado',  JSON.stringify(emailsDado.filter(e => e.email.trim())));
 
         // Sub-tipos jurídicos
@@ -1025,7 +1027,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                         onClick={() => {
                             setDemandanteBloqueado(false);
                             setCamposDem({ tipo_persona: 'natural', tipo_documento: 'dni', documento: '', nombre: '', domicilio: '', nombre_representante: '', documento_representante: '' });
-                            setEmailsDem([{ email: '', label: '' }]);
+                            if (!isPortal) setEmailsDem([{ email: '', label: '' }]);
                             setSubtipoJuridicoDem('');
                             setEmpresasConsorcioDem([]);
                             setRepConsorcioDem({ dni: '', nombre: '' });
