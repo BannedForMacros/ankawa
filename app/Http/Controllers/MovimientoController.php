@@ -28,9 +28,20 @@ class MovimientoController extends Controller
         abort_if($expediente->estado !== 'activo', 422,
             'No se pueden crear movimientos en un expediente que no está activo.');
 
+        $expediente->loadMissing(['etapaActual', 'solicitud']);
+        $etapaActual = $expediente->etapaActual;
+        if ($etapaActual?->requiere_conformidad) {
+            $etapaSolicitada = (int) $request->input('etapa_id');
+            $esConforme      = $expediente->solicitud?->resultado_revision === 'conforme';
+            if ($etapaSolicitada !== $expediente->etapa_actual_id && !$esConforme) {
+                return back()->withErrors([
+                    'etapa_id' => 'Esta etapa requiere que la solicitud esté declarada CONFORME antes de avanzar a otra etapa.',
+                ]);
+            }
+        }
+
         $request->validate([
             'etapa_id'                   => 'required|exists:etapas,id',
-            'sub_etapa_id'               => 'nullable|exists:sub_etapas,id',
             'tipo_actor_responsable_id'  => 'nullable|exists:tipos_actor_expediente,id',
             'usuario_responsable_id'     => 'nullable|exists:users,id',
             'responsables'                 => 'nullable|array',
@@ -56,7 +67,7 @@ class MovimientoController extends Controller
         ]);
 
         $datos = array_merge($request->only([
-            'etapa_id', 'sub_etapa_id', 'tipo_actor_responsable_id',
+            'etapa_id', 'tipo_actor_responsable_id',
             'usuario_responsable_id', 'instruccion', 'observaciones',
             'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
         ]), [
@@ -98,11 +109,23 @@ class MovimientoController extends Controller
         abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403);
         abort_if($expediente->estado !== 'activo', 422, 'No se pueden crear movimientos en un expediente inactivo.');
 
+        $expediente->loadMissing(['etapaActual', 'solicitud']);
+        $etapaActual = $expediente->etapaActual;
+        if ($etapaActual?->requiere_conformidad) {
+            $esConforme = $expediente->solicitud?->resultado_revision === 'conforme';
+            $cambia = collect($request->input('movimientos', []))
+                ->contains(fn($m) => isset($m['etapa_id']) && (int) $m['etapa_id'] !== $expediente->etapa_actual_id);
+            if ($cambia && !$esConforme) {
+                return back()->withErrors([
+                    'movimientos' => 'Esta etapa requiere que la solicitud esté declarada CONFORME antes de avanzar a otra etapa.',
+                ]);
+            }
+        }
+
         $request->validate([
             'movimientos'                            => 'required|array|min:1|max:20',
             'movimientos.*.tipo'                     => 'required|in:requerimiento,propia,notificacion',
             'movimientos.*.etapa_id'                 => 'required|exists:etapas,id',
-            'movimientos.*.sub_etapa_id'             => 'nullable|exists:sub_etapas,id',
             'movimientos.*.instruccion'              => 'required|string|max:2000',
             'movimientos.*.observaciones'            => 'nullable|string|max:2000',
             'movimientos.*.tipo_actor_responsable_id'      => 'nullable|exists:tipos_actor_expediente,id',
@@ -150,7 +173,7 @@ class MovimientoController extends Controller
                     $expediente,
                     array_merge(
                         \Illuminate\Support\Arr::only($item, [
-                            'etapa_id', 'sub_etapa_id', 'tipo_actor_responsable_id',
+                            'etapa_id', 'tipo_actor_responsable_id',
                             'usuario_responsable_id', 'instruccion', 'observaciones',
                             'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
                         ]),
@@ -226,7 +249,6 @@ class MovimientoController extends Controller
             'documentos_respuesta.*'          => FileRules::accept(),
             // Nuevo movimiento
             'nuevo_etapa_id'                  => 'required|exists:etapas,id',
-            'nuevo_sub_etapa_id'              => 'nullable|exists:sub_etapas,id',
             'nuevo_tipo_actor_responsable_id'              => 'nullable|exists:tipos_actor_expediente,id',
             'nuevo_usuario_responsable_id'                => 'nullable|exists:users,id',
             'nuevo_responsables'                           => 'nullable|array',
@@ -252,7 +274,6 @@ class MovimientoController extends Controller
 
         $datosNuevo = [
             'etapa_id'                   => $request->nuevo_etapa_id,
-            'sub_etapa_id'               => $request->nuevo_sub_etapa_id,
             'tipo_actor_responsable_id'  => $request->nuevo_tipo_actor_responsable_id,
             'usuario_responsable_id'     => $request->nuevo_usuario_responsable_id,
             'responsables'               => $request->input('nuevo_responsables') ?: [],

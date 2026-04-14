@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Etapa;
-use App\Models\SubEtapa;
 use App\Models\Expediente;
 use App\Models\ExpedienteHistorial;
 
@@ -16,7 +15,6 @@ class EtapaService
     {
         return Etapa::where('servicio_id', $servicioId)
             ->where('activo', 1)
-            ->with(['subEtapas' => fn($q) => $q->where('activo', 1)->orderBy('orden')])
             ->orderBy('orden')
             ->get();
     }
@@ -43,19 +41,4 @@ class EtapaService
         ]);
     }
 
-    /**
-     * Crear una sub-etapa dentro de una etapa.
-     */
-    public function crearSubEtapa(int $etapaId, array $datos): SubEtapa
-    {
-        $maxOrden = SubEtapa::where('etapa_id', $etapaId)->max('orden') ?? 0;
-
-        return SubEtapa::create([
-            'etapa_id'    => $etapaId,
-            'nombre'      => $datos['nombre'],
-            'descripcion' => $datos['descripcion'] ?? null,
-            'orden'       => $datos['orden'] ?? ($maxOrden + 1),
-            'activo'      => 1,
-        ]);
-    }
 }

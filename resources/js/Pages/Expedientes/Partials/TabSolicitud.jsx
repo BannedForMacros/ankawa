@@ -1,8 +1,50 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus } from 'lucide-react';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus, Building2, Users, Landmark, AlertTriangle } from 'lucide-react';
 import { MovimientoCard, movVacioBase } from './TabNuevoMovimiento';
 import toast from 'react-hot-toast';
+
+// ─────────────────────────────────────────────────────────────────
+// Constantes de etiquetas de documentos por servicio
+// ─────────────────────────────────────────────────────────────────
+const DOC_LABELS_ARB = {
+    doc_controversia:                  { label: 'Documentos de la Controversia',   seccion: 'Controversia' },
+    anexo_inicial:                     { label: 'Anexos',                           seccion: 'Controversia' },
+    comprobante_pago_tasa:             { label: 'Comprobante de Pago de Tasa',      seccion: 'Pago' },
+    medida_cautelar:                   { label: 'Medida Cautelar',                  seccion: 'Controversia' },
+    vigencia_poder_demandante:         { label: 'Vigencia de Poder',                seccion: 'Demandante' },
+    contrato_consorcio_demandante:     { label: 'Contrato de Consorcio',            seccion: 'Demandante' },
+    resolucion_facultades_demandante:  { label: 'Resolución de Facultades',         seccion: 'Demandante' },
+    vigencia_poder_demandado:          { label: 'Vigencia de Poder',                seccion: 'Demandado' },
+    contrato_consorcio_demandado:      { label: 'Contrato de Consorcio',            seccion: 'Demandado' },
+    resolucion_facultades_demandado:   { label: 'Resolución de Facultades',         seccion: 'Demandado' },
+};
+
+const DOC_LABELS_JPRD = {
+    solicitud_conformacion: { label: 'Solicitud de Conformación', seccion: 'Documentos' },
+    contrato_obra:          { label: 'Contrato de Obra',           seccion: 'Documentos' },
+    adenda:                 { label: 'Adenda',                     seccion: 'Documentos' },
+    anexo:                  { label: 'Anexos',                     seccion: 'Documentos' },
+};
+
+// Agrupa documentos por sección para mostrarlos organizados
+function agruparDocumentos(docs, labelMap) {
+    const grupos = {};
+    (docs ?? []).filter(d => d.activo !== false).forEach(doc => {
+        const info = labelMap[doc.tipo_documento] ?? { label: doc.tipo_documento ?? 'Otros', seccion: 'Otros' };
+        const key  = info.seccion;
+        if (!grupos[key]) grupos[key] = [];
+        grupos[key].push({ ...doc, _label: info.label });
+    });
+    return grupos;
+}
+
+// Subtipo jurídico: badge + info de una persona jurídica
+const SUBTIPO_META = {
+    empresa:         { label: 'EMPRESA',         color: 'bg-violet-100 text-violet-700', Icono: Building2 },
+    consorcio:       { label: 'CONSORCIO',        color: 'bg-blue-100 text-blue-700',    Icono: Users     },
+    entidad_publica: { label: 'ENTIDAD PÚBLICA',  color: 'bg-teal-100 text-teal-700',    Icono: Landmark  },
+};
 
 const movVacio = movVacioBase;
 
@@ -19,6 +61,11 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     const [erroresMov, setErroresMov]     = useState([]);
 
     const defaultNotificarIds = actoresNotificables.map(a => a.id);
+    const esJPRD = (expediente.solicitud_type ?? '').includes('JPRD');
+
+    // Labels según servicio: JPRD usa Entidad/Contratista en lugar de Demandante/Demandado
+    const labelDem  = esJPRD ? 'Entidad'      : 'Demandante';
+    const labelDado = esJPRD ? 'Contratista'  : 'Demandado';
 
     // Actores activos del expediente con cuenta de usuario
     const actoresExpediente = useMemo(() =>
@@ -72,14 +119,14 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             {
                 ...movVacio(expediente, defaultNotificarIds),
                 tipo:                       'notificacion',
-                instruccion:                'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
+                instruccion:                `Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.`,
                 tipo_actor_responsable_id:  String(demandante?.tipo_actor_id ?? ''),
                 usuario_responsable_id:     String(demandante?.usuario?.id ?? ''),
             },
             {
                 ...movVacio(expediente, defaultNotificarIds),
                 tipo:                       'requerimiento',
-                instruccion:                'Traslado al demandado: Debe apersonarse al proceso en el plazo indicado.',
+                instruccion:                `Traslado al ${labelDado.toLowerCase()}: Debe apersonarse al proceso en el plazo indicado.`,
                 tipo_actor_responsable_id:  String(demandado?.tipo_actor_id ?? ''),
                 usuario_responsable_id:     String(demandado?.usuario?.id ?? ''),
                 dias_plazo:                 String(plazoApers),
@@ -143,7 +190,6 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         movimientos.forEach((mov, i) => {
             form.append(`movimientos[${i}][tipo]`,                        mov.tipo);
             form.append(`movimientos[${i}][etapa_id]`,                    mov.etapa_id ?? '');
-            form.append(`movimientos[${i}][sub_etapa_id]`,                mov.sub_etapa_id ?? '');
             const instruccion = mov.instruccion.trim() || (resultado === 'no_conforme' ? `Subsanación requerida: ${motivoNoConforme}` : '');
             form.append(`movimientos[${i}][instruccion]`,                 instruccion);
             form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
@@ -370,30 +416,30 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                     {esGestor && tipoActorDemandado && (
                         <button onClick={() => setShowFormDemandado(v => !v)}
                             className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#BE0F4A]/90 transition-colors">
-                            <UserPlus size={12}/> Agregar demandado
+                            <UserPlus size={12}/> Agregar {labelDado.toLowerCase()}
                         </button>
                     )}
                 </div>
                 <div className="p-5 space-y-4">
-                    {/* Demandantes */}
+                    {/* Parte 1: Demandante / Entidad */}
                     {demandantes.length > 0 && (
                         <div>
-                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-2">Demandante(s)</p>
+                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-2">{labelDem}</p>
                             <div className="space-y-2">{demandantes.map(a => renderParte(a))}</div>
                         </div>
                     )}
-                    {/* Demandados */}
+                    {/* Parte 2: Demandado / Contratista */}
                     <div>
-                        <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-2">Demandado(s)</p>
+                        <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-2">{labelDado}</p>
                         {demandados.length > 0
                             ? <div className="space-y-2">{demandados.map(a => renderParte(a))}</div>
-                            : <p className="text-sm text-gray-400 italic">Sin demandados asignados.</p>
+                            : <p className="text-sm text-gray-400 italic">Sin {labelDado.toLowerCase()} asignado.</p>
                         }
                     </div>
                     {/* Form nuevo demandado */}
                     {showFormDemandado && tipoActorDemandado && (
                         <form onSubmit={agregarDemandado} className="border border-[#BE0F4A]/20 rounded-xl p-4 bg-[#BE0F4A]/5 space-y-3">
-                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide">Nuevo Demandado</p>
+                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide">Nuevo {labelDado}</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo *</label>
@@ -414,7 +460,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             <div className="flex gap-2">
                                 <button type="submit" disabled={formDemandado.processing}
                                     className="px-4 py-2 text-xs font-bold bg-[#BE0F4A] text-white rounded-lg hover:bg-[#BE0F4A]/90 disabled:opacity-50">
-                                    {formDemandado.processing ? 'Agregando...' : 'Agregar Demandado'}
+                                    {formDemandado.processing ? 'Agregando...' : `Agregar ${labelDado}`}
                                 </button>
                                 <button type="button" onClick={() => { setShowFormDemandado(false); formDemandado.reset(); }}
                                     className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600">Cancelar</button>
@@ -490,39 +536,67 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             )}
 
             {/* ── Datos de la Solicitud ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                {/* Header de marca */}
-                <div
-                    className="px-5 py-3 flex items-center justify-between"
-                    style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}
-                >
-                    <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-black text-white uppercase tracking-widest">Datos de la Solicitud</h3>
-                        {solicitud.resultado_revision && (
-                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                                solicitud.resultado_revision === 'conforme'
-                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                    : 'bg-red-100 text-red-700 border-red-300'
-                            }`}>
-                                {solicitud.resultado_revision === 'conforme' ? 'CONFORME' : 'NO CONFORME'}
-                            </span>
-                        )}
-                    </div>
-                    {esGestor && !editando && (
-                        <button onClick={() => setEditando(true)}
-                            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-colors">
-                            <Pencil size={12} /> Editar
-                        </button>
+            <DatosSolicitud
+                expediente={expediente}
+                solicitud={solicitud}
+                esGestor={esGestor}
+                editando={editando}
+                setEditando={setEditando}
+                formEdit={formEdit}
+                guardarEdicion={guardarEdicion}
+                campo={campo}
+                inputField={inputField}
+            />
+
+        </div>
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Sub-componente: muestra los datos de la solicitud según el tipo
+// de servicio (arbitraje / jprd) con documentos agrupados
+// ─────────────────────────────────────────────────────────────────
+function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando, formEdit, guardarEdicion, campo, inputField }) {
+    const tipoClass = expediente.solicitud_type ?? '';
+    const esJPRD    = tipoClass.includes('JPRD');
+    const esArb     = tipoClass.includes('SolicitudArbitraje');
+
+    // Solo arbitraje tiene endpoint de edición implementado
+    const puedeEditar = esGestor && esArb;
+
+    const docsAgrupados = esJPRD
+        ? agruparDocumentos(solicitud.documentos, DOC_LABELS_JPRD)
+        : agruparDocumentos(solicitud.documentos, DOC_LABELS_ARB);
+
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="px-5 py-3 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}>
+                <div className="flex items-center gap-3">
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">Datos de la Solicitud</h3>
+                    {solicitud.resultado_revision && (
+                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            solicitud.resultado_revision === 'conforme'
+                                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                                : 'bg-red-100 text-red-700 border-red-300'
+                        }`}>
+                            {solicitud.resultado_revision === 'conforme' ? 'CONFORME' : 'NO CONFORME'}
+                        </span>
                     )}
                 </div>
-                <div
-                    className="h-[2px]"
-                    style={{ background: 'linear-gradient(90deg, transparent 0%, #BE0F4A 40%, #BC1D35 60%, transparent 100%)' }}
-                />
+                {puedeEditar && !editando && (
+                    <button onClick={() => setEditando(true)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-colors">
+                        <Pencil size={12} /> Editar
+                    </button>
+                )}
+            </div>
+            <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #BE0F4A 40%, #BC1D35 60%, transparent 100%)' }} />
 
-                <div className="p-5">
+            <div className="p-5 space-y-6">
+                {/* N° de Cargo */}
                 {solicitud.numero_cargo && (
-                    <div className="flex items-center gap-3 mb-4 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">N° de Cargo</p>
                             <p className="text-xl font-black font-mono text-[#291136] tracking-wider">{solicitud.numero_cargo}</p>
@@ -530,141 +604,332 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                     </div>
                 )}
 
-                {editando ? (
-                    <form onSubmit={guardarEdicion} className="space-y-6">
-                        <div>
-                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {inputField('Nombre completo', 'nombre_demandante', 'text', true)}
-                                {inputField('Documento de identidad', 'documento_demandante', 'text', true)}
-                                {inputField('Representante', 'nombre_representante')}
-                                {inputField('Doc. Representante', 'documento_representante')}
-                                {inputField('Domicilio', 'domicilio_demandante', 'text', true)}
-                                {inputField('Email', 'email_demandante', 'email', true)}
-                                {inputField('Teléfono', 'telefono_demandante', 'text', true)}
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {inputField('Nombre completo', 'nombre_demandado', 'text', true)}
-                                {inputField('Domicilio', 'domicilio_demandado', 'text', true)}
-                                {inputField('Email', 'email_demandado', 'email')}
-                                {inputField('Teléfono', 'telefono_demandado')}
-                            </div>
-                        </div>
-                        <div>
-                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia</h4>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-600 mb-1">Resumen *</label>
-                                    <textarea value={formEdit.data.resumen_controversia} onChange={e => formEdit.setData('resumen_controversia', e.target.value)} rows={4} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"/>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-600 mb-1">Pretensiones *</label>
-                                    <textarea value={formEdit.data.pretensiones} onChange={e => formEdit.setData('pretensiones', e.target.value)} rows={3} className="w-full text-base border border-gray-200 rounded-lg px-3 py-2.5"/>
-                                </div>
-                                {inputField('Monto involucrado (S/)', 'monto_involucrado', 'number')}
-                                <div className="sm:col-span-2 flex items-center gap-3">
-                                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                                        <input type="checkbox"
-                                            checked={!!formEdit.data.solicita_designacion_director_demandado}
-                                            onChange={e => formEdit.setData('solicita_designacion_director_demandado', e.target.checked)}
-                                            className="w-4 h-4 accent-[#BE0F4A] rounded"/>
-                                        <span className="text-sm font-semibold text-gray-700">Demandado solicita designación de árbitro por el Centro</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
-                            <button type="button" onClick={() => { setEditando(false); formEdit.reset(); }} className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">
-                                <X size={12} className="inline mr-1"/> Cancelar
-                            </button>
-                            <button type="submit" disabled={formEdit.processing} className="px-5 py-2 text-xs font-bold bg-[#291136] text-white rounded-lg hover:bg-[#3d1a52] disabled:opacity-50">
-                                Guardar Cambios
-                            </button>
-                        </div>
-                    </form>
+                {editando && esArb ? (
+                    <FormEditArbitraje formEdit={formEdit} guardarEdicion={guardarEdicion} setEditando={setEditando} inputField={inputField} />
+                ) : esJPRD ? (
+                    <VistaJPRD solicitud={solicitud} campo={campo} />
                 ) : (
-                    <div className="space-y-6">
+                    <VistaArbitraje solicitud={solicitud} campo={campo} />
+                )}
+
+                {/* Documentos agrupados */}
+                <SeccionDocumentos grupos={docsAgrupados} />
+
+                {/* Motivo no conformidad */}
+                {solicitud.resultado_revision === 'no_conforme' && solicitud.motivo_no_conformidad && (
+                    <div className="border-t border-gray-100 pt-4">
+                        <div className="bg-red-50 rounded-xl p-4 border border-red-200">
+                            <h4 className="text-xs font-bold text-red-600 mb-2">Motivo de No Conformidad</h4>
+                            <p className="text-sm text-red-800">{solicitud.motivo_no_conformidad}</p>
+                            {solicitud.fecha_revision && (
+                                <p className="text-[11px] text-red-400 mt-2">
+                                    Registrado el {new Date(solicitud.fecha_revision).toLocaleDateString('es-PE')}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Vista Arbitraje ────────────────────────────────────────────
+function VistaArbitraje({ solicitud, campo }) {
+    return (
+        <div className="space-y-6">
+            {/* Demandante */}
+            <SeccionPersona
+                titulo="Demandante"
+                nombre={solicitud.nombre_demandante}
+                documento={solicitud.documento_demandante}
+                tipoPersona={solicitud.tipo_persona}
+                subtipo={solicitud.subtipo_juridico_demandante}
+                representante={solicitud.nombre_representante}
+                docRepresentante={solicitud.documento_representante}
+                domicilio={solicitud.domicilio_demandante}
+                email={solicitud.email_demandante}
+                telefono={solicitud.telefono_demandante}
+                empresas={solicitud.empresas_consorcio_demandante}
+            />
+
+            {/* Demandado */}
+            <div className="border-t border-gray-100 pt-4">
+                <SeccionPersona
+                    titulo="Demandado"
+                    nombre={solicitud.nombre_demandado}
+                    documento={solicitud.documento_demandado}
+                    tipoPersona={solicitud.tipo_persona_demandado}
+                    subtipo={solicitud.subtipo_juridico_demandado}
+                    representante={solicitud.nombre_representante_demandado}
+                    docRepresentante={solicitud.documento_representante_demandado}
+                    domicilio={solicitud.domicilio_demandado}
+                    email={solicitud.email_demandado}
+                    telefono={solicitud.telefono_demandado}
+                    empresas={solicitud.empresas_consorcio_demandado}
+                />
+            </div>
+
+            {/* Controversia */}
+            <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia y Pretensiones</h4>
+                <div className="space-y-3">
+                    {solicitud.resumen_controversia && (
                         <div>
-                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {campo('Nombre', solicitud.nombre_demandante)}
-                                {campo('Documento', solicitud.documento_demandante)}
-                                {campo('Tipo de persona', solicitud.tipo_persona)}
-                                {campo('Representante', solicitud.nombre_representante)}
-                                {campo('Doc. Representante', solicitud.documento_representante)}
-                                {campo('Domicilio', solicitud.domicilio_demandante)}
-                                {campo('Email', solicitud.email_demandante)}
-                                {campo('Teléfono', solicitud.telefono_demandante)}
-                            </div>
+                            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Resumen de la controversia</span>
+                            <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.resumen_controversia}</p>
                         </div>
-                        <div className="border-t border-gray-100 pt-4">
-                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {campo('Nombre', solicitud.nombre_demandado)}
-                                {campo('Domicilio', solicitud.domicilio_demandado)}
-                                {campo('Email', solicitud.email_demandado)}
-                                {campo('Teléfono', solicitud.telefono_demandado)}
-                            </div>
+                    )}
+                    {solicitud.pretensiones && (
+                        <div>
+                            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Pretensiones</span>
+                            <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.pretensiones}</p>
                         </div>
-                        <div className="border-t border-gray-100 pt-4">
-                            <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia y Pretensiones</h4>
-                            <div className="space-y-3">
-                                <div>
-                                    <span className="text-sm text-gray-400 block mb-1">Resumen de la controversia</span>
-                                    <p className="text-base text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.resumen_controversia || '—'}</p>
-                                </div>
-                                <div>
-                                    <span className="text-sm text-gray-400 block mb-1">Pretensiones</span>
-                                    <p className="text-base text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.pretensiones || '—'}</p>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {campo('Monto involucrado', solicitud.monto_involucrado ? `S/ ${Number(solicitud.monto_involucrado).toLocaleString()}` : '—')}
-                                    {campo('Demandante — Designación árbitro por Centro', solicitud.solicita_designacion_director ? 'Sí' : 'No')}
-                                    {campo('Demandado — Designación árbitro por Centro', solicitud.solicita_designacion_director_demandado ? 'Sí' : 'No')}
-                                    {campo('Árbitro propuesto', solicitud.nombre_arbitro_propuesto)}
-                                    {campo('Reglas aplicables', solicitud.reglas_aplicables)}
-                                </div>
-                            </div>
+                    )}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-1">
+                        {solicitud.monto_involucrado && campo('Monto involucrado', `S/ ${Number(solicitud.monto_involucrado).toLocaleString()}`)}
+                        {campo('Dem. solicita designación árbitro', solicitud.solicita_designacion_director ? 'Sí' : 'No')}
+                        {campo('Dado. solicita designación árbitro', solicitud.solicita_designacion_director_demandado ? 'Sí' : 'No')}
+                        {solicitud.nombre_arbitro_propuesto && campo('Árbitro propuesto', solicitud.nombre_arbitro_propuesto)}
+                        {solicitud.email_arbitro_propuesto  && campo('Email árbitro', solicitud.email_arbitro_propuesto)}
+                        {solicitud.reglas_aplicables        && campo('Reglas aplicables', solicitud.reglas_aplicables)}
+                        {solicitud.precision_reglas         && campo('Precisión', solicitud.precision_reglas)}
+                    </div>
+                    {solicitud.tiene_medida_cautelar ? (
+                        <div className="flex items-center gap-2 mt-1">
+                            <AlertTriangle size={14} className="text-amber-500" />
+                            <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">Solicita medida cautelar</span>
                         </div>
-                        {solicitud.documentos?.length > 0 && (
-                            <div className="border-t border-gray-100 pt-4">
-                                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Documentos Adjuntos</h4>
-                                <div className="space-y-1.5">
-                                    {solicitud.documentos.map(doc => (
-                                        <a key={doc.id} href={route('documentos.descargar', doc.id)}
-                                            className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors group">
-                                            <FileText size={16} className="text-gray-400 group-hover:text-[#291136]"/>
-                                            <div className="flex-1 min-w-0">
-                                                <span className="text-xs font-semibold text-[#291136] truncate block">{doc.nombre_original}</span>
-                                                {doc.tipo_documento && <span className="text-[10px] text-gray-400">{doc.tipo_documento.nombre}</span>}
-                                            </div>
-                                            <Download size={14} className="text-gray-300 group-hover:text-[#291136]"/>
-                                        </a>
-                                    ))}
-                                </div>
+                    ) : null}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Vista JPRD ─────────────────────────────────────────────────
+function VistaJPRD({ solicitud, campo }) {
+    return (
+        <div className="space-y-6">
+            {/* Solicitante */}
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Solicitante</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {campo('Nombre', solicitud.nombre_solicitante)}
+                    {campo('Documento', solicitud.documento_solicitante)}
+                    {solicitud.rol_solicitante && campo('Rol', solicitud.rol_solicitante === 'entidad' ? 'Entidad' : 'Contratista')}
+                </div>
+            </div>
+
+            {/* Entidad */}
+            <div className="border-t border-gray-100 pt-4">
+                <SeccionPersona
+                    titulo="Entidad"
+                    nombre={solicitud.nombre_entidad}
+                    ruc={solicitud.ruc_entidad}
+                    telefono={solicitud.telefono_entidad}
+                    tipoPersona={solicitud.tipo_persona_entidad}
+                    subtipo={solicitud.subtipo_entidad}
+                    representante={solicitud.representante_entidad_nombre}
+                    docRepresentante={solicitud.representante_entidad_dni}
+                    empresas={solicitud.empresas_entidad}
+                />
+            </div>
+
+            {/* Contratista */}
+            <div className="border-t border-gray-100 pt-4">
+                <SeccionPersona
+                    titulo="Contratista"
+                    nombre={solicitud.nombre_contratista}
+                    ruc={solicitud.ruc_contratista}
+                    telefono={solicitud.telefono_contratista}
+                    tipoPersona={solicitud.tipo_persona_contratista}
+                    subtipo={solicitud.subtipo_contratista}
+                    representante={solicitud.representante_contratista_nombre}
+                    docRepresentante={solicitud.representante_contratista_dni}
+                    empresas={solicitud.empresas_contratista}
+                />
+            </div>
+
+            {/* Descripción */}
+            {(solicitud.descripcion || solicitud.observacion) && (
+                <div className="border-t border-gray-100 pt-4">
+                    <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Descripción</h4>
+                    <div className="space-y-3">
+                        {solicitud.descripcion && (
+                            <div>
+                                <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Descripción de la controversia</span>
+                                <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.descripcion}</p>
                             </div>
                         )}
-                        {solicitud.resultado_revision === 'no_conforme' && solicitud.motivo_no_conformidad && (
-                            <div className="border-t border-gray-100 pt-4">
-                                <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-                                    <h4 className="text-xs font-bold text-red-600 mb-2">Motivo de No Conformidad</h4>
-                                    <p className="text-sm text-red-800">{solicitud.motivo_no_conformidad}</p>
-                                    {solicitud.fecha_revision && (
-                                        <p className="text-[11px] text-red-400 mt-2">
-                                            Registrado el {new Date(solicitud.fecha_revision).toLocaleDateString('es-PE')}
-                                        </p>
-                                    )}
-                                </div>
+                        {solicitud.observacion && (
+                            <div>
+                                <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Observación</span>
+                                <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.observacion}</p>
                             </div>
                         )}
                     </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Sección persona (natural / empresa / consorcio / entidad) ──
+function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, representante, docRepresentante, domicilio, email, telefono, empresas }) {
+    const meta = subtipo ? SUBTIPO_META[subtipo] : null;
+
+    return (
+        <div>
+            <div className="flex items-center gap-2 mb-3">
+                <h4 className="text-sm font-bold text-[#BE0F4A] uppercase tracking-wide">{titulo}</h4>
+                {meta && (
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.color}`}>
+                        <meta.Icono size={9} /> {meta.label}
+                    </span>
                 )}
-                </div>{/* /p-5 */}
             </div>
 
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {nombre     && <Dato label={subtipo === 'consorcio' ? 'Representante' : tipoPersona === 'juridica' ? 'Razón Social / Nombre' : 'Nombre completo'} value={nombre} />}
+                {documento  && <Dato label="Documento" value={documento} />}
+                {ruc        && <Dato label="RUC" value={ruc} />}
+                {domicilio  && <Dato label="Domicilio" value={domicilio} />}
+                {email      && <Dato label="Email" value={email} />}
+                {telefono   && <Dato label="Teléfono" value={telefono} />}
+                {/* Representante legal (empresa / entidad pública) */}
+                {representante && subtipo !== 'consorcio' && (
+                    <>
+                        <Dato label="Representante legal" value={representante} />
+                        {docRepresentante && <Dato label="Doc. Representante" value={docRepresentante} />}
+                    </>
+                )}
+            </div>
+
+            {/* Empresas del consorcio */}
+            {subtipo === 'consorcio' && Array.isArray(empresas) && empresas.length > 0 && (
+                <div className="mt-3">
+                    <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-2">Empresas del consorcio</span>
+                    <div className="flex flex-wrap gap-2">
+                        {empresas.map((emp, i) => (
+                            <span key={i} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                                <Building2 size={10} />
+                                {emp.nombre}
+                                {emp.ruc && <span className="font-normal text-blue-500">· {emp.ruc}</span>}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
+    );
+}
+
+function Dato({ label, value }) {
+    if (!value && value !== 0) return null;
+    return (
+        <div>
+            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-0.5">{label}</span>
+            <span className="text-sm font-semibold text-[#291136]">{value}</span>
+        </div>
+    );
+}
+
+// ─── Documentos agrupados por sección ──────────────────────────
+function SeccionDocumentos({ grupos }) {
+    const secciones = Object.entries(grupos);
+    if (secciones.length === 0) return null;
+
+    return (
+        <div className="border-t border-gray-100 pt-4">
+            <h4 className="text-sm font-bold text-[#BE0F4A] mb-4 uppercase tracking-wide">Documentos Adjuntos</h4>
+            <div className="space-y-4">
+                {secciones.map(([seccion, docs]) => (
+                    <div key={seccion}>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <span className="w-3 h-[2px] bg-[#BE0F4A] inline-block rounded-full" />
+                            {seccion}
+                        </p>
+                        <div className="space-y-1.5">
+                            {docs.map(doc => (
+                                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                    className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors group">
+                                    <FileText size={15} className="text-[#BE0F4A]/60 group-hover:text-[#BE0F4A] shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                        <span className="text-xs font-semibold text-[#291136] truncate block">{doc.nombre_original}</span>
+                                        <span className="text-[10px] text-gray-400">{doc._label}</span>
+                                    </div>
+                                    <Download size={13} className="text-gray-300 group-hover:text-[#291136] shrink-0" />
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ─── Form edición arbitraje ─────────────────────────────────────
+function FormEditArbitraje({ formEdit, guardarEdicion, setEditando, inputField }) {
+    return (
+        <form onSubmit={guardarEdicion} className="space-y-6">
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandante</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {inputField('Nombre completo', 'nombre_demandante', 'text', true)}
+                    {inputField('Documento de identidad', 'documento_demandante', 'text', true)}
+                    {inputField('Representante', 'nombre_representante')}
+                    {inputField('Doc. Representante', 'documento_representante')}
+                    {inputField('Domicilio', 'domicilio_demandante', 'text', true)}
+                    {inputField('Email', 'email_demandante', 'email', true)}
+                    {inputField('Teléfono', 'telefono_demandante', 'text', true)}
+                </div>
+            </div>
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Demandado</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {inputField('Nombre completo', 'nombre_demandado', 'text', true)}
+                    {inputField('Domicilio', 'domicilio_demandado', 'text', true)}
+                    {inputField('Email', 'email_demandado', 'email')}
+                    {inputField('Teléfono', 'telefono_demandado')}
+                </div>
+            </div>
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia</h4>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">Resumen *</label>
+                        <textarea value={formEdit.data.resumen_controversia}
+                            onChange={e => formEdit.setData('resumen_controversia', e.target.value)}
+                            rows={4} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5"/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">Pretensiones *</label>
+                        <textarea value={formEdit.data.pretensiones}
+                            onChange={e => formEdit.setData('pretensiones', e.target.value)}
+                            rows={3} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5"/>
+                    </div>
+                    {inputField('Monto involucrado (S/)', 'monto_involucrado', 'number')}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox"
+                            checked={!!formEdit.data.solicita_designacion_director_demandado}
+                            onChange={e => formEdit.setData('solicita_designacion_director_demandado', e.target.checked)}
+                            className="w-4 h-4 accent-[#BE0F4A] rounded"/>
+                        <span className="text-sm font-semibold text-gray-700">Demandado solicita designación de árbitro por el Centro</span>
+                    </label>
+                </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button type="button" onClick={() => { setEditando(false); formEdit.reset(); }}
+                    className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">
+                    <X size={12} className="inline mr-1"/> Cancelar
+                </button>
+                <button type="submit" disabled={formEdit.processing}
+                    className="px-5 py-2 text-xs font-bold bg-[#291136] text-white rounded-lg hover:bg-[#3d1a52] disabled:opacity-50">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
     );
 }

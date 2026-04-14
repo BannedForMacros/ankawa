@@ -47,7 +47,6 @@ class MovimientoService
                 'expediente_id'              => $expediente->id,
                 'tipo'                       => $datos['tipo'] ?? 'requerimiento',
                 'etapa_id'                   => $datos['etapa_id'] ?? $expediente->etapa_actual_id,
-                'sub_etapa_id'               => $datos['sub_etapa_id'] ?? null,
                 'tipo_actor_responsable_id'  => $datos['tipo_actor_responsable_id'] ?? null,
                 'usuario_responsable_id'     => $datos['usuario_responsable_id'] ?? null,
                 'creado_por'                 => $datos['creado_por'],

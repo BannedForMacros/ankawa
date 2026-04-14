@@ -25,7 +25,6 @@ export default function TabAccionPendiente({
         documentos: [],
         // Nuevo movimiento (solo si crearSiguiente)
         nuevo_etapa_id: expediente.etapa_actual_id ?? '',
-        nuevo_sub_etapa_id: '',
         nuevo_tipo_actor_responsable_id: '',
         nuevo_usuario_responsable_id: '',
         nuevo_instruccion: '',
@@ -36,12 +35,6 @@ export default function TabAccionPendiente({
         documentos_nuevo: [],
         notificar_a: [],  // solo se llena cuando se crea el siguiente movimiento
     });
-
-    // Sub-etapas del nuevo movimiento
-    const subEtapasNuevo = useMemo(() => {
-        const etapa = etapas.find(e => String(e.id) === String(form.data.nuevo_etapa_id));
-        return etapa?.sub_etapas ?? [];
-    }, [form.data.nuevo_etapa_id, etapas]);
 
     // Filtrar usuarios por tipo actor del nuevo movimiento
     const tipoActorNuevo = useMemo(() => {
@@ -110,12 +103,6 @@ export default function TabAccionPendiente({
                                 <div>
                                     <span className="text-amber-500 block">Etapa</span>
                                     <span className="font-semibold text-amber-800">{movimiento.etapa.nombre}</span>
-                                </div>
-                            )}
-                            {movimiento.sub_etapa && (
-                                <div>
-                                    <span className="text-amber-500 block">Sub-etapa</span>
-                                    <span className="font-semibold text-amber-800">{movimiento.sub_etapa.nombre}</span>
                                 </div>
                             )}
                             {movimiento.fecha_limite && (
@@ -229,7 +216,7 @@ export default function TabAccionPendiente({
                                         <label className="block text-xs font-semibold text-gray-600 mb-1">Etapa *</label>
                                         <select
                                             value={form.data.nuevo_etapa_id}
-                                            onChange={e => form.setData(d => ({ ...d, nuevo_etapa_id: e.target.value, nuevo_sub_etapa_id: '' }))}
+                                            onChange={e => form.setData('nuevo_etapa_id', e.target.value)}
                                             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
                                         >
                                             <option value="">Seleccionar...</option>
@@ -238,21 +225,6 @@ export default function TabAccionPendiente({
                                             ))}
                                         </select>
                                         {form.errors.nuevo_etapa_id && <p className="text-xs text-red-500 mt-1">{form.errors.nuevo_etapa_id}</p>}
-                                    </div>
-
-                                    {/* Sub-etapa */}
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Sub-etapa</label>
-                                        <select
-                                            value={form.data.nuevo_sub_etapa_id}
-                                            onChange={e => form.setData('nuevo_sub_etapa_id', e.target.value)}
-                                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
-                                        >
-                                            <option value="">Ninguna</option>
-                                            {subEtapasNuevo.map(se => (
-                                                <option key={se.id} value={se.id}>{se.orden}. {se.nombre}</option>
-                                            ))}
-                                        </select>
                                     </div>
 
                                     {/* Tipo Actor */}

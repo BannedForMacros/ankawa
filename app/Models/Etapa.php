@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Etapa extends Model
 {
@@ -16,16 +15,16 @@ class Etapa extends Model
         'descripcion',
         'orden',
         'activo',
+        'requiere_conformidad',
+    ];
+
+    protected $casts = [
+        'requiere_conformidad' => 'boolean',
     ];
 
     public function servicio(): BelongsTo
     {
         return $this->belongsTo(Servicio::class, 'servicio_id');
-    }
-
-    public function subEtapas(): HasMany
-    {
-        return $this->hasMany(SubEtapa::class, 'etapa_id')->orderBy('orden');
     }
 
     public function scopeActivo($query)

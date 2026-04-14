@@ -250,11 +250,6 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
 
                                 {/* Meta info */}
                                 <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
-                                    {mov.sub_etapa && (
-                                        <span className="bg-[#291136]/5 text-[#291136] px-2 py-0.5 rounded font-semibold text-xs">
-                                            {mov.sub_etapa.nombre}
-                                        </span>
-                                    )}
                                     {mov.creado_por?.name && (
                                         <span>{mov.creado_por.name}</span>
                                     )}

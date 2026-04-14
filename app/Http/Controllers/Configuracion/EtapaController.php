@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Configuracion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Etapa;
-use App\Models\SubEtapa;
 use App\Models\Servicio;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,7 +19,6 @@ class EtapaController extends Controller
         $etapas = [];
         if ($servicioId) {
             $etapas = Etapa::where('servicio_id', $servicioId)
-                ->with(['subEtapas' => fn($q) => $q->orderBy('orden')])
                 ->orderBy('orden')
                 ->get();
         }
@@ -37,20 +35,35 @@ class EtapaController extends Controller
     public function storeEtapa(Request $request)
     {
         $request->validate([
-            'servicio_id' => 'required|exists:servicios,id',
-            'nombre'      => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'orden'       => 'nullable|integer|min:1',
+            'servicio_id'           => 'required|exists:servicios,id',
+            'nombre'                => 'required|string|max:255',
+            'descripcion'           => 'nullable|string',
+            'orden'                 => 'nullable|integer|min:1',
+            'requiere_conformidad'  => 'nullable|boolean',
         ]);
+
+        if ($request->boolean('requiere_conformidad')) {
+            $yaExiste = Etapa::where('servicio_id', $request->servicio_id)
+                ->where('requiere_conformidad', true)
+                ->where('activo', 1)
+                ->exists();
+
+            if ($yaExiste) {
+                return back()->withErrors([
+                    'requiere_conformidad' => 'Ya existe una etapa con conformidad obligatoria para este servicio. Solo puede haber una.',
+                ]);
+            }
+        }
 
         $maxOrden = Etapa::where('servicio_id', $request->servicio_id)->max('orden') ?? 0;
 
         Etapa::create([
-            'servicio_id' => $request->servicio_id,
-            'nombre'      => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'orden'       => $request->orden ?? ($maxOrden + 1),
-            'activo'      => 1,
+            'servicio_id'           => $request->servicio_id,
+            'nombre'                => $request->nombre,
+            'descripcion'           => $request->descripcion,
+            'orden'                 => $request->orden ?? ($maxOrden + 1),
+            'activo'                => 1,
+            'requiere_conformidad'  => $request->boolean('requiere_conformidad'),
         ]);
 
         return back()->with('success', 'Etapa creada correctamente.');
@@ -59,13 +72,28 @@ class EtapaController extends Controller
     public function updateEtapa(Request $request, Etapa $etapa)
     {
         $request->validate([
-            'nombre'      => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'orden'       => 'nullable|integer|min:1',
-            'activo'      => 'nullable|in:0,1',
+            'nombre'                => 'required|string|max:255',
+            'descripcion'           => 'nullable|string',
+            'orden'                 => 'nullable|integer|min:1',
+            'activo'                => 'nullable|in:0,1',
+            'requiere_conformidad'  => 'nullable|boolean',
         ]);
 
-        $etapa->update($request->only('nombre', 'descripcion', 'orden', 'activo'));
+        if ($request->boolean('requiere_conformidad')) {
+            $yaExiste = Etapa::where('servicio_id', $etapa->servicio_id)
+                ->where('requiere_conformidad', true)
+                ->where('activo', 1)
+                ->where('id', '!=', $etapa->id)
+                ->exists();
+
+            if ($yaExiste) {
+                return back()->withErrors([
+                    'requiere_conformidad' => 'Ya existe una etapa con conformidad obligatoria para este servicio. Solo puede haber una.',
+                ]);
+            }
+        }
+
+        $etapa->update($request->only('nombre', 'descripcion', 'orden', 'activo', 'requiere_conformidad'));
 
         return back()->with('success', 'Etapa actualizada.');
     }
@@ -74,48 +102,5 @@ class EtapaController extends Controller
     {
         $etapa->update(['activo' => 0]);
         return back()->with('success', 'Etapa desactivada.');
-    }
-
-    // ── CRUD Sub-etapas ──
-
-    public function storeSubEtapa(Request $request, Etapa $etapa)
-    {
-        $request->validate([
-            'nombre'      => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'orden'       => 'nullable|integer|min:1',
-        ]);
-
-        $maxOrden = SubEtapa::where('etapa_id', $etapa->id)->max('orden') ?? 0;
-
-        SubEtapa::create([
-            'etapa_id'    => $etapa->id,
-            'nombre'      => $request->nombre,
-            'descripcion' => $request->descripcion,
-            'orden'       => $request->orden ?? ($maxOrden + 1),
-            'activo'      => 1,
-        ]);
-
-        return back()->with('success', 'Sub-etapa creada correctamente.');
-    }
-
-    public function updateSubEtapa(Request $request, SubEtapa $subEtapa)
-    {
-        $request->validate([
-            'nombre'      => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
-            'orden'       => 'nullable|integer|min:1',
-            'activo'      => 'nullable|in:0,1',
-        ]);
-
-        $subEtapa->update($request->only('nombre', 'descripcion', 'orden', 'activo'));
-
-        return back()->with('success', 'Sub-etapa actualizada.');
-    }
-
-    public function destroySubEtapa(SubEtapa $subEtapa)
-    {
-        $subEtapa->update(['activo' => 0]);
-        return back()->with('success', 'Sub-etapa desactivada.');
     }
 }

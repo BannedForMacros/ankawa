@@ -7,7 +7,6 @@ import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, Fil
 export const movVacioBase = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
     etapa_id:                    String(expediente.etapa_actual_id ?? ''),
-    sub_etapa_id:                '',
     instruccion:                 '',
     observaciones:               '',
     tipo_actor_responsable_id:   '',
@@ -238,7 +237,7 @@ export function MovimientoCard({
     etapas, tiposActorEnExpediente, actoresExpediente,
     tiposDocumento, actoresSinMesaPartes, actoresSinExpElectronico, actoresNotificables,
     archivos, onArchivos, onChange, onMover, onQuitar,
-    errores = {}, etapaActualId = null,
+    errores = {}, etapaActualId = null, solicitudEsConforme = true,
 }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
     const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
@@ -247,11 +246,6 @@ export function MovimientoCard({
     const esPropia = tipo === 'propia';
     const esReq    = tipo === 'requerimiento';
     const esNotif  = tipo === 'notificacion';
-
-    const subEtapas = useMemo(() => {
-        const et = etapas.find(e => String(e.id) === String(mov.etapa_id));
-        return et?.sub_etapas ?? [];
-    }, [mov.etapa_id, etapas]);
 
     // ── Lógica de avance de etapa ──────────────────────────────────────────
     const etapaActual = useMemo(() =>
@@ -267,10 +261,13 @@ export function MovimientoCard({
 
     const avanzandoEtapa = !!(siguienteEtapa && String(mov.etapa_id) === String(siguienteEtapa.id));
 
+    // Bloqueo de conformidad: la etapa actual requiere conformidad y la solicitud no está conforme
+    const bloqueadaPorConformidad = !!(etapaActual?.requiere_conformidad && !solicitudEsConforme);
+
     function toggleAvanzarEtapa(checked) {
+        if (bloqueadaPorConformidad) return;
         const nuevoId = checked && siguienteEtapa ? String(siguienteEtapa.id) : String(etapaActualId ?? '');
         onChange('etapa_id', nuevoId);
-        onChange('sub_etapa_id', '');
     }
 
     // Solo actores con acceso a Mesa de Partes (pueden recibir requerimientos y responder)
@@ -361,14 +358,31 @@ export function MovimientoCard({
                             <span className="text-xs text-gray-500 font-medium">Etapa actual:</span>
                             <span className="text-xs font-bold text-[#291136]">{etapaActual?.nombre ?? '—'}</span>
                         </div>
+
+                        {/* Banner de bloqueo por conformidad */}
+                        {bloqueadaPorConformidad && (
+                            <div className="flex items-start gap-2.5 px-3.5 py-3 bg-red-50 border border-red-300 rounded-xl">
+                                <ArrowRight size={14} className="text-red-500 shrink-0 mt-0.5"/>
+                                <div>
+                                    <p className="text-sm font-bold text-red-700">Conformidad requerida</p>
+                                    <p className="text-xs text-red-600 mt-0.5">
+                                        Esta etapa requiere que la solicitud esté declarada <strong>CONFORME</strong> antes de avanzar a otra etapa. Ve a la pestaña <strong>Solicitud</strong> para registrar la conformidad.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Avanzar a la siguiente etapa */}
                         {siguienteEtapa ? (
-                            <label className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border cursor-pointer transition-colors select-none ${
-                                avanzandoEtapa
-                                    ? 'bg-amber-50 border-amber-300'
-                                    : 'bg-white border-gray-200 hover:border-gray-300'
+                            <label className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border select-none transition-colors ${
+                                bloqueadaPorConformidad
+                                    ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200'
+                                    : avanzandoEtapa
+                                    ? 'cursor-pointer bg-amber-50 border-amber-300'
+                                    : 'cursor-pointer bg-white border-gray-200 hover:border-gray-300'
                             }`}>
                                 <input type="checkbox" checked={avanzandoEtapa}
+                                    disabled={bloqueadaPorConformidad}
                                     onChange={e => toggleAvanzarEtapa(e.target.checked)}
                                     className="w-4 h-4 accent-amber-500 rounded shrink-0"/>
                                 <ArrowRight size={13} className={avanzandoEtapa ? 'text-amber-500' : 'text-gray-400'}/>
@@ -388,17 +402,6 @@ export function MovimientoCard({
                             </label>
                         ) : (
                             <p className="text-xs text-gray-400 italic px-1">Esta es la última etapa del proceso.</p>
-                        )}
-                        {/* Sub-etapa — opcional */}
-                        {subEtapas.length > 0 && (
-                            <div>
-                                <FieldLabel>Sub-etapa <span className="font-normal text-gray-400">(opcional)</span></FieldLabel>
-                                <AnkawaSelect value={mov.sub_etapa_id}
-                                    onChange={e => onChange('sub_etapa_id', e.target.value)}>
-                                    <option value="">Ninguna</option>
-                                    {subEtapas.map(se => <option key={se.id} value={se.id}>{se.orden}. {se.nombre}</option>)}
-                                </AnkawaSelect>
-                            </div>
                         )}
                     </div>
                 </div>
@@ -944,7 +947,6 @@ export default function TabNuevoMovimiento({
             const form = new FormData();
             form.append('tipo',                        mov.tipo);
             form.append('etapa_id',                    mov.etapa_id ?? '');
-            form.append('sub_etapa_id',                mov.sub_etapa_id ?? '');
             form.append('instruccion',                 mov.instruccion);
             form.append('observaciones',               mov.observaciones ?? '');
             form.append('tipo_actor_responsable_id',   mov.tipo_actor_responsable_id ?? '');
@@ -980,7 +982,6 @@ export default function TabNuevoMovimiento({
             movimientos.forEach((mov, i) => {
                 form.append(`movimientos[${i}][tipo]`,                        mov.tipo);
                 form.append(`movimientos[${i}][etapa_id]`,                    mov.etapa_id ?? '');
-                form.append(`movimientos[${i}][sub_etapa_id]`,                mov.sub_etapa_id ?? '');
                 form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
                 form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
                 form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
@@ -1016,6 +1017,12 @@ export default function TabNuevoMovimiento({
     }
 
     const esBatch = movimientos.length > 1;
+
+    // Bloqueo global: etapa actual requiere conformidad y la solicitud no está conforme y se intenta avanzar
+    const etapaActualObj = etapas.find(e => String(e.id) === String(expediente.etapa_actual_id));
+    const solicitudEsConforme = expediente.solicitud?.resultado_revision === 'conforme';
+    const bloqueadoPorConformidad = !!(etapaActualObj?.requiere_conformidad && !solicitudEsConforme &&
+        movimientos.some(m => String(m.etapa_id) !== String(expediente.etapa_actual_id)));
 
     return (
         <>
@@ -1158,6 +1165,7 @@ export default function TabNuevoMovimiento({
                             onQuitar={() => quitar(idx)}
                             errores={errores[idx] ?? {}}
                             etapaActualId={expediente.etapa_actual_id}
+                            solicitudEsConforme={expediente.solicitud?.resultado_revision === 'conforme'}
                         />
                     ))}
                 </div>
@@ -1167,7 +1175,7 @@ export default function TabNuevoMovimiento({
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-[#291136] px-3 py-2 rounded-lg border border-dashed border-[#291136]/30 hover:bg-[#291136]/5 transition-colors">
                         <PlusCircle size={13}/> Agregar movimiento
                     </button>
-                    <button type="submit" disabled={procesando}
+                    <button type="submit" disabled={procesando || bloqueadoPorConformidad}
                         className="px-5 py-2.5 text-sm font-bold bg-[#BE0F4A] text-white rounded-lg hover:bg-[#BE0F4A]/90 disabled:opacity-50 transition-colors">
                         {procesando ? 'Creando...' : esBatch ? `Crear ${movimientos.length} movimientos` : 'Crear Movimiento'}
                     </button>

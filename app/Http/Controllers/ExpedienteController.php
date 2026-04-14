@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Expediente;
 use App\Models\Etapa;
-use App\Models\SubEtapa;
 use App\Models\TipoActorExpediente;
 use App\Models\TipoDocumento;
 use App\Support\FileRules;
@@ -100,7 +99,7 @@ class ExpedienteController extends Controller
             'movimientos' => fn($q) => $q->where('activo', true)
                 ->orderByDesc('created_at')
                 ->with([
-                    'etapa', 'subEtapa',
+                    'etapa',
                     'tipoActorResponsable',
                     'usuarioResponsable',
                     'creadoPor', 'respondidoPor',
@@ -295,7 +294,6 @@ class ExpedienteController extends Controller
             'movimientos'                             => 'nullable|array|max:10',
             'movimientos.*.tipo'                      => 'nullable|in:requerimiento,propia,notificacion',
             'movimientos.*.etapa_id'                  => 'required|exists:etapas,id',
-            'movimientos.*.sub_etapa_id'              => 'nullable|exists:sub_etapas,id',
             'movimientos.*.instruccion'               => 'required|string|max:2000',
             'movimientos.*.tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
             'movimientos.*.usuario_responsable_id'    => 'nullable|exists:users,id',
@@ -379,7 +377,6 @@ class ExpedienteController extends Controller
                     [
                         'tipo'                        => $tipo,
                         'etapa_id'                    => $datos['etapa_id'],
-                        'sub_etapa_id'                => $datos['sub_etapa_id'] ?: null,
                         'tipo_actor_responsable_id'   => $datos['tipo_actor_responsable_id'] ?: null,
                         'usuario_responsable_id'      => $datos['usuario_responsable_id'] ?: null,
                         'responsables'                => $datos['responsables'] ?? [],

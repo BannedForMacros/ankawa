@@ -26,7 +26,6 @@ class EnviarRecordatoriosVencimiento extends Command
             ->with([
                 'expediente',
                 'etapa',
-                'subEtapa',
                 'usuarioResponsable',
                 'responsables.actor.usuario',
                 'responsables.actor.emailsAdicionales',

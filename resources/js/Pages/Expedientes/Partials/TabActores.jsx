@@ -79,6 +79,18 @@ export default function TabActores({
     usuariosAsignables = [],
 }) {
     const puedeEditar = esGestor || puedeDesignarGestor;
+
+    // JPRD usa "Entidad" y "Contratista" en lugar de "Demandante" y "Demandado"
+    const esJPRD = (expediente.solicitud_type ?? '').includes('JPRD');
+    function nombreTipoActor(actor) {
+        const slug   = actor.tipo_actor?.slug;
+        const nombre = actor.tipo_actor?.nombre ?? '—';
+        if (!esJPRD) return nombre;
+        if (slug === 'demandante') return 'Entidad';
+        if (slug === 'demandado')  return 'Contratista';
+        return nombre;
+    }
+
     const [showFormActor, setShowFormActor] = useState(false);
     const [showFormGestor, setShowFormGestor] = useState(false);
     const [emailFormActorId, setEmailFormActorId] = useState(null);
@@ -283,7 +295,7 @@ export default function TabActores({
                                                     </p>
                                                 )}
                                                 <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
-                                                    <span className="font-semibold">{actor.tipo_actor?.nombre ?? '—'}</span>
+                                                    <span className="font-semibold">{nombreTipoActor(actor)}</span>
                                                     {actor.usuario?.rol?.nombre && (
                                                         <>
                                                             <span className="text-gray-300">•</span>
@@ -629,7 +641,7 @@ export default function TabActores({
                             <option value="">Seleccionar actor...</option>
                             {actoresParaGestor.map(a => (
                                 <option key={a.id} value={a.id}>
-                                    {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {a.tipo_actor?.nombre}
+                                    {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {nombreTipoActor(a)}
                                     {a.es_gestor ? ' (Gestor actual)' : ''}
                                 </option>
                             ))}
