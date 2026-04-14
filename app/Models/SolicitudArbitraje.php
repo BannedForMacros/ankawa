@@ -10,6 +10,11 @@ class SolicitudArbitraje extends Model
 {
     protected $table = 'solicitudes_arbitraje';
 
+    protected $casts = [
+        'empresas_consorcio_demandante' => 'array',
+        'empresas_consorcio_demandado'  => 'array',
+    ];
+
     protected $fillable = [
         'servicio_id', 'numero_cargo', 'usuario_id',
         'tipo_persona', 'tipo_documento', 'nombre_demandante', 'documento_demandante',

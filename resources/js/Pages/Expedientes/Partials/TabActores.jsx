@@ -1,6 +1,6 @@
 import { useForm, router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText } from 'lucide-react';
+import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText, Users } from 'lucide-react';
 import AnkawaModal from '@/Components/AnkawaModal';
 
 export default function TabActores({
@@ -147,34 +147,66 @@ export default function TabActores({
                                 const emailsAdicionales = (actor.emails_adicionales ?? []).filter(e => e.activo !== false);
                                 const mostrandoFormEmail = emailFormActorId === actor.id;
 
+                                // ── Datos de consorcio (solo aplica a demandante/demandado en solicitudes de arbitraje) ──
+                                const slug = actor.tipo_actor?.slug;
+                                const sol = expediente.solicitud ?? null;
+                                const esConsorcio =
+                                    slug === 'demandante'
+                                        ? sol?.subtipo_juridico_demandante === 'consorcio'
+                                        : slug === 'demandado'
+                                        ? sol?.subtipo_juridico_demandado === 'consorcio'
+                                        : false;
+                                const empresasConsorcio =
+                                    slug === 'demandante'
+                                        ? (sol?.empresas_consorcio_demandante ?? [])
+                                        : slug === 'demandado'
+                                        ? (sol?.empresas_consorcio_demandado ?? [])
+                                        : [];
+                                // Para consorcio, el nombre a mostrar viene de la solicitud (fuente de verdad),
+                                // no del usuario vinculado (que puede tener un nombre distinto por reutilización de cuenta).
+                                const nombreMostrado = esConsorcio
+                                    ? (slug === 'demandante'
+                                        ? (sol?.nombre_representante || sol?.nombre_demandante || actor.usuario?.name || actor.nombre_externo)
+                                        : (sol?.nombre_representante_demandado || sol?.nombre_demandado || actor.usuario?.name || actor.nombre_externo))
+                                    : (actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre');
+
                                 return (
                                     <div
                                         key={actor.id}
                                         className={`rounded-xl bg-gray-50 border border-gray-100 border-l-4 overflow-hidden ${
                                             actor.es_gestor ? 'border-l-amber-400'
-                                            : actor.tipo_actor?.slug === 'demandante' ? 'border-l-[#BE0F4A]'
-                                            : actor.tipo_actor?.slug === 'demandado'  ? 'border-l-[#291136]/40'
+                                            : slug === 'demandante' ? 'border-l-[#BE0F4A]'
+                                            : slug === 'demandado'  ? 'border-l-[#291136]/40'
                                             : 'border-l-gray-200'
                                         }`}
                                     >
                                         {/* Fila principal del actor */}
                                         <div className="flex items-center gap-3 p-3">
                                             <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                                                actor.es_gestor ? 'bg-amber-100 text-amber-700' : 'bg-[#291136]/10 text-[#291136]'
+                                                actor.es_gestor ? 'bg-amber-100 text-amber-700'
+                                                : esConsorcio ? 'bg-blue-100 text-blue-700'
+                                                : 'bg-[#291136]/10 text-[#291136]'
                                             }`}>
                                                 {actor.es_gestor
                                                     ? <Star size={14} />
+                                                    : esConsorcio
+                                                    ? <Users size={14} />
                                                     : (actor.usuario?.name ?? actor.nombre_externo ?? '?').charAt(0).toUpperCase()
                                                 }
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="text-base font-bold text-[#291136] truncate">
-                                                        {actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre'}
+                                                        {nombreMostrado}
                                                     </span>
                                                     {actor.es_gestor && (
                                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
                                                             RESPONSABLE
+                                                        </span>
+                                                    )}
+                                                    {esConsorcio && (
+                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                                                            <Users size={9} /> CONSORCIO
                                                         </span>
                                                     )}
                                                 </div>
@@ -203,6 +235,22 @@ export default function TabActores({
                                                         </>
                                                     )}
                                                 </div>
+                                                {/* Empresas del consorcio */}
+                                                {esConsorcio && empresasConsorcio.length > 0 && (
+                                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                                        {empresasConsorcio.map((emp, idx) => (
+                                                            <span
+                                                                key={idx}
+                                                                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200"
+                                                                title={emp.ruc ? `RUC: ${emp.ruc}` : undefined}
+                                                            >
+                                                                <Building2 size={9} />
+                                                                {emp.nombre}
+                                                                {emp.ruc && <span className="font-normal text-blue-500">· {emp.ruc}</span>}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
                                                 {/* Acceso a Mesa de Partes — solo lectura, se otorga desde movimientos */}
