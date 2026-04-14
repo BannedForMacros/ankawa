@@ -96,6 +96,7 @@ class ExpedienteController extends Controller
             'actores.usuario.rol:id,nombre,slug',
             'actores.tipoActor',
             'actores.emailsAdicionales',
+            'actores.designadoPor:id,name',
             'movimientos' => fn($q) => $q->where('activo', true)
                 ->orderByDesc('created_at')
                 ->with([
@@ -123,7 +124,8 @@ class ExpedienteController extends Controller
         }
 
         $esGestor = $this->gestorService->esGestor($expediente, $user->id);
-        $puedeDesignarGestor = $user->rol?->puede_designar_gestor ?? false;
+        // Puede designar responsables: rol con puede_designar_gestor O quien ya es responsable
+        $puedeDesignarGestor = ($user->rol?->puede_designar_gestor ?? false) || $esGestor;
 
         $miAccionPendiente = $expediente->movimientos
             ->where('estado', 'pendiente')

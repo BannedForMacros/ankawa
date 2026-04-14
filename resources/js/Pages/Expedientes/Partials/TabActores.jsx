@@ -1,7 +1,75 @@
 import { useForm, router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText, Users } from 'lucide-react';
+import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText, Users, Landmark } from 'lucide-react';
 import AnkawaModal from '@/Components/AnkawaModal';
+
+/**
+ * Normaliza la información de persona jurídica desde cualquier tipo de solicitud.
+ * Retorna null si el actor no es una persona jurídica con subtipo conocido.
+ *
+ * @param {object|null} sol  - expediente.solicitud (puede ser arbitraje, jprd, etc.)
+ * @param {string}      slug - tipo_actor slug del actor ('demandante' | 'demandado')
+ */
+function getInfoJuridica(sol, slug) {
+    if (!sol) return null;
+
+    // ── Arbitraje ──────────────────────────────────────────────────
+    if (slug === 'demandante' && sol.subtipo_juridico_demandante) {
+        const subtipo = sol.subtipo_juridico_demandante;
+        return {
+            subtipo,
+            // Para consorcio el campo nombre_demandante puede estar vacío → usar representante
+            nombreEntidad: subtipo === 'consorcio'
+                ? (sol.nombre_representante || sol.nombre_demandante)
+                : sol.nombre_demandante,
+            representante: subtipo !== 'consorcio' ? (sol.nombre_representante || null) : null,
+            empresas: subtipo === 'consorcio' ? (sol.empresas_consorcio_demandante ?? []) : [],
+        };
+    }
+    if (slug === 'demandado' && sol.subtipo_juridico_demandado) {
+        const subtipo = sol.subtipo_juridico_demandado;
+        return {
+            subtipo,
+            nombreEntidad: subtipo === 'consorcio'
+                ? (sol.nombre_representante_demandado || sol.nombre_demandado)
+                : sol.nombre_demandado,
+            representante: subtipo !== 'consorcio' ? (sol.nombre_representante_demandado || null) : null,
+            empresas: subtipo === 'consorcio' ? (sol.empresas_consorcio_demandado ?? []) : [],
+        };
+    }
+
+    // ── JPRD (entidad = demandante, contratista = demandado) ────────
+    if (slug === 'demandante' && sol.subtipo_entidad) {
+        const subtipo = sol.subtipo_entidad;
+        return {
+            subtipo,
+            nombreEntidad: subtipo === 'consorcio'
+                ? (sol.representante_entidad_nombre || sol.nombre_entidad)
+                : sol.nombre_entidad,
+            representante: subtipo !== 'consorcio' ? (sol.representante_entidad_nombre || null) : null,
+            empresas: subtipo === 'consorcio' ? (sol.empresas_entidad ?? []) : [],
+        };
+    }
+    if (slug === 'demandado' && sol.subtipo_contratista) {
+        const subtipo = sol.subtipo_contratista;
+        return {
+            subtipo,
+            nombreEntidad: subtipo === 'consorcio'
+                ? (sol.representante_contratista_nombre || sol.nombre_contratista)
+                : sol.nombre_contratista,
+            representante: subtipo !== 'consorcio' ? (sol.representante_contratista_nombre || null) : null,
+            empresas: subtipo === 'consorcio' ? (sol.empresas_contratista ?? []) : [],
+        };
+    }
+
+    return null;
+}
+
+const SUBTIPO_META = {
+    consorcio:      { label: 'CONSORCIO',       color: 'bg-blue-100 text-blue-700 border-blue-200',     icon: Users   },
+    empresa:        { label: 'EMPRESA',          color: 'bg-violet-100 text-violet-700 border-violet-200', icon: Building2 },
+    entidad_publica:{ label: 'ENTIDAD PÚBLICA',  color: 'bg-teal-100 text-teal-700 border-teal-200',     icon: Landmark },
+};
 
 export default function TabActores({
     expediente,
@@ -17,8 +85,9 @@ export default function TabActores({
 
     const actoresActivos = (expediente.actores ?? []).filter(a => a.activo);
 
+    // Candidatos para designar: excluir demandante/demandado y los que ya son responsables
     const actoresParaGestor = actoresActivos.filter(
-        a => !['demandante', 'demandado'].includes(a.tipo_actor?.slug)
+        a => !['demandante', 'demandado'].includes(a.tipo_actor?.slug) && !a.es_gestor
     );
 
     // ── Form: Agregar Actor ──
@@ -147,27 +216,18 @@ export default function TabActores({
                                 const emailsAdicionales = (actor.emails_adicionales ?? []).filter(e => e.activo !== false);
                                 const mostrandoFormEmail = emailFormActorId === actor.id;
 
-                                // ── Datos de consorcio (solo aplica a demandante/demandado en solicitudes de arbitraje) ──
+                                // ── Persona jurídica: normalizar desde cualquier tipo de solicitud ──
                                 const slug = actor.tipo_actor?.slug;
                                 const sol = expediente.solicitud ?? null;
-                                const esConsorcio =
-                                    slug === 'demandante'
-                                        ? sol?.subtipo_juridico_demandante === 'consorcio'
-                                        : slug === 'demandado'
-                                        ? sol?.subtipo_juridico_demandado === 'consorcio'
-                                        : false;
-                                const empresasConsorcio =
-                                    slug === 'demandante'
-                                        ? (sol?.empresas_consorcio_demandante ?? [])
-                                        : slug === 'demandado'
-                                        ? (sol?.empresas_consorcio_demandado ?? [])
-                                        : [];
-                                // Para consorcio, el nombre a mostrar viene de la solicitud (fuente de verdad),
-                                // no del usuario vinculado (que puede tener un nombre distinto por reutilización de cuenta).
-                                const nombreMostrado = esConsorcio
-                                    ? (slug === 'demandante'
-                                        ? (sol?.nombre_representante || sol?.nombre_demandante || actor.usuario?.name || actor.nombre_externo)
-                                        : (sol?.nombre_representante_demandado || sol?.nombre_demandado || actor.usuario?.name || actor.nombre_externo))
+                                const infoJur = getInfoJuridica(sol, slug);
+                                const esJuridica = !!infoJur;
+                                const esConsorcio = infoJur?.subtipo === 'consorcio';
+                                const subtipoMeta = infoJur ? (SUBTIPO_META[infoJur.subtipo] ?? null) : null;
+                                const empresasConsorcio = infoJur?.empresas ?? [];
+
+                                // Fuente de verdad del nombre: solicitud para jurídicas, usuario/externo para el resto
+                                const nombreMostrado = esJuridica
+                                    ? (infoJur.nombreEntidad || actor.usuario?.name || actor.nombre_externo || 'Sin nombre')
                                     : (actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre');
 
                                 return (
@@ -184,14 +244,14 @@ export default function TabActores({
                                         <div className="flex items-center gap-3 p-3">
                                             <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                                                 actor.es_gestor ? 'bg-amber-100 text-amber-700'
-                                                : esConsorcio ? 'bg-blue-100 text-blue-700'
+                                                : subtipoMeta ? `${subtipoMeta.color.split(' ')[0]} ${subtipoMeta.color.split(' ')[1]}`
                                                 : 'bg-[#291136]/10 text-[#291136]'
                                             }`}>
                                                 {actor.es_gestor
                                                     ? <Star size={14} />
-                                                    : esConsorcio
-                                                    ? <Users size={14} />
-                                                    : (actor.usuario?.name ?? actor.nombre_externo ?? '?').charAt(0).toUpperCase()
+                                                    : subtipoMeta
+                                                    ? <subtipoMeta.icon size={14} />
+                                                    : nombreMostrado.charAt(0).toUpperCase()
                                                 }
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -204,12 +264,24 @@ export default function TabActores({
                                                             RESPONSABLE
                                                         </span>
                                                     )}
-                                                    {esConsorcio && (
-                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                                                            <Users size={9} /> CONSORCIO
+                                                    {subtipoMeta && (
+                                                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${subtipoMeta.color}`}>
+                                                            <subtipoMeta.icon size={9} /> {subtipoMeta.label}
                                                         </span>
                                                     )}
                                                 </div>
+                                                {/* Quién designó al responsable */}
+                                                {actor.es_gestor && actor.designado_por && (
+                                                    <p className="text-[11px] text-amber-600 mt-0.5">
+                                                        Designado por: <span className="font-semibold">{actor.designado_por.name}</span>
+                                                    </p>
+                                                )}
+                                                {/* Representante legal (solo para empresa / entidad pública) */}
+                                                {esJuridica && !esConsorcio && infoJur.representante && (
+                                                    <p className="text-xs text-gray-400 mt-0.5">
+                                                        Rep.: <span className="font-semibold text-gray-600">{infoJur.representante}</span>
+                                                    </p>
+                                                )}
                                                 <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
                                                     <span className="font-semibold">{actor.tipo_actor?.nombre ?? '—'}</span>
                                                     {actor.usuario?.rol?.nombre && (
@@ -250,6 +322,19 @@ export default function TabActores({
                                                             </span>
                                                         ))}
                                                     </div>
+                                                )}
+                                                {/* RUC para empresa/entidad pública (JPRD) */}
+                                                {esJuridica && !esConsorcio && (
+                                                    (() => {
+                                                        const ruc = slug === 'demandante'
+                                                            ? (sol?.ruc_entidad ?? null)
+                                                            : (sol?.ruc_contratista ?? null);
+                                                        return ruc ? (
+                                                            <p className="text-xs text-gray-400 mt-0.5">
+                                                                RUC: <span className="font-semibold text-gray-600">{ruc}</span>
+                                                            </p>
+                                                        ) : null;
+                                                    })()
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">

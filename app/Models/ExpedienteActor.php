@@ -17,6 +17,7 @@ class ExpedienteActor extends Model
         'nombre_externo',
         'email_externo',
         'es_gestor',
+        'designado_por_id',
         'activo',
         'credenciales_enviadas',
         'acceso_mesa_partes',
@@ -38,6 +39,11 @@ class ExpedienteActor extends Model
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'usuario_id');
+    }
+
+    public function designadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'designado_por_id');
     }
 
     public function tipoActor(): BelongsTo

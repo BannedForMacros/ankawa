@@ -147,8 +147,12 @@ class ExpedienteActorController extends Controller
     public function designarGestor(Request $request, Expediente $expediente)
     {
         $user = auth()->user();
-        abort_unless($user->rol?->puede_designar_gestor, 403,
-            'No tiene permisos para designar gestor.');
+
+        // Puede designar: rol con puede_designar_gestor O quien ya es responsable del expediente
+        $puedeDesignar = ($user->rol?->puede_designar_gestor ?? false)
+            || $this->gestorService->esGestor($expediente, $user->id);
+
+        abort_unless($puedeDesignar, 403, 'No tiene permisos para designar responsable.');
 
         $request->validate([
             'actor_id' => 'required|exists:expediente_actores,id',
@@ -160,16 +164,21 @@ class ExpedienteActorController extends Controller
             ->where('activo', 1)
             ->firstOrFail();
 
-        // No permitir designar como gestor a demandante/demandado
+        // No permitir designar como responsable a demandante/demandado
         $slugsNoGestor = ['demandante', 'demandado'];
         if (in_array($actor->tipoActor?->slug, $slugsNoGestor)) {
-            return back()->withErrors(['general' => 'El demandante y demandado no pueden ser designados como gestor.']);
+            return back()->withErrors(['general' => 'El demandante y demandado no pueden ser designados como responsable.']);
+        }
+
+        // Ya es responsable
+        if ($actor->es_gestor) {
+            return back()->withErrors(['general' => 'Este actor ya es responsable del expediente.']);
         }
 
         $this->gestorService->designar($expediente, $actor->id, $user->id);
 
         $nombre = $actor->usuario?->name ?? 'Actor';
-        return back()->with('success', "{$nombre} ha sido designado como Gestor del expediente.");
+        return back()->with('success', "{$nombre} ha sido designado como Responsable del expediente.");
     }
 
     /**
