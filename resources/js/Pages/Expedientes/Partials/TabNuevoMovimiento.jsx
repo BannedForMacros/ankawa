@@ -945,9 +945,9 @@ export default function TabNuevoMovimiento({
             form.append('instruccion',                 mov.instruccion);
             form.append('observaciones',               mov.observaciones ?? '');
             form.append('tipo_actor_responsable_id',   mov.tipo_actor_responsable_id ?? '');
-            (mov.responsables ?? []).forEach((r, ri) => {
+            (mov.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0).forEach((r, ri) => {
                 (r.actor_ids ?? []).forEach(id => form.append(`responsables[${ri}][actor_ids][]`, id));
-                form.append(`responsables[${ri}][dias_plazo]`, r.dias_plazo);
+                if (r.dias_plazo) form.append(`responsables[${ri}][dias_plazo]`, r.dias_plazo);
                 form.append(`responsables[${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
             });
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
@@ -981,9 +981,9 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
                 form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
                 form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
-                (mov.responsables ?? []).forEach((r, ri) => {
+                (mov.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0).forEach((r, ri) => {
                     (r.actor_ids ?? []).forEach(id => form.append(`movimientos[${i}][responsables][${ri}][actor_ids][]`, id));
-                    form.append(`movimientos[${i}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
+                    if (r.dias_plazo) form.append(`movimientos[${i}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
                     form.append(`movimientos[${i}][responsables][${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
                 });
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');

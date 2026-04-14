@@ -7,6 +7,7 @@ use App\Models\ExpedienteMovimiento;
 use App\Services\MovimientoService;
 use App\Services\GestorExpedienteService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class MovimientoController extends Controller
 {
@@ -34,7 +35,7 @@ class MovimientoController extends Controller
             'responsables'                 => 'nullable|array',
             'responsables.*.actor_ids'    => 'nullable|array',
             'responsables.*.actor_ids.*'  => 'integer|exists:expediente_actores,id',
-            'responsables.*.dias_plazo'   => 'required_with:responsables|integer|min:1|max:365',
+            'responsables.*.dias_plazo'   => [Rule::requiredIf(fn() => $request->input('tipo') === 'requerimiento'), 'nullable', 'integer', 'min:1', 'max:365'],
             'responsables.*.tipo_dias'    => 'nullable|in:calendario,habiles',
             'instruccion'                => 'required|string|max:2000',
             'observaciones'              => 'nullable|string|max:2000',
@@ -108,7 +109,7 @@ class MovimientoController extends Controller
             'movimientos.*.responsables'                   => 'nullable|array',
             'movimientos.*.responsables.*.actor_ids'      => 'nullable|array',
             'movimientos.*.responsables.*.actor_ids.*'    => 'integer|exists:expediente_actores,id',
-            'movimientos.*.responsables.*.dias_plazo'     => 'required_with:movimientos.*.responsables|integer|min:1|max:365',
+            'movimientos.*.responsables.*.dias_plazo'     => 'nullable|integer|min:1|max:365',
             'movimientos.*.responsables.*.tipo_dias'      => 'nullable|in:calendario,habiles',
             'movimientos.*.dias_plazo'                    => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
@@ -230,7 +231,7 @@ class MovimientoController extends Controller
             'nuevo_responsables'                           => 'nullable|array',
             'nuevo_responsables.*.actor_ids'              => 'nullable|array',
             'nuevo_responsables.*.actor_ids.*'            => 'integer|exists:expediente_actores,id',
-            'nuevo_responsables.*.dias_plazo'             => 'required_with:nuevo_responsables|integer|min:1|max:365',
+            'nuevo_responsables.*.dias_plazo'             => 'nullable|integer|min:1|max:365',
             'nuevo_responsables.*.tipo_dias'              => 'nullable|in:calendario,habiles',
             'nuevo_instruccion'               => 'required|string|max:2000',
             'nuevo_observaciones'             => 'nullable|string|max:2000',
