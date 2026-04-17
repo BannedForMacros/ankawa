@@ -193,3 +193,6 @@ class EnviarRecordatoriosVencimiento extends Command
         return $dias;
     }
 }
+
+
+// cambio 1
