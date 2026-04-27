@@ -17,6 +17,7 @@ class ExpedienteActorAceptacion extends Model
         'ip_address',
         'user_agent',
         'portal_email',
+        'validado_por_user_id',
         'created_at',
     ];
 

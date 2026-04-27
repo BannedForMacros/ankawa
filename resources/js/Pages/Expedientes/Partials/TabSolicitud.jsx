@@ -1,6 +1,6 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus, Building2, Users, Landmark, AlertTriangle } from 'lucide-react';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus, Building2, Users, Landmark, AlertTriangle, ShieldCheck, ShieldAlert, Check } from 'lucide-react';
 import { MovimientoCard, movVacioBase } from './TabNuevoMovimiento';
 import toast from 'react-hot-toast';
 
@@ -59,6 +59,10 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     const [procesando, setProcesando]     = useState(false);
     const [errores, setErrores]           = useState({});
     const [erroresMov, setErroresMov]     = useState([]);
+    // Edición de correo principal y validación manual del actor
+    const [editandoEmailActorId, setEditandoEmailActorId] = useState(null);
+    const [confirmarValidarActor, setConfirmarValidarActor] = useState(null); // actor en modal
+    const formEmailPrincipal = useForm({ email: '' });
 
     const defaultNotificarIds = actoresNotificables.map(a => a.id);
     const esJPRD = (expediente.solicitud_type ?? '').includes('JPRD');
@@ -115,28 +119,60 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
         const demandado  = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandado');
         const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
+
+        if (!demandante) {
+            toast.error('No se encontró al demandante activo en el expediente.');
+            return;
+        }
+        if (!demandado) {
+            toast.error(`No se encontró al ${labelDado.toLowerCase()} activo. Verifique los actores antes de declarar conforme.`);
+            return;
+        }
+        if (!demandado.validado_por_gestor) {
+            toast.error(`El correo del ${labelDado.toLowerCase()} no ha sido validado. Use el botón "Validar correo" en "Partes del Proceso" antes de declarar conforme.`);
+            return;
+        }
+        if (!demandado.usuario?.id) {
+            toast.error(`Inconsistencia: el ${labelDado.toLowerCase()} figura validado pero no tiene cuenta interna. Re-valide el correo.`);
+            return;
+        }
+
         setMovimientos([
+            // 1. Notificación al demandante: CONFORME
             {
                 ...movVacio(expediente, defaultNotificarIds),
                 tipo:                       'notificacion',
-                instruccion:                `Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.`,
-                tipo_actor_responsable_id:  String(demandante?.tipo_actor_id ?? ''),
-                usuario_responsable_id:     String(demandante?.usuario?.id ?? ''),
+                instruccion:                'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
+                tipo_actor_responsable_id:  String(demandante.tipo_actor_id ?? ''),
+                usuario_responsable_id:     String(demandante.usuario?.id ?? ''),
             },
+            // 2. Notificación al demandado: TRASLADO + habilitar Mesa de Partes
             {
                 ...movVacio(expediente, defaultNotificarIds),
-                tipo:                       'requerimiento',
-                instruccion:                `Traslado al ${labelDado.toLowerCase()}: Debe apersonarse al proceso en el plazo indicado.`,
-                tipo_actor_responsable_id:  String(demandado?.tipo_actor_id ?? ''),
-                usuario_responsable_id:     String(demandado?.usuario?.id ?? ''),
-                dias_plazo:                 String(plazoApers),
-                habilitar_mesa_partes:          !!demandado?.id,
-                actores_mesa_partes_ids:        demandado?.id ? [demandado.id] : [],
-                enviar_credenciales_expediente: false,
-                actor_credenciales_exp_id:      '',
+                tipo:                            'notificacion',
+                instruccion:                     `Traslado de la solicitud al ${labelDado.toLowerCase()}: Se le notifica que ha sido emplazado en el presente proceso. Se le otorga acceso a Mesa de Partes para presentar escritos y recibir notificaciones.`,
+                tipo_actor_responsable_id:       String(demandado.tipo_actor_id ?? ''),
+                usuario_responsable_id:          String(demandado.usuario.id),
+                habilitar_mesa_partes:           true,
+                actores_mesa_partes_ids:         [demandado.id],
+                enviar_credenciales_expediente:  false,
+                actor_credenciales_exp_id:       '',
+            },
+            // 3. Requerimiento al demandado: APERSONAMIENTO con plazo
+            {
+                ...movVacio(expediente, defaultNotificarIds),
+                tipo:                            'requerimiento',
+                instruccion:                     `Requerimiento de apersonamiento: Se requiere al ${labelDado.toLowerCase()} apersonarse al presente proceso en el plazo indicado, designando árbitro y/o presentando contestación según corresponda.`,
+                tipo_actor_responsable_id:       String(demandado.tipo_actor_id ?? ''),
+                usuario_responsable_id:          String(demandado.usuario.id),
+                dias_plazo:                      String(plazoApers),
+                habilitar_mesa_partes:           false,
+                actores_mesa_partes_ids:         [],
+                enviar_credenciales_expediente:  false,
+                actor_credenciales_exp_id:       '',
             },
         ]);
-        setArchivos({ 0: [], 1: [] });
+        setArchivos({ 0: [], 1: [], 2: [] });
         setPaso('conforme');
         setErrores({});
     }
@@ -239,6 +275,41 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         e.preventDefault();
         formDemandado.post(route('expedientes.actores.store', expediente.id), {
             onSuccess: () => { formDemandado.reset(); setShowFormDemandado(false); },
+        });
+    }
+
+    // ── Edición de correo principal del actor ──
+    function abrirEditarEmailPrincipal(actor) {
+        formEmailPrincipal.setData('email', actor.usuario?.email ?? actor.email_externo ?? '');
+        setEditandoEmailActorId(actor.id);
+    }
+    function cerrarEditarEmailPrincipal() {
+        formEmailPrincipal.reset();
+        setEditandoEmailActorId(null);
+    }
+    function guardarEmailPrincipal(e, actorId) {
+        e.preventDefault();
+        formEmailPrincipal.put(route('expedientes.actores.email-principal.update', [expediente.id, actorId]), {
+            preserveScroll: true,
+            onSuccess: () => { cerrarEditarEmailPrincipal(); toast.success('Correo actualizado.'); },
+            onError: errs => toast.error(errs.email ?? 'No se pudo actualizar el correo.'),
+        });
+    }
+
+    // ── Validación manual del actor ──
+    function confirmarValidacion() {
+        if (!confirmarValidarActor) return;
+        router.post(route('expedientes.actores.validar', [expediente.id, confirmarValidarActor.id]), {}, {
+            preserveScroll: true,
+            onSuccess: () => { setConfirmarValidarActor(null); toast.success('Correo validado correctamente.'); },
+            onError: errs => toast.error(Object.values(errs)[0] ?? 'No se pudo validar el correo.'),
+        });
+    }
+    function revocarValidacion(actor) {
+        if (!confirm(`¿Revocar la validación del correo de ${actor.usuario?.name ?? actor.nombre_externo ?? 'este actor'}? Tendrá que volver a validarlo antes de declarar conforme.`)) return;
+        router.delete(route('expedientes.actores.invalidar', [expediente.id, actor.id]), {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Validación revocada.'),
         });
     }
 
@@ -350,19 +421,56 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const emailPrincipal = actor.usuario?.email ?? actor.email_externo ?? null;
         const adicionales = (actor.emails_adicionales ?? []).filter(e => e.activo !== false);
         const mostrando = emailFormActorId === actor.id;
+        const editandoEmail = editandoEmailActorId === actor.id;
+        const validado = !!actor.validado_por_gestor;
+        // La validación solo aplica a partes en disputa (demandante/demandado);
+        // los demás actores internos no la requieren para declarar conforme.
+        const requiereValidacion = ['demandante', 'demandado'].includes(actor.tipo_actor?.slug);
         return (
-            <div key={actor.id} className="bg-gray-50 rounded-xl border border-gray-100 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                    <div>
+            <div key={actor.id} className={`bg-gray-50 rounded-xl border p-3 space-y-2 ${requiereValidacion && !validado ? 'border-amber-300 bg-amber-50/30' : 'border-gray-100'}`}>
+                <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-[#291136]">{actor.usuario?.name ?? actor.nombre_externo ?? '—'}</p>
                         <p className="text-xs text-gray-400">{actor.tipo_actor?.nombre}</p>
+                        {requiereValidacion && (
+                            <span className={`inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                validado
+                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                                    : 'bg-amber-100 text-amber-700 border border-amber-300'
+                            }`}>
+                                {validado ? <ShieldCheck size={10}/> : <ShieldAlert size={10}/>}
+                                {validado ? 'Correo validado' : 'Sin validar'}
+                            </span>
+                        )}
                     </div>
                     {esGestor && (
-                        <button onClick={() => mostrando ? cerrarFormEmail() : abrirFormEmail(actor.id)}
-                            className={`p-1.5 rounded-lg transition-colors ${mostrando ? 'bg-[#BE0F4A]/10 text-[#BE0F4A]' : 'text-gray-300 hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/10'}`}
-                            title="Gestionar correos">
-                            <Mail size={14}/>
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                            {requiereValidacion && (
+                                validado ? (
+                                    <button onClick={() => revocarValidacion(actor)}
+                                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                        title="Revocar validación">
+                                        <ShieldAlert size={14}/>
+                                    </button>
+                                ) : (
+                                    <button onClick={() => setConfirmarValidarActor(actor)}
+                                        className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                        title="Validar correo">
+                                        <ShieldCheck size={14}/>
+                                    </button>
+                                )
+                            )}
+                            <button onClick={() => editandoEmail ? cerrarEditarEmailPrincipal() : abrirEditarEmailPrincipal(actor)}
+                                className={`p-1.5 rounded-lg transition-colors ${editandoEmail ? 'bg-[#291136]/10 text-[#291136]' : 'text-gray-300 hover:text-[#291136] hover:bg-[#291136]/10'}`}
+                                title="Corregir correo principal">
+                                <Pencil size={14}/>
+                            </button>
+                            <button onClick={() => mostrando ? cerrarFormEmail() : abrirFormEmail(actor.id)}
+                                className={`p-1.5 rounded-lg transition-colors ${mostrando ? 'bg-[#BE0F4A]/10 text-[#BE0F4A]' : 'text-gray-300 hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/10'}`}
+                                title="Gestionar correos adicionales">
+                                <Mail size={14}/>
+                            </button>
+                        </div>
                     )}
                 </div>
                 {/* Lista de emails */}
@@ -400,6 +508,31 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         </button>
                         <button type="button" onClick={cerrarFormEmail} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5">Cancelar</button>
                         {formEmail.errors.email && <p className="w-full text-[10px] text-red-500">{formEmail.errors.email}</p>}
+                    </form>
+                )}
+                {/* Form corregir correo principal inline */}
+                {editandoEmail && (
+                    <form onSubmit={e => guardarEmailPrincipal(e, actor.id)} className="pt-2 border-t border-dashed border-gray-200 space-y-2">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide">Corregir correo principal</label>
+                        <div className="flex flex-wrap gap-2 items-end">
+                            <input type="email" required
+                                value={formEmailPrincipal.data.email}
+                                onChange={e => formEmailPrincipal.setData('email', e.target.value)}
+                                placeholder="correo@ejemplo.com"
+                                className="flex-1 min-w-[180px] text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"/>
+                            <button type="submit" disabled={formEmailPrincipal.processing}
+                                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#291136] text-white hover:bg-[#3d1a52] disabled:opacity-50">
+                                {formEmailPrincipal.processing ? 'Guardando…' : 'Guardar'}
+                            </button>
+                            <button type="button" onClick={cerrarEditarEmailPrincipal}
+                                className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5">Cancelar</button>
+                        </div>
+                        {requiereValidacion && validado && (
+                            <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                Cambiar el correo invalidará la validación previa. Tendrá que volver a validarlo.
+                            </p>
+                        )}
+                        {formEmailPrincipal.errors.email && <p className="text-[10px] text-red-500">{formEmailPrincipal.errors.email}</p>}
                     </form>
                 )}
             </div>
@@ -456,7 +589,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     {formDemandado.errors.email_externo && <p className="text-xs text-red-500 mt-1">{formDemandado.errors.email_externo}</p>}
                                 </div>
                             </div>
-                            <p className="text-xs text-gray-400">Se creará una cuenta y se enviarán las credenciales automáticamente.</p>
+                            <p className="text-xs text-gray-400">Se registrará al {labelDado.toLowerCase()} con este correo. La cuenta de usuario se creará cuando valide el correo desde "Partes del Proceso".</p>
                             <div className="flex gap-2">
                                 <button type="submit" disabled={formDemandado.processing}
                                     className="px-4 py-2 text-xs font-bold bg-[#BE0F4A] text-white rounded-lg hover:bg-[#BE0F4A]/90 disabled:opacity-50">
@@ -478,25 +611,43 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         Revise los datos y declare si la solicitud es conforme o requiere subsanación.
                     </p>
 
-                    {paso === 'idle' && (
-                        <div className="flex gap-3">
-                            <button onClick={iniciarConforme}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
-                                <CheckCircle size={16}/> Declarar Conforme
-                            </button>
-                            <button onClick={iniciarNoConforme}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
-                                <XCircle size={16}/> Declarar No Conforme
-                            </button>
-                        </div>
-                    )}
+                    {paso === 'idle' && (() => {
+                        const demandadoActor = (expediente.actores ?? []).find(a => a.activo && a.tipo_actor?.slug === 'demandado');
+                        const puedeDeclarar = !!demandadoActor?.validado_por_gestor && !!demandadoActor?.usuario?.id;
+                        return (
+                            <div>
+                                <div className="flex gap-3 flex-wrap">
+                                    <button onClick={iniciarConforme}
+                                        disabled={!puedeDeclarar}
+                                        title={!puedeDeclarar ? `Primero valide el correo del ${labelDado.toLowerCase()} en "Partes del Proceso"` : ''}
+                                        className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg ${
+                                            puedeDeclarar
+                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        }`}>
+                                        <CheckCircle size={16}/> Declarar Conforme
+                                    </button>
+                                    <button onClick={iniciarNoConforme}
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
+                                        <XCircle size={16}/> Declarar No Conforme
+                                    </button>
+                                </div>
+                                {!puedeDeclarar && (
+                                    <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                                        <ShieldAlert size={14} className="shrink-0 mt-0.5"/>
+                                        <span>El correo del {labelDado.toLowerCase()} debe estar validado antes de declarar conforme. Use el botón de validación junto al actor en "Partes del Proceso".</span>
+                                    </p>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     {paso === 'conforme' && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
                                 <CheckCircle size={16} className="text-emerald-600 shrink-0"/>
                                 <p className="text-sm font-bold text-emerald-700">
-                                    Declarar solicitud como <strong>CONFORME</strong>. Se enviará email al demandado con credenciales de acceso.
+                                    Declarar solicitud como <strong>CONFORME</strong>. Se generarán 3 movimientos: notificación al {labelDem.toLowerCase()}, traslado al {labelDado.toLowerCase()} (con habilitación de Mesa de Partes) y requerimiento de apersonamiento.
                                 </p>
                             </div>
                             {panelMovimientosJSX('bg-emerald-600 hover:bg-emerald-700', 'conforme')}
@@ -547,6 +698,54 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 campo={campo}
                 inputField={inputField}
             />
+
+            {/* ── Modal de confirmación de validación de correo ── */}
+            {confirmarValidarActor && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setConfirmarValidarActor(null)}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-5 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                <ShieldCheck size={22} className="text-white"/>
+                            </div>
+                            <div>
+                                <h3 className="text-white font-black text-lg leading-tight">Validar correo del actor</h3>
+                                <p className="text-white/90 text-xs mt-0.5">Esta acción quedará registrada en el historial.</p>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-3 text-sm text-gray-700">
+                            <p>
+                                ¿Confirma que ha verificado por medios externos (llamada, oficio, búsqueda RUC, etc.) que el siguiente correo corresponde efectivamente al actor?
+                            </p>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
+                                <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">Actor</p>
+                                <p className="text-base font-bold text-[#291136]">
+                                    {confirmarValidarActor.usuario?.name ?? confirmarValidarActor.nombre_externo ?? '—'}
+                                </p>
+                                <p className="text-xs text-gray-500">{confirmarValidarActor.tipo_actor?.nombre}</p>
+                                <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mt-2">Correo a validar</p>
+                                <p className="text-base font-mono text-[#BE0F4A] break-all">
+                                    {confirmarValidarActor.usuario?.email ?? confirmarValidarActor.email_externo ?? '(sin correo)'}
+                                </p>
+                            </div>
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                                Una vez validado: se creará la cuenta interna del actor (si no existe), se marcará su correo como verificado y quedará habilitada la opción de declarar conforme.
+                            </p>
+                        </div>
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                            <button onClick={() => setConfirmarValidarActor(null)}
+                                className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-500 border border-gray-200 hover:bg-gray-100">
+                                Cancelar
+                            </button>
+                            <button onClick={confirmarValidacion}
+                                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700">
+                                <Check size={16}/> Confirmar validación
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

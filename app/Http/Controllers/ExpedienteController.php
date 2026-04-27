@@ -12,6 +12,7 @@ use App\Models\SolicitudArbitraje;
 use App\Models\SolicitudSubsanacion;
 use App\Models\TipoResolucionMovimiento;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorAceptacion;
 use App\Models\ExpedienteHistorial;
 use App\Models\User;
 use App\Services\GestorExpedienteService;
@@ -122,6 +123,16 @@ class ExpedienteController extends Controller
             );
             abort_unless($tieneAcceso, 403, 'No tiene acceso a este expediente.');
         }
+
+        // Inyectar flag validado_por_gestor en cada actor
+        $idsValidados = ExpedienteActorAceptacion::where('expediente_id', $expediente->id)
+            ->where('tipo', 'validado_por_gestor')
+            ->pluck('expediente_actor_id')
+            ->all();
+
+        $expediente->actores->each(function ($actor) use ($idsValidados) {
+            $actor->setAttribute('validado_por_gestor', in_array($actor->id, $idsValidados, true));
+        });
 
         $esGestor = $this->gestorService->esGestor($expediente, $user->id);
         // Puede designar responsables: rol con puede_designar_gestor O quien ya es responsable

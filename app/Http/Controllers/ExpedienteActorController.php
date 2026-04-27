@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorAceptacion;
 use App\Models\ExpedienteActorEmail;
 use App\Models\ExpedienteHistorial;
 use App\Models\User;
@@ -49,12 +50,23 @@ class ExpedienteActorController extends Controller
         $usuarioId = null;
         $credencialesEnviadas = false;
 
+        // Detectar si es un demandado (flujo con validación diferida del User)
+        $tipoActor = TipoActorExpediente::find($request->tipo_actor_id);
+        $esDemandado = $tipoActor?->slug === TipoActorExpediente::SLUG_DEMANDADO;
+
         if ($request->modo === 'interno') {
             $usuarioId = $request->usuario_id;
             // Usuario interno ya tiene credenciales del sistema
             $credencialesEnviadas = true;
+        } elseif ($esDemandado) {
+            // Demandado externo: NO crear User. El User se creará cuando el gestor
+            // valide el correo (vía endpoint validar()).
+            $usuarioId = null;
+            $credencialesEnviadas = false;
         } else {
-            // Modo externo: buscar o crear usuario
+            // Otros actores externos (Secretario Arbitral, Director, etc.): se crea
+            // User y se envían credenciales como hoy. El gestor los agrega con
+            // correos vetados.
             $userExterno = User::where('email', $request->email_externo)->first();
 
             if (!$userExterno) {
@@ -89,17 +101,31 @@ class ExpedienteActorController extends Controller
             $usuarioId = $userExterno->id;
         }
 
-        $actor = ExpedienteActor::updateOrCreate(
-            [
-                'expediente_id' => $expediente->id,
-                'tipo_actor_id' => $request->tipo_actor_id,
-                'usuario_id'    => $usuarioId,
-            ],
-            [
-                'activo'               => 1,
-                'credenciales_enviadas' => $credencialesEnviadas,
-            ]
-        );
+        // Para demandado externo sin User no podemos usar updateOrCreate por usuario_id,
+        // así que insertamos directo con email_externo/nombre_externo.
+        if ($esDemandado && $request->modo === 'externo') {
+            $actor = ExpedienteActor::create([
+                'expediente_id'         => $expediente->id,
+                'tipo_actor_id'         => $request->tipo_actor_id,
+                'usuario_id'            => null,
+                'nombre_externo'        => $request->nombre_externo,
+                'email_externo'         => $request->email_externo,
+                'activo'                => 1,
+                'credenciales_enviadas' => false,
+            ]);
+        } else {
+            $actor = ExpedienteActor::updateOrCreate(
+                [
+                    'expediente_id' => $expediente->id,
+                    'tipo_actor_id' => $request->tipo_actor_id,
+                    'usuario_id'    => $usuarioId,
+                ],
+                [
+                    'activo'               => 1,
+                    'credenciales_enviadas' => $credencialesEnviadas,
+                ]
+            );
+        }
 
         $nombre = $actor->usuario?->name ?? $request->nombre_externo ?? 'Actor';
         ExpedienteHistorial::create([
@@ -319,5 +345,181 @@ class ExpedienteActorController extends Controller
 
         abort_unless($esGestor || $puedeGestionar, 403,
             'No tiene permisos para gestionar actores en este expediente.');
+    }
+
+    /**
+     * Actualizar el correo principal de un actor del expediente.
+     * Maneja 4 casos según el estado del actor:
+     *   A  - Actor sin User: solo actualiza email_externo (NO crea User aún).
+     *   B  - Actor con User exclusivo de este expediente: actualiza users.email.
+     *   B' - Actor con User compartido en otros expedientes: crea User nuevo y re-apunta solo este actor.
+     *   C  - El email nuevo ya pertenece a otro User existente: re-apunta el actor a ese User.
+     * Si el actor estaba validado, la validación se invalida automáticamente.
+     */
+    public function actualizarEmailPrincipal(Request $request, Expediente $expediente, ExpedienteActor $actor)
+    {
+        $this->autorizarGestion($expediente);
+        abort_unless($actor->expediente_id === $expediente->id, 404);
+
+        $validated  = $request->validate(['email' => 'required|email|max:255']);
+        $emailNuevo = strtolower(trim($validated['email']));
+        $emailActual = strtolower($actor->usuario?->email ?? $actor->email_externo ?? '');
+
+        if ($emailActual === $emailNuevo) {
+            return back();
+        }
+
+        DB::transaction(function () use ($actor, $emailNuevo, $expediente, $request) {
+            if ($actor->usuario_id) {
+                $userExistente = User::where('email', $emailNuevo)->first();
+                $userActual    = $actor->usuario;
+                $usadoEnOtros  = ExpedienteActor::where('usuario_id', $userActual->id)
+                    ->where('id', '!=', $actor->id)
+                    ->exists();
+
+                if ($userExistente) {
+                    // Caso C: re-apuntar al User existente
+                    $actor->update([
+                        'usuario_id'     => $userExistente->id,
+                        'email_externo'  => null,
+                        'nombre_externo' => null,
+                    ]);
+                } elseif ($usadoEnOtros) {
+                    // Caso B': User compartido → crear nuevo, re-apuntar solo este actor
+                    $userNuevo = User::create([
+                        'name'     => $userActual->name,
+                        'email'    => $emailNuevo,
+                        'password' => Hash::make(Str::random(10)),
+                        'rol_id'   => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
+                        'activo'   => 1,
+                    ]);
+                    $actor->update([
+                        'usuario_id'     => $userNuevo->id,
+                        'email_externo'  => null,
+                        'nombre_externo' => null,
+                    ]);
+                } else {
+                    // Caso B: User exclusivo → actualizar su email
+                    $userActual->update([
+                        'email' => $emailNuevo,
+                        'email_verified_at' => null,
+                    ]);
+                }
+            } else {
+                // Caso A: actor sin User → solo actualizar email_externo (NO crear User aún)
+                $actor->update(['email_externo' => $emailNuevo]);
+            }
+
+            // Invalidar la validación previa (si existía)
+            ExpedienteActorAceptacion::where('expediente_actor_id', $actor->id)
+                ->where('tipo', 'validado_por_gestor')
+                ->delete();
+
+            ExpedienteHistorial::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id'    => auth()->id(),
+                'tipo_evento'   => 'correo_actor_actualizado',
+                'descripcion'   => "Se actualizó el correo del actor #{$actor->id} a {$emailNuevo}. Validación previa invalidada (si existía).",
+                'datos_extra'   => ['actor_id' => $actor->id, 'email_nuevo' => $emailNuevo],
+                'created_at'    => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Correo actualizado correctamente.');
+    }
+
+    /**
+     * Validar manualmente el correo de un actor.
+     * Crea o linkea el User aplicando los 4 paradigmas + setea email_verified_at +
+     * registra fila en expediente_actor_aceptaciones con tipo validado_por_gestor.
+     */
+    public function validar(Request $request, Expediente $expediente, ExpedienteActor $actor)
+    {
+        $this->autorizarGestion($expediente);
+        abort_unless($actor->expediente_id === $expediente->id, 404);
+
+        $emailActual = strtolower($actor->usuario?->email ?? $actor->email_externo ?? '');
+        abort_if($emailActual === '', 422, 'El actor no tiene correo. Asígnele uno antes de validar.');
+
+        DB::transaction(function () use ($actor, $emailActual, $expediente, $request) {
+            if (!$actor->usuario_id) {
+                $userExistente = User::where('email', $emailActual)->first();
+                if ($userExistente) {
+                    $actor->update([
+                        'usuario_id'     => $userExistente->id,
+                        'email_externo'  => null,
+                        'nombre_externo' => null,
+                    ]);
+                    $userExistente->forceFill(['email_verified_at' => now()])->save();
+                } else {
+                    $userNuevo = User::create([
+                        'name'              => $actor->nombre_externo ?: 'Sin nombre',
+                        'email'             => $emailActual,
+                        'password'          => Hash::make(Str::random(10)),
+                        'rol_id'            => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
+                        'activo'            => 1,
+                        'email_verified_at' => now(),
+                    ]);
+                    $actor->update([
+                        'usuario_id'     => $userNuevo->id,
+                        'email_externo'  => null,
+                        'nombre_externo' => null,
+                    ]);
+                }
+            } else {
+                // Actor ya tiene User: solo marcar verificado
+                $actor->usuario->forceFill(['email_verified_at' => now()])->save();
+            }
+
+            ExpedienteActorAceptacion::firstOrCreate(
+                [
+                    'expediente_actor_id' => $actor->id,
+                    'expediente_id'       => $expediente->id,
+                    'tipo'                => 'validado_por_gestor',
+                ],
+                [
+                    'ip_address'           => $request->ip(),
+                    'user_agent'           => $request->userAgent(),
+                    'portal_email'         => $emailActual,
+                    'validado_por_user_id' => auth()->id(),
+                    'created_at'           => now(),
+                ]
+            );
+
+            ExpedienteHistorial::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id'    => auth()->id(),
+                'tipo_evento'   => 'actor_validado_por_gestor',
+                'descripcion'   => "El gestor validó el correo {$emailActual} del actor #{$actor->id}.",
+                'datos_extra'   => ['actor_id' => $actor->id, 'email' => $emailActual],
+                'created_at'    => now(),
+            ]);
+        });
+
+        return back()->with('success', 'Correo validado correctamente.');
+    }
+
+    /**
+     * Revocar la validación previa de un actor.
+     */
+    public function invalidar(Request $request, Expediente $expediente, ExpedienteActor $actor)
+    {
+        $this->autorizarGestion($expediente);
+        abort_unless($actor->expediente_id === $expediente->id, 404);
+
+        ExpedienteActorAceptacion::where('expediente_actor_id', $actor->id)
+            ->where('tipo', 'validado_por_gestor')
+            ->delete();
+
+        ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => auth()->id(),
+            'tipo_evento'   => 'actor_invalidado_por_gestor',
+            'descripcion'   => "El gestor revocó la validación del actor #{$actor->id}.",
+            'datos_extra'   => ['actor_id' => $actor->id],
+            'created_at'    => now(),
+        ]);
+
+        return back()->with('success', 'Validación revocada.');
     }
 }

@@ -122,6 +122,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/expedientes/{expediente}/actores/{actor}/emails/{emailId}', [ExpedienteActorController::class, 'destroyEmail'])->name('expedientes.actores.emails.destroy');
     Route::patch('/expedientes/{expediente}/actores/{actor}/acceso', [ExpedienteActorController::class, 'toggleAcceso'])->name('expedientes.actores.acceso');
 
+    // Corrección de correo principal del actor + validación manual del gestor
+    Route::put('/expedientes/{expediente}/actores/{actor}/email-principal', [ExpedienteActorController::class, 'actualizarEmailPrincipal'])->name('expedientes.actores.email-principal.update');
+    Route::post('/expedientes/{expediente}/actores/{actor}/validar', [ExpedienteActorController::class, 'validar'])->name('expedientes.actores.validar');
+    Route::delete('/expedientes/{expediente}/actores/{actor}/validar', [ExpedienteActorController::class, 'invalidar'])->name('expedientes.actores.invalidar');
+
     // Estado del expediente
     Route::post('/expedientes/{expediente}/suspender', [ExpedienteEstadoController::class, 'suspender'])->name('expedientes.suspender');
     Route::post('/expedientes/{expediente}/reactivar', [ExpedienteEstadoController::class, 'reactivar'])->name('expedientes.reactivar');

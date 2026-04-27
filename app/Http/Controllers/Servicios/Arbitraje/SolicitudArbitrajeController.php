@@ -7,6 +7,7 @@ use App\Support\FileRules;
 use App\Models\SolicitudArbitraje;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorAceptacion;
 use App\Models\ExpedienteActorEmail;
 use App\Models\TipoActorExpediente;
 use App\Models\ServicioTipoActor;
@@ -207,7 +208,7 @@ class SolicitudArbitrajeController extends Controller
             // credenciales_enviadas = true porque recibirá el cargo con su contraseña por correo
             $tipoActorDemandante = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDANTE)->first();
             if ($tipoActorDemandante) {
-                ExpedienteActor::create([
+                $actorDemandante = ExpedienteActor::create([
                     'expediente_id'         => $expediente->id,
                     'usuario_id'            => $userId,
                     'tipo_actor_id'         => $tipoActorDemandante->id,
@@ -215,10 +216,27 @@ class SolicitudArbitrajeController extends Controller
                     'credenciales_enviadas' => true,
                     'acceso_mesa_partes'    => 1,
                 ]);
+
+                // Auto-validar el correo del demandante: él mismo se autenticó por OTP
+                // o ya estaba autenticado en el sistema, lo que implica que controla el correo.
+                $emailDemandante = User::where('id', $userId)->value('email');
+                User::where('id', $userId)->update(['email_verified_at' => now()]);
+                ExpedienteActorAceptacion::create([
+                    'expediente_actor_id'  => $actorDemandante->id,
+                    'expediente_id'        => $expediente->id,
+                    'tipo'                 => 'validado_por_gestor',
+                    'ip_address'           => $request->ip(),
+                    'user_agent'           => $request->userAgent(),
+                    'portal_email'         => $emailDemandante,
+                    'validado_por_user_id' => $userId,
+                    'created_at'           => now(),
+                ]);
             }
 
-            // 5b. Demandado (se crea cuenta si no existe)
-            // Si email_demandado está vacío pero hay correos en emails_demandado, usar el primero como principal
+            // 5b. Demandado: NO se crea User al presentar la solicitud.
+            // Solo se guarda nombre_externo + email_externo. El User se crea
+            // únicamente cuando el gestor valida el correo (vía endpoint
+            // ExpedienteActorController::validar).
             $tipoActorDemandado  = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDADO)->first();
             $emailsDemandadoArr  = json_decode($request->input('emails_demandado', '[]'), true) ?? [];
             $emailPrincipalDado  = trim($request->email_demandado ?? '');
@@ -227,29 +245,13 @@ class SolicitudArbitrajeController extends Controller
             }
 
             if ($tipoActorDemandado) {
-                $userDemandado = null;
-                if ($emailPrincipalDado) {
-                    $userDemandado = User::where('email', $emailPrincipalDado)->first();
-                    if (!$userDemandado) {
-                        $userDemandado = User::create([
-                            'name'      => $request->nombre_demandado,
-                            'email'     => $emailPrincipalDado,
-                            'password'  => Hash::make(Str::random(10)),
-                            'rol_id'    => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
-                            'direccion' => $request->domicilio_demandado,
-                            'telefono'  => $request->telefono_demandado,
-                            'activo'    => 1,
-                        ]);
-                    }
-                }
-
                 ExpedienteActor::create([
-                    'expediente_id'        => $expediente->id,
-                    'usuario_id'           => $userDemandado?->id,
-                    'tipo_actor_id'        => $tipoActorDemandado->id,
-                    'nombre_externo'       => $userDemandado ? null : $request->nombre_demandado,
-                    'email_externo'        => $userDemandado ? null : ($emailPrincipalDado ?: null),
-                    'activo'               => 1,
+                    'expediente_id'         => $expediente->id,
+                    'usuario_id'            => null,
+                    'tipo_actor_id'         => $tipoActorDemandado->id,
+                    'nombre_externo'        => $request->nombre_demandado,
+                    'email_externo'         => $emailPrincipalDado ?: null,
+                    'activo'                => 1,
                     'credenciales_enviadas' => false,
                 ]);
             }
