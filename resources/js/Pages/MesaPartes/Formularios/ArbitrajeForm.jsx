@@ -284,7 +284,7 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
 }
 
 /* ─── Panel Consorcio: orden empresas → representante → contrato ─── */
-function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange, representante, onRepresentanteChange, docContrato, onDocContratoChange }) {
+function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange, representante, onRepresentanteChange, docContrato, onDocContratoChange, errores = {} }) {
     const [cargandoRep, setCargandoRep] = useState(false);
     const [bloqueadoRep, setBloqueadoRep] = useState(false);
     const timerRepRef = useRef();
@@ -339,7 +339,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
         <div className="mt-4 space-y-5 bg-gray-50 rounded-xl border border-gray-200 p-4">
 
             {/* 1. Empresas del consorcio */}
-            <div>
+            <div className={errores.empresas ? 'rounded-lg ring-2 ring-red-400 ring-offset-2 ring-offset-gray-50 p-2 -m-2' : ''}>
                 <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-[#291136] uppercase tracking-wide opacity-70">
                         Empresas que forman el consorcio <span className="text-[#BE0F4A]">*</span>
@@ -350,7 +350,9 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
                     </button>
                 </div>
                 {empresas.length === 0 && (
-                    <p className="text-xs text-gray-400 italic">Agregue al menos una empresa del consorcio.</p>
+                    <p className={`text-xs italic ${errores.empresas ? 'text-red-500 font-semibold' : 'text-gray-400'}`}>
+                        {errores.empresas || 'Agregue al menos una empresa del consorcio.'}
+                    </p>
                 )}
                 <div className="space-y-2">
                     {empresas.map((emp, idx) => (
@@ -374,6 +376,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
                                 onChange={e => onDniRepChange(e.target.value)}
                                 maxLength={8} placeholder="12345678"
                                 className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 ${
+                                    errores.repDni ? 'border-red-400 bg-red-50' :
                                     representante.dni?.length === 8 && bloqueadoRep ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
                                 }`} />
                             <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -387,6 +390,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
                         {bloqueadoRep && (
                             <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> Verificado vía RENIEC</p>
                         )}
+                        {errores.repDni && <p className="text-xs text-red-500 mt-1 font-semibold">{errores.repDni}</p>}
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Nombre <span className="text-[#BE0F4A]">*</span></label>
@@ -394,40 +398,24 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
                             onChange={e => onRepresentanteChange({ nombre: e.target.value })}
                             disabled={bloqueadoRep}
                             placeholder="Nombre completo"
-                            className={`w-full text-sm border rounded-xl px-3 py-2.5 ${bloqueadoRep ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'}`} />
+                            className={`w-full text-sm border rounded-xl px-3 py-2.5 ${
+                                errores.repNombre ? 'border-red-400 bg-red-50' :
+                                bloqueadoRep ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'
+                            }`} />
+                        {errores.repNombre && <p className="text-xs text-red-500 mt-1 font-semibold">{errores.repNombre}</p>}
                     </div>
                 </div>
 
-                {/* Email del representante */}
-                {esDemandante ? (
-                    portalEmail ? (
-                        <div className="mt-3">
-                            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Correo del Representante</label>
-                            <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-4 py-2.5 text-sm text-emerald-800 font-medium">
-                                <CheckCircle2 size={14} className="text-emerald-600 shrink-0"/>
-                                {portalEmail}
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no puede modificarse</p>
-                        </div>
-                    ) : null
-                ) : (
-                    <div className="mt-3">
-                        <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                            Correo del Representante <span className="text-[#BE0F4A]">*</span>
-                        </label>
-                        <input type="email" value={representante.email ?? ''}
-                            onChange={e => onRepresentanteChange({ email: e.target.value })}
-                            placeholder="correo@empresa.com"
-                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5" />
-                    </div>
-                )}
             </div>
 
             {/* 3. Contrato notariado de consorcio */}
             <MultiArchivoInput
-                label="Contrato notariado de consorcio *"
+                label={esDemandante ? "Contrato notariado de consorcio *" : "Contrato notariado de consorcio (opcional)"}
                 value={docContrato}
                 onChange={onDocContratoChange} />
+            {!esDemandante && (
+                <p className="text-xs text-gray-500 -mt-2">Adjunte solo si cuenta con el documento del demandado.</p>
+            )}
         </div>
     );
 }
@@ -536,12 +524,13 @@ function BloquePersona({
 
                 {/* Sub-tipo jurídico */}
                 {tipoPersona === 'juridica' && (
-                    <div>
+                    <div className={errors?.subtipo ? 'rounded-xl ring-2 ring-red-300 ring-offset-2 ring-offset-white p-2 -m-2' : ''}>
                         <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
                             Tipo de persona jurídica <span className="text-[#BE0F4A]">*</span>
                         </label>
                         <CustomSelect value={subtipoJuridico || ''} onChange={onSubtipoChange}
                             options={SUBTIPOS_JURIDICA} placeholder="Seleccione..." />
+                        {errors?.subtipo && <p className="text-xs text-red-500 mt-1.5 font-semibold">{errors.subtipo}</p>}
                     </div>
                 )}
 
@@ -622,13 +611,15 @@ function BloquePersona({
                     </>
                 )}
 
-                {/* Domicilio — siempre visible */}
-                <Input label="Domicilio de notificación" required type="text"
-                    value={campos.domicilio ?? ''}
-                    onChange={e => setCampos({ domicilio: e.target.value })}
-                    disabled={domicilioLocked}
-                    placeholder="Dirección completa"
-                    error={errors?.domicilio} />
+                {/* Domicilio — para consorcio se renderiza al final, después del PanelConsorcio */}
+                {!esConsorcio && (
+                    <Input label="Domicilio de notificación" required type="text"
+                        value={campos.domicilio ?? ''}
+                        onChange={e => setCampos({ domicilio: e.target.value })}
+                        disabled={domicilioLocked}
+                        placeholder="Dirección completa"
+                        error={errors?.domicilio} />
+                )}
 
                 {/* ── Paneles según sub-tipo jurídico ── */}
 
@@ -637,12 +628,17 @@ function BloquePersona({
                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
                         <div className="flex items-center gap-2 text-sm text-blue-800 font-semibold">
                             <Building2 size={15} className="shrink-0"/>
-                            Documento requerido: <span className="font-bold">Vigencia de Poder</span>
+                            {esDemandante
+                                ? <>Documento requerido: <span className="font-bold">Vigencia de Poder</span></>
+                                : <>Documento del demandado: <span className="font-bold">Vigencia de Poder (opcional)</span></>}
                         </div>
                         <MultiArchivoInput
-                            label="Adjuntar Vigencia de Poder *"
+                            label={esDemandante ? "Adjuntar Vigencia de Poder *" : "Adjuntar Vigencia de Poder"}
                             value={docVigenciaPoder}
                             onChange={onDocVigenciaPoderChange} />
+                        {!esDemandante && (
+                            <p className="text-xs text-blue-700/70">Adjunte solo si cuenta con el documento del demandado.</p>
+                        )}
                     </div>
                 )}
 
@@ -657,6 +653,11 @@ function BloquePersona({
                         onRepresentanteChange={onRepresentanteConsorcioChange}
                         docContrato={docContratoConsorcio}
                         onDocContratoChange={onDocContratoConsorcioChange}
+                        errores={{
+                            empresas:  errors?.empresas,
+                            repDni:    errors?.repDni,
+                            repNombre: errors?.repNombre,
+                        }}
                     />
                 )}
 
@@ -665,13 +666,28 @@ function BloquePersona({
                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
                         <div className="flex items-center gap-2 text-sm text-blue-800 font-semibold">
                             <Building2 size={15} className="shrink-0"/>
-                            Documento requerido: <span className="font-bold">Resolución de facultades del funcionario a cargo</span>
+                            {esDemandante
+                                ? <>Documento requerido: <span className="font-bold">Resolución de facultades del funcionario a cargo</span></>
+                                : <>Documento del demandado: <span className="font-bold">Resolución de facultades (opcional)</span></>}
                         </div>
                         <MultiArchivoInput
-                            label="Adjuntar Resolución de Facultades *"
+                            label={esDemandante ? "Adjuntar Resolución de Facultades *" : "Adjuntar Resolución de Facultades"}
                             value={docResolucionFacultades}
                             onChange={onDocResolucionFacultadesChange} />
+                        {!esDemandante && (
+                            <p className="text-xs text-blue-700/70">Adjunte solo si cuenta con el documento del demandado.</p>
+                        )}
                     </div>
+                )}
+
+                {/* Domicilio al final del bloque cuando es consorcio */}
+                {esConsorcio && (
+                    <Input label="Domicilio de notificación" required type="text"
+                        value={campos.domicilio ?? ''}
+                        onChange={e => setCampos({ domicilio: e.target.value })}
+                        disabled={domicilioLocked}
+                        placeholder="Dirección completa"
+                        error={errors?.domicilio} />
                 )}
 
             </div>
@@ -693,6 +709,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
     const [confirm, setConfirm]             = useState(false);
     const [mostrarLoader, setMostrarLoader] = useState(false);
     const [errorValidacion, setErrorValidacion] = useState('');
+    // Modal de campos faltantes (estilo SweetAlert)
+    const [missingFields, setMissingFields]     = useState({});
+    const [showErrorModal, setShowErrorModal]   = useState(false);
     // Controla si los datos del demandante están bloqueados (pre-cargados del usuario autenticado)
     const [demandanteBloqueado, setDemandanteBloqueado] = useState(isAuth || isPortal);
     const emailInicial = isPortal ? portalEmail : (isAuth ? user?.email : '');
@@ -710,7 +729,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
 
     // Representante de consorcio
     const [repConsorcioDem,  setRepConsorcioDem]  = useState({ dni: '', nombre: '' });
-    const [repConsorcioDado, setRepConsorcioDado] = useState({ dni: '', nombre: '', email: '' });
+    const [repConsorcioDado, setRepConsorcioDado] = useState({ dni: '', nombre: '' });
 
     // Documentos de sub-tipo jurídico
     const [docVigenciaPoderDem,         setDocVigenciaPoderDem]         = useState([]);
@@ -811,75 +830,134 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
     }, [servicio.id]);
 
     function mostrarError(msg) {
-        setErrorValidacion(msg);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Compatibilidad con llamadas de un solo string: lo muestra como modal con un campo virtual.
+        const lista = Array.isArray(msg) ? msg : [msg];
+        const map = {};
+        lista.forEach((m, i) => { map[`__general_${i}`] = m; });
+        setMissingFields(map);
+        setShowErrorModal(true);
     }
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!aceptoLegal) { setModalLegal(true); return; }
 
+        const missing = {};
+
         // Campos obligatorios básicos
-        const camposObligatorios = [
-            [data.resumen_controversia, 'Resumen de la controversia'],
-            [data.pretensiones,         'Pretensiones'],
-        ];
-        // Demandante: solo si no es consorcio
+        if (!data.resumen_controversia?.toString().trim()) missing.resumen_controversia = 'Campo obligatorio';
+        if (!data.pretensiones?.toString().trim())         missing.pretensiones         = 'Campo obligatorio';
+
+        // Demandante: solo si no es consorcio (en consorcio se usan los datos del rep)
         if (data.tipo_persona !== 'juridica' || subtipoJuridicoDem !== 'consorcio') {
-            camposObligatorios.push([data.nombre_demandante,    'Nombre del demandante']);
-            camposObligatorios.push([data.documento_demandante, 'Documento del demandante']);
-        }
-        for (const [val, label] of camposObligatorios) {
-            if (!val?.toString().trim()) {
-                mostrarError(`"${label}" es obligatorio`);
-                return;
+            if (!data.nombre_demandante?.toString().trim())    missing.nombre_demandante    = 'Campo obligatorio';
+            if (!data.documento_demandante?.toString().trim()) missing.documento_demandante = 'Campo obligatorio';
+            const lon = LONG_DOC[data.tipo_documento];
+            if (lon && data.documento_demandante && data.documento_demandante.length !== lon) {
+                missing.documento_demandante = `Debe tener ${lon} dígitos`;
             }
         }
+        if (!data.domicilio_demandante?.toString().trim()) missing.domicilio_demandante = 'Campo obligatorio';
+        if (!data.telefono_demandante?.toString().trim())  missing.telefono_demandante  = 'Campo obligatorio';
 
         // Sub-tipo jurídico demandante
         if (data.tipo_persona === 'juridica') {
-            if (!subtipoJuridicoDem) {
-                mostrarError('Seleccione el tipo de persona jurídica del demandante');
-                return;
-            }
+            if (!subtipoJuridicoDem) missing.subtipo_juridico_demandante = 'Seleccione el tipo';
             if (subtipoJuridicoDem === 'consorcio') {
-                if (empresasConsorcioDem.length === 0) { mostrarError('Agregue al menos una empresa del consorcio (demandante)'); return; }
-                if (!repConsorcioDem.dni || repConsorcioDem.dni.length !== 8) { mostrarError('Ingrese el DNI del representante del consorcio (demandante)'); return; }
-                if (!repConsorcioDem.nombre?.trim()) { mostrarError('Ingrese el nombre del representante del consorcio (demandante)'); return; }
+                if (empresasConsorcioDem.length === 0) missing.empresas_consorcio_demandante = 'Agregue al menos una empresa';
+                if (!repConsorcioDem.dni || repConsorcioDem.dni.length !== 8) missing.rep_consorcio_demandante_dni = 'DNI obligatorio (8 dígitos)';
+                if (!repConsorcioDem.nombre?.trim()) missing.rep_consorcio_demandante_nombre = 'Nombre obligatorio';
             }
         }
 
+        // Demandado básico
+        if (!data.nombre_demandado?.toString().trim())    missing.nombre_demandado    = 'Campo obligatorio';
+        if (!data.domicilio_demandado?.toString().trim()) missing.domicilio_demandado = 'Campo obligatorio';
+
         // Sub-tipo jurídico demandado
         if (data.tipo_persona_demandado === 'juridica') {
-            if (!subtipoJuridicoDado) { mostrarError('Seleccione el tipo de persona jurídica del demandado'); return; }
+            if (!subtipoJuridicoDado) missing.subtipo_juridico_demandado = 'Seleccione el tipo';
             if (subtipoJuridicoDado === 'consorcio') {
-                if (empresasConsorcioDado.length === 0) { mostrarError('Agregue al menos una empresa del consorcio (demandado)'); return; }
-                if (!repConsorcioDado.dni || repConsorcioDado.dni.length !== 8) { mostrarError('Ingrese el DNI del representante del consorcio (demandado)'); return; }
-                if (!repConsorcioDado.nombre?.trim()) { mostrarError('Ingrese el nombre del representante del consorcio (demandado)'); return; }
-                if (!repConsorcioDado.email?.trim()) { mostrarError('Ingrese el correo del representante del consorcio (demandado)'); return; }
+                if (empresasConsorcioDado.length === 0) missing.empresas_consorcio_demandado = 'Agregue al menos una empresa';
+                if (!repConsorcioDado.dni || repConsorcioDado.dni.length !== 8) missing.rep_consorcio_demandado_dni = 'DNI obligatorio (8 dígitos)';
+                if (!repConsorcioDado.nombre?.trim()) missing.rep_consorcio_demandado_nombre = 'Nombre obligatorio';
+                if (!data.email_demandado?.trim()) missing.email_demandado = 'Email del representante del consorcio';
             }
         }
 
         // Reglamento CARD
         if (data.solicita_designacion_director === 1 && !data.acepta_reglamento_card) {
-            mostrarError('Debe aceptar el reglamento del CARD ANKAWA INT para continuar');
+            missing.acepta_reglamento_card = 'Debe aceptar el reglamento';
+        }
+
+        // Email principal del demandante
+        const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
+        if (!emailPrincipal) missing.emails_demandante = 'Ingrese al menos un correo';
+
+        if (Object.keys(missing).length > 0) {
+            setMissingFields(missing);
+            setShowErrorModal(true);
             return;
         }
 
-        const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
-        if (!emailPrincipal) { mostrarError('Ingresa al menos un correo electrónico del demandante'); return; }
-
-        if (data.tipo_persona !== 'juridica' || subtipoJuridicoDem !== 'consorcio') {
-            const lon = LONG_DOC[data.tipo_documento];
-            if (lon && data.documento_demandante.length !== lon) {
-                mostrarError(`Documento del demandante debe tener ${lon} dígitos`);
-                return;
-            }
-        }
-
+        setMissingFields({});
         setErrorValidacion('');
         setConfirm(true);
     };
+
+    // Mapa de claves internas → etiquetas legibles para el modal
+    const FIELD_LABELS = {
+        resumen_controversia:               'Resumen de la controversia',
+        pretensiones:                       'Pretensiones',
+        nombre_demandante:                  'Nombre del demandante',
+        documento_demandante:               'Documento del demandante',
+        domicilio_demandante:               'Domicilio del demandante',
+        telefono_demandante:                'Teléfono del demandante',
+        emails_demandante:                  'Correo del demandante',
+        subtipo_juridico_demandante:        'Tipo de persona jurídica del demandante',
+        empresas_consorcio_demandante:      'Empresas del consorcio (demandante)',
+        rep_consorcio_demandante_dni:       'DNI del representante del consorcio (demandante)',
+        rep_consorcio_demandante_nombre:    'Nombre del representante del consorcio (demandante)',
+        nombre_demandado:                   'Nombre del demandado',
+        domicilio_demandado:                'Domicilio del demandado',
+        email_demandado:                    'Correo electrónico del demandado',
+        subtipo_juridico_demandado:         'Tipo de persona jurídica del demandado',
+        empresas_consorcio_demandado:       'Empresas del consorcio (demandado)',
+        rep_consorcio_demandado_dni:        'DNI del representante del consorcio (demandado)',
+        rep_consorcio_demandado_nombre:     'Nombre del representante del consorcio (demandado)',
+        acepta_reglamento_card:             'Aceptación del reglamento del CARD ANKAWA INT',
+    };
+
+    // Auto-limpiar la marca de un campo cuando el usuario empieza a llenarlo
+    useEffect(() => {
+        if (Object.keys(missingFields).length === 0) return;
+        const filled = {};
+        if (data.resumen_controversia?.trim()) filled.resumen_controversia = true;
+        if (data.pretensiones?.trim())         filled.pretensiones         = true;
+        if (data.nombre_demandante?.trim())    filled.nombre_demandante    = true;
+        if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
+        if (data.domicilio_demandante?.trim()) filled.domicilio_demandante = true;
+        if (data.telefono_demandante?.trim())  filled.telefono_demandante  = true;
+        if (data.nombre_demandado?.trim())     filled.nombre_demandado     = true;
+        if (data.domicilio_demandado?.trim())  filled.domicilio_demandado  = true;
+        if (data.email_demandado?.trim())      filled.email_demandado      = true;
+        if (subtipoJuridicoDem)                filled.subtipo_juridico_demandante = true;
+        if (subtipoJuridicoDado)               filled.subtipo_juridico_demandado  = true;
+        if (empresasConsorcioDem.length > 0)   filled.empresas_consorcio_demandante = true;
+        if (empresasConsorcioDado.length > 0)  filled.empresas_consorcio_demandado  = true;
+        if (repConsorcioDem.dni?.length === 8) filled.rep_consorcio_demandante_dni = true;
+        if (repConsorcioDem.nombre?.trim())    filled.rep_consorcio_demandante_nombre = true;
+        if (repConsorcioDado.dni?.length === 8) filled.rep_consorcio_demandado_dni = true;
+        if (repConsorcioDado.nombre?.trim())    filled.rep_consorcio_demandado_nombre = true;
+        if (data.acepta_reglamento_card)       filled.acepta_reglamento_card = true;
+        if (emailsDem.some(e => e.email?.trim())) filled.emails_demandante = true;
+        const next = { ...missingFields };
+        let cambios = false;
+        Object.keys(filled).forEach(k => {
+            if (next[k]) { delete next[k]; cambios = true; }
+        });
+        if (cambios) setMissingFields(next);
+    }, [data, subtipoJuridicoDem, subtipoJuridicoDado, empresasConsorcioDem, empresasConsorcioDado, repConsorcioDem, repConsorcioDado, emailsDem]);
 
     const enviarFormulario = () => {
         setConfirm(false);
@@ -929,7 +1007,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
             subtipoJuridicoDado === 'consorcio' ? (repConsorcioDado.nombre ?? '') : (data.nombre_representante_dem ?? ''));
         fd.append('documento_representante_demandado',
             subtipoJuridicoDado === 'consorcio' ? (repConsorcioDado.dni ?? '') : (data.documento_representante_dem ?? ''));
-        fd.append('email_representante_consorcio_demandado', repConsorcioDado.email ?? '');
 
         // Archivos de sub-tipo jurídico
         const gruposArchivos = {
@@ -1054,7 +1131,15 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                     documento_representante: data.documento_representante,
                 }}
                 setCampos={setCamposDem}
-                errors={{ documento: errors.documento_demandante, nombre: errors.nombre_demandante, domicilio: errors.domicilio_demandante }}
+                errors={{
+                    documento: errors.documento_demandante || missingFields.documento_demandante,
+                    nombre:    errors.nombre_demandante    || missingFields.nombre_demandante,
+                    domicilio: errors.domicilio_demandante || missingFields.domicilio_demandante,
+                    subtipo:   missingFields.subtipo_juridico_demandante,
+                    empresas:  missingFields.empresas_consorcio_demandante,
+                    repDni:    missingFields.rep_consorcio_demandante_dni,
+                    repNombre: missingFields.rep_consorcio_demandante_nombre,
+                }}
                 bloquearTipoPersona={demandanteBloqueado}
                 conRepresentante={true}
                 esDemandante={true}
@@ -1095,14 +1180,15 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                                 onChange={setEmailsDem}
                                 required
                                 placeholder="correo@ejemplo.com"
-                                error={errors.email_demandante}
+                                error={errors.email_demandante || missingFields.emails_demandante}
                             />
                         )}
                     </div>
                 </div>
                 <Input id="telefono_demandante" label="Teléfono" required type="text"
                     value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
-                    disabled={isAuth || (isPortal && !!user?.telefono)} placeholder="987654321" error={errors.telefono_demandante} />
+                    disabled={isAuth || (isPortal && !!user?.telefono)} placeholder="987654321"
+                    error={errors.telefono_demandante || missingFields.telefono_demandante} />
             </div>
 
             {/* Bloque Demandado */}
@@ -1118,7 +1204,15 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                     documento_representante: data.documento_representante_dem,
                 }}
                 setCampos={setCamposDado}
-                errors={{ documento: errors.documento_demandado, nombre: errors.nombre_demandado, domicilio: errors.domicilio_demandado }}
+                errors={{
+                    documento: errors.documento_demandado,
+                    nombre:    errors.nombre_demandado    || missingFields.nombre_demandado,
+                    domicilio: errors.domicilio_demandado || missingFields.domicilio_demandado,
+                    subtipo:   missingFields.subtipo_juridico_demandado,
+                    empresas:  missingFields.empresas_consorcio_demandado,
+                    repDni:    missingFields.rep_consorcio_demandado_dni,
+                    repNombre: missingFields.rep_consorcio_demandado_nombre,
+                }}
                 bloquearTipoPersona={false}
                 conRepresentante={false}
                 esDemandante={false}
@@ -1142,7 +1236,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <Input label="Correo electrónico del demandado" type="email"
                         value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
-                        placeholder="correo@ejemplo.com" error={errors.email_demandado} />
+                        placeholder="correo@ejemplo.com"
+                        error={errors.email_demandado || missingFields.email_demandado} />
                     <Input label="Teléfono del demandado" type="text"
                         value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
                         placeholder="987654321" error={errors.telefono_demandado} />
@@ -1161,11 +1256,11 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 <Textarea id="resumen_controversia" label="Resumen de la controversia" required
                     value={data.resumen_controversia} onChange={e => setData('resumen_controversia', e.target.value)}
                     placeholder="Describa brevemente los hechos y el origen del conflicto..." rows={4}
-                    error={errors.resumen_controversia} />
+                    error={errors.resumen_controversia || missingFields.resumen_controversia} />
                 <Textarea id="pretensiones" label="Pretensiones" required
                     value={data.pretensiones} onChange={e => setData('pretensiones', e.target.value)}
                     placeholder="Indique qué solicita al tribunal arbitral..." rows={4}
-                    error={errors.pretensiones} />
+                    error={errors.pretensiones || missingFields.pretensiones} />
                 <Input label="Monto involucrado (S/)" type="number" min="0" step="0.01"
                     value={data.monto_involucrado} onChange={e => setData('monto_involucrado', e.target.value)}
                     placeholder="Ej: 50000.00" error={errors.monto_involucrado} />
@@ -1189,7 +1284,11 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 </div>
 
                 {data.solicita_designacion_director === 1 && (
-                    <div className="mt-4 space-y-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div className={`mt-4 space-y-4 rounded-xl p-4 ${
+                        missingFields.acepta_reglamento_card
+                            ? 'bg-red-50 border-2 border-red-400 ring-4 ring-red-100'
+                            : 'bg-amber-50 border border-amber-200'
+                    }`}>
                         <label className="flex items-start gap-3 cursor-pointer">
                             <input type="checkbox"
                                 checked={data.acepta_reglamento_card}
@@ -1200,6 +1299,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                                 <span className="text-[#BE0F4A] ml-1">*</span>
                             </span>
                         </label>
+                        {missingFields.acepta_reglamento_card && (
+                            <p className="text-xs font-semibold text-red-600 -mt-2 ml-7">{missingFields.acepta_reglamento_card}</p>
+                        )}
                         <div>
                             <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
                                 Cualquier precisión relativa a las reglas de arbitraje
@@ -1300,12 +1402,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                     <span>Al enviar declara bajo juramento que la información es verídica (Ley N° 29733).</span>
                 </div>
             )}
-            {(errorValidacion || errors.general) && (
-                <div className="mb-5 p-4 bg-red-50 border border-red-400 rounded-xl flex items-center gap-3 text-sm text-red-800 font-semibold">
-                    <AlertTriangle size={18} className="text-red-500 shrink-0"/>
-                    {errorValidacion || errors.general}
-                </div>
-            )}
             <div className="flex justify-end">
                 <PrimaryButton type="submit" disabled={processing} className="px-8 py-3 text-base shadow-lg">
                     {processing ? 'Enviando solicitud...' : 'Enviar Solicitud'}
@@ -1341,6 +1437,53 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                         <button onClick={() => { setAceptoLegal(true); setModalLegal(false); setTimeout(() => document.querySelector('form')?.requestSubmit(), 50); }}
                             className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#9c0a3b]">
                             <CheckCircle2 size={16}/> Acepto y Envío
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Modal de campos faltantes (estilo SweetAlert) */}
+        {showErrorModal && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={() => setShowErrorModal(false)}>
+                <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-150"
+                    onClick={e => e.stopPropagation()}>
+                    <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-5 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                            <AlertTriangle size={22} className="text-white"/>
+                        </div>
+                        <div>
+                            <h3 className="text-white font-black text-lg leading-tight">No se pudo enviar la solicitud</h3>
+                            <p className="text-white/90 text-xs mt-0.5">
+                                {Object.keys(missingFields).length === 1
+                                    ? 'Falta 1 campo obligatorio'
+                                    : `Faltan ${Object.keys(missingFields).length} campos obligatorios`}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="p-6 max-h-96 overflow-y-auto">
+                        <p className="text-sm text-gray-600 mb-3">Complete los siguientes campos antes de enviar:</p>
+                        <ul className="space-y-2">
+                            {Object.entries(missingFields).map(([k, msg]) => (
+                                <li key={k} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-red-50 border border-red-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 mt-2"/>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-semibold text-[#291136]">
+                                            {FIELD_LABELS[k] ?? msg}
+                                        </p>
+                                        {FIELD_LABELS[k] && msg !== 'Campo obligatorio' && (
+                                            <p className="text-xs text-red-600 mt-0.5">{msg}</p>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+                        <button type="button" onClick={() => setShowErrorModal(false)}
+                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9c0a3b] transition-colors shadow-sm">
+                            <CheckCircle2 size={16}/> Entendido, voy a corregir
                         </button>
                     </div>
                 </div>

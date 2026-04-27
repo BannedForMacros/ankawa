@@ -778,6 +778,8 @@ function VistaJPRD({ solicitud, campo }) {
 // ─── Sección persona (natural / empresa / consorcio / entidad) ──
 function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, representante, docRepresentante, domicilio, email, telefono, empresas }) {
     const meta = subtipo ? SUBTIPO_META[subtipo] : null;
+    const esConsorcio = subtipo === 'consorcio';
+    const empresasArr = Array.isArray(empresas) ? empresas : [];
 
     return (
         <div>
@@ -790,35 +792,78 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
                 )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {nombre     && <Dato label={subtipo === 'consorcio' ? 'Representante' : tipoPersona === 'juridica' ? 'Razón Social / Nombre' : 'Nombre completo'} value={nombre} />}
-                {documento  && <Dato label="Documento" value={documento} />}
-                {ruc        && <Dato label="RUC" value={ruc} />}
-                {domicilio  && <Dato label="Domicilio" value={domicilio} />}
-                {email      && <Dato label="Email" value={email} />}
-                {telefono   && <Dato label="Teléfono" value={telefono} />}
-                {/* Representante legal (empresa / entidad pública) */}
-                {representante && subtipo !== 'consorcio' && (
-                    <>
-                        <Dato label="Representante legal" value={representante} />
-                        {docRepresentante && <Dato label="Doc. Representante" value={docRepresentante} />}
-                    </>
-                )}
-            </div>
-
-            {/* Empresas del consorcio */}
-            {subtipo === 'consorcio' && Array.isArray(empresas) && empresas.length > 0 && (
-                <div className="mt-3">
-                    <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-2">Empresas del consorcio</span>
-                    <div className="flex flex-wrap gap-2">
-                        {empresas.map((emp, i) => (
-                            <span key={i} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
-                                <Building2 size={10} />
-                                {emp.nombre}
-                                {emp.ruc && <span className="font-normal text-blue-500">· {emp.ruc}</span>}
-                            </span>
-                        ))}
+            {/* Caso CONSORCIO: estructura clara con dos sub-bloques */}
+            {esConsorcio ? (
+                <div className="space-y-4">
+                    {/* Bloque 1: Representante Legal del Consorcio */}
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-7 h-7 rounded-full bg-[#BE0F4A]/10 flex items-center justify-center">
+                                <Users size={14} className="text-[#BE0F4A]" />
+                            </div>
+                            <span className="text-xs font-bold text-[#291136] uppercase tracking-wide">Representante Legal del Consorcio</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {nombre    && <Dato label="Nombre del representante" value={nombre} />}
+                            {documento && <Dato label="DNI" value={documento} />}
+                            {email     && <Dato label="Correo" value={email} />}
+                            {telefono  && <Dato label="Teléfono" value={telefono} />}
+                            {domicilio && <Dato label="Domicilio de notificación" value={domicilio} />}
+                        </div>
                     </div>
+
+                    {/* Bloque 2: Empresas que conforman el consorcio */}
+                    <div className="bg-blue-50/40 rounded-xl border border-blue-200 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <Building2 size={14} className="text-blue-700" />
+                                </div>
+                                <span className="text-xs font-bold text-[#291136] uppercase tracking-wide">Empresas que conforman el consorcio</span>
+                            </div>
+                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                {empresasArr.length} {empresasArr.length === 1 ? 'empresa' : 'empresas'}
+                            </span>
+                        </div>
+                        {empresasArr.length === 0 ? (
+                            <p className="text-xs text-gray-400 italic">No se registraron empresas conformantes.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {empresasArr.map((emp, i) => (
+                                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-white border border-blue-200/60">
+                                        <div className="w-8 h-8 rounded-full bg-[#291136] text-white font-black text-sm flex items-center justify-center shrink-0">
+                                            {i + 1}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-[#291136] truncate">
+                                                {emp.nombre?.trim() || <span className="text-gray-400 italic font-normal">Sin nombre registrado</span>}
+                                            </p>
+                                            {emp.ruc && (
+                                                <p className="text-[11px] text-gray-500 font-mono mt-0.5">RUC: {emp.ruc}</p>
+                                            )}
+                                        </div>
+                                        <Building2 size={14} className="text-blue-400 shrink-0" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                /* Caso NO consorcio (natural / empresa / entidad pública) */
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {nombre     && <Dato label={tipoPersona === 'juridica' ? 'Razón Social / Nombre' : 'Nombre completo'} value={nombre} />}
+                    {documento  && <Dato label="Documento" value={documento} />}
+                    {ruc        && <Dato label="RUC" value={ruc} />}
+                    {domicilio  && <Dato label="Domicilio" value={domicilio} />}
+                    {email      && <Dato label="Email" value={email} />}
+                    {telefono   && <Dato label="Teléfono" value={telefono} />}
+                    {representante && (
+                        <>
+                            <Dato label="Representante legal" value={representante} />
+                            {docRepresentante && <Dato label="Doc. Representante" value={docRepresentante} />}
+                        </>
+                    )}
                 </div>
             )}
         </div>

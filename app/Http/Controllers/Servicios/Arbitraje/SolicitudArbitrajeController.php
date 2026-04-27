@@ -69,7 +69,6 @@ class SolicitudArbitrajeController extends Controller
             'empresas_consorcio_demandado'            => 'nullable|string',
             'nombre_representante_demandado'          => 'nullable|string|max:255',
             'documento_representante_demandado'       => 'nullable|string|max:50',
-            'email_representante_consorcio_demandado' => 'nullable|email|max:255',
             'acepta_reglamento_card'                  => 'nullable|in:0,1',
             'precision_reglas'                        => 'nullable|string|max:100',
             'tiene_medida_cautelar'                   => 'nullable|in:0,1',
@@ -134,14 +133,24 @@ class SolicitudArbitrajeController extends Controller
             }
 
             // ── 3. Crear solicitud ───────────────────────────────────────────
+            $datosSolicitud = $request->except(
+                'documentos_anexos', 'documentos_controversia',
+                'doc_vigencia_poder_dem', 'doc_contrato_consorcio_dem', 'doc_resolucion_facultades_dem',
+                'doc_vigencia_poder_dado', 'doc_contrato_consorcio_dado', 'doc_resolucion_facultades_dado',
+                'documentos_medida_cautelar', 'comprobante_pago_tasa',
+                'emails_demandante', 'emails_demandado'
+            );
+
+            // Las empresas del consorcio llegan como string JSON desde el FormData.
+            // Hay que decodificarlas para que el cast 'array' del modelo las guarde como jsonb real.
+            foreach (['empresas_consorcio_demandante', 'empresas_consorcio_demandado'] as $campoJson) {
+                if (isset($datosSolicitud[$campoJson]) && is_string($datosSolicitud[$campoJson])) {
+                    $datosSolicitud[$campoJson] = json_decode($datosSolicitud[$campoJson], true) ?? [];
+                }
+            }
+
             $solicitud = SolicitudArbitraje::create(array_merge(
-                $request->except(
-                    'documentos_anexos', 'documentos_controversia',
-                    'doc_vigencia_poder_dem', 'doc_contrato_consorcio_dem', 'doc_resolucion_facultades_dem',
-                    'doc_vigencia_poder_dado', 'doc_contrato_consorcio_dado', 'doc_resolucion_facultades_dado',
-                    'documentos_medida_cautelar', 'comprobante_pago_tasa',
-                    'emails_demandante', 'emails_demandado'
-                ),
+                $datosSolicitud,
                 [
                     'usuario_id' => $userId,
                     'estado'     => 'pendiente',

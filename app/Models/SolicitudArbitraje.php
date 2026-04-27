@@ -30,7 +30,6 @@ class SolicitudArbitraje extends Model
         'subtipo_juridico_demandante', 'subtipo_juridico_demandado',
         'empresas_consorcio_demandante', 'empresas_consorcio_demandado',
         'nombre_representante_demandado', 'documento_representante_demandado',
-        'email_representante_consorcio_demandado',
         'acepta_reglamento_card', 'precision_reglas', 'tiene_medida_cautelar',
         'tipo_documento_id',
     ];
