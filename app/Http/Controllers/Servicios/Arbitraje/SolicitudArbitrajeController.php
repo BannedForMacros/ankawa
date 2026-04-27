@@ -122,7 +122,7 @@ class SolicitudArbitrajeController extends Controller
                     'name'             => $nombreCuenta,
                     'email'            => $request->email_demandante,
                     'password'         => Hash::make($passwordRaw),
-                    'rol_id'           => Rol::where('slug', 'usuario')->value('id'),
+                    'rol_id'           => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
                     'tipo_persona'     => $request->tipo_persona,
                     'numero_documento' => $documentoCuenta,
                     'telefono'         => $request->telefono_demandante,
@@ -149,8 +149,14 @@ class SolicitudArbitrajeController extends Controller
                 ]
             ));
 
-            // Generar número de cargo correlativo universal
+            // Generar número de cargo correlativo universal (configurable en Configuración → Tipos de Cargo)
             $cargo = Cargo::crear('solicitud', $solicitud, $userId);
+            if (!$cargo) {
+                throw new \RuntimeException(
+                    "El tipo de evento de cargo 'solicitud' está desactivado. " .
+                    "Habilítelo en Configuración → Tipos de Cargo para poder registrar nuevas solicitudes."
+                );
+            }
             $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
 
             // ── 4. Crear expediente con número correlativo automático ─────────
@@ -190,7 +196,7 @@ class SolicitudArbitrajeController extends Controller
 
             // 5a. Demandante (usuario que crea la solicitud)
             // credenciales_enviadas = true porque recibirá el cargo con su contraseña por correo
-            $tipoActorDemandante = TipoActorExpediente::where('slug', 'demandante')->first();
+            $tipoActorDemandante = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDANTE)->first();
             if ($tipoActorDemandante) {
                 ExpedienteActor::create([
                     'expediente_id'         => $expediente->id,
@@ -204,7 +210,7 @@ class SolicitudArbitrajeController extends Controller
 
             // 5b. Demandado (se crea cuenta si no existe)
             // Si email_demandado está vacío pero hay correos en emails_demandado, usar el primero como principal
-            $tipoActorDemandado  = TipoActorExpediente::where('slug', 'demandado')->first();
+            $tipoActorDemandado  = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDADO)->first();
             $emailsDemandadoArr  = json_decode($request->input('emails_demandado', '[]'), true) ?? [];
             $emailPrincipalDado  = trim($request->email_demandado ?? '');
             if ($emailPrincipalDado === '') {
@@ -220,7 +226,7 @@ class SolicitudArbitrajeController extends Controller
                             'name'      => $request->nombre_demandado,
                             'email'     => $emailPrincipalDado,
                             'password'  => Hash::make(Str::random(10)),
-                            'rol_id'    => Rol::where('slug', 'usuario')->value('id'),
+                            'rol_id'    => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
                             'direccion' => $request->domicilio_demandado,
                             'telefono'  => $request->telefono_demandado,
                             'activo'    => 1,
@@ -365,12 +371,12 @@ class SolicitudArbitrajeController extends Controller
 
     /**
      * Auto-asigna los actores configurados en servicio_tipos_actor para el servicio dado.
-     * Excluye slugs 'demandante' y 'demandado' (ya asignados directamente del formulario).
+     * Excluye slugs DEMANDANTE y DEMANDADO (ya asignados directamente del formulario).
      * Para cada entrada con es_automatico=true y rol_auto_slug, busca el usuario con menor carga.
      */
     private function autoAsignarActores(Expediente $expediente, int $servicioId): void
     {
-        $slugsExcluir = ['demandante', 'demandado'];
+        $slugsExcluir = TipoActorExpediente::SLUGS_INMUTABLES;
 
         $configuraciones = ServicioTipoActor::where('servicio_id', $servicioId)
             ->where('es_automatico', true)

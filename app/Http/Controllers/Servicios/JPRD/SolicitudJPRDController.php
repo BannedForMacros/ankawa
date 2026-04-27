@@ -99,7 +99,7 @@ class SolicitudJPRDController extends Controller
                     'name'             => $nombreSol,
                     'email'            => $emailSol,
                     'password'         => Hash::make($passwordRaw),
-                    'rol_id'           => Rol::where('slug', 'usuario')->value('id'),
+                    'rol_id'           => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
                     'numero_documento' => $documentoSol,
                     'activo'           => 1,
                 ]);
@@ -142,6 +142,12 @@ class SolicitudJPRDController extends Controller
             ]);
 
             $cargo = Cargo::crear('solicitud', $solicitud, $usuario->id);
+            if (!$cargo) {
+                throw new \RuntimeException(
+                    "El tipo de evento de cargo 'solicitud' está desactivado. " .
+                    "Habilítelo en Configuración → Tipos de Cargo para poder registrar nuevas solicitudes."
+                );
+            }
             $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
 
             // ── 3. Crear expediente ──────────────────────────────────────────
@@ -179,8 +185,8 @@ class SolicitudJPRDController extends Controller
             );
 
             // ── 5. Registrar actores del expediente ──────────────────────────
-            $tipoActorEntidad     = TipoActorExpediente::where('slug', 'demandante')->first();
-            $tipoActorContratista = TipoActorExpediente::where('slug', 'demandado')->first();
+            $tipoActorEntidad     = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDANTE)->first();
+            $tipoActorContratista = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDADO)->first();
 
             $emailEntidad     = trim(collect($emailsEntidad)->first(fn($e) => !empty($e['email']))['email'] ?? '');
             $emailContratista = trim(collect($emailsContratista)->first(fn($e) => !empty($e['email']))['email'] ?? '');
@@ -275,7 +281,7 @@ class SolicitudJPRDController extends Controller
 
     private function autoAsignarActores(Expediente $expediente, int $servicioId): void
     {
-        $slugsExcluir = ['demandante', 'demandado'];
+        $slugsExcluir = TipoActorExpediente::SLUGS_INMUTABLES;
 
         $configuraciones = ServicioTipoActor::where('servicio_id', $servicioId)
             ->where('es_automatico', true)

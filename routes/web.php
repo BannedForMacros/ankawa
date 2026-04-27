@@ -30,6 +30,7 @@ use App\Http\Controllers\Configuracion\ServicioController;
 use App\Http\Controllers\Configuracion\EtapaController;
 use App\Http\Controllers\Configuracion\TipoActorController;
 use App\Http\Controllers\Configuracion\TipoDocumentoController;
+use App\Http\Controllers\Configuracion\TipoEventoCargoController;
 use App\Http\Controllers\Configuracion\ModuloController;
 
 
@@ -171,6 +172,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('modulos',             [ModuloController::class, 'store'])  ->name('configuracion.modulos.store')  ->middleware('permiso:configuracion.modulos,crear');
         Route::put('modulos/{modulo}',     [ModuloController::class, 'update']) ->name('configuracion.modulos.update') ->middleware('permiso:configuracion.modulos,editar');
         Route::delete('modulos/{modulo}',  [ModuloController::class, 'destroy'])->name('configuracion.modulos.destroy')->middleware('permiso:configuracion.modulos,eliminar');
+
+        // Tipos de Cargo (catálogo de eventos que emiten correlativo CARGO)
+        Route::get('tipos-evento-cargo',                                  [TipoEventoCargoController::class, 'index'])        ->name('configuracion.tipos-evento-cargo.index')       ->middleware('permiso:configuracion.tipos-evento-cargo,ver');
+        Route::put('tipos-evento-cargo/{tipoEventoCargo}',                [TipoEventoCargoController::class, 'update'])       ->name('configuracion.tipos-evento-cargo.update')      ->middleware('permiso:configuracion.tipos-evento-cargo,editar');
 
         // Tipos de Documento
         Route::get('tipos-documentos',                                    [TipoDocumentoController::class, 'index'])         ->name('configuracion.tipos-documentos.index')         ->middleware('permiso:configuracion.tipos-documentos,ver');

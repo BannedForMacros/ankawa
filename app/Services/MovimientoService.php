@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Rol;
 use App\Mail\AccesoMesaPartesMail;
 use App\Mail\CargoRespuestaMail;
+use App\Mail\CredencialesAccesoMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -33,7 +34,7 @@ class MovimientoService
         array $datos,
         array $archivos = [],
         array $notificarActorIds = [],
-        string $estadoInicial = 'pendiente'
+        string $estadoInicial = ExpedienteMovimiento::ESTADO_PENDIENTE
     ): ExpedienteMovimiento {
         return DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds, $estadoInicial) {
 
@@ -43,9 +44,18 @@ class MovimientoService
                 $fechaLimite = $this->calcularFechaLimite((int) $datos['dias_plazo'], $tipoDias);
             }
 
+            $tipoMovimiento = $datos['tipo'] ?? ExpedienteMovimiento::TIPO_REQUERIMIENTO;
+
+            // Default según regla de negocio: solo los requerimientos generan cargo al ser respondidos.
+            // El frontend / controller puede sobreescribir vía $datos['genera_cargo'].
+            // La emisión real depende además del switch en Configuración → Tipos de Cargo (TipoEventoCargo).
+            $generaCargo = array_key_exists('genera_cargo', $datos)
+                ? (bool) $datos['genera_cargo']
+                : ($tipoMovimiento === ExpedienteMovimiento::TIPO_REQUERIMIENTO);
+
             $movimiento = ExpedienteMovimiento::create([
                 'expediente_id'              => $expediente->id,
-                'tipo'                       => $datos['tipo'] ?? 'requerimiento',
+                'tipo'                       => $tipoMovimiento,
                 'etapa_id'                   => $datos['etapa_id'] ?? $expediente->etapa_actual_id,
                 'tipo_actor_responsable_id'  => $datos['tipo_actor_responsable_id'] ?? null,
                 'usuario_responsable_id'     => $datos['usuario_responsable_id'] ?? null,
@@ -57,11 +67,7 @@ class MovimientoService
                 'fecha_limite'               => $fechaLimite,
                 'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
                 'estado'                     => $estadoInicial,
-                // Campos legacy (se conservan por compatibilidad)
-                'enviar_credenciales'        => false,
-                'actor_credenciales_id'      => null,
-                'genera_cargo'               => false,
-                // Nuevos campos de acceso
+                'genera_cargo'               => $generaCargo,
                 'habilitar_mesa_partes'          => !empty($datos['habilitar_mesa_partes']),
                 'enviar_credenciales_expediente' => !empty($datos['enviar_credenciales_expediente']),
                 'actor_credenciales_exp_id'      => $datos['actor_credenciales_exp_id'] ?? null,
@@ -86,7 +92,7 @@ class MovimientoService
                             'dias_plazo'          => $r['dias_plazo'],
                             'tipo_dias'           => $r['tipo_dias'] ?? 'calendario',
                             'fecha_limite'        => $fl,
-                            'estado'              => 'pendiente',
+                            'estado'              => ExpedienteMovimiento::ESTADO_PENDIENTE,
                         ]);
                     }
                     if ($maxFechaLimite === null || $fl > $maxFechaLimite) {
@@ -97,7 +103,7 @@ class MovimientoService
             }
 
             // Si el estado inicial es respondido o recibido, marcar fecha_respuesta
-            if (in_array($estadoInicial, ['respondido', 'recibido'])) {
+            if (in_array($estadoInicial, [ExpedienteMovimiento::ESTADO_RESPONDIDO, ExpedienteMovimiento::ESTADO_RECIBIDO], true)) {
                 $movimiento->update([
                     'fecha_respuesta' => now(),
                     'respondido_por'  => $datos['creado_por'],
@@ -129,7 +135,7 @@ class MovimientoService
                 // habilitarMesaPartes ya corrió → acceso_mesa_partes = 1 en BD,
                 // así que notificarActores los encontrará aunque no estuvieran en el
                 // actoresNotificables que cargó el frontend al abrir la página.
-                if (($datos['tipo'] ?? 'requerimiento') === 'notificacion') {
+                if (($datos['tipo'] ?? ExpedienteMovimiento::TIPO_REQUERIMIENTO) === ExpedienteMovimiento::TIPO_NOTIFICACION) {
                     $notificarActorIds = array_unique(
                         array_merge($notificarActorIds, $datos['actores_mesa_partes_ids'])
                     );
@@ -164,7 +170,16 @@ class MovimientoService
         foreach ($actores as $actor) {
             if ($actor->acceso_mesa_partes) continue;
 
-            $actor->update(['acceso_mesa_partes' => 1]);
+            // Update con la condición `activo=1` incluida para evitar race entre el get() y el update():
+            // si el actor se desactiva entre ambas operaciones, el update no aplica.
+            $afectados = ExpedienteActor::where('id', $actor->id)
+                ->where('activo', 1)
+                ->update(['acceso_mesa_partes' => 1]);
+
+            if ($afectados === 0) {
+                continue;
+            }
+
             $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
 
             foreach ($actor->todosLosEmails() as $email) {
@@ -210,18 +225,14 @@ class MovimientoService
         $usuario->update(['password' => Hash::make($passwordRaw)]);
 
         try {
-            Mail::raw(
-                "Estimado(a) {$usuario->name},\n\n" .
-                "Se le ha designado como participante en el expediente {$expediente->numero_expediente}" .
-                ($solicitud ? " (Solicitud N° {$solicitud->numero_cargo})" : '') .
-                ".\n\nSus credenciales de acceso al Expediente Electrónico de la plataforma ANKAWA son:\n" .
-                "  Usuario: {$usuario->email}\n" .
-                "  Contraseña temporal: {$passwordRaw}\n\n" .
-                "Por favor ingrese y cambie su contraseña.\n\n" .
-                "Saludos,\nCentro de Arbitraje CARD ANKAWA",
-                fn($msg) => $msg->to($emailDestino, $usuario->name)
-                                ->subject("Credenciales Expediente Electrónico - {$expediente->numero_expediente}")
-            );
+            Mail::to($emailDestino, $usuario->name)->send(new CredencialesAccesoMail(
+                nombreDestinatario: $usuario->name,
+                emailUsuario:       $usuario->email,
+                passwordTemporal:   $passwordRaw,
+                numeroExpediente:   $expediente->numero_expediente,
+                numeroCargo:        $solicitud?->numero_cargo,
+                contexto:           'expediente',
+            ));
 
             $movimiento->update([
                 'enviar_credenciales_expediente' => true,
@@ -248,16 +259,19 @@ class MovimientoService
 
     /**
      * Responder a un movimiento pendiente.
-     * $generarCargo=true cuando la respuesta viene del portal (Mesa de Partes).
+     *
+     * El cargo de respuesta se emite cuando:
+     *   - el movimiento es de tipo 'requerimiento', y
+     *   - la columna `genera_cargo` del movimiento está en true (configurable al crear), y
+     *   - el tipo de evento 'respuesta_requerimiento' está activo en Configuración → Tipos de Cargo.
      */
     public function responder(
         ExpedienteMovimiento $movimiento,
         array $datos,
         array $archivos = [],
         array $notificarActorIds = [],
-        bool $generarCargo = false,
     ): ExpedienteMovimiento {
-        return DB::transaction(function () use ($movimiento, $datos, $archivos, $notificarActorIds, $generarCargo) {
+        return DB::transaction(function () use ($movimiento, $datos, $archivos, $notificarActorIds) {
 
             $pivotRows = $movimiento->responsables;
 
@@ -271,14 +285,16 @@ class MovimientoService
                     $pivotRows->where('expediente_actor_id', $actor->id)
                         ->first()
                         ?->update([
-                            'estado'          => 'respondido',
+                            'estado'          => ExpedienteMovimiento::ESTADO_RESPONDIDO,
                             'respuesta'       => $datos['respuesta'],
                             'respondido_por'  => $datos['respondido_por'],
                             'fecha_respuesta' => now(),
                         ]);
                 }
 
-                $todosRespondieron = !$movimiento->responsables()->where('estado', 'pendiente')->exists();
+                $todosRespondieron = !$movimiento->responsables()
+                    ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
+                    ->exists();
 
                 if (!$todosRespondieron) {
                     $this->guardarDocumentos($movimiento, $archivos, $datos['respondido_por'], 'respuesta');
@@ -298,7 +314,7 @@ class MovimientoService
                 'respuesta'       => $datos['respuesta'],
                 'fecha_respuesta' => now(),
                 'respondido_por'  => $datos['respondido_por'],
-                'estado'          => 'respondido',
+                'estado'          => ExpedienteMovimiento::ESTADO_RESPONDIDO,
             ]);
 
             // Si el expediente tiene solicitud en estado 'subsanacion',
@@ -326,16 +342,18 @@ class MovimientoService
                 $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
             }
 
-            // Cargo se genera solo cuando responden desde Mesa de Partes
-            if ($generarCargo && $movimiento->tipo === 'requerimiento') {
-                $respondedor = User::find($datos['respondido_por']);
-                $cargo = Cargo::crear('respuesta_movimiento', $movimiento, $datos['respondido_por']);
-                try {
-                    if ($respondedor?->email) {
-                        Mail::to($respondedor->email)->send(new CargoRespuestaMail($cargo, $movimiento));
+            // Cargo de respuesta — emisión configurable por tipo de movimiento + tipo de evento.
+            if ($movimiento->tipo === ExpedienteMovimiento::TIPO_REQUERIMIENTO && $movimiento->genera_cargo) {
+                $cargo = Cargo::crear('respuesta_requerimiento', $movimiento, $datos['respondido_por']);
+                if ($cargo) {
+                    $respondedor = User::find($datos['respondido_por']);
+                    try {
+                        if ($respondedor?->email) {
+                            Mail::to($respondedor->email)->send(new CargoRespuestaMail($cargo, $movimiento));
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning("Error enviando cargo respuesta movimiento #{$movimiento->id}: " . $e->getMessage());
                     }
-                } catch (\Exception $e) {
-                    \Log::warning("Error enviando cargo respuesta movimiento #{$movimiento->id}: " . $e->getMessage());
                 }
             }
 
@@ -359,24 +377,6 @@ class MovimientoService
             $this->responder($movimiento, $datosRespuesta, $archivosRespuesta);
             return $this->crear($expediente, $datosNuevo, $archivosNuevo, $notificarActorIds);
         });
-    }
-
-    /**
-     * Marcar como vencidos los movimientos cuya fecha_limite ya pasó.
-     */
-    public function marcarVencidos(): int
-    {
-        // Vencer filas pivot individuales
-        MovimientoResponsable::where('estado', 'pendiente')
-            ->whereNotNull('fecha_limite')
-            ->where('fecha_limite', '<', now()->toDateString())
-            ->update(['estado' => 'vencido']);
-
-        return ExpedienteMovimiento::where('estado', 'pendiente')
-            ->where('activo', true)
-            ->whereNotNull('fecha_limite')
-            ->where('fecha_limite', '<', now()->toDateString())
-            ->update(['estado' => 'vencido']);
     }
 
     private function calcularFechaLimite(int $dias, string $tipoDias): string

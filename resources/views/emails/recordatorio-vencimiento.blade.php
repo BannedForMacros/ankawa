@@ -11,7 +11,7 @@
     @if($movimiento->etapa)
     <tr>
         <td class="field-label">Etapa</td>
-        <td class="field-value">{{ $movimiento->etapa->nombre }}{{ $movimiento->subEtapa ? ' — ' . $movimiento->subEtapa->nombre : '' }}</td>
+        <td class="field-value">{{ $movimiento->etapa->nombre }}</td>
     </tr>
     @endif
 
@@ -20,11 +20,12 @@
         <td class="field-value">{{ $movimiento->instruccion }}</td>
     </tr>
 
-    @if($movimiento->fecha_limite)
+    @php $fechaParaMostrar = $fechaLimite ?? $movimiento->fecha_limite; @endphp
+    @if($fechaParaMostrar)
     <tr>
         <td class="field-label">Fecha Límite</td>
         <td class="field-value" style="font-weight: bold; color: #BE0F4A;">
-            {{ \Carbon\Carbon::parse($movimiento->fecha_limite)->format('d/m/Y') }}
+            {{ \Carbon\Carbon::parse($fechaParaMostrar)->format('d/m/Y') }}
         </td>
     </tr>
     @endif

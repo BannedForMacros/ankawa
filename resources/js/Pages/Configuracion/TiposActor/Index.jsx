@@ -172,9 +172,9 @@ function ModalServicios({ show, onClose, tipoActor, servicios, roles }) {
 
     return (
         <Modal show={show} onClose={onClose} maxWidth="md">
-            <form onSubmit={submit}>
-                <div className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
+            <form onSubmit={submit} className="flex flex-col max-h-[85vh]">
+                <div className="p-6 pb-4 shrink-0">
+                    <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-[#BE0F4A] flex items-center justify-center shrink-0">
                             <Building2 size={18} className="text-white" />
                         </div>
@@ -187,12 +187,14 @@ function ModalServicios({ show, onClose, tipoActor, servicios, roles }) {
                     </div>
 
                     {esInmutable && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 font-semibold mb-4">
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700 font-semibold mt-4">
                             Demandante y Demandado se asignan automáticamente desde el formulario de solicitud
                             en todos los servicios — no requieren configuración adicional aquí.
                         </div>
                     )}
+                </div>
 
+                <div className="px-6 pb-6 overflow-y-auto flex-1 min-h-0">
                     <div className="space-y-3">
                         {data.servicios.map((row, idx) => (
                             <div key={row.servicio_id}
@@ -282,7 +284,8 @@ function ModalServicios({ show, onClose, tipoActor, servicios, roles }) {
                         ))}
                     </div>
                 </div>
-                <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl">
+
+                <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl shrink-0">
                     <button type="button" onClick={onClose} disabled={processing}
                         className="px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50">
                         Cancelar

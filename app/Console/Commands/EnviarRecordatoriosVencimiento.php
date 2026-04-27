@@ -19,10 +19,20 @@ class EnviarRecordatoriosVencimiento extends Command
 
     public function handle(): int
     {
-        $candidatos = ExpedienteMovimiento::where('tipo', 'requerimiento')
-            ->where('estado', 'pendiente')
+        $feriados = DB::table('feriados')->where('activo', true)->pluck('fecha')->toArray();
+
+        // Traemos los movimientos pendientes que pueden estar a 1 día de su vencimiento,
+        // sea por la fecha_limite del padre o por la fecha_limite individual de algún
+        // responsable en el pivot. El filtro fino se hace después de cargar las relaciones.
+        $candidatos = ExpedienteMovimiento::where('tipo', ExpedienteMovimiento::TIPO_REQUERIMIENTO)
+            ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
             ->where('activo', true)
-            ->whereNotNull('fecha_limite')
+            ->where(function ($q) {
+                $q->whereNotNull('fecha_limite')
+                  ->orWhereHas('responsables', function ($qr) {
+                      $qr->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)->whereNotNull('fecha_limite');
+                  });
+            })
             ->with([
                 'expediente',
                 'etapa',
@@ -30,28 +40,29 @@ class EnviarRecordatoriosVencimiento extends Command
                 'responsables.actor.usuario',
                 'responsables.actor.emailsAdicionales',
             ])
-            ->get()
-            ->filter(fn($m) => $m->diasRestantes() === 1);
+            ->get();
 
-        $feriados  = DB::table('feriados')->where('activo', true)->pluck('fecha')->toArray();
         $totalEnviados = 0;
 
         foreach ($candidatos as $movimiento) {
             $enviados = 0;
             $fallidos = 0;
 
-            // Caso A: responsable directo (usuario_responsable_id)
-            if ($movimiento->usuarioResponsable?->email) {
+            // Caso A: responsable directo (usuario_responsable_id) — usa fecha_limite del padre.
+            $padreVenceManiana = $movimiento->fecha_limite && $movimiento->diasRestantes() === 1;
+            if ($padreVenceManiana && $movimiento->usuarioResponsable?->email) {
                 [$ok] = $this->enviarConRegistro(
                     $movimiento,
                     $movimiento->usuarioResponsable->email,
                     $movimiento->usuarioResponsable->name,
+                    null,
+                    $movimiento->fecha_limite,
                 );
                 $ok ? $enviados++ : $fallidos++;
             }
 
-            // Caso B: responsables via pivot movimiento_responsables
-            foreach ($movimiento->responsables->where('estado', 'pendiente') as $responsable) {
+            // Caso B: responsables via pivot — cada uno con su fecha_limite individual.
+            foreach ($movimiento->responsables->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE) as $responsable) {
                 if (!$responsable->fecha_limite) {
                     continue;
                 }
@@ -70,7 +81,13 @@ class EnviarRecordatoriosVencimiento extends Command
                 $nombre = $actor->nombre ?? $actor->usuario?->name ?? 'Responsable';
 
                 foreach ($actor->todosLosEmails() as $email) {
-                    [$ok] = $this->enviarConRegistro($movimiento, $email, $nombre, $actor->id ?? null);
+                    [$ok] = $this->enviarConRegistro(
+                        $movimiento,
+                        $email,
+                        $nombre,
+                        $actor->id ?? null,
+                        $responsable->fecha_limite,
+                    );
                     $ok ? $enviados++ : $fallidos++;
                 }
             }
@@ -89,6 +106,8 @@ class EnviarRecordatoriosVencimiento extends Command
 
     /**
      * Envía el email y registra el resultado en movimiento_notificaciones.
+     * $fechaLimite: fecha real que se mostrará al destinatario (la del responsable
+     * individual o la del padre, según el caso).
      * Retorna [bool $ok].
      */
     private function enviarConRegistro(
@@ -96,6 +115,7 @@ class EnviarRecordatoriosVencimiento extends Command
         string $email,
         string $nombre,
         ?int $actorId = null,
+        ?Carbon $fechaLimite = null,
     ): array {
         $movimiento->loadMissing(['expediente']);
         $numExp = $movimiento->expediente->numero_expediente ?? 'S/N';
@@ -107,21 +127,21 @@ class EnviarRecordatoriosVencimiento extends Command
             'email_destino' => $email,
             'nombre_destino'=> $nombre,
             'asunto'        => $asunto,
-            'estado_envio'  => 'pendiente',
+            'estado_envio'  => MovimientoNotificacion::ESTADO_PENDIENTE,
             'created_at'    => now(),
         ]);
 
         try {
-            Mail::to($email)->send(new RecordatorioVencimientoMail($movimiento, $nombre));
+            Mail::to($email)->send(new RecordatorioVencimientoMail($movimiento, $nombre, $fechaLimite));
 
             $registro->update([
-                'estado_envio' => 'enviado',
+                'estado_envio' => MovimientoNotificacion::ESTADO_ENVIADO,
                 'enviado_at'   => now(),
             ]);
 
             return [true];
         } catch (\Throwable $e) {
-            $registro->update(['estado_envio' => 'fallido']);
+            $registro->update(['estado_envio' => MovimientoNotificacion::ESTADO_FALLIDO]);
 
             Log::warning("RecordatorioVencimiento: fallo al enviar a {$email} para movimiento #{$movimiento->id}: {$e->getMessage()}");
 
@@ -193,6 +213,3 @@ class EnviarRecordatoriosVencimiento extends Command
         return $dias;
     }
 }
-
-
-// cambio 10

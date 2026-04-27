@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteHistorial;
+use App\Models\MovimientoResponsable;
 
 class VencimientoService
 {
@@ -13,14 +14,21 @@ class VencimientoService
      */
     public function procesarVencimientos(): int
     {
-        $vencidos = ExpedienteMovimiento::where('estado', 'pendiente')
+        // Vencer también las filas pivot individuales (responsables con plazo propio).
+        // Esto cubre el caso en que un responsable tiene fecha_limite distinta a la del padre.
+        MovimientoResponsable::where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
+            ->whereNotNull('fecha_limite')
+            ->where('fecha_limite', '<', now()->toDateString())
+            ->update(['estado' => ExpedienteMovimiento::ESTADO_VENCIDO]);
+
+        $vencidos = ExpedienteMovimiento::where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
             ->where('activo', true)
             ->whereNotNull('fecha_limite')
             ->where('fecha_limite', '<', now()->toDateString())
             ->get();
 
         foreach ($vencidos as $movimiento) {
-            $movimiento->update(['estado' => 'vencido']);
+            $movimiento->update(['estado' => ExpedienteMovimiento::ESTADO_VENCIDO]);
 
             ExpedienteHistorial::create([
                 'expediente_id' => $movimiento->expediente_id,
@@ -44,7 +52,7 @@ class VencimientoService
     public function resumen(int $expedienteId): array
     {
         $pendientes = ExpedienteMovimiento::where('expediente_id', $expedienteId)
-            ->where('estado', 'pendiente')
+            ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
             ->where('activo', true)
             ->get();
 
@@ -53,7 +61,7 @@ class VencimientoService
         );
 
         $vencidos = ExpedienteMovimiento::where('expediente_id', $expedienteId)
-            ->where('estado', 'vencido')
+            ->where('estado', ExpedienteMovimiento::ESTADO_VENCIDO)
             ->where('activo', true)
             ->count();
 

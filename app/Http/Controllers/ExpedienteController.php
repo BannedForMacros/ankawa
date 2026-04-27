@@ -21,6 +21,7 @@ use App\Services\VencimientoService;
 use Illuminate\Support\Facades\DB;
 use App\Services\EtapaService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -241,7 +242,7 @@ class ExpedienteController extends Controller
 
         // Sincronizar datos en el usuario del demandante (si tiene cuenta)
         $actorDemandante = ExpedienteActor::where('expediente_id', $expediente->id)
-            ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandante'))
+            ->whereHas('tipoActor', fn($q) => $q->where('slug', TipoActorExpediente::SLUG_DEMANDANTE))
             ->with('usuario')
             ->first();
 
@@ -254,7 +255,7 @@ class ExpedienteController extends Controller
 
         // Sincronizar datos en el usuario del demandado (si tiene cuenta)
         $actorDemandado = ExpedienteActor::where('expediente_id', $expediente->id)
-            ->whereHas('tipoActor', fn($q) => $q->where('slug', 'demandado'))
+            ->whereHas('tipoActor', fn($q) => $q->where('slug', TipoActorExpediente::SLUG_DEMANDADO))
             ->with('usuario')
             ->first();
 
@@ -288,26 +289,36 @@ class ExpedienteController extends Controller
         abort_if($solicitud->resultado_revision === 'conforme', 422, 'La solicitud ya fue declarada conforme.');
         abort_if($solicitud->estado === 'subsanacion', 422, 'Hay una subsanación pendiente de respuesta por el demandante.');
 
+        $existsTipoActorEnServicio = Rule::exists('servicio_tipos_actor', 'tipo_actor_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsTipoDocEnServicio   = Rule::exists('servicio_tipo_documento', 'tipo_documento_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsActorEnExpediente   = Rule::exists('expediente_actores', 'id')
+            ->where('expediente_id', $expediente->id);
+
         $request->validate([
             'resultado'                            => 'required|in:conforme,no_conforme',
             'motivo_no_conformidad'                => 'required_if:resultado,no_conforme|nullable|string|max:2000',
             'movimientos'                             => 'nullable|array|max:10',
             'movimientos.*.tipo'                      => 'nullable|in:requerimiento,propia,notificacion',
-            'movimientos.*.etapa_id'                  => 'required|exists:etapas,id',
+            'movimientos.*.etapa_id'                  => [
+                'required',
+                Rule::exists('etapas', 'id')->where('servicio_id', $expediente->servicio_id),
+            ],
             'movimientos.*.instruccion'               => 'required|string|max:2000',
-            'movimientos.*.tipo_actor_responsable_id' => 'nullable|exists:tipos_actor_expediente,id',
+            'movimientos.*.tipo_actor_responsable_id' => ['nullable', $existsTipoActorEnServicio],
             'movimientos.*.usuario_responsable_id'    => 'nullable|exists:users,id',
             'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                 => 'nullable|in:calendario,habiles',
-            'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'movimientos.*.tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
             'movimientos.*.habilitar_mesa_partes'          => 'nullable|boolean',
             'movimientos.*.actores_mesa_partes_ids'        => 'nullable|array',
-            'movimientos.*.actores_mesa_partes_ids.*'      => 'integer|exists:expediente_actores,id',
+            'movimientos.*.actores_mesa_partes_ids.*'      => ['integer', $existsActorEnExpediente],
             'movimientos.*.enviar_credenciales_expediente' => 'nullable|boolean',
-            'movimientos.*.actor_credenciales_exp_id'      => 'nullable|exists:expediente_actores,id',
+            'movimientos.*.actor_credenciales_exp_id'      => ['nullable', $existsActorEnExpediente],
             'movimientos.*.credenciales_email_destino'     => 'nullable|email|max:255',
             'movimientos.*.notificar_a'               => 'nullable|array',
-            'movimientos.*.notificar_a.*'             => 'integer|exists:expediente_actores,id',
+            'movimientos.*.notificar_a.*'             => ['integer', $existsActorEnExpediente],
             'documentos'                              => 'nullable|array',
             'documentos.*'                            => 'nullable|array',
             'documentos.*.*'                          => FileRules::accept(),

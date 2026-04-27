@@ -9,6 +9,10 @@ class MovimientoNotificacion extends Model
 {
     protected $table = 'movimiento_notificaciones';
 
+    public const ESTADO_PENDIENTE = 'pendiente';
+    public const ESTADO_ENVIADO   = 'enviado';
+    public const ESTADO_FALLIDO   = 'fallido';
+
     public $timestamps = false;
 
     protected $fillable = [

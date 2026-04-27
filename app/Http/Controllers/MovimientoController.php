@@ -40,30 +40,41 @@ class MovimientoController extends Controller
             }
         }
 
+        // IDs validados con scope: cada FK debe pertenecer al servicio o al expediente correspondiente.
+        $existsTipoActorEnServicio = Rule::exists('servicio_tipos_actor', 'tipo_actor_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsTipoDocEnServicio   = Rule::exists('servicio_tipo_documento', 'tipo_documento_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsActorEnExpediente   = Rule::exists('expediente_actores', 'id')
+            ->where('expediente_id', $expediente->id);
+
         $request->validate([
-            'etapa_id'                   => 'required|exists:etapas,id',
-            'tipo_actor_responsable_id'  => 'nullable|exists:tipos_actor_expediente,id',
+            'etapa_id'                   => [
+                'required',
+                Rule::exists('etapas', 'id')->where('servicio_id', $expediente->servicio_id),
+            ],
+            'tipo_actor_responsable_id'  => ['nullable', $existsTipoActorEnServicio],
             'usuario_responsable_id'     => 'nullable|exists:users,id',
             'responsables'                 => 'nullable|array',
             'responsables.*.actor_ids'    => 'nullable|array',
-            'responsables.*.actor_ids.*'  => 'integer|exists:expediente_actores,id',
+            'responsables.*.actor_ids.*'  => ['integer', $existsActorEnExpediente],
             'responsables.*.dias_plazo'   => [Rule::requiredIf(fn() => $request->input('tipo') === 'requerimiento'), 'nullable', 'integer', 'min:1', 'max:365'],
             'responsables.*.tipo_dias'    => 'nullable|in:calendario,habiles',
             'instruccion'                => 'required|string|max:2000',
             'observaciones'              => 'nullable|string|max:2000',
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
             'tipo_dias'                  => 'nullable|in:calendario,habiles',
-            'tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
             'habilitar_mesa_partes'              => 'nullable|boolean',
             'actores_mesa_partes_ids'            => 'nullable|array',
-            'actores_mesa_partes_ids.*'          => 'integer|exists:expediente_actores,id',
+            'actores_mesa_partes_ids.*'          => ['integer', $existsActorEnExpediente],
             'enviar_credenciales_expediente'     => 'nullable|boolean',
-            'actor_credenciales_exp_id'          => 'nullable|exists:expediente_actores,id',
+            'actor_credenciales_exp_id'          => ['nullable', $existsActorEnExpediente],
             'credenciales_email_destino'         => 'nullable|email|max:255',
             'documentos'                         => 'nullable|array',
             'documentos.*'               => FileRules::accept(),
             'notificar_a'                => 'nullable|array',
-            'notificar_a.*'              => 'integer|exists:expediente_actores,id',
+            'notificar_a.*'              => ['integer', $existsActorEnExpediente],
         ]);
 
         $datos = array_merge($request->only([
@@ -122,30 +133,40 @@ class MovimientoController extends Controller
             }
         }
 
+        $existsTipoActorEnServicio = Rule::exists('servicio_tipos_actor', 'tipo_actor_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsTipoDocEnServicio   = Rule::exists('servicio_tipo_documento', 'tipo_documento_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsActorEnExpediente   = Rule::exists('expediente_actores', 'id')
+            ->where('expediente_id', $expediente->id);
+
         $request->validate([
             'movimientos'                            => 'required|array|min:1|max:20',
             'movimientos.*.tipo'                     => 'required|in:requerimiento,propia,notificacion',
-            'movimientos.*.etapa_id'                 => 'required|exists:etapas,id',
+            'movimientos.*.etapa_id'                 => [
+                'required',
+                Rule::exists('etapas', 'id')->where('servicio_id', $expediente->servicio_id),
+            ],
             'movimientos.*.instruccion'              => 'required|string|max:2000',
             'movimientos.*.observaciones'            => 'nullable|string|max:2000',
-            'movimientos.*.tipo_actor_responsable_id'      => 'nullable|exists:tipos_actor_expediente,id',
+            'movimientos.*.tipo_actor_responsable_id'      => ['nullable', $existsTipoActorEnServicio],
             'movimientos.*.usuario_responsable_id'        => 'nullable|exists:users,id',
             'movimientos.*.responsables'                   => 'nullable|array',
             'movimientos.*.responsables.*.actor_ids'      => 'nullable|array',
-            'movimientos.*.responsables.*.actor_ids.*'    => 'integer|exists:expediente_actores,id',
+            'movimientos.*.responsables.*.actor_ids.*'    => ['integer', $existsActorEnExpediente],
             'movimientos.*.responsables.*.dias_plazo'     => 'nullable|integer|min:1|max:365',
             'movimientos.*.responsables.*.tipo_dias'      => 'nullable|in:calendario,habiles',
             'movimientos.*.dias_plazo'                    => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
-            'movimientos.*.tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'movimientos.*.tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
             'movimientos.*.habilitar_mesa_partes'            => 'nullable|boolean',
             'movimientos.*.actores_mesa_partes_ids'          => 'nullable|array',
-            'movimientos.*.actores_mesa_partes_ids.*'        => 'integer|exists:expediente_actores,id',
+            'movimientos.*.actores_mesa_partes_ids.*'        => ['integer', $existsActorEnExpediente],
             'movimientos.*.enviar_credenciales_expediente'   => 'nullable|boolean',
-            'movimientos.*.actor_credenciales_exp_id'        => 'nullable|exists:expediente_actores,id',
+            'movimientos.*.actor_credenciales_exp_id'        => ['nullable', $existsActorEnExpediente],
             'movimientos.*.credenciales_email_destino'       => 'nullable|email|max:255',
             'movimientos.*.notificar_a'              => 'nullable|array',
-            'movimientos.*.notificar_a.*'            => 'integer|exists:expediente_actores,id',
+            'movimientos.*.notificar_a.*'            => ['integer', $existsActorEnExpediente],
             'documentos'                             => 'nullable|array',
             'documentos.*'                           => 'nullable|array',
             'documentos.*.*'                         => FileRules::accept(),
@@ -210,12 +231,15 @@ class MovimientoController extends Controller
         abort_unless($movimiento->estado === 'pendiente', 422,
             'Este movimiento ya no está pendiente.');
 
+        $existsActorEnExpediente = Rule::exists('expediente_actores', 'id')
+            ->where('expediente_id', $expediente->id);
+
         $request->validate([
             'respuesta'       => 'required|string|max:5000',
             'documentos'      => 'nullable|array',
             'documentos.*'    => FileRules::accept(),
             'notificar_a'     => 'nullable|array',
-            'notificar_a.*'   => 'integer|exists:expediente_actores,id',
+            'notificar_a.*'   => ['integer', $existsActorEnExpediente],
         ]);
 
         $datos = [
@@ -242,29 +266,39 @@ class MovimientoController extends Controller
         abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403,
             'Solo el Gestor puede responder y crear un nuevo movimiento simultáneamente.');
 
+        $existsTipoActorEnServicio = Rule::exists('servicio_tipos_actor', 'tipo_actor_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsTipoDocEnServicio   = Rule::exists('servicio_tipo_documento', 'tipo_documento_id')
+            ->where('servicio_id', $expediente->servicio_id);
+        $existsActorEnExpediente   = Rule::exists('expediente_actores', 'id')
+            ->where('expediente_id', $expediente->id);
+
         $request->validate([
             // Respuesta
             'respuesta'                       => 'required|string|max:5000',
             'documentos_respuesta'            => 'nullable|array',
             'documentos_respuesta.*'          => FileRules::accept(),
             // Nuevo movimiento
-            'nuevo_etapa_id'                  => 'required|exists:etapas,id',
-            'nuevo_tipo_actor_responsable_id'              => 'nullable|exists:tipos_actor_expediente,id',
+            'nuevo_etapa_id'                  => [
+                'required',
+                Rule::exists('etapas', 'id')->where('servicio_id', $expediente->servicio_id),
+            ],
+            'nuevo_tipo_actor_responsable_id'              => ['nullable', $existsTipoActorEnServicio],
             'nuevo_usuario_responsable_id'                => 'nullable|exists:users,id',
             'nuevo_responsables'                           => 'nullable|array',
             'nuevo_responsables.*.actor_ids'              => 'nullable|array',
-            'nuevo_responsables.*.actor_ids.*'            => 'integer|exists:expediente_actores,id',
+            'nuevo_responsables.*.actor_ids.*'            => ['integer', $existsActorEnExpediente],
             'nuevo_responsables.*.dias_plazo'             => 'nullable|integer|min:1|max:365',
             'nuevo_responsables.*.tipo_dias'              => 'nullable|in:calendario,habiles',
             'nuevo_instruccion'               => 'required|string|max:2000',
             'nuevo_observaciones'             => 'nullable|string|max:2000',
             'nuevo_dias_plazo'                => 'nullable|integer|min:1|max:365',
             'nuevo_tipo_dias'                 => 'nullable|in:calendario,habiles',
-            'nuevo_tipo_documento_requerido_id' => 'nullable|exists:tipo_documentos,id',
+            'nuevo_tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
             'documentos_nuevo'                => 'nullable|array',
             'documentos_nuevo.*'              => FileRules::accept(),
             'notificar_a'                     => 'nullable|array',
-            'notificar_a.*'                   => 'integer|exists:expediente_actores,id',
+            'notificar_a.*'                   => ['integer', $existsActorEnExpediente],
         ]);
 
         $datosRespuesta = [
@@ -341,7 +375,11 @@ class MovimientoController extends Controller
     {
         abort_unless($movimiento->expediente_id === $expediente->id, 404);
         abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403);
-        abort_unless($movimiento->estado === 'pendiente', 422, 'Solo se puede extender el plazo de movimientos pendientes.');
+        abort_unless(
+            in_array($movimiento->estado, ['pendiente', 'vencido'], true),
+            422,
+            'Solo se puede extender el plazo de movimientos pendientes o vencidos.'
+        );
 
         $request->validate([
             'dias_plazo' => 'nullable|integer|min:1|max:365',

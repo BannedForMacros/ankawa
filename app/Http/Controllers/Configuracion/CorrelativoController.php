@@ -32,7 +32,10 @@ class CorrelativoController extends Controller
         $query->orderBy($sortBy, $sortDir);
 
         $correlativos     = $query->paginate(20)->withQueryString();
-        $tiposCorrelativo = TipoCorrelativo::where('activo', true)->orderBy('nombre')->get(['id', 'nombre', 'codigo']);
+        // Enviamos también `prefijo`, `formato`, `aplica_sufijo_centro` y `activo` para que la
+        // pantalla pueda renderizar el preview real y abrir el modal de edición de formato.
+        $tiposCorrelativo = TipoCorrelativo::orderBy('id')
+            ->get(['id', 'nombre', 'codigo', 'prefijo', 'formato', 'aplica_sufijo_centro', 'activo']);
         $servicios        = Servicio::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre']);
 
         return Inertia::render('Configuracion/Correlativos/Index', [
@@ -47,15 +50,21 @@ class CorrelativoController extends Controller
         $request->validate([
             'tipo_correlativo_id' => 'required|exists:tipos_correlativo,id',
             'servicio_id'         => 'nullable|exists:servicios,id',
-            'codigo_servicio'     => 'required|string|max:50',
+            'codigo_servicio'     => 'nullable|string|max:50',
             'anio'                => 'required|integer|min:2000|max:2099',
             'ultimo_numero'       => 'required|integer|min:0',
         ], [
             'tipo_correlativo_id.required' => 'El tipo de correlativo es obligatorio.',
-            'codigo_servicio.required'     => 'El código de servicio es obligatorio (ej: ARB, JPRD).',
             'anio.required'                => 'El año es obligatorio.',
             'ultimo_numero.min'            => 'El último número no puede ser negativo.',
         ]);
+
+        // Si no se pasa código de servicio, derivarlo: slug del servicio en mayúsculas o 'GEN'
+        $codigoServicio = $request->codigo_servicio
+            ? strtoupper(trim($request->codigo_servicio))
+            : ($request->servicio_id
+                ? strtoupper(\App\Models\Servicio::find($request->servicio_id)?->slug ?? 'GEN')
+                : 'GEN');
 
         $existe = Correlativo::where('tipo_correlativo_id', $request->tipo_correlativo_id)
             ->where(function ($q) use ($request) {
@@ -75,7 +84,7 @@ class CorrelativoController extends Controller
         Correlativo::create([
             'tipo_correlativo_id' => $request->tipo_correlativo_id,
             'servicio_id'         => $request->servicio_id ?: null,
-            'codigo_servicio'     => strtoupper(trim($request->codigo_servicio)),
+            'codigo_servicio'     => $codigoServicio,
             'anio'                => $request->anio,
             'ultimo_numero'       => $request->ultimo_numero,
             'activo'              => true,
@@ -89,11 +98,17 @@ class CorrelativoController extends Controller
         $request->validate([
             'tipo_correlativo_id' => 'required|exists:tipos_correlativo,id',
             'servicio_id'         => 'nullable|exists:servicios,id',
-            'codigo_servicio'     => 'required|string|max:50',
+            'codigo_servicio'     => 'nullable|string|max:50',
             'anio'                => 'required|integer|min:2000|max:2099',
             'ultimo_numero'       => 'required|integer|min:0',
             'activo'              => 'required|boolean',
         ]);
+
+        $codigoServicio = $request->codigo_servicio
+            ? strtoupper(trim($request->codigo_servicio))
+            : ($request->servicio_id
+                ? strtoupper(\App\Models\Servicio::find($request->servicio_id)?->slug ?? 'GEN')
+                : 'GEN');
 
         $existe = Correlativo::where('tipo_correlativo_id', $request->tipo_correlativo_id)
             ->where(function ($q) use ($request) {
@@ -114,7 +129,7 @@ class CorrelativoController extends Controller
         $correlativo->update([
             'tipo_correlativo_id' => $request->tipo_correlativo_id,
             'servicio_id'         => $request->servicio_id ?: null,
-            'codigo_servicio'     => strtoupper(trim($request->codigo_servicio)),
+            'codigo_servicio'     => $codigoServicio,
             'anio'                => $request->anio,
             'ultimo_numero'       => $request->ultimo_numero,
             'activo'              => $request->activo,

@@ -7,6 +7,7 @@ use App\Models\ExpedienteHistorial;
 use App\Services\GestorExpedienteService;
 use App\Services\EtapaService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ExpedienteEstadoController extends Controller
 {
@@ -90,7 +91,10 @@ class ExpedienteEstadoController extends Controller
         abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403);
 
         $request->validate([
-            'etapa_id' => 'required|exists:etapas,id',
+            'etapa_id' => [
+                'required',
+                Rule::exists('etapas', 'id')->where('servicio_id', $expediente->servicio_id),
+            ],
         ]);
 
         $this->etapaService->cambiarEtapa($expediente, $request->etapa_id, auth()->id());

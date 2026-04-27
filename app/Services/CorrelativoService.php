@@ -40,7 +40,7 @@ class CorrelativoService
             $correlativo = $query->lockForUpdate()->first();
 
             if (!$correlativo) {
-                // Heredar codigo_servicio del año anterior para el mismo tipo+servicio
+                // 1) Heredar codigo_servicio del año anterior del MISMO tipo+servicio
                 $prevQuery = Correlativo::where('tipo_correlativo_id', $tipoCorrelativoId)
                     ->orderByDesc('anio');
 
@@ -51,7 +51,17 @@ class CorrelativoService
                 }
 
                 $prevCorrelativo = $prevQuery->first();
-                $codigoServicio  = $prevCorrelativo?->codigo_servicio ?? 'GEN';
+
+                // 2) Si nunca se ha emitido este tipo para este servicio (ej. primer CARGO de arbitraje),
+                //    heredar el codigo_servicio de CUALQUIER correlativo previo del mismo servicio
+                //    (porque "ARB", "JPRD", etc. son códigos del servicio, no del tipo).
+                if (!$prevCorrelativo && $servicioId !== null) {
+                    $prevCorrelativo = Correlativo::where('servicio_id', $servicioId)
+                        ->orderByDesc('anio')
+                        ->first();
+                }
+
+                $codigoServicio = $prevCorrelativo?->codigo_servicio ?? 'GEN';
 
                 $correlativo = Correlativo::create([
                     'tipo_correlativo_id' => $tipoCorrelativoId,
@@ -71,26 +81,40 @@ class CorrelativoService
     }
 
     /**
-     * Formatea el número de correlativo según el tipo.
+     * Formatea el número de correlativo según el patrón configurado en `tipos_correlativo.formato`.
+     *
+     * Tokens soportados:
+     *   {PREFIJO}    → tipo_correlativo.prefijo (ej. "Exp. N°", "CARGO")
+     *   {ANIO}       → año del correlativo (ej. "2026")
+     *   {SERVICIO}   → correlativo.codigo_servicio (ej. "ARB", "JPRD"); en correlativos
+     *                  globales (servicio_id NULL) usa el código heredado o "GEN"
+     *   {CENTRO}     → config('app.sufijo_centro', 'CARD ANKAWA')
+     *   {NUMERO}     → ultimo_numero sin padding
+     *   {NUMERO:N}   → ultimo_numero con padding a N dígitos (ej. {NUMERO:4} → "0001")
+     *
+     * Si el patrón no está definido, cae a un default conservador para no romper.
      */
     private function formatear(Correlativo $correlativo, TipoCorrelativo $tipo): string
     {
-        $numero       = str_pad($correlativo->ultimo_numero, 3, '0', STR_PAD_LEFT);
-        $sufijoCentro = config('app.sufijo_centro', 'CARD ANKAWA');
+        $patron = $tipo->formato ?: '{PREFIJO} {NUMERO:3}-{ANIO}-{SERVICIO}';
 
-        $partes = [
-            $numero,
-            $correlativo->anio,
-            $correlativo->codigo_servicio,
-        ];
+        // Resolver primero {NUMERO:N} y {NUMERO} (con padding configurable).
+        $resuelto = preg_replace_callback(
+            '/\{NUMERO(?::(\d+))?\}/',
+            function ($m) use ($correlativo) {
+                $padding = isset($m[1]) ? (int) $m[1] : 0;
+                return $padding > 0
+                    ? str_pad((string) $correlativo->ultimo_numero, $padding, '0', STR_PAD_LEFT)
+                    : (string) $correlativo->ultimo_numero;
+            },
+            $patron
+        );
 
-        if ($tipo->aplica_sufijo_centro) {
-            $partes[] = $sufijoCentro;
-        }
-
-        $cuerpo  = implode('-', $partes);
-        $prefijo = trim($tipo->prefijo);
-
-        return $prefijo ? "{$prefijo} {$cuerpo}" : $cuerpo;
+        return strtr($resuelto, [
+            '{PREFIJO}'  => trim($tipo->prefijo ?? ''),
+            '{ANIO}'     => (string) $correlativo->anio,
+            '{SERVICIO}' => (string) $correlativo->codigo_servicio,
+            '{CENTRO}'   => config('app.sufijo_centro', 'CARD ANKAWA'),
+        ]);
     }
 }

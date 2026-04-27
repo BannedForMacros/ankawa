@@ -272,12 +272,14 @@ class PortalController extends Controller
                 'created_at'    => now(),
             ]);
 
-            if ($movimiento->tipo === 'requerimiento') {
-                $cargo = Cargo::crear('respuesta_movimiento', $movimiento, null);
-                try {
-                    Mail::to($email)->send(new CargoRespuestaMail($cargo, $movimiento));
-                } catch (\Exception $e) {
-                    \Log::warning("Error enviando cargo portal a {$email}: " . $e->getMessage());
+            if ($movimiento->tipo === 'requerimiento' && $movimiento->genera_cargo) {
+                $cargo = Cargo::crear('respuesta_requerimiento', $movimiento, null);
+                if ($cargo) {
+                    try {
+                        Mail::to($email)->send(new CargoRespuestaMail($cargo, $movimiento));
+                    } catch (\Exception $e) {
+                        \Log::warning("Error enviando cargo portal a {$email}: " . $e->getMessage());
+                    }
                 }
             }
         });

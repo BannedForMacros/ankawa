@@ -40,6 +40,14 @@ class SolicitudOtrosController extends Controller
         ]);
 
         $cargo = Cargo::crear('solicitud', $solicitud, null);
+
+        if (!$cargo) {
+            // El tipo de evento 'solicitud' está desactivado en Configuración → Tipos de Cargo.
+            // Sin cargo no hay número de seguimiento que mostrar al ciudadano: rechazamos el ingreso.
+            return back()->with('error',
+                'No es posible registrar la solicitud en este momento. Contacte con el centro.');
+        }
+
         $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
 
         try {

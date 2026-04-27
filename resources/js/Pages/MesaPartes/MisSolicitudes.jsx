@@ -445,12 +445,12 @@ export default function MisSolicitudes({ solicitudes }) {
                             <FileText size={40} className="mx-auto mb-3 opacity-30" />
                             <p className="font-medium text-gray-600">Aún no tiene solicitudes registradas</p>
                             <p className="text-sm mt-1 mb-6">Presente su primera solicitud desde la Mesa de Partes Virtual.</p>
-                            <a href="/mesa-partes"
+                            <Link href={route('mesa-partes.index')}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
                                     bg-[#BE0F4A] text-white hover:bg-[#BC1D35] transition-colors">
                                 Ir a Mesa de Partes
                                 <ArrowRight size={15} />
-                            </a>
+                            </Link>
                         </div>
                     ) : (
                         <div className="space-y-5">

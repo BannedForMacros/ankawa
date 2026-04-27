@@ -54,7 +54,7 @@ class NotificacionService
                     'email_destino'  => $email,
                     'nombre_destino' => $nombre,
                     'asunto'         => $asunto,
-                    'estado_envio'   => 'pendiente',
+                    'estado_envio'   => MovimientoNotificacion::ESTADO_PENDIENTE,
                     'numero_cedula'  => $numeroCedula,
                     'created_at'     => now(),
                 ]);
@@ -68,11 +68,11 @@ class NotificacionService
                     ));
 
                     $notificacion->update([
-                        'estado_envio' => 'enviado',
+                        'estado_envio' => MovimientoNotificacion::ESTADO_ENVIADO,
                         'enviado_at'   => now(),
                     ]);
                 } catch (\Exception $e) {
-                    $notificacion->update(['estado_envio' => 'fallido']);
+                    $notificacion->update(['estado_envio' => MovimientoNotificacion::ESTADO_FALLIDO]);
                     \Log::warning("Fallo envío notificación actor {$actor->id} → {$email}: " . $e->getMessage());
                 }
             }

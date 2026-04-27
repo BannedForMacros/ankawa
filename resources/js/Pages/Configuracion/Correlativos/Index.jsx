@@ -13,6 +13,21 @@ import CustomSelect from '@/Components/CustomSelect';
 import toast from 'react-hot-toast';
 import { Plus, Hash } from 'lucide-react';
 
+// Helper: aplica el patrón configurable (tipos_correlativo.formato) a valores reales.
+// Lo usa solo la columna "Próximo número" para mostrar exactamente lo que generará el backend.
+function aplicarFormato(formato, { prefijo, anio, codigoServicio, ultimoNumero }) {
+    if (!formato) return '';
+    let resultado = formato.replace(/\{NUMERO(?::(\d+))?\}/g, (_, n) => {
+        const pad = n ? parseInt(n, 10) : 1;
+        return String(ultimoNumero ?? 1).padStart(pad, '0');
+    });
+    return resultado
+        .replaceAll('{PREFIJO}',  (prefijo ?? '').trim())
+        .replaceAll('{ANIO}',     String(anio ?? new Date().getFullYear()))
+        .replaceAll('{SERVICIO}', codigoServicio ?? '')
+        .replaceAll('{CENTRO}',   'CARD ANKAWA');
+}
+
 const anioActual = new Date().getFullYear();
 
 const opcionesAnio = Array.from({ length: 6 }, (_, i) => ({
@@ -33,7 +48,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
     const [correlativoAEliminar, setCorrelativoAEliminar] = useState(null);
     const [deleting, setDeleting]                         = useState(false);
 
-    const opcionesTipo     = tiposCorrelativo.map(t => ({ id: t.id, nombre: `${t.nombre} (${t.codigo})` }));
+    const opcionesTipo     = tiposCorrelativo.map(t => ({ id: t.id, nombre: t.nombre }));
     const opcionesServicio = [
         { id: '', nombre: '— Global (sin servicio) —' },
         ...servicios.map(s => ({ id: s.id, nombre: s.nombre })),
@@ -125,10 +140,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
             label: 'Tipo',
             sortable: false,
             render: (row) => (
-                <div>
-                    <div className="font-bold text-[#291136] text-sm">{row.tipo_correlativo?.nombre}</div>
-                    <div className="text-xs text-gray-400 font-mono">{row.tipo_correlativo?.codigo}</div>
-                </div>
+                <div className="font-bold text-[#291136] text-sm">{row.tipo_correlativo?.nombre}</div>
             ),
         },
         {
@@ -155,18 +167,18 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         { key: 'ultimo_numero', label: 'Último N°',     sortable: true },
         {
             key: 'ejemplo',
-            label: 'Formato Generado',
+            label: 'Próximo número',
             sortable: false,
             render: (row) => {
-                const tipo   = row.tipo_correlativo;
-                const num    = String(row.ultimo_numero + 1).padStart(3, '0');
-                const partes = [num, row.anio, row.codigo_servicio];
-                if (tipo?.aplica_sufijo_centro) partes.push('CARD ANKAWA');
-                const cuerpo  = partes.join('-');
-                const prefijo = tipo?.prefijo ? `${tipo.prefijo} ` : '';
+                const ejemplo = aplicarFormato(row.tipo_correlativo?.formato, {
+                    prefijo:        row.tipo_correlativo?.prefijo,
+                    anio:           row.anio,
+                    codigoServicio: row.codigo_servicio,
+                    ultimoNumero:   row.ultimo_numero + 1,
+                });
                 return (
                     <span className="font-mono text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">
-                        {prefijo}{cuerpo}
+                        {ejemplo}
                     </span>
                 );
             },
@@ -275,18 +287,17 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
                             </p>
                         </div>
 
-                        {/* Código de servicio */}
+                        {/* Código de servicio (opcional) */}
                         <Input
-                            label="Código de Servicio"
-                            required
+                            label="Código de Servicio (opcional)"
                             type="text"
                             value={data.codigo_servicio}
                             onChange={e => setData('codigo_servicio', e.target.value.toUpperCase())}
-                            placeholder="Ej: ARB, JPRD, ARB EMERG"
+                            placeholder="Se autocompleta si lo dejas vacío"
                             error={errors.codigo_servicio}
                         />
                         <p className="text-xs text-gray-400 -mt-3 mb-5">
-                            Aparece en el número generado: <span className="font-mono text-emerald-600">Exp. N° 001-2026-<strong>{data.codigo_servicio || 'ARB'}</strong>-CARD ANKAWA</span>
+                            Si lo dejas vacío, se usa el código del servicio (ej: <strong>ARBITRAJE</strong>) o <strong>GEN</strong> si es global.
                         </p>
 
                         {/* Año */}
@@ -362,3 +373,4 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         </AuthenticatedLayout>
     );
 }
+

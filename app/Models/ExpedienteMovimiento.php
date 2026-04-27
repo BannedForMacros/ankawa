@@ -10,11 +10,34 @@ class ExpedienteMovimiento extends Model
 {
     protected $table = 'expediente_movimientos';
 
+    // Estados posibles de un movimiento
+    public const ESTADO_PENDIENTE  = 'pendiente';
+    public const ESTADO_RESPONDIDO = 'respondido';
+    public const ESTADO_VENCIDO    = 'vencido';
+    public const ESTADO_RECIBIDO   = 'recibido';
+
+    public const ESTADOS = [
+        self::ESTADO_PENDIENTE,
+        self::ESTADO_RESPONDIDO,
+        self::ESTADO_VENCIDO,
+        self::ESTADO_RECIBIDO,
+    ];
+
+    // Tipos de movimiento
+    public const TIPO_REQUERIMIENTO = 'requerimiento';
+    public const TIPO_PROPIA        = 'propia';
+    public const TIPO_NOTIFICACION  = 'notificacion';
+
+    public const TIPOS = [
+        self::TIPO_REQUERIMIENTO,
+        self::TIPO_PROPIA,
+        self::TIPO_NOTIFICACION,
+    ];
+
     protected $fillable = [
         'expediente_id',
         'tipo',
         'etapa_id',
-        'sub_etapa_id',
         'tipo_actor_responsable_id',
         'usuario_responsable_id',
         'creado_por',
@@ -65,11 +88,6 @@ class ExpedienteMovimiento extends Model
     public function etapa(): BelongsTo
     {
         return $this->belongsTo(Etapa::class, 'etapa_id');
-    }
-
-    public function subEtapa(): BelongsTo
-    {
-        return $this->belongsTo(SubEtapa::class, 'sub_etapa_id');
     }
 
     public function tipoActorResponsable(): BelongsTo

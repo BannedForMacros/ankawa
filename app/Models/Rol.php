@@ -9,6 +9,10 @@ class Rol extends Model
 {
     protected $table = 'roles';
 
+    // Slugs estables del sistema (referencia desde código)
+    public const SLUG_USUARIO          = 'usuario';
+    public const SLUG_ADMINISTRADOR_TI = 'administrador_ti';
+
     protected $fillable = [
         'nombre', 'slug', 'descripcion', 'activo',
         'puede_designar_gestor', 'puede_ver_todos_expedientes',

@@ -8,11 +8,15 @@ use App\Models\ExpedienteActorEmail;
 use App\Models\ExpedienteHistorial;
 use App\Models\User;
 use App\Models\Rol;
+use App\Models\TipoActorExpediente;
 use App\Services\GestorExpedienteService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use App\Mail\CredencialesAccesoMail;
 
 class ExpedienteActorController extends Controller
 {
@@ -29,7 +33,11 @@ class ExpedienteActorController extends Controller
         $this->autorizarGestion($expediente);
 
         $request->validate([
-            'tipo_actor_id'  => 'required|exists:tipos_actor_expediente,id',
+            'tipo_actor_id'  => [
+                'required',
+                Rule::exists('servicio_tipos_actor', 'tipo_actor_id')
+                    ->where('servicio_id', $expediente->servicio_id),
+            ],
             'modo'           => 'required|in:interno,externo',
             // Modo interno: seleccionar usuario existente
             'usuario_id'     => 'required_if:modo,interno|nullable|exists:users,id',
@@ -55,25 +63,20 @@ class ExpedienteActorController extends Controller
                     'name'     => $request->nombre_externo,
                     'email'    => $request->email_externo,
                     'password' => Hash::make($passwordRaw),
-                    'rol_id'   => Rol::where('slug', 'usuario')->value('id'),
+                    'rol_id'   => Rol::where('slug', Rol::SLUG_USUARIO)->value('id'),
                     'activo'   => 1,
                 ]);
 
                 // Notificar al externo que se le creó cuenta
                 try {
-                    Mail::raw(
-                        "Estimado(a) {$request->nombre_externo},\n\n" .
-                        "Se le ha designado como actor en el expediente {$expediente->numero_expediente} en la plataforma ANKAWA.\n\n" .
-                        "Sus credenciales de acceso son:\n" .
-                        "Email: {$request->email_externo}\n" .
-                        "Contraseña temporal: {$passwordRaw}\n\n" .
-                        "Por favor ingrese a la plataforma y cambie su contraseña.\n\n" .
-                        "Saludos cordiales.",
-                        function ($message) use ($request) {
-                            $message->to($request->email_externo, $request->nombre_externo)
-                                    ->subject('Designación como actor en expediente - ANKAWA');
-                        }
-                    );
+                    Mail::to($request->email_externo, $request->nombre_externo)
+                        ->send(new CredencialesAccesoMail(
+                            nombreDestinatario: $request->nombre_externo,
+                            emailUsuario:       $request->email_externo,
+                            passwordTemporal:   $passwordRaw,
+                            numeroExpediente:   $expediente->numero_expediente,
+                            contexto:           'expediente',
+                        ));
                     $credencialesEnviadas = true;
                 } catch (\Exception $e) {
                     \Log::warning("No se pudo enviar email a actor externo: " . $e->getMessage());
@@ -120,8 +123,7 @@ class ExpedienteActorController extends Controller
         abort_unless($actor->expediente_id === $expediente->id, 404);
 
         // No permitir remover demandante/demandado
-        $slugsProtegidos = ['demandante', 'demandado'];
-        if (in_array($actor->tipoActor?->slug, $slugsProtegidos)) {
+        if (in_array($actor->tipoActor?->slug, TipoActorExpediente::SLUGS_INMUTABLES, true)) {
             return back()->withErrors(['general' => 'No se puede remover al demandante ni al demandado.']);
         }
 
@@ -155,18 +157,20 @@ class ExpedienteActorController extends Controller
         abort_unless($puedeDesignar, 403, 'No tiene permisos para designar responsable.');
 
         $request->validate([
-            'actor_id' => 'required|exists:expediente_actores,id',
+            'actor_id' => [
+                'required',
+                Rule::exists('expediente_actores', 'id')->where('expediente_id', $expediente->id),
+            ],
         ]);
 
-        // Verificar que el actor pertenece a este expediente
+        // Verificar que el actor pertenece a este expediente y está activo
         $actor = ExpedienteActor::where('id', $request->actor_id)
             ->where('expediente_id', $expediente->id)
             ->where('activo', 1)
             ->firstOrFail();
 
         // No permitir designar como responsable a demandante/demandado
-        $slugsNoGestor = ['demandante', 'demandado'];
-        if (in_array($actor->tipoActor?->slug, $slugsNoGestor)) {
+        if (in_array($actor->tipoActor?->slug, TipoActorExpediente::SLUGS_INMUTABLES, true)) {
             return back()->withErrors(['general' => 'El demandante y demandado no pueden ser designados como responsable.']);
         }
 
@@ -207,23 +211,32 @@ class ExpedienteActorController extends Controller
             return back()->withErrors(['email' => 'Este email ya está registrado para este actor.']);
         }
 
-        // Si existe como baja lógica, reactivar; si no, crear
-        $registro = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
-            ->where('email', $emailNorm)
-            ->first();
+        // Si existe como baja lógica, reactivar; si no, crear.
+        // Envolvemos en transacción + lockForUpdate para evitar `orden` duplicado en
+        // requests concurrentes (max('orden') sin lock es race condition).
+        $registro = DB::transaction(function () use ($actor, $emailNorm, $request) {
+            $existente = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
+                ->where('email', $emailNorm)
+                ->lockForUpdate()
+                ->first();
 
-        if ($registro) {
-            $registro->update(['activo' => 1, 'label' => $request->label]);
-        } else {
-            $orden = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)->max('orden') + 1;
-            $registro = ExpedienteActorEmail::create([
+            if ($existente) {
+                $existente->update(['activo' => 1, 'label' => $request->label]);
+                return $existente;
+            }
+
+            $maxOrden = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
+                ->lockForUpdate()
+                ->max('orden') ?? 0;
+
+            return ExpedienteActorEmail::create([
                 'expediente_actor_id' => $actor->id,
                 'email'  => $emailNorm,
                 'label'  => $request->label,
-                'orden'  => $orden,
+                'orden'  => $maxOrden + 1,
                 'activo' => 1,
             ]);
-        }
+        });
 
         $nombreActor = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
         ExpedienteHistorial::create([

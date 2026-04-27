@@ -15,6 +15,7 @@ class TipoCorrelativo extends Model
         'nombre',
         'codigo',
         'prefijo',
+        'formato',
         'aplica_sufijo_centro',
         'activo',
     ];

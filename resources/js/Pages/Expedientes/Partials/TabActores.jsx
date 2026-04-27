@@ -235,7 +235,12 @@ export default function TabActores({
                                 const esJuridica = !!infoJur;
                                 const esConsorcio = infoJur?.subtipo === 'consorcio';
                                 const subtipoMeta = infoJur ? (SUBTIPO_META[infoJur.subtipo] ?? null) : null;
-                                const empresasConsorcio = infoJur?.empresas ?? [];
+                                const empresasRaw = infoJur?.empresas;
+                                const empresasConsorcio = Array.isArray(empresasRaw)
+                                    ? empresasRaw
+                                    : (empresasRaw && typeof empresasRaw === 'object')
+                                        ? Object.values(empresasRaw)
+                                        : [];
 
                                 // Fuente de verdad del nombre: solicitud para jurídicas, usuario/externo para el resto
                                 const nombreMostrado = esJuridica

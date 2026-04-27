@@ -12,6 +12,16 @@ class Expediente extends Model
 {
     protected $table = 'expedientes';
 
+    public const ESTADO_ACTIVO     = 'activo';
+    public const ESTADO_SUSPENDIDO = 'suspendido';
+    public const ESTADO_CONCLUIDO  = 'concluido';
+
+    public const ESTADOS = [
+        self::ESTADO_ACTIVO,
+        self::ESTADO_SUSPENDIDO,
+        self::ESTADO_CONCLUIDO,
+    ];
+
     protected $fillable = [
         'solicitud_type',
         'solicitud_id',
