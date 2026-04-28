@@ -161,7 +161,7 @@ export default function Index({ servicios }) {
                 <Table
                     columns={columns}
                     data={servicios.data}
-                    meta={servicios.meta}
+                    meta={servicios}
                     routeName="configuracion.servicios.index"
                     searchPlaceholder="Buscar por nombre o descripción..."
                 />

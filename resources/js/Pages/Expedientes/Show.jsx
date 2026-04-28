@@ -29,6 +29,7 @@ export default function Show({
     tiposDocumento,
     tiposResolucion,
     enviosCount = 0,
+    miTipoActorId = null,
 }) {
     const [enviosBadge, setEnviosBadge] = useState(enviosCount);
 
@@ -207,6 +208,7 @@ export default function Show({
                             tiposActor={tiposActor}
                             actoresNotificables={actoresNotificables}
                             tiposDocumento={tiposDocumento ?? []}
+                            miTipoActorId={miTipoActorId}
                         />
                     )}
 
@@ -218,6 +220,7 @@ export default function Show({
                             usuariosAsignables={usuariosAsignables}
                             actoresNotificables={actoresNotificables}
                             tiposDocumento={tiposDocumento}
+                            miTipoActorId={miTipoActorId}
                         />
                     )}
 

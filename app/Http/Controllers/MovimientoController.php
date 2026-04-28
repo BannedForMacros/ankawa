@@ -65,6 +65,7 @@ class MovimientoController extends Controller
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
             'tipo_dias'                  => 'nullable|in:calendario,habiles',
             'tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
+            'documento_tipo_id'          => ['nullable', $existsTipoDocEnServicio],
             'habilitar_mesa_partes'              => 'nullable|boolean',
             'actores_mesa_partes_ids'            => 'nullable|array',
             'actores_mesa_partes_ids.*'          => ['integer', $existsActorEnExpediente],
@@ -81,6 +82,7 @@ class MovimientoController extends Controller
             'etapa_id', 'tipo_actor_responsable_id',
             'usuario_responsable_id', 'instruccion', 'observaciones',
             'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
+            'documento_tipo_id',
         ]), [
             'creado_por'                         => auth()->id(),
             'tipo'                               => $request->input('tipo', 'requerimiento'),
@@ -159,6 +161,7 @@ class MovimientoController extends Controller
             'movimientos.*.dias_plazo'                    => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
+            'movimientos.*.documento_tipo_id'           => ['nullable', $existsTipoDocEnServicio],
             'movimientos.*.habilitar_mesa_partes'            => 'nullable|boolean',
             'movimientos.*.actores_mesa_partes_ids'          => 'nullable|array',
             'movimientos.*.actores_mesa_partes_ids.*'        => ['integer', $existsActorEnExpediente],
@@ -197,6 +200,7 @@ class MovimientoController extends Controller
                             'etapa_id', 'tipo_actor_responsable_id',
                             'usuario_responsable_id', 'instruccion', 'observaciones',
                             'dias_plazo', 'tipo_dias', 'tipo_documento_requerido_id',
+                            'documento_tipo_id',
                         ]),
                         [
                             'creado_por'   => auth()->id(),

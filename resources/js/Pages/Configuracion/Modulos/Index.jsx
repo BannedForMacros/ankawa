@@ -269,7 +269,7 @@ export default function ModulosIndex({ modulos }) {
                 <Table
                     columns={columns}
                     data={modulos.data}
-                    meta={modulos.meta}
+                    meta={modulos}
                     routeName="configuracion.modulos.index"
                     searchPlaceholder="Buscar módulo..."
                 />

@@ -681,7 +681,7 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                 <Table
                     columns={columns}
                     data={tipos.data}
-                    meta={tipos.meta}
+                    meta={tipos}
                     routeName="configuracion.tipos-documentos.index"
                     searchPlaceholder="Buscar tipo de documento..."
                 />

@@ -166,7 +166,7 @@ export default function Index({ roles }) {
                 <Table
                     columns={columns}
                     data={roles.data}
-                    meta={roles.meta}
+                    meta={roles}
                     routeName="configuracion.roles.index"
                     searchPlaceholder="Buscar por nombre o descripción..."
                 />

@@ -15,6 +15,7 @@ export const movVacioBase = (expediente, notificarIds = []) => ({
     dias_plazo:                  '',
     tipo_dias:                   'calendario',
     tipo_documento_requerido_id: '',
+    documento_tipo_id:           '',
     habilitar_mesa_partes:          false,
     actores_mesa_partes_ids:        [],
     enviar_credenciales_expediente: false,
@@ -238,6 +239,7 @@ export function MovimientoCard({
     tiposDocumento, actoresSinMesaPartes, actoresSinExpElectronico, actoresNotificables,
     archivos, onArchivos, onChange, onMover, onQuitar,
     errores = {}, etapaActualId = null, solicitudEsConforme = true,
+    miTipoActorId = null,
 }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
     const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
@@ -286,6 +288,24 @@ export function MovimientoCard({
         if (!mov.tipo_actor_responsable_id) return base;
         return base.filter(a => String(a.tipo_actor_id) === String(mov.tipo_actor_responsable_id));
     }, [mov.tipo_actor_responsable_id, actoresConAcceso]);
+
+    // Tipos de documento que el usuario logueado (según su tipo de actor en el servicio)
+    // tiene permiso de SUBIR. Si no tiene tipo de actor o no hay permisos, no puede adjuntar.
+    const tiposDocumentoSubibles = useMemo(() => {
+        if (!miTipoActorId) return [];
+        return tiposDocumento.filter(td =>
+            (td.permisos ?? []).some(p =>
+                String(p.tipo_actor_id) === String(miTipoActorId) && p.puede_subir
+            )
+        );
+    }, [tiposDocumento, miTipoActorId]);
+
+    // Auto-seleccionar cuando solo hay 1 tipo disponible.
+    useEffect(() => {
+        if (tiposDocumentoSubibles.length === 1 && !mov.documento_tipo_id) {
+            onChange('documento_tipo_id', String(tiposDocumentoSubibles[0].id));
+        }
+    }, [tiposDocumentoSubibles, mov.documento_tipo_id]);
 
     const [previewFile, setPreviewFile] = useState(null);
 
@@ -568,30 +588,52 @@ export function MovimientoCard({
                 {/* ── SECCIÓN 5: Documentos adjuntos ── */}
                 <div>
                     <SectionLabel>Documentos adjuntos</SectionLabel>
-                    <label className="flex items-center gap-2 cursor-pointer w-fit px-4 py-2.5 rounded-lg border border-dashed border-[#BE0F4A]/40 text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors text-sm font-semibold">
-                        <Paperclip size={15}/>
-                        Adjuntar archivos
-                        <input type="file" multiple accept={upload_accept} className="sr-only"
-                            onChange={e => onArchivos([...archivos, ...Array.from(e.target.files)])}/>
-                    </label>
-                    <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
-                    {archivos.length > 0 && (
-                        <div className="mt-3 flex flex-col gap-2">
-                            {archivos.map((f, i) => (
-                                <div key={i} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
-                                    <FileText size={18} className="text-[#BE0F4A] shrink-0"/>
-                                    <button type="button" onClick={() => openPreview(f)}
-                                        className="truncate flex-1 text-sm font-medium text-gray-700 hover:text-[#BE0F4A] hover:underline text-left transition-colors">
-                                        {f.name}
-                                    </button>
-                                    <span className="text-sm text-gray-400 shrink-0">{(f.size/1024).toFixed(0)} KB</span>
-                                    <button type="button" onClick={() => removeFile(i)}
-                                        className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
-                                        <X size={16}/>
-                                    </button>
+                    {tiposDocumentoSubibles.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic mt-1">
+                            Tu rol no tiene permiso para subir documentos en este servicio.
+                        </p>
+                    ) : (
+                        <>
+                            <FieldLabel>Tipo de documento *</FieldLabel>
+                            <AnkawaSelect
+                                value={mov.documento_tipo_id}
+                                disabled={tiposDocumentoSubibles.length === 1}
+                                hasError={!!errores.documento_tipo_id}
+                                onChange={e => onChange('documento_tipo_id', e.target.value)}
+                            >
+                                {tiposDocumentoSubibles.length > 1 && <option value="">— Seleccionar —</option>}
+                                {tiposDocumentoSubibles.map(td => (
+                                    <option key={td.id} value={td.id}>{td.nombre}</option>
+                                ))}
+                            </AnkawaSelect>
+                            <FieldError msg={errores.documento_tipo_id ? 'Selecciona el tipo de documento.' : null}/>
+
+                            <label className="mt-3 flex items-center gap-2 cursor-pointer w-fit px-4 py-2.5 rounded-lg border border-dashed border-[#BE0F4A]/40 text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors text-sm font-semibold">
+                                <Paperclip size={15}/>
+                                Adjuntar archivos
+                                <input type="file" multiple accept={upload_accept} className="sr-only"
+                                    onChange={e => onArchivos([...archivos, ...Array.from(e.target.files)])}/>
+                            </label>
+                            <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
+                            {archivos.length > 0 && (
+                                <div className="mt-3 flex flex-col gap-2">
+                                    {archivos.map((f, i) => (
+                                        <div key={i} className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                                            <FileText size={18} className="text-[#BE0F4A] shrink-0"/>
+                                            <button type="button" onClick={() => openPreview(f)}
+                                                className="truncate flex-1 text-sm font-medium text-gray-700 hover:text-[#BE0F4A] hover:underline text-left transition-colors">
+                                                {f.name}
+                                            </button>
+                                            <span className="text-sm text-gray-400 shrink-0">{(f.size/1024).toFixed(0)} KB</span>
+                                            <button type="button" onClick={() => removeFile(i)}
+                                                className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
+                                                <X size={16}/>
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
 
@@ -834,7 +876,7 @@ const movVacio = movVacioBase;
 
 export default function TabNuevoMovimiento({
     expediente, etapas = [], tiposActor = [], usuariosAsignables = [],
-    actoresNotificables = [], tiposDocumento = [],
+    actoresNotificables = [], tiposDocumento = [], miTipoActorId = null,
 }) {
     const defaultNotificarIds = actoresNotificables.map(a => a.id);
 
@@ -922,6 +964,10 @@ export default function TabNuevoMovimiento({
                 }
                 if (tiposDocumento.length > 0 && !mov.tipo_documento_requerido_id) e.tipo_documento_requerido = true;
             }
+            // Si adjuntó archivos, debe haber elegido tipo de documento.
+            if ((archivosMovimientos[movimientos.indexOf(mov)] ?? []).length > 0 && !mov.documento_tipo_id) {
+                e.documento_tipo_id = true;
+            }
             return e;
         });
     }
@@ -958,6 +1004,7 @@ export default function TabNuevoMovimiento({
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
             form.append('tipo_dias',                   mov.tipo_dias ?? 'calendario');
             form.append('tipo_documento_requerido_id', mov.tipo_documento_requerido_id ?? '');
+            form.append('documento_tipo_id',           mov.documento_tipo_id ?? '');
             form.append('habilitar_mesa_partes',          mov.habilitar_mesa_partes ? '1' : '0');
             mov.actores_mesa_partes_ids.forEach(id => form.append('actores_mesa_partes_ids[]', id));
             form.append('enviar_credenciales_expediente', mov.enviar_credenciales_expediente ? '1' : '0');
@@ -993,6 +1040,7 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
                 form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
                 form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
+                form.append(`movimientos[${i}][documento_tipo_id]`,           mov.documento_tipo_id ?? '');
                 form.append(`movimientos[${i}][habilitar_mesa_partes]`,          mov.habilitar_mesa_partes ? '1' : '0');
                 mov.actores_mesa_partes_ids.forEach(id => form.append(`movimientos[${i}][actores_mesa_partes_ids][]`, id));
                 form.append(`movimientos[${i}][enviar_credenciales_expediente]`, mov.enviar_credenciales_expediente ? '1' : '0');
@@ -1166,6 +1214,7 @@ export default function TabNuevoMovimiento({
                             errores={errores[idx] ?? {}}
                             etapaActualId={expediente.etapa_actual_id}
                             solicitudEsConforme={expediente.solicitud?.resultado_revision === 'conforme'}
+                            miTipoActorId={miTipoActorId}
                         />
                     ))}
                 </div>

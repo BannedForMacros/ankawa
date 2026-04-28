@@ -110,7 +110,7 @@ class MovimientoService
                 ]);
             }
 
-            $this->guardarDocumentos($movimiento, $archivos, $datos['creado_por'], 'creacion');
+            $this->guardarDocumentos($movimiento, $archivos, $datos['creado_por'], 'creacion', $datos['documento_tipo_id'] ?? null);
 
             // Actualizar etapa actual del expediente si cambió
             if (isset($datos['etapa_id']) && $datos['etapa_id'] != $expediente->etapa_actual_id) {
@@ -397,7 +397,7 @@ class MovimientoService
         return now()->addDays($dias)->toDateString();
     }
 
-    private function guardarDocumentos(ExpedienteMovimiento $movimiento, array $archivos, ?int $subidoPor, string $momento): void
+    private function guardarDocumentos(ExpedienteMovimiento $movimiento, array $archivos, ?int $subidoPor, string $momento, ?int $tipoDocumentoId = null): void
     {
         $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
 
@@ -405,12 +405,13 @@ class MovimientoService
             if ($archivo instanceof UploadedFile) {
                 $ruta = $archivo->store($carpeta, 'public');
                 MovimientoDocumento::create([
-                    'movimiento_id'   => $movimiento->id,
-                    'subido_por'      => $subidoPor,
-                    'nombre_original' => $archivo->getClientOriginalName(),
-                    'ruta_archivo'    => $ruta,
-                    'peso_bytes'      => $archivo->getSize(),
-                    'momento'         => $momento,
+                    'movimiento_id'     => $movimiento->id,
+                    'tipo_documento_id' => $tipoDocumentoId,
+                    'subido_por'        => $subidoPor,
+                    'nombre_original'   => $archivo->getClientOriginalName(),
+                    'ruta_archivo'      => $ruta,
+                    'peso_bytes'        => $archivo->getSize(),
+                    'momento'           => $momento,
                 ]);
             }
         }

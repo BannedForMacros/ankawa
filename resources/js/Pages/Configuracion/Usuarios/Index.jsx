@@ -179,7 +179,7 @@ export default function Index({ usuarios, roles }) {
                 <Table
                     columns={columns}
                     data={usuarios.data}
-                    meta={usuarios.meta}
+                    meta={usuarios}
                     routeName="configuracion.usuarios.index"
                     searchPlaceholder="Buscar por nombre o correo..."
                 />

@@ -253,12 +253,13 @@ class PortalController extends Controller
                 foreach ($request->file('documentos') as $archivo) {
                     $ruta = $archivo->store($carpeta, 'public');
                     MovimientoDocumento::create([
-                        'movimiento_id'   => $movimiento->id,
-                        'subido_por'      => $usuarioIdActor,
-                        'nombre_original' => $archivo->getClientOriginalName(),
-                        'ruta_archivo'    => $ruta,
-                        'peso_bytes'      => $archivo->getSize(),
-                        'momento'         => 'respuesta',
+                        'movimiento_id'     => $movimiento->id,
+                        'tipo_documento_id' => $movimiento->tipo_documento_requerido_id,
+                        'subido_por'        => $usuarioIdActor,
+                        'nombre_original'   => $archivo->getClientOriginalName(),
+                        'ruta_archivo'      => $ruta,
+                        'peso_bytes'        => $archivo->getSize(),
+                        'momento'           => 'respuesta',
                     ]);
                 }
             }

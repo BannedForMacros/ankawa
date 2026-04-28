@@ -49,7 +49,7 @@ const SUBTIPO_META = {
 
 const movVacio = movVacioBase;
 
-export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], tiposActor = [], actoresNotificables = [], tiposDocumento = [] }) {
+export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], tiposActor = [], actoresNotificables = [], tiposDocumento = [], miTipoActorId = null }) {
     const [editando, setEditando]             = useState(false);
     const [paso, setPaso]                     = useState('idle');
     const [emailFormActorId, setEmailFormActorId] = useState(null);
@@ -235,6 +235,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
             form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
             form.append(`movimientos[${i}][tipo_documento_requerido_id]`, mov.tipo_documento_requerido_id ?? '');
+            form.append(`movimientos[${i}][documento_tipo_id]`,           mov.documento_tipo_id ?? '');
             form.append(`movimientos[${i}][habilitar_mesa_partes]`,          mov.habilitar_mesa_partes ? '1' : '0');
             (mov.actores_mesa_partes_ids ?? []).forEach(id => form.append(`movimientos[${i}][actores_mesa_partes_ids][]`, id));
             form.append(`movimientos[${i}][enviar_credenciales_expediente]`, mov.enviar_credenciales_expediente ? '1' : '0');
@@ -384,6 +385,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             onQuitar={() => quitar(idx)}
                             errores={erroresMov[idx] ?? {}}
                             etapaActualId={expediente.etapa_actual_id}
+                            miTipoActorId={miTipoActorId}
                         />
                     </div>
                 ))}

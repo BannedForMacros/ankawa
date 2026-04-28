@@ -141,7 +141,7 @@ function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
 }
 
 /* ─── Formulario principal ─── */
-export default function OtrosForm({ servicio, portalEmail, portalUser }) {
+export default function OtrosForm({ servicio, portalEmail }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
     const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const isPortal = !!portalEmail;
@@ -155,7 +155,7 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
         tipo_persona:          'natural',
         tipo_doc_identidad:    'dni',
         numero_doc_identidad:  '',
-        nombre_remitente:      portalUser?.name ?? '',
+        nombre_remitente:      '',
         email_remitente:       portalEmail ?? '',
         tipo_documento_id:     '',
         descripcion:           '',
@@ -163,7 +163,7 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
     });
 
     /* ── Nombre bloqueado por API ── */
-    const [nombreBloqueado, setNombreBloqueado] = useState(!!portalUser?.name);
+    const [nombreBloqueado, setNombreBloqueado] = useState(false);
 
     /* ── Archivos adjuntos ── */
     const [archivos, setArchivos] = useState([]);
@@ -198,9 +198,9 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
             tipo_persona:         tipo,
             tipo_doc_identidad:   tipo === 'juridica' ? 'ruc' : 'dni',
             numero_doc_identidad: '',
-            ...(portalUser?.name ? {} : { nombre_remitente: '' }),
+            nombre_remitente:     '',
         }));
-        if (!portalUser?.name) setNombreBloqueado(false);
+        setNombreBloqueado(false);
     }
 
     /* ── Callback de lookup de documento ── */
@@ -313,6 +313,14 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
 
         <form onSubmit={handleSubmit}>
 
+            {/* Leyenda de campos obligatorios */}
+            <div className="mb-5 px-4 py-3 bg-[#291136]/5 border border-[#291136]/15 rounded-xl flex items-center gap-3">
+                <span className="text-[#BE0F4A] text-lg font-black leading-none">*</span>
+                <p className="text-sm text-[#291136]">
+                    Los campos marcados con <span className="text-[#BE0F4A] font-bold">*</span> son obligatorios.
+                </p>
+            </div>
+
             {/* ── Tipo de solicitud ── */}
             {cargandoTipos ? (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
@@ -332,7 +340,9 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
                         <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
                             <FileText size={16} className="text-[#BE0F4A]" />
                         </div>
-                        <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de documento</h2>
+                        <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">
+                            Tipo de documento {tiposDocumento.length > 1 && <span className="text-[#BE0F4A]">*</span>}
+                        </h2>
                     </div>
                     <div className="px-6 py-4">
                         {tiposDocumento.length === 1 ? (
@@ -404,9 +414,9 @@ export default function OtrosForm({ servicio, portalEmail, portalUser }) {
                                             ...prev,
                                             tipo_doc_identidad:   id,
                                             numero_doc_identidad: '',
-                                            ...(portalUser?.name ? {} : { nombre_remitente: '' }),
+                                            nombre_remitente:     '',
                                         }));
-                                        if (!portalUser?.name) setNombreBloqueado(false);
+                                        setNombreBloqueado(false);
                                     }}
                                     className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
                                         form.tipo_doc_identidad === id

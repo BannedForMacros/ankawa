@@ -232,7 +232,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
                 <Table
                     columns={columns}
                     data={correlativos.data}
-                    meta={correlativos.meta}
+                    meta={correlativos}
                     routeName="configuracion.correlativos.index"
                     searchPlaceholder="Buscar por tipo, servicio o código..."
                 />

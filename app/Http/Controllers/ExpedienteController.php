@@ -144,6 +144,16 @@ class ExpedienteController extends Controller
             ->where('estado', 'pendiente')
             ->first(fn($mov) => $mov->esResponsable($user->id));
 
+        // Tipo de actor del usuario logueado dentro de este servicio (según rol_auto_slug del pivot).
+        // Se usa para filtrar los tipos de documento que puede subir al adjuntar archivos.
+        $miTipoActorId = $user->rol?->slug
+            ? DB::table('servicio_tipos_actor')
+                ->where('servicio_id', $expediente->servicio_id)
+                ->where('activo', 1)
+                ->where('rol_auto_slug', $user->rol->slug)
+                ->value('tipo_actor_id')
+            : null;
+
         $etapas = $this->etapaService->etapasDelServicio($expediente->servicio_id);
 
         $servicioTiposActor = ServicioTipoActor::where('servicio_id', $expediente->servicio_id)
@@ -206,6 +216,7 @@ class ExpedienteController extends Controller
             'tiposDocumento'       => $tiposDocumento,
             'tiposResolucion'      => $tiposResolucion,
             'enviosCount'          => $enviosCount,
+            'miTipoActorId'        => $miTipoActorId,
         ]);
     }
 
@@ -327,6 +338,7 @@ class ExpedienteController extends Controller
             'movimientos.*.dias_plazo'                => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                 => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
+            'movimientos.*.documento_tipo_id'           => ['nullable', $existsTipoDocEnServicio],
             'movimientos.*.habilitar_mesa_partes'          => 'nullable|boolean',
             'movimientos.*.actores_mesa_partes_ids'        => 'nullable|array',
             'movimientos.*.actores_mesa_partes_ids.*'      => ['integer', $existsActorEnExpediente],
@@ -411,6 +423,7 @@ class ExpedienteController extends Controller
                         'dias_plazo'                  => $datos['dias_plazo'] ?: null,
                         'tipo_dias'                   => $datos['tipo_dias'] ?? 'calendario',
                         'tipo_documento_requerido_id' => $datos['tipo_documento_requerido_id'] ?? null,
+                        'documento_tipo_id'           => $datos['documento_tipo_id'] ?? null,
                         'habilitar_mesa_partes'          => !empty($datos['habilitar_mesa_partes']),
                         'actores_mesa_partes_ids'        => $datos['actores_mesa_partes_ids'] ?? [],
                         'enviar_credenciales_expediente' => !empty($datos['enviar_credenciales_expediente']),
