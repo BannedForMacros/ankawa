@@ -109,7 +109,6 @@ export default function Index({ servicios }) {
     };
 
     const columns = [
-        { key: 'id',          label: '#',           sortable: true  },
         { key: 'nombre',      label: 'Nombre',      sortable: true  },
         { key: 'descripcion', label: 'Descripción', sortable: false },
         {

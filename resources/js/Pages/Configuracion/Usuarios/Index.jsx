@@ -117,7 +117,6 @@ export default function Index({ usuarios, roles }) {
     ];
 
     const columns = [
-        { key: 'id',    label: '#',      sortable: true },
         { key: 'name',  label: 'Nombre', sortable: true },
         { key: 'email', label: 'Correo', sortable: true },
         {

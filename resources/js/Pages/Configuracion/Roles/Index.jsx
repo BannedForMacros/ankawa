@@ -113,7 +113,6 @@ export default function Index({ roles }) {
     };
 
     const columns = [
-        { key: 'id',     label: '#',           sortable: true  },
         { key: 'nombre', label: 'Nombre',      sortable: true  },
         { key: 'descripcion', label: 'Descripción', sortable: false },
         {
