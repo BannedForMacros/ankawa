@@ -387,16 +387,31 @@ class MovimientoController extends Controller
 
         $updates = [];
         if (!empty($request->dias_plazo)) {
+            $diasAnterior   = $movimiento->dias_plazo;
+            $fechaAnterior  = $movimiento->fecha_limite;
+            $estadoAnterior = $movimiento->estado;
+
+            $nuevaFecha = now()->addDays((int) $request->dias_plazo)->toDateString();
             $updates['dias_plazo']    = $request->dias_plazo;
-            $updates['fecha_limite']  = now()->addDays((int) $request->dias_plazo)->toDateString();
+            $updates['fecha_limite']  = $nuevaFecha;
             // Si estaba vencido, volver a pendiente
             if ($movimiento->estado === 'vencido') {
                 $updates['estado'] = 'pendiente';
             }
-        }
 
-        if (!empty($updates)) {
             $movimiento->update($updates);
+
+            \App\Models\MovimientoExtensionPlazo::create([
+                'movimiento_id'         => $movimiento->id,
+                'dias_plazo_anterior'   => $diasAnterior,
+                'dias_plazo_nuevo'      => (int) $request->dias_plazo,
+                'fecha_limite_anterior' => $fechaAnterior,
+                'fecha_limite_nueva'    => $nuevaFecha,
+                'tipo_dias'             => $movimiento->tipo_dias ?? 'calendario',
+                'extendido_por'         => auth()->id(),
+                'estado_anterior'       => $estadoAnterior,
+                'created_at'            => now(),
+            ]);
 
             \App\Models\ExpedienteHistorial::create([
                 'expediente_id' => $expediente->id,

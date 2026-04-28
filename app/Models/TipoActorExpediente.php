@@ -12,12 +12,16 @@ class TipoActorExpediente extends Model
     protected $table = 'tipos_actor_expediente';
 
     // Slugs inmutables del sistema (definidos por reglas de negocio, no por configuración del admin)
-    public const SLUG_DEMANDANTE = 'demandante';
-    public const SLUG_DEMANDADO  = 'demandado';
+    public const SLUG_DEMANDANTE          = 'demandante';
+    public const SLUG_DEMANDADO           = 'demandado';
+    public const SLUG_ENTIDAD_CONTRATANTE = 'entidad_contratante';
+    public const SLUG_CONTRATISTA         = 'contratista';
 
     public const SLUGS_INMUTABLES = [
         self::SLUG_DEMANDANTE,
         self::SLUG_DEMANDADO,
+        self::SLUG_ENTIDAD_CONTRATANTE,
+        self::SLUG_CONTRATISTA,
     ];
 
     // Como en nuestro script SQL no le pusimos created_at ni updated_at a este catálogo base:

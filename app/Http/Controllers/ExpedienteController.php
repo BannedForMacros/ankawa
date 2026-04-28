@@ -14,6 +14,7 @@ use App\Models\TipoResolucionMovimiento;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteActorAceptacion;
 use App\Models\ExpedienteHistorial;
+use App\Models\ExpedienteMovimiento;
 use App\Models\User;
 use App\Services\GestorExpedienteService;
 use App\Services\MovimientoService;
@@ -113,6 +114,7 @@ class ExpedienteController extends Controller
                     'responsables.actor.usuario:id,name',
                     'responsables.tipoActor:id,nombre',
                     'responsables.respondidoPor:id,name',
+                    'extensiones.extendidoPor:id,name',
                 ]),
         ]);
 
@@ -189,6 +191,8 @@ class ExpedienteController extends Controller
             ->orderBy('id')
             ->get(['id', 'nombre', 'color', 'requiere_nota']);
 
+        $enviosCount = ExpedienteMovimiento::enviosPendientes($expediente->id)->count();
+
         return Inertia::render('Expedientes/Show', [
             'expediente'           => $expediente,
             'esGestor'             => $esGestor,
@@ -201,6 +205,7 @@ class ExpedienteController extends Controller
             'plazo'                => $plazo,
             'tiposDocumento'       => $tiposDocumento,
             'tiposResolucion'      => $tiposResolucion,
+            'enviosCount'          => $enviosCount,
         ]);
     }
 

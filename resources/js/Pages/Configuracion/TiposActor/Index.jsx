@@ -130,7 +130,7 @@ function ModalTipoActor({ show, onClose, editando }) {
 
 // ── Modal: Configurar servicios para un tipo de actor ─────────────────────────
 
-const SLUGS_INMUTABLES = ['demandante', 'demandado'];
+const SLUGS_INMUTABLES = ['demandante', 'demandado', 'entidad_contratante', 'contratista'];
 
 function ModalServicios({ show, onClose, tipoActor, servicios, roles }) {
     const buildInitial = () =>

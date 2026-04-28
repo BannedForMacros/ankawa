@@ -11,27 +11,33 @@ class ExpedienteMovimiento extends Model
     protected $table = 'expediente_movimientos';
 
     // Estados posibles de un movimiento
-    public const ESTADO_PENDIENTE  = 'pendiente';
-    public const ESTADO_RESPONDIDO = 'respondido';
-    public const ESTADO_VENCIDO    = 'vencido';
-    public const ESTADO_RECIBIDO   = 'recibido';
+    public const ESTADO_PENDIENTE             = 'pendiente';
+    public const ESTADO_RESPONDIDO            = 'respondido';
+    public const ESTADO_VENCIDO               = 'vencido';
+    public const ESTADO_RECIBIDO              = 'recibido';
+    public const ESTADO_PENDIENTE_ACEPTACION  = 'pendiente_aceptacion';
+    public const ESTADO_RECHAZADO             = 'rechazado';
 
     public const ESTADOS = [
         self::ESTADO_PENDIENTE,
         self::ESTADO_RESPONDIDO,
         self::ESTADO_VENCIDO,
         self::ESTADO_RECIBIDO,
+        self::ESTADO_PENDIENTE_ACEPTACION,
+        self::ESTADO_RECHAZADO,
     ];
 
     // Tipos de movimiento
     public const TIPO_REQUERIMIENTO = 'requerimiento';
     public const TIPO_PROPIA        = 'propia';
     public const TIPO_NOTIFICACION  = 'notificacion';
+    public const TIPO_ENVIO_EXTERNO = 'envio_externo';
 
     public const TIPOS = [
         self::TIPO_REQUERIMIENTO,
         self::TIPO_PROPIA,
         self::TIPO_NOTIFICACION,
+        self::TIPO_ENVIO_EXTERNO,
     ];
 
     protected $fillable = [
@@ -64,6 +70,12 @@ class ExpedienteMovimiento extends Model
         'enviar_credenciales_expediente',
         'actor_credenciales_exp_id',
         'actores_mesa_partes_ids',
+        'aceptado_por',
+        'fecha_aceptacion',
+        'rechazado_por',
+        'fecha_rechazo',
+        'motivo_rechazo',
+        'portal_email_envio',
         'activo',
     ];
 
@@ -78,6 +90,8 @@ class ExpedienteMovimiento extends Model
         'habilitar_mesa_partes'          => 'boolean',
         'enviar_credenciales_expediente' => 'boolean',
         'actores_mesa_partes_ids'        => 'array',
+        'fecha_aceptacion'               => 'datetime',
+        'fecha_rechazo'                  => 'datetime',
     ];
 
     public function expediente(): BelongsTo
@@ -171,6 +185,12 @@ class ExpedienteMovimiento extends Model
         return $this->hasMany(MovimientoNotificacion::class, 'movimiento_id');
     }
 
+    public function extensiones(): HasMany
+    {
+        return $this->hasMany(MovimientoExtensionPlazo::class, 'movimiento_id')
+            ->orderBy('created_at');
+    }
+
     public function scopePendientes($query)
     {
         return $query->where('estado', 'pendiente');
@@ -179,6 +199,38 @@ class ExpedienteMovimiento extends Model
     public function scopeActivo($query)
     {
         return $query->where('activo', true);
+    }
+
+    public function scopeEnviosPendientes($query, ?int $expedienteId = null)
+    {
+        $query->where('tipo', self::TIPO_ENVIO_EXTERNO)
+              ->where('estado', self::ESTADO_PENDIENTE_ACEPTACION);
+
+        if ($expedienteId !== null) {
+            $query->where('expediente_id', $expedienteId);
+        }
+        return $query;
+    }
+
+    public function scopeEnviosProcesados($query, ?int $expedienteId = null)
+    {
+        $query->where('tipo', self::TIPO_ENVIO_EXTERNO)
+              ->whereIn('estado', [self::ESTADO_RECIBIDO, self::ESTADO_RECHAZADO]);
+
+        if ($expedienteId !== null) {
+            $query->where('expediente_id', $expedienteId);
+        }
+        return $query;
+    }
+
+    public function aceptadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'aceptado_por');
+    }
+
+    public function rechazadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rechazado_por');
     }
 
     public function estaVencido(): bool

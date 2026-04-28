@@ -8,6 +8,7 @@ import {
 import EmailsInput from '@/Components/EmailsInput';
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
+import CustomSelect from '@/Components/CustomSelect';
 import toast from 'react-hot-toast';
 
 /* ─── Constantes ─── */
@@ -392,12 +393,13 @@ function BloqueActor({
                     </Campo>
                 ) : (
                     <Campo label="Tipo de entidad jurídica" required error={errors.subtipo}>
-                        <select value={datos.subtipo}
-                            onChange={e => onChange({ ...datos, subtipo: e.target.value, empresas: e.target.value === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] })}
-                            className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] ${errors.subtipo ? 'border-red-300' : 'border-gray-200'}`}>
-                            <option value="">Selecciona...</option>
-                            {subtiposPermitidos.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                        </select>
+                        <CustomSelect
+                            value={datos.subtipo}
+                            onChange={val => onChange({ ...datos, subtipo: val, empresas: val === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] })}
+                            options={subtiposPermitidos}
+                            placeholder="Selecciona..."
+                            error={errors.subtipo}
+                        />
                     </Campo>
                 )}
             </div>
@@ -794,6 +796,14 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         />
 
         <form onSubmit={handleSubmit}>
+            {/* Leyenda de campos obligatorios */}
+            <div className="mb-5 px-4 py-3 bg-[#291136]/5 border border-[#291136]/15 rounded-xl flex items-center gap-3">
+                <span className="text-[#BE0F4A] text-lg font-black leading-none">*</span>
+                <p className="text-sm text-[#291136]">
+                    Los campos marcados con <span className="text-[#BE0F4A] font-bold">*</span> son obligatorios.
+                </p>
+            </div>
+
             {/* Indicador de rol elegido */}
             <div className="flex items-center justify-between mb-4 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[#291136]">
@@ -837,11 +847,12 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                         <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
                     </div>
                     <div className="px-6 py-4">
-                        <select value={tipoDocumentoId} onChange={e => setTipoDocumentoId(e.target.value)}
-                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
-                            <option value="">Seleccionar tipo...</option>
-                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                        </select>
+                        <CustomSelect
+                            value={tipoDocumentoId}
+                            onChange={val => setTipoDocumentoId(String(val))}
+                            options={tiposDocumento}
+                            placeholder="Seleccionar tipo..."
+                        />
                     </div>
                 </div>
             ) : (

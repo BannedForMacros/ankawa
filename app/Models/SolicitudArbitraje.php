@@ -23,8 +23,9 @@ class SolicitudArbitraje extends Model
         'tipo_persona_demandado', 'tipo_documento_demandado',
         'nombre_demandado', 'documento_demandado', 'domicilio_demandado', 'email_demandado', 'telefono_demandado',
         'resumen_controversia', 'pretensiones', 'monto_involucrado',
+        'monto_controversias', 'suma_monto_pretensiones_determinadas', 'pretensiones_indeterminadas',
         'solicita_designacion_director', 'solicita_designacion_director_demandado', 'nombre_arbitro_propuesto',
-        'email_arbitro_propuesto', 'domicilio_arbitro_propuesto',
+        'documento_arbitro_propuesto', 'email_arbitro_propuesto', 'domicilio_arbitro_propuesto',
         'reglas_aplicables', 'estado', 'activo',
         'resultado_revision', 'fecha_revision', 'revisado_por', 'motivo_no_conformidad',
         'subtipo_juridico_demandante', 'subtipo_juridico_demandado',
@@ -32,6 +33,7 @@ class SolicitudArbitraje extends Model
         'nombre_representante_demandado', 'documento_representante_demandado',
         'acepta_reglamento_card', 'precision_reglas', 'tiene_medida_cautelar',
         'tipo_documento_id',
+        'factura_ruc', 'factura_razon_social',
     ];
 
     public function servicio(): BelongsTo

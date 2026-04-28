@@ -194,14 +194,13 @@ class SolicitudJPRDController extends Controller
             );
 
             // ── 5. Registrar actores del expediente ──────────────────────────
-            $tipoActorEntidad     = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDANTE)->first();
-            $tipoActorContratista = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDADO)->first();
+            $tipoActorEntidad     = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_ENTIDAD_CONTRATANTE)->first();
+            $tipoActorContratista = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_CONTRATISTA)->first();
 
             $emailEntidad     = trim(collect($emailsEntidad)->first(fn($e) => !empty($e['email']))['email'] ?? '');
             $emailContratista = trim(collect($emailsContratista)->first(fn($e) => !empty($e['email']))['email'] ?? '');
 
-            // Entidad → demandante
-            // Si el solicitante ES la entidad: acceso_mesa_partes = 1 y vinculamos usuario
+            // Si el solicitante ES la entidad contratante: acceso_mesa_partes = 1 y vinculamos usuario
             $esEntidadSolicitante     = ($rolSolicitante === 'entidad');
             $esContratistaSolicitante = ($rolSolicitante === 'contratista');
 
@@ -217,7 +216,6 @@ class SolicitudJPRDController extends Controller
                 ]);
             }
 
-            // Contratista → demandado
             if ($tipoActorContratista) {
                 ExpedienteActor::create([
                     'expediente_id'     => $expediente->id,
@@ -230,7 +228,7 @@ class SolicitudJPRDController extends Controller
                 ]);
             }
 
-            // Auto-asignar: Secretaria General Adjunta + Gestor de JPRD
+            // Auto-asignar: Secretaría General Adjunta, Gestor de JPRD y Secretaría General
             $this->autoAsignarActores($expediente, $request->servicio_id);
 
             // ── 6. Guardar documentos por tipo ──────────────────────────────

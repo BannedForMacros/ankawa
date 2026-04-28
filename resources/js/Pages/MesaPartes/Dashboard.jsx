@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
-import { Bell, CheckCircle, FileText, PlusCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { Bell, CheckCircle, FileText, PlusCircle, AlertCircle, ArrowRight, Send } from 'lucide-react';
 import { LogOut } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 import ModalServicios         from './Partials/ModalServicios';
 import ModalTomaConocimiento  from './Partials/ModalTomaConocimiento';
 import ModalResponder         from './Partials/ModalResponder';
+import ModalEnviarDocumento   from './Partials/ModalEnviarDocumento';
 import PlazoUrgente           from './Partials/PlazoUrgente';
 
 const BADGE_ESTADO = {
@@ -19,9 +20,14 @@ const BADGE_ESTADO = {
 export default function Dashboard({ expedientes, servicios, portalUser, portalEmail, pendientesAceptacion = [] }) {
     const [modalMov,       setModalMov]       = useState(null);
     const [modalServicios, setModalServicios] = useState(false);
+    const [modalEnvioExp,  setModalEnvioExp]  = useState(null);
 
     function onRespondido() {
         router.reload({ only: ['expedientes'] });
+    }
+
+    function onEnvioRegistrado() {
+        toast.success('El responsable revisará tu envío.');
     }
 
     function irASolicitud(slug) {
@@ -168,6 +174,18 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
 
                                     {/* Contenido (Requerimientos) */}
                                     <div className="p-6">
+                                        {/* Acción: enviar documento espontáneo */}
+                                        {exp.estado === 'activo' && (
+                                            <div className="mb-4 flex justify-end">
+                                                <button
+                                                    onClick={() => setModalEnvioExp(exp)}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl border border-[#291136]/20 text-[#291136] hover:bg-[#291136] hover:text-white transition-colors"
+                                                >
+                                                    <Send size={14}/> Enviar documento al expediente
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {(exp.movimientos_pendientes ?? []).length > 0 ? (
                                             <div className="space-y-8 py-2">
                                                 {(exp.movimientos_pendientes ?? []).map((mov, idx) => {
@@ -242,6 +260,14 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
                     expediente={modalMov.expediente}
                     onClose={() => setModalMov(null)}
                     onRespondido={onRespondido}
+                />
+            )}
+
+            {modalEnvioExp && (
+                <ModalEnviarDocumento
+                    expediente={modalEnvioExp}
+                    onClose={() => setModalEnvioExp(null)}
+                    onEnviado={onEnvioRegistrado}
                 />
             )}
         </div>

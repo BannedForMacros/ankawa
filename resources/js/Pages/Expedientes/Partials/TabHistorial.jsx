@@ -3,7 +3,7 @@ import { router, useForm } from '@inertiajs/react';
 import {
     FileText, Download, ChevronDown, ChevronUp,
     Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
-    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail
+    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail, Inbox, Timer
 } from 'lucide-react';
 
 const estadoConfig = {
@@ -22,18 +22,26 @@ const colorMap = {
 };
 
 const TIPO_LABELS = {
-    requerimiento: { label: 'Requerimiento', badge: 'bg-blue-50 text-blue-600 border-blue-200',      Icon: Send,      iconBg: 'bg-blue-100 text-blue-600' },
-    notificacion:  { label: 'Notificación',  badge: 'bg-purple-50 text-purple-600 border-purple-200', Icon: Bell,      iconBg: 'bg-purple-100 text-purple-600' },
-    propia:        { label: 'Act. Propia',   badge: 'bg-amber-50 text-amber-600 border-amber-200',    Icon: UserCheck, iconBg: 'bg-amber-100 text-amber-600' },
+    requerimiento: { label: 'Requerimiento',     badge: 'bg-blue-50 text-blue-600 border-blue-200',         Icon: Send,      iconBg: 'bg-blue-100 text-blue-600' },
+    notificacion:  { label: 'Notificación',      badge: 'bg-purple-50 text-purple-600 border-purple-200',   Icon: Bell,      iconBg: 'bg-purple-100 text-purple-600' },
+    propia:        { label: 'Act. Propia',       badge: 'bg-amber-50 text-amber-600 border-amber-200',      Icon: UserCheck, iconBg: 'bg-amber-100 text-amber-600' },
+    envio_externo: { label: 'Envío externo',     badge: 'bg-[#4A153D]/5 text-[#4A153D] border-[#4A153D]/20', Icon: Inbox,     iconBg: 'bg-[#4A153D]/10 text-[#4A153D]' },
 };
 
 function formatFecha(dateStr) {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('es-PE', {
+    const d = new Date(dateStr);
+    const fecha = d.toLocaleDateString('es-PE', {
         day:   '2-digit',
         month: 'short',
         year:  'numeric',
     });
+    const hora = d.toLocaleTimeString('es-PE', {
+        hour:   '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+    return `${fecha} · ${hora}`;
 }
 
 // ── Resolver Panel ───────────────────────────────────────────────────────────
@@ -205,7 +213,8 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
     const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
     const todosDocsMov = [...docsCreacion, ...(docsSolicitud ?? [])];
     const pivotRows = mov.responsables ?? [];
-    const tieneExtras = todosDocsMov.length > 0 || mov.observaciones || resolucion || pivotRows.length > 0;
+    const extensiones = mov.extensiones ?? [];
+    const tieneExtras = todosDocsMov.length > 0 || mov.observaciones || resolucion || pivotRows.length > 0 || extensiones.length > 0;
     const tieneResponsable = !!mov.usuario_responsable_id || pivotRows.length > 0;
     const puedeResolver  = esGestor && mov.estado === 'respondido' && tieneResponsable && !mov.resolucion_tipo_id;
     const puedeContinuar = esGestor && mov.estado === 'pendiente'  && tieneResponsable && onIrANuevo;
@@ -250,7 +259,12 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
 
                                 {/* Meta info */}
                                 <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
-                                    {mov.creado_por?.name && (
+                                    {mov.tipo === 'envio_externo' && mov.portal_email_envio ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Mail size={12} className="text-[#4A153D]"/>
+                                            <span>Enviado por <strong className="text-[#291136] font-semibold">{mov.portal_email_envio}</strong></span>
+                                        </span>
+                                    ) : mov.creado_por?.name && (
                                         <span>{mov.creado_por.name}</span>
                                     )}
                                     {pivotRows.length > 0 ? (
@@ -286,6 +300,11 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                             </div>
 
                             <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                {extensiones.length > 0 && (
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-1">
+                                        <Timer size={11}/> {extensiones.length === 1 ? 'Plazo extendido' : `${extensiones.length} extensiones`}
+                                    </span>
+                                )}
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${tipoMov.badge}`}>
                                     {tipoMov.label}
                                 </span>
@@ -381,6 +400,50 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     </div>
                                 </div>
                             )}
+                            {extensiones.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-semibold text-amber-700 mb-1.5 flex items-center gap-1">
+                                        <Timer size={11}/> Extensiones de plazo
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {extensiones.map(ext => {
+                                            const sufijoDias = ext.tipo_dias === 'habiles' ? 'háb.' : 'cal.';
+                                            return (
+                                                <div key={ext.id} className="flex items-start gap-2 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-xs">
+                                                    <Timer size={13} className="text-amber-600 mt-0.5 shrink-0"/>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-semibold text-amber-800">
+                                                            Plazo extendido a <strong>{ext.dias_plazo_nuevo} días {sufijoDias}</strong>
+                                                            {ext.dias_plazo_anterior && (
+                                                                <span className="font-normal text-amber-700"> (antes: {ext.dias_plazo_anterior} días {sufijoDias})</span>
+                                                            )}
+                                                        </p>
+                                                        <p className="text-amber-700 mt-0.5">
+                                                            Nueva fecha límite: <strong>{formatFecha(ext.fecha_limite_nueva)}</strong>
+                                                            {ext.fecha_limite_anterior && (
+                                                                <span className="font-normal"> · antes: {formatFecha(ext.fecha_limite_anterior)}</span>
+                                                            )}
+                                                        </p>
+                                                        <p className="text-amber-600 mt-1 flex items-center gap-2 flex-wrap">
+                                                            <span className="inline-flex items-center gap-1">
+                                                                <CalendarDays size={10}/> {formatFecha(ext.created_at)}
+                                                            </span>
+                                                            {ext.extendido_por?.name && (
+                                                                <span className="inline-flex items-center gap-1">
+                                                                    <UserCheck size={10}/> {ext.extendido_por.name}
+                                                                </span>
+                                                            )}
+                                                            {ext.estado_anterior === 'vencido' && (
+                                                                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700 text-[10px] font-bold uppercase">Estaba vencido</span>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                             {(puedeResolver || puedeContinuar) && (
                                 <div className="pt-2 border-t border-gray-100 space-y-2">
                                     {puedeResolver && <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>}
@@ -446,7 +509,12 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
         });
     }
 
-    const grupos = agruparPorEtapa(movimientos);
+    // Excluir envíos espontáneos pendientes de aceptación o rechazados.
+    // Los envíos aceptados (estado 'recibido') sí aparecen en el historial con la fecha de envío del externo.
+    const movimientosVisibles = movimientos.filter(m =>
+        m.tipo !== 'envio_externo' || m.estado === 'recibido'
+    );
+    const grupos = agruparPorEtapa(movimientosVisibles);
 
     return (
         <div className="space-y-4">
@@ -502,7 +570,7 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
             )}
 
             {/* ── Timeline agrupado por etapa ── */}
-            {movimientos.length === 0 ? (
+            {movimientosVisibles.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
                     <Clock size={32} className="mx-auto mb-2 text-gray-200"/>
                     <p className="text-sm text-gray-400">Aún no se han registrado movimientos.</p>

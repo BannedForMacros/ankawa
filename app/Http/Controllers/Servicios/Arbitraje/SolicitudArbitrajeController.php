@@ -50,17 +50,23 @@ class SolicitudArbitrajeController extends Controller
             'email_demandado'               => 'nullable|email|max:255',
             'telefono_demandado'            => 'nullable|string|max:20',
 
-            'resumen_controversia'          => 'required|string',
-            'pretensiones'                  => 'required|string',
-            'monto_involucrado'             => 'nullable|numeric|min:0',
+            'resumen_controversia'                 => 'nullable|string',
+            'pretensiones'                         => 'required|string',
+            'monto_controversias'                  => 'required|string',
+            'suma_monto_pretensiones_determinadas' => 'required|numeric|min:0',
+            'pretensiones_indeterminadas'          => 'required|string',
+            'monto_involucrado'                    => 'nullable|numeric|min:0',
             'solicita_designacion_director' => 'required|in:0,1',
             'nombre_arbitro_propuesto'      => 'nullable|string|max:255',
+            'documento_arbitro_propuesto'   => 'nullable|string|max:20',
             'email_arbitro_propuesto'       => 'nullable|email|max:255',
             'domicilio_arbitro_propuesto'   => 'nullable|string|max:500',
             'reglas_aplicables'             => 'nullable|string|max:255',
 
             'documentos_controversia'        => 'nullable|array',
             'documentos_controversia.*'      => FileRules::accept(),
+            'documentos_solicitud_inicio'    => 'required|array|min:1',
+            'documentos_solicitud_inicio.*'  => FileRules::accept(),
             'documentos_anexos'              => 'nullable|array',
             'documentos_anexos.*'            => FileRules::accept(),
 
@@ -73,6 +79,9 @@ class SolicitudArbitrajeController extends Controller
             'acepta_reglamento_card'                  => 'nullable|in:0,1',
             'precision_reglas'                        => 'nullable|string|max:100',
             'tiene_medida_cautelar'                   => 'nullable|in:0,1',
+
+            'factura_ruc'                             => 'nullable|string|max:20',
+            'factura_razon_social'                    => 'nullable|string|max:255',
 
             'doc_vigencia_poder_dem.*'         => FileRules::accept(),
             'doc_contrato_consorcio_dem.*'     => FileRules::accept(),
@@ -135,7 +144,7 @@ class SolicitudArbitrajeController extends Controller
 
             // ── 3. Crear solicitud ───────────────────────────────────────────
             $datosSolicitud = $request->except(
-                'documentos_anexos', 'documentos_controversia',
+                'documentos_anexos', 'documentos_controversia', 'documentos_solicitud_inicio',
                 'doc_vigencia_poder_dem', 'doc_contrato_consorcio_dem', 'doc_resolucion_facultades_dem',
                 'doc_vigencia_poder_dado', 'doc_contrato_consorcio_dado', 'doc_resolucion_facultades_dado',
                 'documentos_medida_cautelar', 'comprobante_pago_tasa',
@@ -345,6 +354,7 @@ class SolicitudArbitrajeController extends Controller
                 'doc_resolucion_facultades_dado'  => 'resolucion_facultades_demandado',
                 'documentos_medida_cautelar'      => 'medida_cautelar',
                 'comprobante_pago_tasa'           => 'comprobante_pago_tasa',
+                'documentos_solicitud_inicio'     => 'solicitud_inicio_arbitraje',
             ];
             foreach ($gruposDoc as $campo => $tipoDoc) {
                 if ($request->hasFile($campo)) {

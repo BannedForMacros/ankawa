@@ -21,6 +21,7 @@ use App\Http\Controllers\MovimientoController;
 use App\Http\Controllers\ExpedienteActorController;
 use App\Http\Controllers\ExpedienteEstadoController;
 use App\Http\Controllers\DocumentoController;
+use App\Http\Controllers\EnvioExternoController;
 
 // Controladores de Configuración
 use App\Http\Controllers\Configuracion\RolController;
@@ -74,6 +75,10 @@ Route::middleware('portal.auth')->group(function () {
     Route::get('/mesa-partes/logout', [PortalController::class, 'logout'])->name('mesa-partes.logout');
     Route::post('/mesa-partes/movimientos/{movimiento}/responder', [PortalController::class, 'responder'])->name('mesa-partes.responder');
     Route::post('/mesa-partes/expedientes/{expediente}/aceptar-conocimiento', [PortalController::class, 'aceptarConocimiento'])->name('mesa-partes.aceptarConocimiento');
+
+    // Envíos espontáneos del externo al expediente
+    Route::get('/mesa-partes/expedientes/{expediente}/tipos-documento-envio', [PortalController::class, 'tiposDocumentoEnvio'])->name('mesa-partes.tipos-documento-envio');
+    Route::post('/mesa-partes/expedientes/{expediente}/envios', [PortalController::class, 'enviarDocumento'])->name('mesa-partes.envios.store');
 });
 
 
@@ -106,6 +111,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/responder-y-crear', [MovimientoController::class, 'responderYCrear'])->name('expedientes.movimientos.responder-y-crear');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/resolver', [MovimientoController::class, 'resolver'])->name('expedientes.movimientos.resolver');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/extender-plazo', [MovimientoController::class, 'extenderPlazo'])->name('expedientes.movimientos.extender-plazo');
+
+    // Envíos espontáneos del usuario externo (lado interno: aceptar/rechazar)
+    Route::get('/expedientes/{expediente}/envios', [EnvioExternoController::class, 'index'])->name('expedientes.envios.index');
+    Route::post('/expedientes/{expediente}/envios/{movimiento}/aceptar', [EnvioExternoController::class, 'aceptar'])->name('expedientes.envios.aceptar');
+    Route::post('/expedientes/{expediente}/envios/{movimiento}/rechazar', [EnvioExternoController::class, 'rechazar'])->name('expedientes.envios.rechazar');
 
     // Solicitud del expediente (actualizar datos)
     Route::put('/expedientes/{expediente}/solicitud', [ExpedienteController::class, 'updateSolicitud'])->name('expedientes.solicitud.update');

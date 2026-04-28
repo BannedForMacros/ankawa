@@ -8,7 +8,7 @@ import AnkawaModal from '@/Components/AnkawaModal';
  * Retorna null si el actor no es una persona jurídica con subtipo conocido.
  *
  * @param {object|null} sol  - expediente.solicitud (puede ser arbitraje, jprd, etc.)
- * @param {string}      slug - tipo_actor slug del actor ('demandante' | 'demandado')
+ * @param {string}      slug - tipo_actor slug del actor (Arbitraje: 'demandante'|'demandado'; JPRD: 'entidad_contratante'|'contratista')
  */
 function getInfoJuridica(sol, slug) {
     if (!sol) return null;
@@ -38,8 +38,8 @@ function getInfoJuridica(sol, slug) {
         };
     }
 
-    // ── JPRD (entidad = demandante, contratista = demandado) ────────
-    if (slug === 'demandante' && sol.subtipo_entidad) {
+    // ── JPRD ────────────────────────────────────────────────────────
+    if (slug === 'entidad_contratante' && sol.subtipo_entidad) {
         const subtipo = sol.subtipo_entidad;
         return {
             subtipo,
@@ -50,7 +50,7 @@ function getInfoJuridica(sol, slug) {
             empresas: subtipo === 'consorcio' ? (sol.empresas_entidad ?? []) : [],
         };
     }
-    if (slug === 'demandado' && sol.subtipo_contratista) {
+    if (slug === 'contratista' && sol.subtipo_contratista) {
         const subtipo = sol.subtipo_contratista;
         return {
             subtipo,
@@ -80,15 +80,8 @@ export default function TabActores({
 }) {
     const puedeEditar = esGestor || puedeDesignarGestor;
 
-    // JPRD usa "Entidad" y "Contratista" en lugar de "Demandante" y "Demandado"
-    const esJPRD = (expediente.solicitud_type ?? '').includes('JPRD');
     function nombreTipoActor(actor) {
-        const slug   = actor.tipo_actor?.slug;
-        const nombre = actor.tipo_actor?.nombre ?? '—';
-        if (!esJPRD) return nombre;
-        if (slug === 'demandante') return 'Entidad';
-        if (slug === 'demandado')  return 'Contratista';
-        return nombre;
+        return actor.tipo_actor?.nombre ?? '—';
     }
 
     const [showFormActor, setShowFormActor] = useState(false);
@@ -97,9 +90,9 @@ export default function TabActores({
 
     const actoresActivos = (expediente.actores ?? []).filter(a => a.activo);
 
-    // Candidatos para designar: excluir demandante/demandado y los que ya son responsables
+    // Candidatos para designar: excluir partes principales y los que ya son responsables
     const actoresParaGestor = actoresActivos.filter(
-        a => !['demandante', 'demandado'].includes(a.tipo_actor?.slug) && !a.es_gestor
+        a => !['demandante', 'demandado', 'entidad_contratante', 'contratista'].includes(a.tipo_actor?.slug) && !a.es_gestor
     );
 
     // ── Form: Agregar Actor ──
@@ -252,8 +245,8 @@ export default function TabActores({
                                         key={actor.id}
                                         className={`rounded-xl bg-gray-50 border border-gray-100 border-l-4 overflow-hidden ${
                                             actor.es_gestor ? 'border-l-amber-400'
-                                            : slug === 'demandante' ? 'border-l-[#BE0F4A]'
-                                            : slug === 'demandado'  ? 'border-l-[#291136]/40'
+                                            : (slug === 'demandante' || slug === 'entidad_contratante') ? 'border-l-[#BE0F4A]'
+                                            : (slug === 'demandado'  || slug === 'contratista')         ? 'border-l-[#291136]/40'
                                             : 'border-l-gray-200'
                                         }`}
                                     >
@@ -343,9 +336,11 @@ export default function TabActores({
                                                 {/* RUC para empresa/entidad pública (JPRD) */}
                                                 {esJuridica && !esConsorcio && (
                                                     (() => {
-                                                        const ruc = slug === 'demandante'
+                                                        const ruc = slug === 'entidad_contratante'
                                                             ? (sol?.ruc_entidad ?? null)
-                                                            : (sol?.ruc_contratista ?? null);
+                                                            : slug === 'contratista'
+                                                                ? (sol?.ruc_contratista ?? null)
+                                                                : null;
                                                         return ruc ? (
                                                             <p className="text-xs text-gray-400 mt-0.5">
                                                                 RUC: <span className="font-semibold text-gray-600">{ruc}</span>
@@ -390,7 +385,7 @@ export default function TabActores({
                                                         <Mail size={14} />
                                                     </button>
                                                 )}
-                                                {puedeEditar && !['demandante', 'demandado'].includes(actor.tipo_actor?.slug) && (
+                                                {puedeEditar && !['demandante', 'demandado', 'entidad_contratante', 'contratista'].includes(actor.tipo_actor?.slug) && (
                                                     <button
                                                         onClick={() => removerActor(actor.id)}
                                                         className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"

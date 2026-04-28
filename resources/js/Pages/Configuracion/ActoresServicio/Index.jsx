@@ -141,7 +141,7 @@ function ModalDetalles({ show, onClose, actor, config, servicioId }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
-const SLUGS_INMUTABLES = ['demandante', 'demandado'];
+const SLUGS_INMUTABLES = ['demandante', 'demandado', 'entidad_contratante', 'contratista'];
 
 export default function ActoresServicioIndex({ servicios, tiposActor, pivot }) {
     const [servicioId,  setServicioId]  = useState(servicios[0]?.id ?? null);

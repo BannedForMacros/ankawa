@@ -8,6 +8,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import EmailsInput from '@/Components/EmailsInput';
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
+import Checkbox from '@/Components/Checkbox';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -135,7 +136,7 @@ function MultiArchivoInput({ label, value = [], onChange, accept }) {
 }
 
 /* ─── Buscador de DNI para representante ─── */
-function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal' }) {
+function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true }) {
     const [cargando, setCargando]   = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const timerRef = useRef();
@@ -178,7 +179,7 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
         <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
             <div>
                 <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                    DNI del {label} <span className="text-[#BE0F4A]">*</span>
+                    DNI del {label} {required && <span className="text-[#BE0F4A]">*</span>}
                 </label>
                 <div className="relative">
                     <input type="text" value={dniValue}
@@ -201,12 +202,91 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
             </div>
             <div>
                 <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                    Nombre del {label} <span className="text-[#BE0F4A]">*</span>
+                    Nombre del {label} {required && <span className="text-[#BE0F4A]">*</span>}
                 </label>
                 <input type="text" value={nombreValue}
                     onChange={e => onNombreChange(e.target.value)}
                     disabled={bloqueado}
                     placeholder="Nombre completo"
+                    className={`w-full text-sm border rounded-xl px-3 py-2.5 ${bloqueado ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'}`} />
+            </div>
+        </div>
+    );
+}
+
+/* ─── Buscador de RUC con razón social (API SUNAT) ─── */
+function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSocialChange, label = 'Empresa', required = false }) {
+    const [cargando, setCargando]   = useState(false);
+    const [bloqueado, setBloqueado] = useState(!!razonSocialValue);
+    const timerRef = useRef();
+
+    async function onChangeRuc(val) {
+        const clean = val.replace(/\D/g, '').slice(0, 11);
+        if (bloqueado && clean !== rucValue) {
+            setBloqueado(false);
+            onRazonSocialChange('');
+        }
+        onRucChange(clean);
+        clearTimeout(timerRef.current);
+        if (clean.length === 11) {
+            timerRef.current = setTimeout(() => buscar(clean), 500);
+        }
+    }
+
+    async function buscar(ruc) {
+        setCargando(true);
+        try {
+            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
+            onRazonSocialChange(data.nombre ?? '');
+            setBloqueado(true);
+        } catch {
+            toast('RUC no encontrado. Complete la razón social manualmente.', { icon: 'ℹ️', duration: 3000 });
+            onRazonSocialChange('');
+            setBloqueado(false);
+        } finally {
+            setCargando(false);
+        }
+    }
+
+    function limpiar() {
+        setBloqueado(false);
+        onRucChange('');
+        onRazonSocialChange('');
+    }
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+            <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                    RUC del {label} {required && <span className="text-[#BE0F4A]">*</span>}
+                </label>
+                <div className="relative">
+                    <input type="text" value={rucValue}
+                        onChange={e => onChangeRuc(e.target.value)}
+                        maxLength={11} placeholder="20xxxxxxxxx"
+                        className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 transition-colors ${
+                            rucValue.length === 11 && bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
+                        }`} />
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                        {cargando && <Loader2 size={13} className="animate-spin text-gray-400"/>}
+                        {!cargando && bloqueado &&
+                            <button type="button" onClick={limpiar}><X size={13} className="text-gray-400 hover:text-red-500"/></button>}
+                        {!cargando && !bloqueado && rucValue.length === 11 &&
+                            <CheckCircle2 size={13} className="text-emerald-500"/>}
+                    </div>
+                </div>
+                {bloqueado && (
+                    <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> Verificado vía SUNAT</p>
+                )}
+            </div>
+            <div className="sm:col-span-3">
+                <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                    Razón Social {required && <span className="text-[#BE0F4A]">*</span>}
+                </label>
+                <input type="text" value={razonSocialValue}
+                    onChange={e => onRazonSocialChange(e.target.value)}
+                    disabled={bloqueado}
+                    placeholder="Razón social de la empresa"
                     className={`w-full text-sm border rounded-xl px-3 py-2.5 ${bloqueado ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'}`} />
             </div>
         </div>
@@ -762,13 +842,16 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         nombre_representante_dem:      '',
         documento_representante_dem:   '',
         // Controversia
-        resumen_controversia:          '',
-        pretensiones:                  '',
-        monto_involucrado:             '',
-        documentos_controversia:       [],
+        pretensiones:                          '',
+        monto_controversias:                   '',
+        suma_monto_pretensiones_determinadas:  '',
+        pretensiones_indeterminadas:           '',
+        documentos_controversia:               [],
+        documentos_solicitud_inicio:           [],
         // Árbitro
         solicita_designacion_director: 1,
         nombre_arbitro_propuesto:      '',
+        documento_arbitro_propuesto:   '',
         email_arbitro_propuesto:       '',
         domicilio_arbitro_propuesto:   '',
         reglas_aplicables:             '',
@@ -779,6 +862,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         documentos_medida_cautelar:    [],
         // Tasa
         comprobante_pago_tasa:         [],
+        factura_ruc:                   '',
+        factura_razon_social:          '',
         // Adjuntos
         documentos_anexos:             [],
     });
@@ -844,9 +929,14 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
 
         const missing = {};
 
-        // Campos obligatorios básicos
-        if (!data.resumen_controversia?.toString().trim()) missing.resumen_controversia = 'Campo obligatorio';
-        if (!data.pretensiones?.toString().trim())         missing.pretensiones         = 'Campo obligatorio';
+        // Campos obligatorios básicos (Materia de la Controversia)
+        if (!data.pretensiones?.toString().trim())                          missing.pretensiones                          = 'Campo obligatorio';
+        if (!data.monto_controversias?.toString().trim())                   missing.monto_controversias                   = 'Campo obligatorio';
+        if (data.suma_monto_pretensiones_determinadas === '' || data.suma_monto_pretensiones_determinadas === null || data.suma_monto_pretensiones_determinadas === undefined)
+                                                                            missing.suma_monto_pretensiones_determinadas = 'Campo obligatorio';
+        if (!data.pretensiones_indeterminadas?.toString().trim())           missing.pretensiones_indeterminadas           = 'Campo obligatorio';
+        if (!Array.isArray(data.documentos_solicitud_inicio) || data.documentos_solicitud_inicio.length === 0)
+                                                                            missing.documentos_solicitud_inicio           = 'Adjunte la solicitud de inicio de arbitraje';
 
         // Demandante: solo si no es consorcio (en consorcio se usan los datos del rep)
         if (data.tipo_persona !== 'juridica' || subtipoJuridicoDem !== 'consorcio') {
@@ -885,9 +975,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
             }
         }
 
-        // Reglamento CARD
-        if (data.solicita_designacion_director === 1 && !data.acepta_reglamento_card) {
-            missing.acepta_reglamento_card = 'Debe aceptar el reglamento';
+        // Declaración y aceptación final (siempre obligatorio)
+        if (!data.acepta_reglamento_card) {
+            missing.acepta_reglamento_card = 'Debe aceptar la declaración para enviar la solicitud';
         }
 
         // Email principal del demandante
@@ -907,8 +997,11 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
 
     // Mapa de claves internas → etiquetas legibles para el modal
     const FIELD_LABELS = {
-        resumen_controversia:               'Resumen de la controversia',
-        pretensiones:                       'Pretensiones',
+        pretensiones:                          'Pretensiones',
+        monto_controversias:                   'Monto de la(s) Controversia(s)',
+        suma_monto_pretensiones_determinadas:  'Suma de Monto de Pretensiones Determinadas (Monto en soles)',
+        pretensiones_indeterminadas:           'Pretensiones Indeterminadas',
+        documentos_solicitud_inicio:           'Solicitud de Inicio de Arbitraje',
         nombre_demandante:                  'Nombre del demandante',
         documento_demandante:               'Documento del demandante',
         domicilio_demandante:               'Domicilio del demandante',
@@ -925,15 +1018,19 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         empresas_consorcio_demandado:       'Empresas del consorcio (demandado)',
         rep_consorcio_demandado_dni:        'DNI del representante del consorcio (demandado)',
         rep_consorcio_demandado_nombre:     'Nombre del representante del consorcio (demandado)',
-        acepta_reglamento_card:             'Aceptación del reglamento del CARD ANKAWA INT',
+        acepta_reglamento_card:             'Declaración y aceptación final',
     };
 
     // Auto-limpiar la marca de un campo cuando el usuario empieza a llenarlo
     useEffect(() => {
         if (Object.keys(missingFields).length === 0) return;
         const filled = {};
-        if (data.resumen_controversia?.trim()) filled.resumen_controversia = true;
-        if (data.pretensiones?.trim())         filled.pretensiones         = true;
+        if (data.pretensiones?.trim())                                  filled.pretensiones                          = true;
+        if (data.monto_controversias?.trim())                           filled.monto_controversias                   = true;
+        if (data.suma_monto_pretensiones_determinadas?.toString().trim()) filled.suma_monto_pretensiones_determinadas = true;
+        if (data.pretensiones_indeterminadas?.trim())                   filled.pretensiones_indeterminadas           = true;
+        if (Array.isArray(data.documentos_solicitud_inicio) && data.documentos_solicitud_inicio.length > 0)
+                                                                        filled.documentos_solicitud_inicio           = true;
         if (data.nombre_demandante?.trim())    filled.nombre_demandante    = true;
         if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
         if (data.domicilio_demandante?.trim()) filled.domicilio_demandante = true;
@@ -1048,6 +1145,14 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
+            {/* Leyenda de campos obligatorios */}
+            <div className="mb-5 px-4 py-3 bg-[#291136]/5 border border-[#291136]/15 rounded-xl flex items-center gap-3">
+                <span className="text-[#BE0F4A] text-lg font-black leading-none">*</span>
+                <p className="text-sm text-[#291136]">
+                    Los campos marcados con <span className="text-[#BE0F4A] font-bold">*</span> son obligatorios.
+                </p>
+            </div>
+
                 {/* Tipo de solicitud */}
             {cargandoTipos ? (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5">
@@ -1077,11 +1182,12 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                         <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
                     </div>
                     <div className="px-6 py-4">
-                        <select value={tipoDocumentoId} onChange={e => setTipoDocumentoId(e.target.value)}
-                            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
-                            <option value="">Seleccionar tipo...</option>
-                            {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                        </select>
+                        <CustomSelect
+                            value={tipoDocumentoId}
+                            onChange={val => setTipoDocumentoId(String(val))}
+                            options={tiposDocumento}
+                            placeholder="Seleccionar tipo..."
+                        />
                     </div>
                 </div>
             ) : (
@@ -1253,22 +1359,40 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
 
             {/* Controversia */}
             <Seccion icono={Scale} titulo="Materia de la Controversia">
-                <Textarea id="resumen_controversia" label="Resumen de la controversia" required
-                    value={data.resumen_controversia} onChange={e => setData('resumen_controversia', e.target.value)}
-                    placeholder="Describa brevemente los hechos y el origen del conflicto..." rows={4}
-                    error={errors.resumen_controversia || missingFields.resumen_controversia} />
                 <Textarea id="pretensiones" label="Pretensiones" required
                     value={data.pretensiones} onChange={e => setData('pretensiones', e.target.value)}
                     placeholder="Indique qué solicita al tribunal arbitral..." rows={4}
                     error={errors.pretensiones || missingFields.pretensiones} />
-                <Input label="Monto involucrado (S/)" type="number" min="0" step="0.01"
-                    value={data.monto_involucrado} onChange={e => setData('monto_involucrado', e.target.value)}
-                    placeholder="Ej: 50000.00" error={errors.monto_involucrado} />
+                <Textarea id="monto_controversias" label="Monto de la(s) Controversia(s)" required
+                    value={data.monto_controversias} onChange={e => setData('monto_controversias', e.target.value)}
+                    placeholder="Describa el monto de la(s) controversia(s)..." rows={3}
+                    error={errors.monto_controversias || missingFields.monto_controversias} />
+                <Input label="Suma de Monto de Pretensiones Determinadas (Monto en soles)" required
+                    type="number" min="0" step="0.01"
+                    value={data.suma_monto_pretensiones_determinadas}
+                    onChange={e => setData('suma_monto_pretensiones_determinadas', e.target.value)}
+                    placeholder="Ej: 50000.00"
+                    error={errors.suma_monto_pretensiones_determinadas || missingFields.suma_monto_pretensiones_determinadas} />
+                <Textarea id="pretensiones_indeterminadas" label="Pretensiones Indeterminadas (Que no se puedan cuantificar)" required
+                    value={data.pretensiones_indeterminadas} onChange={e => setData('pretensiones_indeterminadas', e.target.value)}
+                    placeholder="Detalle las pretensiones que no se pueden cuantificar..." rows={3}
+                    error={errors.pretensiones_indeterminadas || missingFields.pretensiones_indeterminadas} />
                 <div className="mt-4">
                     <MultiArchivoInput
-                        label="Convenio Arbitral (Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe)"
+                        label={<>Convenio Arbitral <span className="font-normal opacity-80">(Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe — opcional)</span></>}
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
+                </div>
+                <div className="mt-4">
+                    <MultiArchivoInput
+                        label={<>Solicitud de Inicio de Arbitraje <span className="text-[#BE0F4A]">*</span></>}
+                        value={data.documentos_solicitud_inicio}
+                        onChange={v => setData('documentos_solicitud_inicio', v)} />
+                    {(errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio) && (
+                        <p className="mt-1.5 text-xs font-semibold text-red-500">
+                            {errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio}
+                        </p>
+                    )}
                 </div>
             </Seccion>
 
@@ -1279,60 +1403,32 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                         Designación de Árbitro <span className="text-[#BE0F4A]">*</span>
                     </label>
                     <CustomSelect value={data.solicita_designacion_director}
-                        onChange={val => setData(d => ({ ...d, solicita_designacion_director: val, acepta_reglamento_card: false, precision_reglas: '' }))}
+                        onChange={val => setData(d => ({ ...d, solicita_designacion_director: val }))}
                         options={OPCIONES_ARBITRO} placeholder={null} />
                 </div>
 
-                {data.solicita_designacion_director === 1 && (
-                    <div className={`mt-4 space-y-4 rounded-xl p-4 ${
-                        missingFields.acepta_reglamento_card
-                            ? 'bg-red-50 border-2 border-red-400 ring-4 ring-red-100'
-                            : 'bg-amber-50 border border-amber-200'
-                    }`}>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox"
-                                checked={data.acepta_reglamento_card}
-                                onChange={e => setData('acepta_reglamento_card', e.target.checked)}
-                                className="mt-0.5 w-4 h-4 accent-[#BE0F4A] cursor-pointer" />
-                            <span className="text-sm font-semibold text-amber-900 leading-snug">
-                                Aceptación expresa de conocer y someterse a los reglamentos del CARD ANKAWA INT
-                                <span className="text-[#BE0F4A] ml-1">*</span>
-                            </span>
-                        </label>
-                        {missingFields.acepta_reglamento_card && (
-                            <p className="text-xs font-semibold text-red-600 -mt-2 ml-7">{missingFields.acepta_reglamento_card}</p>
-                        )}
-                        <div>
-                            <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
-                                Cualquier precisión relativa a las reglas de arbitraje
-                                <span className="text-gray-400 font-normal ml-1">(máx. 100 caracteres)</span>
-                            </label>
-                            <textarea maxLength={100} rows={2} value={data.precision_reglas}
-                                onChange={e => setData('precision_reglas', e.target.value)}
-                                placeholder="Indique cualquier precisión adicional sobre las reglas..."
-                                className="w-full text-sm border border-amber-200 bg-white rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:border-amber-400" />
-                            <p className="text-xs text-gray-400 text-right mt-0.5">{data.precision_reglas.length}/100</p>
-                        </div>
-                    </div>
-                )}
-
                 {data.solicita_designacion_director === 0 && (
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                            <Input label="Nombre del Árbitro Propuesto" type="text"
-                                value={data.nombre_arbitro_propuesto}
-                                onChange={e => setData('nombre_arbitro_propuesto', e.target.value)} />
-                        </div>
-                        <Input label="Correo del Árbitro Propuesto" type="email"
-                            value={data.email_arbitro_propuesto}
-                            onChange={e => setData('email_arbitro_propuesto', e.target.value)} />
-                        <Input label="Domicilio del Árbitro Propuesto" type="text"
-                            value={data.domicilio_arbitro_propuesto}
-                            onChange={e => setData('domicilio_arbitro_propuesto', e.target.value)} />
-                        <div className="col-span-2">
-                            <Input label="Reglas aplicables" type="text"
-                                value={data.reglas_aplicables} onChange={e => setData('reglas_aplicables', e.target.value)}
-                                placeholder="Ej: Reglamento Ankawa, UNCITRAL..." />
+                    <div className="space-y-4">
+                        <RepresentanteDNI
+                            label="Árbitro Propuesto"
+                            required={false}
+                            dniValue={data.documento_arbitro_propuesto}
+                            nombreValue={data.nombre_arbitro_propuesto}
+                            onDniChange={val => setData('documento_arbitro_propuesto', val)}
+                            onNombreChange={val => setData('nombre_arbitro_propuesto', val)}
+                        />
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 gap-4">
+                            <Input label="Correo del Árbitro Propuesto" type="email"
+                                value={data.email_arbitro_propuesto}
+                                onChange={e => setData('email_arbitro_propuesto', e.target.value)} />
+                            <Input label="Domicilio del Árbitro Propuesto" type="text"
+                                value={data.domicilio_arbitro_propuesto}
+                                onChange={e => setData('domicilio_arbitro_propuesto', e.target.value)} />
+                            <div className="col-span-2">
+                                <Input label="Reglas aplicables" type="text"
+                                    value={data.reglas_aplicables} onChange={e => setData('reglas_aplicables', e.target.value)}
+                                    placeholder="Ej: Reglamento Ankawa, UNCITRAL..." />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1380,6 +1476,19 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                     label="Copia del comprobante de pago (opcional)"
                     value={data.comprobante_pago_tasa}
                     onChange={v => setData('comprobante_pago_tasa', v)} />
+
+                <div className="mt-6">
+                    <h3 className="text-xs font-bold text-[#291136] uppercase tracking-wide opacity-70 mb-3">
+                        Datos de la Emisión de Factura
+                    </h3>
+                    <RucBuscador
+                        label="Cliente"
+                        rucValue={data.factura_ruc}
+                        razonSocialValue={data.factura_razon_social}
+                        onRucChange={val => setData('factura_ruc', val)}
+                        onRazonSocialChange={val => setData('factura_razon_social', val)}
+                    />
+                </div>
             </Seccion>
 
             {/* Adjuntos */}
@@ -1395,13 +1504,44 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 <MultiArchivoInput value={data.documentos_anexos} onChange={v => setData('documentos_anexos', v)} />
             </Seccion>
 
-            {/* Aviso legal */}
-            {!aceptoLegal && (
-                <div className="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-sm text-blue-800">
-                    <ShieldCheck size={20} className="text-blue-500 shrink-0"/>
-                    <span>Al enviar declara bajo juramento que la información es verídica (Ley N° 29733).</span>
+            {/* Declaración y Aceptación final */}
+            <Seccion icono={ShieldCheck} titulo="Declaración y Aceptación">
+                <div className={`rounded-xl p-5 transition-all ${
+                    missingFields.acepta_reglamento_card
+                        ? 'bg-red-50 border-2 border-red-400 ring-4 ring-red-100'
+                        : data.acepta_reglamento_card
+                            ? 'bg-emerald-50 border border-emerald-200'
+                            : 'bg-gray-50 border border-gray-200'
+                }`}>
+                    <Checkbox
+                        checked={!!data.acepta_reglamento_card}
+                        onChange={e => setData('acepta_reglamento_card', e.target.checked)}
+                        required
+                        error={missingFields.acepta_reglamento_card}
+                        label="Declaro bajo juramento y acepto expresamente lo siguiente"
+                    >
+                        <ul className="mt-2 space-y-2 text-xs text-gray-600 leading-relaxed font-normal">
+                            <li className="flex gap-2">
+                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
+                                <span>Conozco y me someto a los <strong className="text-[#291136]">reglamentos del CARD ANKAWA INT</strong> aplicables al presente proceso arbitral.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
+                                <span>Confirmo que los <strong className="text-[#291136]">datos del demandante</strong> consignados en este formulario son verídicos y han sido validados previamente a través del correo electrónico registrado.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
+                                <span>Soy consciente de que los <strong className="text-[#291136]">datos del demandado</strong> aquí declarados serán utilizados para las notificaciones del proceso, asumiendo plena responsabilidad sobre su exactitud.</span>
+                            </li>
+                            <li className="flex gap-2">
+                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
+                                <span>Autorizo el tratamiento de los datos personales conforme a la <strong className="text-[#291136]">Ley N° 29733</strong> y al D.S. 003-2013-JUS, exclusivamente para los fines del presente arbitraje.</span>
+                            </li>
+                        </ul>
+                    </Checkbox>
                 </div>
-            )}
+            </Seccion>
+
             <div className="flex justify-end">
                 <PrimaryButton type="submit" disabled={processing} className="px-8 py-3 text-base shadow-lg">
                     {processing ? 'Enviando solicitud...' : 'Enviar Solicitud'}

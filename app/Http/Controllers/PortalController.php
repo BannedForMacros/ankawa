@@ -294,6 +294,113 @@ class PortalController extends Controller
         return redirect()->route('mesa-partes.index');
     }
 
+    // ── Tipos de documento disponibles para envío espontáneo ─────────────────
+    public function tiposDocumentoEnvio(Expediente $expediente)
+    {
+        $email    = session('portal_email');
+        $actorIds = $this->actorIdsPorEmail($email);
+
+        $autorizado = ExpedienteActor::whereIn('id', $actorIds)
+            ->where('expediente_id', $expediente->id)
+            ->where('acceso_mesa_partes', 1)
+            ->where('activo', 1)
+            ->exists();
+
+        abort_unless($autorizado, 403, 'No tiene autorización sobre este expediente.');
+
+        $expediente->loadMissing('servicio');
+        $tipos = $expediente->servicio
+            ->tiposDocumento()
+            ->where('tipo_documentos.activo', true)
+            ->get(['tipo_documentos.id', 'tipo_documentos.nombre']);
+
+        return response()->json($tipos);
+    }
+
+    // ── Enviar documento espontáneo al expediente ────────────────────────────
+    public function enviarDocumento(Request $request, Expediente $expediente)
+    {
+        $email    = session('portal_email');
+        $actorIds = $this->actorIdsPorEmail($email);
+
+        $actor = ExpedienteActor::whereIn('id', $actorIds)
+            ->where('expediente_id', $expediente->id)
+            ->where('acceso_mesa_partes', 1)
+            ->where('activo', 1)
+            ->first();
+
+        abort_unless($actor, 403, 'No tiene autorización para enviar documentos a este expediente.');
+
+        $request->validate([
+            'tipo_documento_id' => ['required', 'integer', 'exists:tipo_documentos,id'],
+            'descripcion'       => ['required', 'string', 'max:2000'],
+            'documentos'        => ['required', 'array', 'min:1'],
+            'documentos.*'      => FileRules::accept(),
+        ], [
+            'documentos.required' => 'Debes adjuntar al menos un documento.',
+            'documentos.min'      => 'Debes adjuntar al menos un documento.',
+        ]);
+
+        $tipoValido = $expediente->servicio
+            ->tiposDocumento()
+            ->where('tipo_documentos.id', $request->tipo_documento_id)
+            ->where('tipo_documentos.activo', true)
+            ->exists();
+        abort_unless($tipoValido, 422, 'El tipo de documento no pertenece al servicio de este expediente.');
+
+        $usuarioIdActor = $actor->usuario_id;
+
+        $movimiento = DB::transaction(function () use ($request, $expediente, $email, $usuarioIdActor) {
+            $movimiento = ExpedienteMovimiento::create([
+                'expediente_id'               => $expediente->id,
+                'tipo'                        => ExpedienteMovimiento::TIPO_ENVIO_EXTERNO,
+                'etapa_id'                    => $expediente->etapa_actual_id ?? null,
+                'creado_por'                  => null,
+                'instruccion'                 => $request->descripcion,
+                'tipo_documento_requerido_id' => $request->tipo_documento_id,
+                'estado'                      => ExpedienteMovimiento::ESTADO_PENDIENTE_ACEPTACION,
+                'tipo_dias'                   => 'calendario',
+                'genera_cargo'                => false,
+                'portal_email_envio'          => $email,
+                'respondido_por'              => $usuarioIdActor,
+            ]);
+
+            $carpeta = "expedientes/{$expediente->id}/movimientos/{$movimiento->id}";
+            foreach ($request->file('documentos') as $archivo) {
+                $ruta = $archivo->store($carpeta, 'public');
+                MovimientoDocumento::create([
+                    'movimiento_id'     => $movimiento->id,
+                    'tipo_documento_id' => $request->tipo_documento_id,
+                    'subido_por'        => $usuarioIdActor,
+                    'nombre_original'   => $archivo->getClientOriginalName(),
+                    'ruta_archivo'      => $ruta,
+                    'peso_bytes'        => $archivo->getSize(),
+                    'momento'           => 'creacion',
+                ]);
+            }
+
+            ExpedienteHistorial::create([
+                'expediente_id' => $expediente->id,
+                'usuario_id'    => $usuarioIdActor ?? 0,
+                'tipo_evento'   => 'envio_externo_recibido',
+                'descripcion'   => "Envío espontáneo recibido desde portal ({$email}).",
+                'datos_extra'   => [
+                    'movimiento_id' => $movimiento->id,
+                    'portal_email'  => $email,
+                    'archivos'      => count($request->file('documentos')),
+                ],
+            ]);
+
+            return $movimiento;
+        });
+
+        return response()->json([
+            'ok'      => true,
+            'mensaje' => 'Tu envío fue registrado. Quedará disponible en el expediente cuando el responsable lo acepte.',
+            'id'      => $movimiento->id,
+        ]);
+    }
+
     // ── Toma de conocimiento de un expediente ─────────────────────────────────
     public function aceptarConocimiento(Request $request, Expediente $expediente)
     {

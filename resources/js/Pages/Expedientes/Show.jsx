@@ -1,13 +1,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/PageHeader';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info, Briefcase, Layers, UserCheck, Timer } from 'lucide-react';
+import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info, Briefcase, Layers, UserCheck, Timer, Inbox } from 'lucide-react';
 import TabHistorial from './Partials/TabHistorial';
 import TabNuevoMovimiento from './Partials/TabNuevoMovimiento';
 import TabAccionPendiente from './Partials/TabAccionPendiente';
 import TabActores from './Partials/TabActores';
 import TabSolicitud from './Partials/TabSolicitud';
+import TabEnvios from './Partials/TabEnvios';
 
 const estadoLabel = {
     activo:     'Activo',
@@ -27,7 +28,12 @@ export default function Show({
     plazo,
     tiposDocumento,
     tiposResolucion,
+    enviosCount = 0,
 }) {
+    const [enviosBadge, setEnviosBadge] = useState(enviosCount);
+
+    useEffect(() => { setEnviosBadge(enviosCount); }, [enviosCount]);
+
     const tabs = [];
 
     tabs.push({ id: 'historial', label: 'Historial', Icon: Clock });
@@ -45,6 +51,7 @@ export default function Show({
         tabs.push({ id: 'accion', label: 'Mi Acción Pendiente', Icon: AlertCircle });
     }
 
+    tabs.push({ id: 'envios', label: 'Envíos', Icon: Inbox, badge: enviosBadge });
     tabs.push({ id: 'actores', label: 'Actores', Icon: Users });
 
     const [activeTab, setActiveTab] = useState(miAccionPendiente ? 'accion' : 'historial');
@@ -154,7 +161,7 @@ export default function Show({
 
                     {/* ── Tabs ── */}
                     <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
-                        {tabs.map(({ id, label, Icon, alerta }) => (
+                        {tabs.map(({ id, label, Icon, alerta, badge }) => (
                             <button
                                 key={id}
                                 onClick={() => setActiveTab(id)}
@@ -168,6 +175,11 @@ export default function Show({
                                 {label}
                                 {(id === 'accion' || alerta) && (
                                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
+                                )}
+                                {badge > 0 && (
+                                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#BE0F4A] text-white text-[10px] font-black">
+                                        {badge}
+                                    </span>
                                 )}
                             </button>
                         ))}
@@ -229,6 +241,13 @@ export default function Show({
                             puedeDesignarGestor={puedeDesignarGestor}
                             tiposActorConfig={tiposActor}
                             usuariosAsignables={usuariosAsignables}
+                        />
+                    )}
+
+                    {activeTab === 'envios' && (
+                        <TabEnvios
+                            expedienteId={expediente.id}
+                            onCambio={() => router.reload({ only: ['enviosCount', 'expediente'] })}
                         />
                     )}
                 </div>
