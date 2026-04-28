@@ -8,7 +8,7 @@ import {
 
 const estadoConfig = {
     recibido:   { Icon: Eye,           color: 'bg-purple-50 text-purple-600 border-purple-200',    label: 'Recibido' },
-    pendiente:  { Icon: Clock,         color: 'bg-blue-50 text-blue-600 border-blue-200',          label: 'Pendiente' },
+    pendiente:  { Icon: Clock,         color: 'bg-amber-50 text-amber-700 border-amber-200',       label: 'Pendiente' },
     respondido: { Icon: CheckCircle,   color: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'Respondido' },
     vencido:    { Icon: AlertTriangle, color: 'bg-red-50 text-red-600 border-red-200',             label: 'Vencido' },
 };
@@ -24,9 +24,36 @@ const colorMap = {
 const TIPO_LABELS = {
     requerimiento: { label: 'Requerimiento',     badge: 'bg-blue-50 text-blue-600 border-blue-200',         Icon: Send,      iconBg: 'bg-blue-100 text-blue-600' },
     notificacion:  { label: 'Notificación',      badge: 'bg-purple-50 text-purple-600 border-purple-200',   Icon: Bell,      iconBg: 'bg-purple-100 text-purple-600' },
-    propia:        { label: 'Act. Propia',       badge: 'bg-amber-50 text-amber-600 border-amber-200',      Icon: UserCheck, iconBg: 'bg-amber-100 text-amber-600' },
+    propia:        { label: 'Act. Propia',       badge: 'bg-gray-50 text-gray-600 border-gray-200',         Icon: UserCheck, iconBg: 'bg-gray-100 text-gray-600' },
     envio_externo: { label: 'Envío externo',     badge: 'bg-[#4A153D]/5 text-[#4A153D] border-[#4A153D]/20', Icon: Inbox,     iconBg: 'bg-[#4A153D]/10 text-[#4A153D]' },
 };
+
+// Badges reutilizables del historial
+function Badge({ className = '', children }) {
+    return (
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${className}`}>
+            {children}
+        </span>
+    );
+}
+
+function EstadoBadge({ estado }) {
+    const cfg = estadoConfig[estado] ?? estadoConfig.pendiente;
+    return <Badge className={cfg.color}>{cfg.label}</Badge>;
+}
+
+function TipoBadge({ tipo }) {
+    const cfg = TIPO_LABELS[tipo] ?? TIPO_LABELS.requerimiento;
+    return <Badge className={cfg.badge}>{cfg.label}</Badge>;
+}
+
+function ResolucionBadge({ resolucion }) {
+    return (
+        <Badge className={colorMap[resolucion.color] ?? colorMap.gray}>
+            {resolucion.nombre}
+        </Badge>
+    );
+}
 
 function formatFecha(dateStr) {
     if (!dateStr) return '—';
@@ -192,6 +219,7 @@ function RespuestaCard({ mov }) {
                         <div className="flex flex-wrap gap-1.5 mt-2">
                             {docsRespuesta.map(doc => (
                                 <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                    target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
                                     <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
                                 </a>
@@ -206,7 +234,6 @@ function RespuestaCard({ mov }) {
 
 // ── Tarjeta de movimiento ────────────────────────────────────────────────────
 function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo, actores = [] }) {
-    const cfg = estadoConfig[mov.estado] ?? estadoConfig.pendiente;
     const expandido = expandidos.has(mov.id);
     const resolucion = mov.resolucion_tipo;
     const tieneRespuesta = !!mov.respuesta;
@@ -305,17 +332,9 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                         <Timer size={11}/> {extensiones.length === 1 ? 'Plazo extendido' : `${extensiones.length} extensiones`}
                                     </span>
                                 )}
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${tipoMov.badge}`}>
-                                    {tipoMov.label}
-                                </span>
-                                {resolucion && (
-                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${colorMap[resolucion.color] ?? colorMap.gray}`}>
-                                        {resolucion.nombre}
-                                    </span>
-                                )}
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${cfg.color}`}>
-                                    {cfg.label}
-                                </span>
+                                <TipoBadge tipo={mov.tipo} />
+                                {resolucion && <ResolucionBadge resolucion={resolucion} />}
+                                <EstadoBadge estado={mov.estado} />
                                 {(tieneExtras || puedeResolver || puedeContinuar) && (
                                     <button onClick={() => toggleExpandir(mov.id)}
                                         className="text-[#BE0F4A]/50 hover:text-[#BE0F4A] transition-colors">
@@ -375,6 +394,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     <div className="flex flex-wrap gap-1.5">
                                         {todosDocsMov.map(doc => (
                                             <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                target="_blank" rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
                                                 <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
                                             </a>

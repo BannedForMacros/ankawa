@@ -1100,6 +1100,7 @@ function SeccionDocumentos({ grupos }) {
                         <div className="space-y-1.5">
                             {docs.map(doc => (
                                 <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                    target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors group">
                                     <FileText size={15} className="text-[#BE0F4A]/60 group-hover:text-[#BE0F4A] shrink-0" />
                                     <div className="flex-1 min-w-0">
