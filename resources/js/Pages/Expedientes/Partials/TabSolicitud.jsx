@@ -21,10 +21,11 @@ const DOC_LABELS_ARB = {
 };
 
 const DOC_LABELS_JPRD = {
-    solicitud_conformacion: { label: 'Solicitud de Conformación', seccion: 'Documentos' },
-    contrato_obra:          { label: 'Contrato de Obra',           seccion: 'Documentos' },
-    adenda:                 { label: 'Adenda',                     seccion: 'Documentos' },
-    anexo:                  { label: 'Anexos',                     seccion: 'Documentos' },
+    solicitud_conformacion:        { label: 'Solicitud de Conformación',           seccion: 'Documentos' },
+    contrato_obra:                 { label: 'Contrato de Obra',                    seccion: 'Documentos' },
+    adenda:                        { label: 'Adenda',                              seccion: 'Documentos' },
+    anexo:                         { label: 'Anexos',                              seccion: 'Documentos' },
+    peticion_decision_vinculante:  { label: 'Petición de Decisión Vinculante',     seccion: 'Petición Previa' },
 };
 
 // Agrupa documentos por sección para mostrarlos organizados
@@ -950,16 +951,18 @@ function VistaJPRD({ solicitud, campo }) {
                 />
             </div>
 
-            {/* Descripción */}
-            {(solicitud.descripcion || solicitud.observacion) && (
+            {/* Petición de Decisión Vinculante */}
+            {(solicitud.tiene_peticion_previa || solicitud.observacion) && (
                 <div className="border-t border-gray-100 pt-4">
-                    <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Descripción</h4>
+                    <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">
+                        Petición de Decisión Vinculante
+                    </h4>
                     <div className="space-y-3">
-                        {solicitud.descripcion && (
-                            <div>
-                                <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Descripción de la controversia</span>
-                                <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.descripcion}</p>
-                            </div>
+                        {solicitud.tiene_peticion_previa && (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>
+                                Existe petición previa
+                            </span>
                         )}
                         {solicitud.observacion && (
                             <div>

@@ -11,15 +11,13 @@ import AnkawaLoader from '@/Components/AnkawaLoader';
 import toast from 'react-hot-toast';
 
 /* ─── Constantes ─── */
-const TIPOS_PERSONA = [
-    { id: 'natural',  nombre: 'Persona Natural'  },
-    { id: 'juridica', nombre: 'Persona Jurídica' },
-];
 const SUBTIPOS_JURIDICA = [
     { id: 'empresa',         nombre: 'Empresa'          },
     { id: 'consorcio',       nombre: 'Consorcio'        },
     { id: 'entidad_publica', nombre: 'Entidad Pública'  },
 ];
+const SUBTIPOS_ENTIDAD     = SUBTIPOS_JURIDICA.filter(s => s.id === 'entidad_publica');
+const SUBTIPOS_CONTRATISTA = SUBTIPOS_JURIDICA.filter(s => s.id !== 'entidad_publica');
 
 /* ─── Sección visual ─── */
 function Seccion({ icono: Icono, titulo, children, accent = false }) {
@@ -359,13 +357,13 @@ function BloqueActor({
     emailBloqueado, emailFijo,
     errors = {},
     isSolicitante = false,
+    subtiposPermitidos = SUBTIPOS_JURIDICA,
 }) {
     function set(campo, val) { onChange({ ...datos, [campo]: val }); }
-    function setRep(campo, val) { onChange({ ...datos, representante: { ...datos.representante, [campo]: val } }); }
 
-    const esNatural  = datos.tipo_persona === 'natural';
-    const esJuridica = datos.tipo_persona === 'juridica';
-    const esConsorcio = datos.subtipo === 'consorcio';
+    const esConsorcio  = datos.subtipo === 'consorcio';
+    const subtipoFijo  = subtiposPermitidos.length === 1;
+    const subtipoLabel = subtipoFijo ? subtiposPermitidos[0].nombre : null;
 
     return (
         <Seccion icono={Icono} titulo={titulo} accent={isSolicitante}>
@@ -376,83 +374,71 @@ function BloqueActor({
                 </div>
             )}
 
-            {/* Tipo de persona */}
+            {/* Tipo de persona (fijo) + subtipo */}
             <div className="grid grid-cols-2 gap-4">
-                <Campo label="Tipo de persona" required>
-                    <select value={datos.tipo_persona}
-                        onChange={e => onChange({ ...datos, tipo_persona: e.target.value, subtipo: '', documento: '', nombre: '', representante: { dni: '', nombre: '' }, empresas: [] })}
-                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]">
-                        {TIPOS_PERSONA.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-                    </select>
+                <Campo label="Tipo de persona">
+                    <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5 bg-gray-50">
+                        <Building2 size={14} className="text-[#BE0F4A]"/>
+                        <span className="text-sm font-semibold text-[#291136]">Persona Jurídica</span>
+                    </div>
                 </Campo>
 
-                {esJuridica && (
+                {subtipoFijo ? (
+                    <Campo label="Tipo de entidad jurídica">
+                        <div className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 rounded-xl px-3 py-2.5">
+                            <Lock size={13} className="text-emerald-700"/>
+                            <span className="text-sm font-semibold text-emerald-800">{subtipoLabel}</span>
+                        </div>
+                    </Campo>
+                ) : (
                     <Campo label="Tipo de entidad jurídica" required error={errors.subtipo}>
                         <select value={datos.subtipo}
                             onChange={e => onChange({ ...datos, subtipo: e.target.value, empresas: e.target.value === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] })}
                             className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] ${errors.subtipo ? 'border-red-300' : 'border-gray-200'}`}>
                             <option value="">Selecciona...</option>
-                            {SUBTIPOS_JURIDICA.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                            {subtiposPermitidos.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                         </select>
                     </Campo>
                 )}
             </div>
 
-            {/* Documento y nombre */}
-            {esNatural ? (
+            {/* Documento y nombre / Consorcio */}
+            {!esConsorcio ? (
                 <div className="grid grid-cols-2 gap-4">
-                    <Campo label="DNI" required error={errors.documento}>
-                        <CampoDni
+                    <Campo label="RUC" required error={errors.documento}>
+                        <CampoRuc
                             value={datos.documento ?? ''}
                             onResuelto={(doc, nom) => onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) })}
                             error={errors.documento}
                         />
                     </Campo>
-                    <Campo label="Nombre completo" required error={errors.nombre}>
+                    <Campo label="Razón Social" required error={errors.nombre}>
                         <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
-                            placeholder="Nombre del solicitante" error={errors.nombre} />
+                            placeholder="Nombre / Razón Social" error={errors.nombre} />
                     </Campo>
                 </div>
             ) : (
-                <>
-                    {!esConsorcio ? (
-                        <div className="grid grid-cols-2 gap-4">
-                            <Campo label="RUC" required error={errors.documento}>
-                                <CampoRuc
-                                    value={datos.documento ?? ''}
-                                    onResuelto={(doc, nom) => onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) })}
-                                    error={errors.documento}
-                                />
-                            </Campo>
-                            <Campo label="Razón Social" required error={errors.nombre}>
-                                <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
-                                    placeholder="Nombre / Razón Social" error={errors.nombre} />
-                            </Campo>
-                        </div>
-                    ) : (
-                        <EmpresasConsorcio
-                            empresas={datos.empresas ?? []}
-                            onChange={emps => onChange({ ...datos, empresas: emps })}
-                            error={errors.empresas}
-                        />
-                    )}
+                <EmpresasConsorcio
+                    empresas={datos.empresas ?? []}
+                    onChange={emps => onChange({ ...datos, empresas: emps })}
+                    error={errors.empresas}
+                />
+            )}
 
-                    {/* Representante legal */}
-                    {datos.subtipo && (
-                        <BloqueRepresentante
-                            dni={datos.representante?.dni ?? ''}
-                            nombre={datos.representante?.nombre ?? ''}
-                            onResuelto={(d, n) => onChange({
-                                ...datos,
-                                representante: {
-                                    dni: d,
-                                    nombre: n !== null ? n : (datos.representante?.nombre ?? ''),
-                                },
-                            })}
-                            label={datos.subtipo === 'consorcio' ? 'Representante del Consorcio' : 'Representante Legal'}
-                        />
-                    )}
-                </>
+            {/* Representante legal */}
+            {datos.subtipo && (
+                <BloqueRepresentante
+                    dni={datos.representante?.dni ?? ''}
+                    nombre={datos.representante?.nombre ?? ''}
+                    onResuelto={(d, n) => onChange({
+                        ...datos,
+                        representante: {
+                            dni: d,
+                            nombre: n !== null ? n : (datos.representante?.nombre ?? ''),
+                        },
+                    })}
+                    label={datos.subtipo === 'consorcio' ? 'Representante del Consorcio' : 'Representante Legal'}
+                />
             )}
 
             {/* Teléfono */}
@@ -546,10 +532,10 @@ function SeccionDoc({ icono: Icono, titulo, descripcion, archivos, onChange, req
 }
 
 /* ─── Estado inicial de un actor ─── */
-function actorVacio(emailFijo = null) {
+function actorVacio(emailFijo = null, subtipoInicial = '') {
     return {
         tipo_persona: 'juridica',
-        subtipo: '',
+        subtipo: subtipoInicial,
         documento: '',
         nombre: '',
         telefono: '',
@@ -577,7 +563,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         return actorVacio(portalEmail);
     }
 
-    const [entidad,     setEntidad]     = useState(actorVacio());
+    const [entidad,     setEntidad]     = useState(actorVacio(null, 'entidad_publica'));
     const [contratista, setContratista] = useState(actorVacio());
 
     // Cuando el usuario elige rol, pre-llena sus datos
@@ -585,17 +571,18 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         setRolSolicitante(rol);
         const datosMios = datosDesdePortal();
         if (rol === 'entidad') {
-            setEntidad(datosMios);
+            setEntidad({ ...datosMios, subtipo: 'entidad_publica' });
             setContratista(actorVacio());
         } else {
-            setContratista(datosMios);
-            setEntidad(actorVacio());
+            setContratista({ ...datosMios, subtipo: '' });
+            setEntidad(actorVacio(null, 'entidad_publica'));
         }
         setErrores({});
     }
 
-    const [descripcion, setDescripcion] = useState('');
-    const [observacion, setObservacion] = useState('');
+    const [observacion,         setObservacion]         = useState('');
+    const [tienePeticionPrevia, setTienePeticionPrevia] = useState(false);
+    const [docPeticionPrevia,   setDocPeticionPrevia]   = useState([]);
 
     const [docSolicitudConformacion, setDocSolicitudConformacion] = useState([]);
     const [docContratoObra,          setDocContratoObra]          = useState([]);
@@ -622,21 +609,13 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         const e = {};
         if (!rolSolicitante) { e.rol = 'Debes seleccionar tu rol'; return e; }
 
-        // ── Entidad ──
-        const entConsorcio = entidad.tipo_persona === 'juridica' && entidad.subtipo === 'consorcio';
-        if (entidad.tipo_persona === 'juridica' && !entidad.subtipo) {
-            e.ent_subtipo = 'Selecciona el tipo de entidad jurídica';
-        }
-        if (!entConsorcio) {
-            if (!(entidad.nombre ?? '').trim())    e.ent_nombre    = 'Requerido';
-            if (!(entidad.documento ?? '').trim()) e.ent_documento = 'Requerido';
-        } else {
-            if ((entidad.empresas ?? []).length === 0) e.ent_empresas = 'Agrega al menos una empresa del consorcio';
-        }
+        // ── Entidad (siempre Entidad Pública) ──
+        if (!(entidad.nombre ?? '').trim())    e.ent_nombre    = 'Requerido';
+        if (!(entidad.documento ?? '').trim()) e.ent_documento = 'Requerido';
 
-        // ── Contratista ──
-        const conConsorcio = contratista.tipo_persona === 'juridica' && contratista.subtipo === 'consorcio';
-        if (contratista.tipo_persona === 'juridica' && !contratista.subtipo) {
+        // ── Contratista (Empresa o Consorcio) ──
+        const conConsorcio = contratista.subtipo === 'consorcio';
+        if (!contratista.subtipo) {
             e.con_subtipo = 'Selecciona el tipo de entidad jurídica';
         }
         if (!conConsorcio) {
@@ -652,9 +631,12 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
             e.sol_email = 'Ingresa al menos un correo';
         }
 
-        if (!(descripcion ?? '').trim())           e.descripcion  = 'Requerido';
         if (docSolicitudConformacion.length === 0)  e.doc_solicitud = 'Adjunta la solicitud de conformación de JPRD';
-        if (docContratoObra.length === 0)            e.doc_contrato  = 'Adjunta el contrato de obra';
+        if (docContratoObra.length === 0)           e.doc_contrato  = 'Adjunta el contrato de obra';
+
+        if (tienePeticionPrevia && docPeticionPrevia.length === 0) {
+            e.doc_peticion = 'Adjunta el documento de la petición de decisión vinculante';
+        }
         return e;
     }
 
@@ -721,14 +703,21 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         fd.append('emails_contratista',               JSON.stringify(emailsConFinal));
 
         if (tipoDocumentoId) fd.append('tipo_documento_id', tipoDocumentoId);
-        fd.append('descripcion',  descripcion);
-        if (observacion.trim()) fd.append('observacion', observacion);
+
+        // Petición de Decisión Vinculante
+        fd.append('tiene_peticion_previa', tienePeticionPrevia ? '1' : '0');
+        if (tienePeticionPrevia && observacion.trim()) {
+            fd.append('observacion', observacion);
+        }
 
         // Documentos
         docSolicitudConformacion.forEach(f => fd.append('doc_solicitud_conformacion[]', f));
         docContratoObra.forEach(f => fd.append('doc_contrato_obra[]', f));
         docAdendas.forEach(f  => fd.append('doc_adendas[]', f));
         docAnexos.forEach(f   => fd.append('doc_anexos[]', f));
+        if (tienePeticionPrevia) {
+            docPeticionPrevia.forEach(f => fd.append('doc_peticion_previa[]', f));
+        }
 
         router.post(route('solicitud.jprd.store'), fd, {
             forceFormData: true,
@@ -872,6 +861,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                 onChange={rolSolicitante === 'entidad' ? setEntidad : setContratista}
                 emailBloqueado={isPortal}
                 emailFijo={portalEmail}
+                subtiposPermitidos={rolSolicitante === 'entidad' ? SUBTIPOS_ENTIDAD : SUBTIPOS_CONTRATISTA}
                 errors={rolSolicitante === 'entidad'
                     ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }
                     : { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }}
@@ -885,25 +875,12 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                 datos={rolSolicitante === 'entidad' ? contratista : entidad}
                 onChange={rolSolicitante === 'entidad' ? setContratista : setEntidad}
                 emailBloqueado={false}
+                subtiposPermitidos={rolSolicitante === 'entidad' ? SUBTIPOS_CONTRATISTA : SUBTIPOS_ENTIDAD}
                 errors={rolSolicitante === 'entidad'
                     ? { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }
                     : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }}
                 isSolicitante={false}
             />
-
-            {/* Descripción */}
-            <Seccion icono={FileText} titulo="Descripción de la controversia">
-                <Campo label="Descripción" required error={errores.descripcion}>
-                    <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)}
-                        rows={4} placeholder="Describa brevemente la controversia..."
-                        className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] ${errores.descripcion ? 'border-red-300' : 'border-gray-200'}`} />
-                </Campo>
-                <Campo label="Observación (opcional)">
-                    <textarea value={observacion} onChange={e => setObservacion(e.target.value)}
-                        rows={2} placeholder="Alguna observación adicional..."
-                        className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]" />
-                </Campo>
-            </Seccion>
 
             {/* Documentos */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
@@ -949,6 +926,48 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                         required={false}
                     />
                 </div>
+            </div>
+
+            {/* Petición de Decisión Vinculante */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
+                            <FileText size={16} className="text-[#BE0F4A]"/>
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">
+                                ¿Existe previamente una Petición de Decisión Vinculante?
+                            </h2>
+                            <p className="text-xs text-gray-500 mt-0.5">Activa esta opción si ya se presentó una petición previa</p>
+                        </div>
+                    </div>
+                    <button type="button" role="switch" aria-checked={tienePeticionPrevia}
+                        onClick={() => setTienePeticionPrevia(v => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${tienePeticionPrevia ? 'bg-[#BE0F4A]' : 'bg-gray-300'}`}>
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${tienePeticionPrevia ? 'translate-x-5' : ''}`} />
+                    </button>
+                </div>
+
+                {tienePeticionPrevia && (
+                    <div className="p-6 space-y-4">
+                        <Campo label="Observación (opcional)">
+                            <textarea value={observacion} onChange={e => setObservacion(e.target.value)}
+                                rows={3} placeholder="Agrega contexto adicional sobre la petición previa..."
+                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A]" />
+                        </Campo>
+
+                        <SeccionDoc
+                            icono={FileText}
+                            titulo="Documento de Petición de Decisión Vinculante"
+                            descripcion="Adjunta el documento formal de la petición previa."
+                            archivos={docPeticionPrevia}
+                            onChange={setDocPeticionPrevia}
+                            required
+                            error={errores.doc_peticion}
+                        />
+                    </div>
+                )}
             </div>
 
             <div className="flex justify-end mt-2">

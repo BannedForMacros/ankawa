@@ -27,26 +27,27 @@ class SolicitudJPRDController extends Controller
 {
     public function store(Request $request)
     {
-        // Validación flexible: nombre/ruc pueden ser vacíos para consorcio
+        // Validación: solo personas jurídicas; entidad siempre pública, contratista empresa o consorcio
         $request->validate([
             'servicio_id'                       => 'required|exists:servicios,id',
             'tipo_documento_id'                 => 'nullable|exists:tipo_documentos,id',
             'rol_solicitante'                   => 'required|in:entidad,contratista',
-            'tipo_persona_entidad'              => 'required|in:natural,juridica',
-            'subtipo_entidad'                   => 'nullable|string|max:30',
+            'tipo_persona_entidad'              => 'required|in:juridica',
+            'subtipo_entidad'                   => 'required|in:entidad_publica',
             'nombre_entidad'                    => 'nullable|string|max:255',
             'ruc_entidad'                       => 'nullable|string|max:20',
             'representante_entidad_dni'         => 'nullable|string|max:20',
             'representante_entidad_nombre'      => 'nullable|string|max:255',
             'emails_entidad'                    => 'required|string',
-            'tipo_persona_contratista'          => 'required|in:natural,juridica',
-            'subtipo_contratista'               => 'nullable|string|max:30',
+            'tipo_persona_contratista'          => 'required|in:juridica',
+            'subtipo_contratista'               => 'required|in:empresa,consorcio',
             'nombre_contratista'                => 'nullable|string|max:255',
             'ruc_contratista'                   => 'nullable|string|max:20',
             'representante_contratista_dni'     => 'nullable|string|max:20',
             'representante_contratista_nombre'  => 'nullable|string|max:255',
             'emails_contratista'                => 'required|string',
-            'descripcion'                       => 'required|string|max:3000',
+            'observacion'                       => 'nullable|string|max:3000',
+            'tiene_peticion_previa'             => 'sometimes|boolean',
             'doc_solicitud_conformacion'        => 'required|array|min:1',
             'doc_solicitud_conformacion.*'      => FileRules::accept(),
             'doc_contrato_obra'                 => 'required|array|min:1',
@@ -55,7 +56,15 @@ class SolicitudJPRDController extends Controller
             'doc_adendas.*'                     => FileRules::accept(),
             'doc_anexos'                        => 'nullable|array',
             'doc_anexos.*'                      => FileRules::accept(),
+            'doc_peticion_previa'               => 'nullable|array',
+            'doc_peticion_previa.*'             => FileRules::accept(),
         ]);
+
+        if ($request->boolean('tiene_peticion_previa') && empty($request->file('doc_peticion_previa'))) {
+            return back()
+                ->withErrors(['doc_peticion' => 'Debe adjuntar el documento de petición de decisión vinculante.'])
+                ->withInput();
+        }
 
         $rolSolicitante   = $request->rol_solicitante;
         $emailsKey        = "emails_{$rolSolicitante}";
@@ -73,14 +82,14 @@ class SolicitudJPRDController extends Controller
         $nombreContratista = $request->nombre_contratista
                           ?: $this->nombreDesdeEmpresas($empresasConData, 'Contratista');
 
-        // Datos del solicitante según su rol
+        // Datos del solicitante según su rol (siempre persona jurídica → RUC)
         if ($rolSolicitante === 'entidad') {
             $nombreSol    = $nombreEntidad;
-            $tipoDocSol   = $request->tipo_persona_entidad === 'natural' ? 'dni' : 'ruc';
+            $tipoDocSol   = 'ruc';
             $documentoSol = $request->ruc_entidad ?? '';
         } else {
             $nombreSol    = $nombreContratista;
-            $tipoDocSol   = $request->tipo_persona_contratista === 'natural' ? 'dni' : 'ruc';
+            $tipoDocSol   = 'ruc';
             $documentoSol = $request->ruc_contratista ?? '';
         }
 
@@ -135,8 +144,8 @@ class SolicitudJPRDController extends Controller
                 'representante_contratista_dni'    => $request->representante_contratista_dni,
                 'representante_contratista_nombre' => $request->representante_contratista_nombre,
                 'empresas_contratista'             => $empresasConData,
-                'descripcion'                      => $request->descripcion,
                 'observacion'                      => $request->observacion,
+                'tiene_peticion_previa'            => $request->boolean('tiene_peticion_previa'),
                 'estado'                           => 'pendiente',
                 'tipo_documento_id'                => $request->tipo_documento_id ?: null,
             ]);
@@ -227,10 +236,13 @@ class SolicitudJPRDController extends Controller
             // ── 6. Guardar documentos por tipo ──────────────────────────────
             $carpeta = "expedientes/{$expediente->id}/solicitud";
             $tiposDoc = [
-                'solicitud_conformacion' => $request->file('doc_solicitud_conformacion') ?? [],
-                'contrato_obra'          => $request->file('doc_contrato_obra') ?? [],
-                'adenda'                 => $request->file('doc_adendas') ?? [],
-                'anexo'                  => $request->file('doc_anexos') ?? [],
+                'solicitud_conformacion'       => $request->file('doc_solicitud_conformacion') ?? [],
+                'contrato_obra'                => $request->file('doc_contrato_obra') ?? [],
+                'adenda'                       => $request->file('doc_adendas') ?? [],
+                'anexo'                        => $request->file('doc_anexos') ?? [],
+                'peticion_decision_vinculante' => $request->boolean('tiene_peticion_previa')
+                    ? ($request->file('doc_peticion_previa') ?? [])
+                    : [],
             ];
 
             foreach ($tiposDoc as $tipoDoc => $archivos) {

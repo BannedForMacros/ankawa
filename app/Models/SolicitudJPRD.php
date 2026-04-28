@@ -35,8 +35,8 @@ class SolicitudJPRD extends Model
         'representante_contratista_nombre',
         'empresas_entidad',
         'empresas_contratista',
-        'descripcion',
         'observacion',
+        'tiene_peticion_previa',
         'estado',
         'expediente_id',
         'usuario_id',
@@ -44,11 +44,12 @@ class SolicitudJPRD extends Model
     ];
 
     protected $casts = [
-        'emails_solicitante'   => 'array',
-        'emails_entidad'       => 'array',
-        'emails_contratista'   => 'array',
-        'empresas_entidad'     => 'array',
-        'empresas_contratista' => 'array',
+        'emails_solicitante'    => 'array',
+        'emails_entidad'        => 'array',
+        'emails_contratista'    => 'array',
+        'empresas_entidad'      => 'array',
+        'empresas_contratista'  => 'array',
+        'tiene_peticion_previa' => 'boolean',
     ];
 
     public function servicio()
