@@ -37,6 +37,7 @@ class SolicitudJPRD extends Model
         'empresas_contratista',
         'observacion',
         'tiene_peticion_previa',
+        'acepta_reglamento_card',
         'estado',
         'expediente_id',
         'usuario_id',
@@ -44,12 +45,13 @@ class SolicitudJPRD extends Model
     ];
 
     protected $casts = [
-        'emails_solicitante'    => 'array',
-        'emails_entidad'        => 'array',
-        'emails_contratista'    => 'array',
-        'empresas_entidad'      => 'array',
-        'empresas_contratista'  => 'array',
-        'tiene_peticion_previa' => 'boolean',
+        'emails_solicitante'     => 'array',
+        'emails_entidad'         => 'array',
+        'emails_contratista'     => 'array',
+        'empresas_entidad'       => 'array',
+        'empresas_contratista'   => 'array',
+        'tiene_peticion_previa'  => 'boolean',
+        'acepta_reglamento_card' => 'boolean',
     ];
 
     public function servicio()

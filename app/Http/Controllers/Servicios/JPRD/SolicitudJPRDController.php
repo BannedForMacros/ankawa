@@ -58,6 +58,7 @@ class SolicitudJPRDController extends Controller
             'doc_anexos.*'                      => FileRules::accept(),
             'doc_peticion_previa'               => 'nullable|array',
             'doc_peticion_previa.*'             => FileRules::accept(),
+            'acepta_reglamento_card'            => 'nullable|in:0,1',
         ]);
 
         if ($request->boolean('tiene_peticion_previa') && empty($request->file('doc_peticion_previa'))) {
@@ -146,6 +147,7 @@ class SolicitudJPRDController extends Controller
                 'empresas_contratista'             => $empresasConData,
                 'observacion'                      => $request->observacion,
                 'tiene_peticion_previa'            => $request->boolean('tiene_peticion_previa'),
+                'acepta_reglamento_card'           => $request->boolean('acepta_reglamento_card'),
                 'estado'                           => 'pendiente',
                 'tipo_documento_id'                => $request->tipo_documento_id ?: null,
             ]);

@@ -7,6 +7,7 @@ import EmailsInput from '@/Components/EmailsInput';
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import Checkbox from '@/Components/Checkbox';
+import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import {
     User, Users, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -40,6 +41,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
     const [demandanteBloqueado, setDemandanteBloqueado] = useState(isAuth || isPortal);
     const emailInicial = isPortal ? portalEmail : (isAuth ? user?.email : '');
     const [emailsDem, setEmailsDem]         = useState(emailInicial ? [{ email: emailInicial, label: '' }] : [{ email: '', label: '' }]);
+    const [emailsDemAdic, setEmailsDemAdic] = useState([]);
     const [emailsDado, setEmailsDado]       = useState([]);
     const loaderTimer                       = useRef(null);
 
@@ -277,7 +279,13 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
         fd.set('email_demandante', isPortal ? portalEmail : (emailsDem[0]?.email ?? ''));
         fd.append('emails_demandante', JSON.stringify(
-            isPortal ? [{ email: portalEmail, label: '' }] : emailsDem.filter(e => e.email.trim())
+            isPortal
+                ? [
+                    { email: portalEmail, label: '' },
+                    ...emailsDemAdic
+                        .filter(e => e.email.trim() && e.email.trim().toLowerCase() !== portalEmail.toLowerCase()),
+                  ]
+                : emailsDem.filter(e => e.email.trim())
         ));
         fd.append('emails_demandado',  JSON.stringify(emailsDado.filter(e => e.email.trim())));
 
@@ -461,15 +469,24 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                 <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="col-span-2">
                         {isPortal ? (
-                            <div>
-                                <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                                    Correo del demandante <span className="text-[#BE0F4A]">*</span>
-                                </label>
-                                <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-4 py-2.5 text-sm text-emerald-800 font-medium">
-                                    <CheckCircle2 size={14} className="text-emerald-600 shrink-0"/>
-                                    {portalEmail}
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                                        Correo del demandante <span className="text-[#BE0F4A]">*</span>
+                                    </label>
+                                    <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-4 py-2.5 text-sm text-emerald-800 font-medium">
+                                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0"/>
+                                        {portalEmail}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no puede modificarse</p>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no puede modificarse</p>
+                                <EmailsInput
+                                    label="Correos adicionales del demandante (para notificaciones)"
+                                    value={emailsDemAdic}
+                                    onChange={setEmailsDemAdic}
+                                    required={false}
+                                    placeholder="correo@ejemplo.com"
+                                />
                             </div>
                         ) : (
                             <EmailsInput
@@ -612,42 +629,17 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             </Seccion>
 
             {/* Declaración y Aceptación final */}
-            <Seccion icono={ShieldCheck} titulo="Declaración y Aceptación">
-                <div className={`rounded-xl p-5 transition-all ${
-                    missingFields.acepta_reglamento_card
-                        ? 'bg-red-50 border-2 border-red-400 ring-4 ring-red-100'
-                        : data.acepta_reglamento_card
-                            ? 'bg-emerald-50 border border-emerald-200'
-                            : 'bg-gray-50 border border-gray-200'
-                }`}>
-                    <Checkbox
-                        checked={!!data.acepta_reglamento_card}
-                        onChange={e => setData('acepta_reglamento_card', e.target.checked)}
-                        required
-                        error={missingFields.acepta_reglamento_card}
-                        label="Declaro bajo juramento y acepto expresamente lo siguiente"
-                    >
-                        <ul className="mt-2 space-y-2 text-xs text-gray-600 leading-relaxed font-normal">
-                            <li className="flex gap-2">
-                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
-                                <span>Conozco y me someto a los <strong className="text-[#291136]">reglamentos del CARD ANKAWA INT</strong> aplicables al presente procedimiento de arbitraje de emergencia.</span>
-                            </li>
-                            <li className="flex gap-2">
-                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
-                                <span>Confirmo que los <strong className="text-[#291136]">datos del demandante</strong> consignados en este formulario son verídicos y han sido validados previamente a través del correo electrónico registrado.</span>
-                            </li>
-                            <li className="flex gap-2">
-                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
-                                <span>Soy consciente de que los <strong className="text-[#291136]">datos del demandado</strong> aquí declarados serán utilizados para las notificaciones del proceso, asumiendo plena responsabilidad sobre su exactitud.</span>
-                            </li>
-                            <li className="flex gap-2">
-                                <ChevronRight size={14} className="text-[#BE0F4A] shrink-0 mt-0.5"/>
-                                <span>Autorizo el tratamiento de los datos personales conforme a la <strong className="text-[#291136]">Ley N° 29733</strong> y al D.S. 003-2013-JUS, exclusivamente para los fines del presente arbitraje.</span>
-                            </li>
-                        </ul>
-                    </Checkbox>
-                </div>
-            </Seccion>
+            <AceptacionReglamento
+                checked={data.acepta_reglamento_card}
+                onChange={v => setData('acepta_reglamento_card', v)}
+                error={missingFields.acepta_reglamento_card}
+                contexto="al presente procedimiento de arbitraje de emergencia"
+                finalidad="arbitraje de emergencia"
+                bulletsExtra={[
+                    <>Confirmo que los <strong className="text-[#291136]">datos del demandante</strong> consignados en este formulario son verídicos y han sido validados previamente a través del correo electrónico registrado.</>,
+                    <>Soy consciente de que los <strong className="text-[#291136]">datos del demandado</strong> aquí declarados serán utilizados para las notificaciones del proceso, asumiendo plena responsabilidad sobre su exactitud.</>,
+                ]}
+            />
 
             <div className="flex justify-end">
                 <PrimaryButton type="submit" disabled={processing} className="px-8 py-3 text-base shadow-lg">

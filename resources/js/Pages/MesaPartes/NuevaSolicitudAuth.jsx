@@ -2,11 +2,19 @@ import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ArbitrajeForm           from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 import ArbitrajeEmergenciaForm from '@/Pages/MesaPartes/Formularios/ArbitrajeEmergenciaForm';
+import JPRDForm                from '@/Pages/MesaPartes/Formularios/JPRDForm';
 import OtrosForm               from '@/Pages/MesaPartes/Formularios/OtrosForm';
 import { Scale, Briefcase } from 'lucide-react';
 import { useState } from 'react';
 
 const iconoServicio = { Scale };
+
+const FORMS = {
+    'arbitraje':            ArbitrajeForm,
+    'arbitraje-emergencia': ArbitrajeEmergenciaForm,
+    'jprd':                 JPRDForm,
+    'otros':                OtrosForm,
+};
 
 export default function NuevaSolicitudAuth({ servicios }) {
     const [servicioSeleccionado, setServicioSeleccionado] = useState(
@@ -64,13 +72,10 @@ export default function NuevaSolicitudAuth({ servicios }) {
                         <Scale size={48} className="mb-4 opacity-20" />
                         <p className="font-medium">Selecciona el tipo de servicio para continuar</p>
                     </div>
-                ) : servicioSeleccionado.nombre === 'Otros' ? (
-                    <OtrosForm servicio={servicioSeleccionado} />
-                ) : servicioSeleccionado.slug === 'arbitraje-emergencia' ? (
-                    <ArbitrajeEmergenciaForm servicio={servicioSeleccionado} />
-                ) : (
-                    <ArbitrajeForm servicio={servicioSeleccionado} />
-                )}
+                ) : (() => {
+                    const Form = FORMS[servicioSeleccionado.slug] ?? OtrosForm;
+                    return <Form servicio={servicioSeleccionado} />;
+                })()}
 
             </div>
         </AuthenticatedLayout>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
+import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import toast from 'react-hot-toast';
 
 /* ─── Utilitario de extensión ─── */
@@ -168,6 +169,9 @@ export default function OtrosForm({ servicio, portalEmail }) {
     /* ── Archivos adjuntos ── */
     const [archivos, setArchivos] = useState([]);
 
+    /* ── Aceptación reglamento ── */
+    const [aceptaReglamento, setAceptaReglamento] = useState(false);
+
     /* ── UI ── */
     const [procesando,    setProcesando]    = useState(false);
     const [errores,       setErrores]       = useState({});
@@ -246,6 +250,7 @@ export default function OtrosForm({ servicio, portalEmail }) {
             errs.tipo_documento_id = 'No hay tipos de documento configurados para este servicio';
         }
         if (!form.descripcion.trim()) errs.descripcion = 'Requerido';
+        if (!aceptaReglamento) errs.acepta_reglamento = 'Debes aceptar la declaración para enviar la solicitud';
         return errs;
     }
 
@@ -271,6 +276,7 @@ export default function OtrosForm({ servicio, portalEmail }) {
         fd.append('tipo_documento_id',    form.tipo_documento_id);
         fd.append('descripcion',          form.descripcion);
         if (form.observacion.trim()) fd.append('observacion', form.observacion);
+        fd.append('acepta_reglamento_card', aceptaReglamento ? '1' : '0');
         archivos.forEach(f => fd.append('documentos[]', f));
 
         router.post(route('solicitud.otros.store'), fd, {
@@ -552,6 +558,19 @@ export default function OtrosForm({ servicio, portalEmail }) {
                     </ul>
                 )}
             </Seccion>
+
+            {/* ── Aceptación reglamento ── */}
+            <AceptacionReglamento
+                checked={aceptaReglamento}
+                onChange={setAceptaReglamento}
+                error={errores.acepta_reglamento}
+                contexto="al presente trámite ante el Centro"
+                finalidad="trámite"
+                bulletsExtra={[
+                    <>Confirmo que los <strong className="text-[#291136]">datos del remitente</strong> consignados en este formulario son verídicos.</>,
+                    <>Asumo plena responsabilidad sobre el <strong className="text-[#291136]">contenido y veracidad</strong> del documento adjunto.</>,
+                ]}
+            />
 
             {/* ── Submit ── */}
             <div className="flex items-center justify-between pt-2">

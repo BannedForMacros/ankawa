@@ -9,6 +9,7 @@ import EmailsInput from '@/Components/EmailsInput';
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import CustomSelect from '@/Components/CustomSelect';
+import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import toast from 'react-hot-toast';
 
 /* ─── Constantes ─── */
@@ -451,14 +452,26 @@ function BloqueActor({
 
             {/* Email */}
             {emailBloqueado ? (
-                <div>
-                    <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
-                        Correo principal <span className="text-[#BE0F4A]">*</span>
-                    </label>
-                    <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2.5 text-sm text-emerald-800 font-medium">
-                        <Lock size={13}/> {emailFijo}
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-bold text-[#291136] mb-1.5 uppercase tracking-wide opacity-70">
+                            Correo principal <span className="text-[#BE0F4A]">*</span>
+                        </label>
+                        <div className="flex items-center gap-2 border border-emerald-300 bg-emerald-50 rounded-xl px-3 py-2.5 text-sm text-emerald-800 font-medium">
+                            <Lock size={13}/> {emailFijo}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no editable</p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">Correo verificado por OTP — no editable</p>
+                    <EmailsInput
+                        label="Correos adicionales para notificación"
+                        value={(datos.emails ?? []).slice(1)}
+                        onChange={adicionales => set('emails', [
+                            (datos.emails?.[0] ?? { email: emailFijo, label: '' }),
+                            ...adicionales,
+                        ])}
+                        required={false}
+                        placeholder="correo@ejemplo.com"
+                    />
                 </div>
             ) : (
                 <EmailsInput
@@ -584,6 +597,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
 
     const [observacion,         setObservacion]         = useState('');
     const [tienePeticionPrevia, setTienePeticionPrevia] = useState(false);
+    const [aceptaReglamento,    setAceptaReglamento]    = useState(false);
     const [docPeticionPrevia,   setDocPeticionPrevia]   = useState([]);
 
     const [docSolicitudConformacion, setDocSolicitudConformacion] = useState([]);
@@ -639,6 +653,10 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         if (tienePeticionPrevia && docPeticionPrevia.length === 0) {
             e.doc_peticion = 'Adjunta el documento de la petición de decisión vinculante';
         }
+
+        if (!aceptaReglamento) {
+            e.acepta_reglamento = 'Debes aceptar la declaración para enviar la solicitud';
+        }
         return e;
     }
 
@@ -669,10 +687,11 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         fd.append('servicio_id',        servicio.id);
         fd.append('rol_solicitante',    rolSolicitante);
 
-        // Email principal del solicitante (del portal o ingresado)
-        const emailsSolFinal = isPortal
-            ? [{ email: portalEmail, label: '' }]
-            : (rolSolicitante === 'entidad' ? entidad.emails : contratista.emails).filter(em => em.email.trim());
+        // Email principal del solicitante (del portal o ingresado).
+        // En modo portal, el primer email del actor solicitante es el OTP (bloqueado)
+        // y el resto son adicionales agregados por el usuario.
+        const emailsSolFinal = (rolSolicitante === 'entidad' ? entidad.emails : contratista.emails)
+            .filter(em => em.email.trim());
 
         // Entidad
         const emailsEntFinal = isPortal && rolSolicitante === 'entidad'
@@ -703,6 +722,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         fd.append('representante_contratista_nombre', contratista.representante?.nombre ?? '');
         fd.append('empresas_contratista',             JSON.stringify(contratista.empresas ?? []));
         fd.append('emails_contratista',               JSON.stringify(emailsConFinal));
+
+        fd.append('acepta_reglamento_card', aceptaReglamento ? '1' : '0');
 
         if (tipoDocumentoId) fd.append('tipo_documento_id', tipoDocumentoId);
 
@@ -781,7 +802,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         );
     }
 
-    const nombreOtraParte = rolSolicitante === 'entidad' ? 'el Contratista' : 'la Entidad Contratante';
+    const nombreOtraParte = rolSolicitante === 'entidad' ? `'El Contratista'` : `'La Entidad Contratante'`;
 
     return (
         <>
@@ -980,6 +1001,18 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                     </div>
                 )}
             </div>
+
+            <AceptacionReglamento
+                checked={aceptaReglamento}
+                onChange={setAceptaReglamento}
+                error={errores.acepta_reglamento}
+                contexto="al presente procedimiento de Junta de Prevención y Resolución de Disputas (JPRD)"
+                finalidad="procedimiento de JPRD"
+                bulletsExtra={[
+                    <>Confirmo que los <strong className="text-[#291136]">datos consignados</strong> en este formulario son verídicos y han sido validados previamente a través del correo electrónico registrado.</>,
+                    <>Soy consciente de que los <strong className="text-[#291136]">datos de la otra parte</strong> aquí declarados serán utilizados para las notificaciones del proceso, asumiendo plena responsabilidad sobre su exactitud.</>,
+                ]}
+            />
 
             <div className="flex justify-end mt-2">
                 <button type="submit" disabled={procesando}

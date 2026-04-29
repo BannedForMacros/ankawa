@@ -21,6 +21,11 @@ class SolicitudOtros extends Model
         'descripcion',
         'observacion',
         'numero_cargo',
+        'acepta_reglamento_card',
+    ];
+
+    protected $casts = [
+        'acepta_reglamento_card' => 'boolean',
     ];
 
     public function servicio(): BelongsTo

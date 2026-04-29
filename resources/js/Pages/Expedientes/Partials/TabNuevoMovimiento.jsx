@@ -734,8 +734,8 @@ export function MovimientoCard({
 
                     {/* Enviar credenciales de Expediente Electrónico — solo notificacion/propia */}
                     {!esReq && actoresSinExpElectronico.length > 0 && (
-                        <div className="border border-amber-200/60 rounded-xl overflow-hidden">
-                            <label className="flex items-center gap-2.5 px-3.5 py-2.5 bg-amber-50/60 cursor-pointer select-none">
+                        <div className="border border-amber-200/60 rounded-xl">
+                            <label className={`flex items-center gap-2.5 px-3.5 py-2.5 bg-amber-50/60 cursor-pointer select-none ${mov.enviar_credenciales_expediente ? 'rounded-t-xl' : 'rounded-xl'}`}>
                                 <input type="checkbox"
                                     checked={!!mov.enviar_credenciales_expediente}
                                     onChange={e => {
@@ -747,7 +747,7 @@ export function MovimientoCard({
                                 <span className="text-sm font-bold text-amber-700">Enviar credenciales de Expediente Electrónico</span>
                             </label>
                             {mov.enviar_credenciales_expediente && (
-                                <div className="px-3.5 py-3 bg-white border-t border-amber-200/40 space-y-2">
+                                <div className="px-3.5 py-3 bg-white border-t border-amber-200/40 rounded-b-xl space-y-2">
                                     <p className="text-xs text-amber-600 leading-relaxed mb-1">
                                         El actor recibirá credenciales (email + contraseña) para acceder al historial completo del expediente en la plataforma interna.
                                     </p>
