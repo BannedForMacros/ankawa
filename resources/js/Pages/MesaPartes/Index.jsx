@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
-import ArbitrajeForm from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
-import OtrosForm     from '@/Pages/MesaPartes/Formularios/OtrosForm';
-import JPRDForm      from '@/Pages/MesaPartes/Formularios/JPRDForm';
+import ArbitrajeForm           from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
+import ArbitrajeEmergenciaForm from '@/Pages/MesaPartes/Formularios/ArbitrajeEmergenciaForm';
+import OtrosForm               from '@/Pages/MesaPartes/Formularios/OtrosForm';
+import JPRDForm                from '@/Pages/MesaPartes/Formularios/JPRDForm';
 import { Shield, CheckCircle, Zap, ArrowLeft, Clock, FileText, ChevronRight } from 'lucide-react';
 
 const FORMS = {
-    arbitraje: ArbitrajeForm,
-    jprd:      JPRDForm,
-    otros:     OtrosForm,
+    'arbitraje':            ArbitrajeForm,
+    'arbitraje-emergencia': ArbitrajeEmergenciaForm,
+    'jprd':                 JPRDForm,
+    'otros':                OtrosForm,
 };
 
 function FormularioPorServicio({ servicio }) {

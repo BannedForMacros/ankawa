@@ -8,7 +8,9 @@ import toast from 'react-hot-toast';
 // Constantes de etiquetas de documentos por servicio
 // ─────────────────────────────────────────────────────────────────
 const DOC_LABELS_ARB = {
-    doc_controversia:                  { label: 'Documentos de la Controversia',   seccion: 'Controversia' },
+    doc_controversia:                  { label: 'Convenio Arbitral',                seccion: 'Controversia' },
+    solicitud_inicio_arbitraje:        { label: 'Solicitud de Inicio de Arbitraje', seccion: 'Controversia' },
+    contra_cautela:                    { label: 'Contra Cautela',                   seccion: 'Controversia' },
     anexo_inicial:                     { label: 'Anexos',                           seccion: 'Controversia' },
     comprobante_pago_tasa:             { label: 'Comprobante de Pago de Tasa',      seccion: 'Pago' },
     medida_cautelar:                   { label: 'Medida Cautelar',                  seccion: 'Controversia' },

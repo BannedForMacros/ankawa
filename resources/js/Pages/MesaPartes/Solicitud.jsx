@@ -2,13 +2,15 @@ import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
-import ArbitrajeForm from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
-import JPRDForm      from '@/Pages/MesaPartes/Formularios/JPRDForm';
-import OtrosForm     from '@/Pages/MesaPartes/Formularios/OtrosForm';
+import ArbitrajeForm           from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
+import ArbitrajeEmergenciaForm from '@/Pages/MesaPartes/Formularios/ArbitrajeEmergenciaForm';
+import JPRDForm                from '@/Pages/MesaPartes/Formularios/JPRDForm';
+import OtrosForm               from '@/Pages/MesaPartes/Formularios/OtrosForm';
 
 const FORMS = {
-    arbitraje: ArbitrajeForm,
-    jprd:      JPRDForm,
+    'arbitraje':            ArbitrajeForm,
+    'arbitraje-emergencia': ArbitrajeEmergenciaForm,
+    'jprd':                 JPRDForm,
 };
 
 export default function Solicitud({ servicio, portalEmail, portalUser }) {

@@ -30,14 +30,14 @@ const OPCIONES_ARBITRO = [
     { id: 1, nombre: 'Sí, solicito designación por el Centro' },
     { id: 0, nombre: 'No, propongo árbitro'                   },
 ];
-const LONG_DOC = { dni: 8, ruc: 11, ce: null };
+export const LONG_DOC = { dni: 8, ruc: 11, ce: null };
 
-function docDefaultPorPersona(tipo) {
+export function docDefaultPorPersona(tipo) {
     return tipo === 'juridica' ? 'ruc' : 'dni';
 }
 
 /* ─── Sección visual ─── */
-function Seccion({ icono: Icono, titulo, children }) {
+export function Seccion({ icono: Icono, titulo, children }) {
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
             <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
@@ -52,7 +52,7 @@ function Seccion({ icono: Icono, titulo, children }) {
 }
 
 /* ─── Multi-archivo con append/remove ─── */
-function MultiArchivoInput({ label, value = [], onChange, accept }) {
+export function MultiArchivoInput({ label, value = [], onChange, accept }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
     const acceptValue  = accept ?? upload_accept;
     const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
@@ -215,7 +215,7 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
 }
 
 /* ─── Buscador de RUC con razón social (API SUNAT) ─── */
-function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSocialChange, label = 'Empresa', required = false }) {
+export function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSocialChange, label = 'Empresa', required = false }) {
     const [cargando, setCargando]   = useState(false);
     const [bloqueado, setBloqueado] = useState(!!razonSocialValue);
     const timerRef = useRef();
@@ -501,7 +501,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
 }
 
 /* ─── Bloque de Persona (demandante o demandado) ─── */
-function BloquePersona({
+export function BloquePersona({
     titulo, icono: Icono, campos, setCampos, errors, bloquearTipoPersona,
     conRepresentante, esDemandante, portalEmail,
     subtipoJuridico, onSubtipoChange,

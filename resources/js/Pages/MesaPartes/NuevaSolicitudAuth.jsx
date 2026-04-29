@@ -1,7 +1,8 @@
 import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import ArbitrajeForm from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
-import OtrosForm from '@/Pages/MesaPartes/Formularios/OtrosForm';
+import ArbitrajeForm           from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
+import ArbitrajeEmergenciaForm from '@/Pages/MesaPartes/Formularios/ArbitrajeEmergenciaForm';
+import OtrosForm               from '@/Pages/MesaPartes/Formularios/OtrosForm';
 import { Scale, Briefcase } from 'lucide-react';
 import { useState } from 'react';
 
@@ -65,6 +66,8 @@ export default function NuevaSolicitudAuth({ servicios }) {
                     </div>
                 ) : servicioSeleccionado.nombre === 'Otros' ? (
                     <OtrosForm servicio={servicioSeleccionado} />
+                ) : servicioSeleccionado.slug === 'arbitraje-emergencia' ? (
+                    <ArbitrajeEmergenciaForm servicio={servicioSeleccionado} />
                 ) : (
                     <ArbitrajeForm servicio={servicioSeleccionado} />
                 )}

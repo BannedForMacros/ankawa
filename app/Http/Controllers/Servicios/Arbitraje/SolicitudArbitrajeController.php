@@ -30,7 +30,26 @@ class SolicitudArbitrajeController extends Controller
     public function store(Request $request)
     {
         // ── 1. Validaciones ──────────────────────────────────────────────────
-        $request->validate([
+        $servicioSlug = \App\Models\Servicio::find($request->servicio_id)?->slug;
+        $esEmergencia = $servicioSlug === 'arbitraje-emergencia';
+
+        $reglasControversia = $esEmergencia
+            ? [
+                'pretensiones'                         => 'nullable|string',
+                'monto_controversias'                  => 'nullable|string',
+                'suma_monto_pretensiones_determinadas' => 'nullable|numeric|min:0',
+                'pretensiones_indeterminadas'          => 'nullable|string',
+                'solicita_designacion_director'        => 'nullable|in:0,1',
+            ]
+            : [
+                'pretensiones'                         => 'required|string',
+                'monto_controversias'                  => 'required|string',
+                'suma_monto_pretensiones_determinadas' => 'required|numeric|min:0',
+                'pretensiones_indeterminadas'          => 'required|string',
+                'solicita_designacion_director'        => 'required|in:0,1',
+            ];
+
+        $request->validate(array_merge([
             'servicio_id'                   => 'required|exists:servicios,id',
             'tipo_documento_id'             => 'nullable|exists:tipo_documentos,id',
             'tipo_persona'                  => 'required|in:natural,juridica',
@@ -51,12 +70,7 @@ class SolicitudArbitrajeController extends Controller
             'telefono_demandado'            => 'nullable|string|max:20',
 
             'resumen_controversia'                 => 'nullable|string',
-            'pretensiones'                         => 'required|string',
-            'monto_controversias'                  => 'required|string',
-            'suma_monto_pretensiones_determinadas' => 'required|numeric|min:0',
-            'pretensiones_indeterminadas'          => 'required|string',
             'monto_involucrado'                    => 'nullable|numeric|min:0',
-            'solicita_designacion_director' => 'required|in:0,1',
             'nombre_arbitro_propuesto'      => 'nullable|string|max:255',
             'documento_arbitro_propuesto'   => 'nullable|string|max:20',
             'email_arbitro_propuesto'       => 'nullable|email|max:255',
@@ -67,6 +81,8 @@ class SolicitudArbitrajeController extends Controller
             'documentos_controversia.*'      => FileRules::accept(),
             'documentos_solicitud_inicio'    => 'required|array|min:1',
             'documentos_solicitud_inicio.*'  => FileRules::accept(),
+            'documentos_contra_cautela'      => 'nullable|array',
+            'documentos_contra_cautela.*'    => FileRules::accept(),
             'documentos_anexos'              => 'nullable|array',
             'documentos_anexos.*'            => FileRules::accept(),
 
@@ -91,7 +107,7 @@ class SolicitudArbitrajeController extends Controller
             'doc_resolucion_facultades_dado.*' => FileRules::accept(),
             'documentos_medida_cautelar.*'     => FileRules::accept(),
             'comprobante_pago_tasa.*'          => FileRules::accept(),
-        ]);
+        ], $reglasControversia));
 
         DB::beginTransaction();
 
@@ -145,6 +161,7 @@ class SolicitudArbitrajeController extends Controller
             // ── 3. Crear solicitud ───────────────────────────────────────────
             $datosSolicitud = $request->except(
                 'documentos_anexos', 'documentos_controversia', 'documentos_solicitud_inicio',
+                'documentos_contra_cautela',
                 'doc_vigencia_poder_dem', 'doc_contrato_consorcio_dem', 'doc_resolucion_facultades_dem',
                 'doc_vigencia_poder_dado', 'doc_contrato_consorcio_dado', 'doc_resolucion_facultades_dado',
                 'documentos_medida_cautelar', 'comprobante_pago_tasa',
@@ -199,11 +216,14 @@ class SolicitudArbitrajeController extends Controller
             ]);
 
             // ── 4b. Crear movimiento inicial automático ────────────────────────
+            $textoInicial = $esEmergencia
+                ? "Envío de solicitud de arbitraje de emergencia. Expediente asignado: {$numeroExpediente}"
+                : "Envío de solicitud de arbitraje. Expediente asignado: {$numeroExpediente}";
             app(\App\Services\MovimientoService::class)->crear(
                 $expediente,
                 [
                     'etapa_id'    => $etapaInicial?->id,
-                    'instruccion' => "Envío de solicitud de arbitraje. Expediente asignado: {$numeroExpediente}",
+                    'instruccion' => $textoInicial,
                     'creado_por'  => $userId,
                 ],
                 [],
@@ -355,6 +375,7 @@ class SolicitudArbitrajeController extends Controller
                 'documentos_medida_cautelar'      => 'medida_cautelar',
                 'comprobante_pago_tasa'           => 'comprobante_pago_tasa',
                 'documentos_solicitud_inicio'     => 'solicitud_inicio_arbitraje',
+                'documentos_contra_cautela'       => 'contra_cautela',
             ];
             foreach ($gruposDoc as $campo => $tipoDoc) {
                 if ($request->hasFile($campo)) {
