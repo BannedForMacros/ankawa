@@ -82,11 +82,11 @@
 
     {{-- ENLACES --}}
     <div class="social-bar">
-        <a href="{{ config('app.url') }}/servicios">&#127760; Servicios</a>
+        <a href="https://card.ankawagroup.org/servicios/">&#127760; Servicios</a>
         <span class="social-sep">|</span>
-        <a href="{{ config('app.url') }}">&#128279; Web</a>
+        <a href="https://card.ankawagroup.org/">&#128279; Web</a>
         <span class="social-sep">|</span>
-        <a href="mailto:contacto@ankawainternacional.com">&#9993; Contacto</a>
+        <a href="https://card.ankawagroup.org/contacto/">&#9993; Contacto</a>
     </div>
 
     {{-- FOOTER --}}

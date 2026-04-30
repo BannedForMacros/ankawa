@@ -630,11 +630,11 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                                 ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                         }`}>
-                                        <CheckCircle size={16}/> Declarar Conforme
+                                        <CheckCircle size={16}/> Admitir a Trámite
                                     </button>
                                     <button onClick={iniciarNoConforme}
                                         className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
-                                        <XCircle size={16}/> Declarar No Conforme
+                                        <XCircle size={16}/> Observado
                                     </button>
                                 </div>
                                 {!puedeDeclarar && (

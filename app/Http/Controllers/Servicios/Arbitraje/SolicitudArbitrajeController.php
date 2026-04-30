@@ -395,13 +395,11 @@ class SolicitudArbitrajeController extends Controller
                 }
             }
 
-            // ── 7. Generar PDF cargo y enviar correo ─────────────────────────
-            $pdfPath = $this->generarCargo($solicitud);
+            // ── 7. Enviar correo de cargo ───────────────────────────────────
             Mail::to($solicitud->email_demandante, $solicitud->nombre_demandante)
-                ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $pdfPath, $expediente));
+                ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $expediente));
 
             DB::commit();
-            @unlink($pdfPath);
 
             return redirect()->route('mesa-partes.confirmacion', $solicitud->numero_cargo);
 

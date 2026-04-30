@@ -6,7 +6,6 @@ use App\Models\SolicitudArbitraje;
 use App\Models\Expediente;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -18,7 +17,6 @@ class CargoSolicitudMail extends Mailable
     public function __construct(
         public SolicitudArbitraje $solicitud,
         public ?string $passwordRaw,
-        public string $pdfPath,
         public ?Expediente $expediente = null,
     ) {}
 
@@ -34,14 +32,5 @@ class CargoSolicitudMail extends Mailable
         return new Content(
             view: 'emails.cargo-solicitud',
         );
-    }
-
-    public function attachments(): array
-    {
-        return [
-            Attachment::fromPath($this->pdfPath)
-                ->as('Cargo_' . $this->solicitud->numero_cargo . '.pdf')
-                ->withMime('application/pdf'),
-        ];
     }
 }
