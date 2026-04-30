@@ -89,7 +89,17 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }, [actoresExpediente, expediente.actores]);
 
     function actualizar(idx, field, value) {
-        setMovimientos(prev => prev.map((m, i) => i === idx ? { ...m, [field]: value } : m));
+        setMovimientos(prev => prev.map((m, i) => {
+            if (i !== idx) return m;
+            const next = { ...m, [field]: value };
+            // Sincronizar responsables[0].dias_plazo / tipo_dias al top-level
+            // (el form submission solo envía top-level; sin esto el cal/háb del UI se pierde)
+            if (field === 'responsables' && Array.isArray(value) && value[0]) {
+                if (value[0].dias_plazo !== undefined) next.dias_plazo = value[0].dias_plazo;
+                if (value[0].tipo_dias  !== undefined) next.tipo_dias  = value[0].tipo_dias;
+            }
+            return next;
+        }));
     }
 
     function quitar(idx) {
@@ -169,6 +179,13 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 tipo_actor_responsable_id:       String(demandado.tipo_actor_id ?? ''),
                 usuario_responsable_id:          String(demandado.usuario.id),
                 dias_plazo:                      String(plazoApers),
+                tipo_dias:                       'calendario',
+                responsables:                    [{
+                    tipo_actor_id: String(demandado.tipo_actor_id ?? ''),
+                    actor_ids:     [String(demandado.id)],
+                    dias_plazo:    String(plazoApers),
+                    tipo_dias:     'calendario',
+                }],
                 habilitar_mesa_partes:           false,
                 actores_mesa_partes_ids:         [],
                 enviar_credenciales_expediente:  false,
@@ -189,6 +206,13 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
             usuario_responsable_id:    String(demandante?.usuario?.id ?? ''),
             dias_plazo:                String(plazo),
+            tipo_dias:                 'calendario',
+            responsables:              [{
+                tipo_actor_id: String(demandante?.tipo_actor_id ?? ''),
+                actor_ids:     demandante?.id ? [String(demandante.id)] : [],
+                dias_plazo:    String(plazo),
+                tipo_dias:     'calendario',
+            }],
         }]);
         setArchivos({ 0: [] });
         setPaso('no_conforme');

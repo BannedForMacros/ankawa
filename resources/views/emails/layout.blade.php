@@ -40,10 +40,15 @@
 
     {{-- NOMBRE INSTITUCIONAL sobre fondo blanco --}}
     @php
-        use Endroid\QrCode\QrCode;
-        use Endroid\QrCode\Writer\PngWriter;
-        $qrResult = (new PngWriter())->write(QrCode::create(config('app.url'))->setSize(80)->setMargin(4));
-        $qrCid = $message->embedData($qrResult->getString(), 'qr.png', 'image/png');
+        $qrCid = null;
+        try {
+            $qrResult = (new \Endroid\QrCode\Writer\PngWriter())->write(
+                \Endroid\QrCode\QrCode::create('https://card.ankawagroup.org/')->setSize(80)->setMargin(4)
+            );
+            $qrCid = $message->embedData($qrResult->getString(), 'qr.png', 'image/png');
+        } catch (\Throwable $e) {
+            \Log::warning('QR no generado en email: ' . $e->getMessage());
+        }
     @endphp
     <div class="header-inst">
         <div class="inst-name">
@@ -51,9 +56,11 @@
             <p class="inst-sub">Ankawa Internacional</p>
             <p>Mesa de Partes</p>
         </div>
-        <div class="qr-area">
-            <img src="{{ $qrCid }}" width="80" height="80" alt="QR" style="display:inline-block;" />
-        </div>
+        @if ($qrCid)
+            <div class="qr-area">
+                <img src="{{ $qrCid }}" width="80" height="80" alt="QR" style="display:inline-block;" />
+            </div>
+        @endif
     </div>
 
     <div class="separator-black"></div>
