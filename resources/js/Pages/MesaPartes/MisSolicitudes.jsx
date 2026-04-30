@@ -6,7 +6,7 @@ import {
     FileText, Clock, CheckCircle2, XCircle, AlertTriangle,
     FolderOpen, Upload, ChevronRight, ChevronDown, Download, ArrowRight,
     User, Edit3, Mail, Phone, Building2, HardHat, Scale, Briefcase,
-    Users, Gavel, ShieldAlert, ShieldCheck, MapPin, FileCheck, Hash,
+    Users, Gavel, ShieldAlert, MapPin, FileCheck, Hash,
     Receipt, BookOpen, Search, Calendar, Layers, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -92,15 +92,15 @@ function DataRow({ label, children, mono = false }) {
 function Section({ icon: Icon, titulo, children, defaultOpen = true }) {
     const [open, setOpen] = useState(defaultOpen);
     return (
-        <div className="border border-gray-100 rounded-xl overflow-hidden bg-white">
+        <div className="border border-[#BE0F4A]/15 rounded-xl overflow-hidden bg-white">
             <button type="button" onClick={() => setOpen(o => !o)}
-                className="w-full flex items-center gap-2.5 px-4 py-3 bg-gray-50/70 hover:bg-gray-50 transition-colors">
+                className="w-full flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-[#BE0F4A]/[0.05] to-[#BE0F4A]/[0.025] hover:from-[#BE0F4A]/[0.08] hover:to-[#BE0F4A]/[0.04] transition-colors">
                 <Icon size={15} className="text-[#BE0F4A] shrink-0" />
                 <span className="text-xs font-bold uppercase tracking-wide text-[#291136] flex-1 text-left">{titulo}</span>
-                <ChevronDown size={15} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={15} className={`text-[#BE0F4A]/55 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && (
-                <dl className="p-4 divide-y divide-gray-50">
+                <dl className="p-4 divide-y divide-[#BE0F4A]/[0.08]">
                     {children}
                 </dl>
             )}
@@ -133,13 +133,302 @@ function ConsorcioLista({ empresas }) {
     return (
         <ul className="space-y-1.5">
             {empresas.map((e, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm bg-gray-50 rounded-lg px-2.5 py-1.5">
-                    <Building2 size={12} className="text-gray-400 shrink-0" />
+                <li key={i} className="flex items-center gap-2 text-sm bg-[#BE0F4A]/[0.04] border border-[#BE0F4A]/15 rounded-lg px-2.5 py-1.5">
+                    <Building2 size={12} className="text-[#BE0F4A]/55 shrink-0" />
                     <span className="font-medium text-gray-700 flex-1 truncate">{e.nombre || '—'}</span>
                     {e.ruc && <span className="font-mono text-xs text-gray-500">{e.ruc}</span>}
                 </li>
             ))}
         </ul>
+    );
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Resumen rápido — bloque visual entre header y "Ver datos"
+   ──────────────────────────────────────────────────────────────── */
+
+function PartySnapshot({ rol, icon: Icon, color, nombre, documento, tipoDoc, marcado, consorcio }) {
+    const esConsorcio = !!consorcio;
+    const empresas = consorcio?.empresas?.filter(e => e?.nombre) ?? [];
+    const rep = consorcio?.representante;
+
+    return (
+        <div className="flex items-start gap-3 min-w-0">
+            <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${color}15`, color }}
+            >
+                {esConsorcio ? <Layers size={16} /> : <Icon size={16} />}
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color }}>
+                        {rol}
+                    </span>
+                    {esConsorcio && (
+                        <span
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold border"
+                            style={{ backgroundColor: `${color}12`, color, borderColor: `${color}40` }}
+                        >
+                            <Layers size={9} /> Consorcio
+                        </span>
+                    )}
+                    {marcado && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700">
+                            <CheckCircle2 size={9} /> Solicita
+                        </span>
+                    )}
+                </div>
+
+                {esConsorcio ? (
+                    <>
+                        <div className="text-sm font-semibold text-[#291136] truncate mt-0.5">
+                            {empresas.length === 0
+                                ? <span className="text-[#291136]/40 font-normal">Sin empresas registradas</span>
+                                : empresas.length === 1
+                                    ? empresas[0].nombre
+                                    : (
+                                        <>
+                                            {empresas[0].nombre}
+                                            <span className="text-xs font-normal text-[#291136]/55"> · +{empresas.length - 1} más</span>
+                                        </>
+                                    )}
+                        </div>
+                        {rep?.nombre && (
+                            <div className="flex items-center gap-1 mt-1 text-[11px] text-[#291136]/65 min-w-0">
+                                <User size={10} className="shrink-0 text-[#BE0F4A]/70" />
+                                <span className="truncate">
+                                    <span className="text-[#291136]/45 font-medium">Rep:</span>{' '}
+                                    <span className="font-medium">{rep.nombre}</span>
+                                    {rep.documento && (
+                                        <span className="font-mono text-[#291136]/55"> · DNI {rep.documento}</span>
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <>
+                        <div className="text-sm font-semibold text-[#291136] truncate mt-0.5">
+                            {nombre || <span className="text-[#291136]/40 font-normal">Sin información</span>}
+                        </div>
+                        {documento && (
+                            <div className="text-xs text-[#291136]/55 font-mono mt-0.5 truncate">
+                                {tipoDoc ?? 'Doc'} · {documento}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function ConectorPartes() {
+    return (
+        <div className="flex sm:flex-col items-center justify-center gap-1.5 py-1 sm:py-0">
+            <div className="flex-1 sm:flex-none h-px sm:h-5 sm:w-px bg-gradient-to-r sm:bg-gradient-to-b from-[#BE0F4A]/30 to-[#291136]/30" />
+            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-white border border-[#BE0F4A]/25 shadow-sm shrink-0">
+                <ArrowRight size={12} className="text-[#BE0F4A] sm:rotate-90" />
+            </div>
+            <div className="flex-1 sm:flex-none h-px sm:h-5 sm:w-px bg-gradient-to-r sm:bg-gradient-to-b from-[#291136]/30 to-[#BE0F4A]/30" />
+        </div>
+    );
+}
+
+function ParteVsParte({ izq, der }) {
+    return (
+        <div className="bg-gradient-to-br from-[#291136]/[0.06] via-[#BE0F4A]/[0.025] to-[#291136]/[0.06] border border-[#291136]/10 rounded-xl p-4 sm:p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr] gap-3 sm:gap-5 items-start">
+                <PartySnapshot {...izq} />
+                <div className="sm:self-center sm:mt-3">
+                    <ConectorPartes />
+                </div>
+                <PartySnapshot {...der} />
+            </div>
+        </div>
+    );
+}
+
+function StatsRapidos({ items }) {
+    const lista = items.filter(Boolean);
+    if (!lista.length) return null;
+    const cols = lista.length === 1
+        ? 'grid-cols-1'
+        : lista.length === 2
+            ? 'grid-cols-2'
+            : 'grid-cols-2 sm:grid-cols-3';
+    return (
+        <div className={`grid ${cols} gap-2`}>
+            {lista.map((item, i) => {
+                const ItemIcon = item.icon;
+                return (
+                    <div
+                        key={i}
+                        className={`rounded-xl px-3.5 py-2.5 border ${
+                            item.highlight
+                                ? 'bg-gradient-to-br from-[#BE0F4A]/10 to-[#BE0F4A]/5 border-[#BE0F4A]/20'
+                                : 'bg-[#291136]/[0.04] border-[#291136]/10'
+                        }`}
+                    >
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                            <ItemIcon size={10} className={item.highlight ? 'text-[#BE0F4A]' : 'text-[#291136]/50'} />
+                            <span className={`text-[9px] uppercase tracking-wider font-bold ${
+                                item.highlight ? 'text-[#BE0F4A]/70' : 'text-[#291136]/55'
+                            }`}>
+                                {item.label}
+                            </span>
+                        </div>
+                        <div className={`text-sm font-bold truncate ${
+                            item.highlight ? 'text-[#BE0F4A]' : 'text-[#291136]'
+                        }`}>
+                            {item.valor}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function buildPartyProps({ rol, icon, color, datos, marcado }) {
+    const esConsorcio = datos?.subtipo_juridico === 'consorcio' || datos?.subtipo === 'consorcio';
+    const empresas = (datos?.empresas_consorcio?.length ? datos.empresas_consorcio : datos?.empresas) ?? [];
+    const repRaw = datos?.representante;
+    const representante = repRaw && (repRaw.nombre || repRaw.documento || repRaw.dni)
+        ? { nombre: repRaw.nombre, documento: repRaw.documento ?? repRaw.dni }
+        : null;
+    const consorcio = esConsorcio ? { empresas, representante } : null;
+
+    const documento = datos?.documento ?? datos?.ruc ?? datos?.numero_doc_identidad;
+    const tipoDocKey = datos?.tipo_documento ?? datos?.tipo_doc_identidad;
+    const tipoDoc = TIPO_DOC_LABEL[tipoDocKey] ?? (datos?.ruc ? 'RUC' : null);
+
+    return {
+        rol,
+        icon,
+        color,
+        marcado,
+        consorcio,
+        nombre: esConsorcio ? null : datos?.nombre,
+        documento: esConsorcio ? null : documento,
+        tipoDoc: esConsorcio ? null : tipoDoc,
+    };
+}
+
+function ResumenRapido({ solicitud }) {
+    const { datos, tipo_servicio } = solicitud;
+    const numDocs = solicitud.documentos?.length ?? 0;
+
+    if (tipo_servicio === 'arbitraje' || tipo_servicio === 'arbitraje-emergencia') {
+        const monto = datos?.controversia?.monto_involucrado;
+        const designacion = datos?.arbitro?.solicita_designacion_director;
+        return (
+            <div className="space-y-3">
+                <ParteVsParte
+                    izq={buildPartyProps({
+                        rol: 'Demandante',
+                        icon: User,
+                        color: '#BE0F4A',
+                        datos: datos.demandante,
+                    })}
+                    der={buildPartyProps({
+                        rol: 'Demandado',
+                        icon: Users,
+                        color: '#291136',
+                        datos: datos.demandado,
+                    })}
+                />
+                <StatsRapidos items={[
+                    monto != null
+                        ? { label: 'Monto en disputa', valor: formatMonto(monto), icon: Receipt, highlight: true }
+                        : null,
+                    { label: 'Documentos', valor: numDocs, icon: FileText },
+                    designacion !== undefined && designacion !== null
+                        ? {
+                            label: 'Tribunal',
+                            valor: designacion ? 'Designación CARD' : 'Árbitro propuesto',
+                            icon: Gavel,
+                        }
+                        : null,
+                ]} />
+            </div>
+        );
+    }
+
+    if (tipo_servicio === 'jprd') {
+        const esEntidad = datos.rol_solicitante === 'entidad';
+        return (
+            <div className="space-y-3">
+                <ParteVsParte
+                    izq={buildPartyProps({
+                        rol: 'Entidad Contratante',
+                        icon: Building2,
+                        color: '#BE0F4A',
+                        datos: datos.entidad,
+                        marcado: esEntidad,
+                    })}
+                    der={buildPartyProps({
+                        rol: 'Contratista',
+                        icon: HardHat,
+                        color: '#291136',
+                        datos: datos.contratista,
+                        marcado: !esEntidad,
+                    })}
+                />
+                <StatsRapidos items={[
+                    {
+                        label: 'Presentado por',
+                        valor: esEntidad ? 'Entidad' : 'Contratista',
+                        icon: CheckCircle2,
+                        highlight: true,
+                    },
+                    { label: 'Documentos', valor: numDocs, icon: FileText },
+                    datos.tiene_peticion_previa !== undefined && datos.tiene_peticion_previa !== null
+                        ? {
+                            label: 'Petición previa',
+                            valor: datos.tiene_peticion_previa ? 'Sí' : 'No',
+                            icon: FileCheck,
+                        }
+                        : null,
+                ]} />
+            </div>
+        );
+    }
+
+    // Otros
+    return (
+        <div className="space-y-3">
+            <div className="bg-gradient-to-br from-[#291136]/[0.06] via-[#BE0F4A]/[0.025] to-[#291136]/[0.06] border border-[#291136]/10 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#BE0F4A]/10">
+                        <User size={16} className="text-[#BE0F4A]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider font-bold text-[#BE0F4A]">Remitente</div>
+                        <div className="text-sm font-semibold text-[#291136] truncate mt-0.5">
+                            {datos.remitente?.nombre || <span className="text-[#291136]/40 font-normal">Sin información</span>}
+                        </div>
+                        {datos.remitente?.documento && (
+                            <div className="text-xs text-[#291136]/55 font-mono mt-0.5 truncate">
+                                {TIPO_DOC_LABEL[datos.remitente?.tipo_documento] ?? 'Doc'} · {datos.remitente.documento}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <StatsRapidos items={[
+                datos.tipo_documento_nombre
+                    ? {
+                        label: 'Tipo de documento',
+                        valor: datos.tipo_documento_nombre,
+                        icon: FileText,
+                        highlight: true,
+                    }
+                    : null,
+                { label: 'Documentos', valor: numDocs, icon: Layers },
+            ]} />
+        </div>
     );
 }
 
@@ -549,29 +838,6 @@ function CardSolicitud({ solicitud }) {
     const meta    = SERVICIO_META[solicitud.tipo_servicio] ?? SERVICIO_META.otros;
     const Icon    = meta.icon;
 
-    // Resumen del actor "más importante" según servicio
-    const resumenContraparte = (() => {
-        if (solicitud.tipo_servicio === 'jprd') {
-            return solicitud.datos.rol_solicitante === 'entidad'
-                ? solicitud.datos.contratista?.nombre
-                : solicitud.datos.entidad?.nombre;
-        }
-        if (solicitud.tipo_servicio === 'otros') {
-            return solicitud.datos.tipo_documento_nombre;
-        }
-        return solicitud.datos.demandado?.nombre;
-    })();
-
-    const resumenLabel = (() => {
-        if (solicitud.tipo_servicio === 'jprd') {
-            return solicitud.datos.rol_solicitante === 'entidad' ? 'Contratista' : 'Entidad';
-        }
-        if (solicitud.tipo_servicio === 'otros') return 'Tipo';
-        return 'Demandado';
-    })();
-
-    const monto = solicitud.datos?.controversia?.monto_involucrado;
-
     const Detalle = {
         'arbitraje':            DetalleArbitraje,
         'arbitraje-emergencia': DetalleArbitraje,
@@ -580,7 +846,7 @@ function CardSolicitud({ solicitud }) {
     }[solicitud.tipo_servicio];
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl border border-[#291136]/10 shadow-sm overflow-hidden hover:shadow-md hover:border-[#291136]/15 transition-all">
 
             {/* Borde lateral por estado */}
             <div className={`flex border-l-4 ${
@@ -599,7 +865,7 @@ function CardSolicitud({ solicitud }) {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-mono font-bold text-[#291136] text-sm">{solicitud.numero_cargo}</span>
-                                    <Pill className="bg-white/70 text-[#291136] border border-gray-200">
+                                    <Pill className="bg-white/70 text-[#291136] border border-[#291136]/15">
                                         <Layers size={10} />{solicitud.servicio}
                                     </Pill>
                                     <Pill className={config.pill}>
@@ -607,18 +873,13 @@ function CardSolicitud({ solicitud }) {
                                         {config.titulo}
                                     </Pill>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-3 flex-wrap">
+                                <p className="text-xs text-[#291136]/55 mt-1.5 flex items-center gap-3 flex-wrap">
                                     <span className="flex items-center gap-1">
                                         <Calendar size={11} /> {solicitud.created_at}
                                     </span>
                                     {solicitud.numero_expediente && (
                                         <span className="flex items-center gap-1 text-[#291136] font-semibold">
                                             <Hash size={11} /> {solicitud.numero_expediente}
-                                        </span>
-                                    )}
-                                    {solicitud.acepta_reglamento_card && (
-                                        <span className="flex items-center gap-1 text-emerald-600">
-                                            <ShieldCheck size={11} /> Declaración aceptada
                                         </span>
                                     )}
                                 </p>
@@ -637,29 +898,8 @@ function CardSolicitud({ solicitud }) {
                     {/* ── Body ── */}
                     <div className="p-5 space-y-4">
 
-                        {/* Resumen rápido */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div className="sm:col-span-2 bg-gray-50 rounded-xl px-4 py-3">
-                                <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">{resumenLabel}</div>
-                                <div className="text-sm font-semibold text-[#291136] mt-0.5 truncate">
-                                    {resumenContraparte || <span className="text-gray-400 font-normal">—</span>}
-                                </div>
-                            </div>
-                            {monto != null && (
-                                <div className="bg-[#BE0F4A]/5 rounded-xl px-4 py-3 border border-[#BE0F4A]/10">
-                                    <div className="text-[10px] uppercase tracking-wider font-bold text-[#BE0F4A]/70">Monto</div>
-                                    <div className="text-sm font-bold text-[#BE0F4A] mt-0.5">{formatMonto(monto)}</div>
-                                </div>
-                            )}
-                            {solicitud.tipo_servicio === 'otros' && (
-                                <div className="bg-gray-50 rounded-xl px-4 py-3">
-                                    <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Documentos</div>
-                                    <div className="text-sm font-bold text-[#291136] mt-0.5">
-                                        {solicitud.documentos?.length ?? 0}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        {/* Resumen rápido — partes involucradas + métricas clave */}
+                        <ResumenRapido solicitud={solicitud} />
 
                         {/* Subsanación */}
                         {solicitud.estado === 'subsanacion' && solicitud.subsanacion_activa && (
@@ -682,7 +922,7 @@ function CardSolicitud({ solicitud }) {
 
                         {/* Botón ver detalle */}
                         <button onClick={() => setExpandido(e => !e)}
-                            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-600 hover:border-[#BE0F4A] hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors">
+                            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-[#291136]/15 bg-[#291136]/[0.025] text-[#291136]/75 hover:border-[#BE0F4A] hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors">
                             <Search size={13} />
                             {expandido ? 'Ocultar detalles' : 'Ver todos los datos enviados'}
                             <ChevronDown size={13} className={`transition-transform ${expandido ? 'rotate-180' : ''}`} />
@@ -701,13 +941,13 @@ function CardSolicitud({ solicitud }) {
                                                 <a key={doc.id}
                                                     href={route('documentos.descargar', doc.id)}
                                                     target="_blank" rel="noopener noreferrer"
-                                                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#BE0F4A]/5 transition-colors group border border-gray-100">
-                                                    <FileText size={14} className="text-gray-400 group-hover:text-[#BE0F4A] shrink-0 transition-colors" />
+                                                    className="flex items-center gap-3 p-2.5 rounded-xl bg-[#BE0F4A]/[0.035] hover:bg-[#BE0F4A]/[0.09] transition-colors group border border-[#BE0F4A]/15 hover:border-[#BE0F4A]/30">
+                                                    <FileText size={14} className="text-[#BE0F4A]/55 group-hover:text-[#BE0F4A] shrink-0 transition-colors" />
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="text-sm text-gray-700 truncate font-medium">{doc.nombre_original}</div>
-                                                        <div className="text-xs text-gray-400">{doc.tipo_documento} · {doc.created_at}</div>
+                                                        <div className="text-sm text-[#291136] truncate font-medium">{doc.nombre_original}</div>
+                                                        <div className="text-xs text-[#291136]/55">{doc.tipo_documento} · {doc.created_at}</div>
                                                     </div>
-                                                    <Download size={13} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0 transition-colors" />
+                                                    <Download size={13} className="text-[#BE0F4A]/45 group-hover:text-[#BE0F4A] shrink-0 transition-colors" />
                                                 </a>
                                             ))}
                                         </div>
@@ -769,7 +1009,7 @@ export default function MisSolicitudes({ solicitudes }) {
             <Head title="Mis Solicitudes" />
 
             {/* Hero header */}
-            <div className="bg-white border-b border-gray-200">
+            <div className="bg-gradient-to-r from-white via-[#BE0F4A]/[0.04] to-[#291136]/[0.07] border-b border-[#291136]/10">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-l-4 border-[#BE0F4A]">
                     <div className="flex items-start justify-between flex-wrap gap-4">
                         <div>
@@ -777,7 +1017,7 @@ export default function MisSolicitudes({ solicitudes }) {
                                 style={{ fontFamily: 'Montserrat, sans-serif' }}>
                                 Mis Solicitudes
                             </h1>
-                            <p className="text-gray-500 text-sm mt-1">
+                            <p className="text-[#291136]/60 text-sm mt-1">
                                 Seguimiento completo de tus solicitudes presentadas en Mesa de Partes
                             </p>
                         </div>
@@ -791,7 +1031,7 @@ export default function MisSolicitudes({ solicitudes }) {
                 </div>
             </div>
 
-            <div className="py-8">
+            <div className="py-8 bg-gradient-to-b from-[#291136]/[0.035] via-transparent to-[#BE0F4A]/[0.025] min-h-[calc(100vh-9rem)]">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Filtros */}
@@ -803,13 +1043,13 @@ export default function MisSolicitudes({ solicitudes }) {
                                 if (cnt === 0 && f.key !== 'todas') return null;
                                 return (
                                     <button key={f.key} onClick={() => setFiltro(f.key)}
-                                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all
+                                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border
                                             ${activo
-                                                ? `${f.color} shadow-sm`
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                                                ? `${f.color} border-transparent shadow-sm`
+                                                : 'bg-white text-[#291136]/70 border-[#291136]/15 hover:bg-[#291136]/[0.04] hover:border-[#291136]/25'}`}>
                                         {activo && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                                         {f.label}
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activo ? 'bg-white/20' : 'bg-white text-gray-500'}`}>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activo ? 'bg-white/20' : 'bg-[#291136]/[0.06] text-[#291136]/70'}`}>
                                             {cnt}
                                         </span>
                                     </button>
@@ -819,16 +1059,16 @@ export default function MisSolicitudes({ solicitudes }) {
                     )}
 
                     {ordenadas.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center text-gray-400">
-                            <FileText size={40} className="mx-auto mb-3 opacity-30" />
-                            <p className="font-medium text-gray-600">
+                        <div className="bg-white rounded-2xl border border-[#291136]/10 shadow-sm py-20 text-center">
+                            <FileText size={40} className="mx-auto mb-3 text-[#291136]/25" />
+                            <p className="font-medium text-[#291136]/75">
                                 {solicitudes.length === 0
                                     ? 'Aún no tienes solicitudes registradas'
                                     : 'No hay solicitudes en este estado'}
                             </p>
                             {solicitudes.length === 0 && (
                                 <>
-                                    <p className="text-sm mt-1 mb-6">Presenta tu primera solicitud desde la Mesa de Partes Virtual.</p>
+                                    <p className="text-sm mt-1 mb-6 text-[#291136]/55">Presenta tu primera solicitud desde la Mesa de Partes Virtual.</p>
                                     <Link href={route('mesa-partes.index')}
                                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#BC1D35] transition-colors">
                                         Ir a Mesa de Partes
