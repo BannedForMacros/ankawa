@@ -72,35 +72,18 @@ const URGENCIA_CONFIG = {
     },
 };
 
-function PlazoLabel({ mov, size = 'sm' }) {
-    if (!mov) return null;
-    const dias = mov.dias_restantes;
-    const nivel = getUrgencia(dias);
-    if (!nivel) return null;
-    const cfg = URGENCIA_CONFIG[nivel];
-
-    let texto;
-    if (dias === null || dias === undefined) {
-        texto = mov.fecha_limite ? `Vence ${mov.fecha_limite}` : null;
-    } else if (dias <= 0) {
-        texto = dias === 0 ? 'Vence hoy' : `Vencido hace ${Math.abs(dias)}d`;
-    } else {
-        const sufijo = mov.tipo_dias === 'habiles' ? ' háb.' : 'd';
-        texto = `${dias}${sufijo} restantes`;
-    }
-
-    if (!texto) return null;
-
-    const cls = size === 'sm'
-        ? 'text-[10px] px-2 py-0.5'
-        : 'text-xs px-2.5 py-1';
-
+function MetaCol({ icon: Icon, label, value, highlight = false, mono = false }) {
+    if (!value && value !== 0) return null;
     return (
-        <span className={`inline-flex items-center gap-1 font-bold rounded-full border ${cls} ${cfg.badge}`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot} ${nivel !== 'normal' && nivel !== 'proximo' ? 'animate-pulse' : ''}`}/>
-            <Clock size={size === 'sm' ? 9 : 11}/>
-            {texto}
-        </span>
+        <div className="min-w-0">
+            <div className="font-mono text-[9px] uppercase tracking-widest text-ankawa-deep/50 flex items-center gap-1.5 mb-1">
+                {Icon && <Icon size={10} className={highlight ? 'text-ankawa-rose' : 'text-ankawa-deep/45'} strokeWidth={2.2} />}
+                {label}
+            </div>
+            <div className={`text-sm font-semibold truncate ${mono ? 'font-mono tabular-nums' : ''} ${highlight ? 'text-ankawa-rose' : 'text-ankawa-deep'}`}>
+                {value}
+            </div>
+        </div>
     );
 }
 
@@ -325,96 +308,106 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                             </div>
                         ) : (
                             filtrados.map(exp => {
-                                const mov    = exp.movimiento_urgente ?? null;
-                                const nivel  = getUrgencia(mov?.dias_restantes ?? null);
-                                const cfg    = nivel ? URGENCIA_CONFIG[nivel] : null;
+                                const mov       = exp.movimiento_urgente ?? null;
+                                const nivel     = getUrgencia(mov?.dias_restantes ?? null);
+                                const cfg       = nivel ? URGENCIA_CONFIG[nivel] : null;
                                 const tieneAnim = cfg?.anim && cfg.anim !== '';
                                 const isUrgente = nivel === 'vencido' || nivel === 'critico';
+                                const isUrgenteSoft = nivel === 'urgente';
+
+                                const responsablesTexto = exp.responsables?.length > 1
+                                    ? `${exp.responsables[0]} +${exp.responsables.length - 1}`
+                                    : (exp.responsables?.[0] ?? exp.gestor ?? 'Sin designar');
+
+                                const plazoPanelClass = isUrgente
+                                    ? 'bg-gradient-to-br from-red-50 to-white md:border-l-red-100 border-t-red-100'
+                                    : isUrgenteSoft
+                                        ? 'bg-gradient-to-br from-amber-50/70 to-white md:border-l-amber-100 border-t-amber-100'
+                                        : 'bg-ankawa-deep/[0.025] md:border-l-ankawa-deep/[0.08] border-t-ankawa-deep/[0.08]';
 
                                 return (
                                     <Link
                                         key={exp.id}
                                         href={route('expedientes.show', exp.id)}
-                                        className={`block bg-white rounded-2xl border border-ankawa-deep/[0.08] border-l-4 ${borderByEstado[exp.estado] ?? 'border-l-gray-200'} shadow-sm hover:shadow-md hover:border-ankawa-deep/20 transition-all group ${tieneAnim ? cfg.anim : ''}`}
+                                        className={`block bg-white rounded-2xl border border-ankawa-deep/[0.08] border-l-4 ${borderByEstado[exp.estado] ?? 'border-l-gray-200'} shadow-sm hover:shadow-md hover:border-ankawa-deep/20 transition-all group overflow-hidden ${tieneAnim ? cfg.anim : ''}`}
                                     >
-                                        <div className="flex items-start gap-4 p-4">
-                                            <div className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                                                isUrgente
-                                                    ? 'bg-gradient-to-br from-ankawa-rose to-ankawa-crimson text-white shadow-sm'
-                                                    : 'bg-ankawa-rose/10 text-ankawa-rose group-hover:bg-ankawa-rose/15'
-                                            }`}>
-                                                <Scale size={20} strokeWidth={2}/>
-                                            </div>
-
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                        <span className="font-black font-mono text-ankawa-deep text-sm tracking-tight">
-                                                            {exp.numero_expediente}
-                                                        </span>
-                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${estadoColors[exp.estado] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                                                            {exp.estado}
-                                                        </span>
+                                        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px]">
+                                            {/* ── Columna izquierda: identidad + meta ── */}
+                                            <div className="p-6 md:p-7">
+                                                <div className="flex items-start gap-4">
+                                                    <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                                                        isUrgente
+                                                            ? 'bg-gradient-to-br from-ankawa-rose to-ankawa-crimson text-white shadow-sm'
+                                                            : 'bg-ankawa-rose/10 text-ankawa-rose group-hover:bg-ankawa-rose/15'
+                                                    }`}>
+                                                        <Scale size={20} strokeWidth={2}/>
                                                     </div>
-                                                    {mov && <PlazoLabel mov={mov} />}
-                                                </div>
 
-                                                {exp.servicio && (
-                                                    <h3 className="text-base font-bold text-ankawa-deep mt-1.5 leading-snug truncate">
-                                                        {exp.servicio}
-                                                    </h3>
-                                                )}
-
-                                                <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-ankawa-deep/55 flex-wrap">
-                                                    {exp.etapa && (
-                                                        <span className="inline-flex items-center gap-1.5">
-                                                            <Layers size={11} className="text-ankawa-rose"/>
-                                                            <span className="font-semibold text-ankawa-rose">{exp.etapa}</span>
-                                                        </span>
-                                                    )}
-                                                    {(exp.responsables?.length > 0 || exp.gestor) && (
-                                                        <span className="inline-flex items-center gap-1.5"
-                                                            title={exp.responsables?.join(', ')}>
-                                                            <User size={11} className="text-ankawa-deep/40"/>
-                                                            <span>
-                                                                {exp.responsables?.length > 1
-                                                                    ? `${exp.responsables[0]} +${exp.responsables.length - 1}`
-                                                                    : (exp.responsables?.[0] ?? exp.gestor)}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                                                            <span className="font-mono text-sm font-bold text-ankawa-deep/85 tracking-tight">
+                                                                {exp.numero_expediente}
                                                             </span>
-                                                        </span>
-                                                    )}
-                                                    <span className="inline-flex items-center gap-1.5">
-                                                        <Calendar size={11} className="text-ankawa-deep/40"/>
-                                                        <span className="tabular-nums">{exp.created_at}</span>
-                                                    </span>
+                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${estadoColors[exp.estado] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                                                {exp.estado}
+                                                            </span>
+                                                        </div>
+                                                        {exp.servicio && (
+                                                            <h3 className="font-serif text-2xl font-medium text-ankawa-deep leading-tight truncate">
+                                                                {exp.servicio}
+                                                            </h3>
+                                                        )}
+                                                    </div>
                                                 </div>
 
+                                                {/* Meta grid 3 columnas */}
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 mt-5 pt-5 border-t border-ankawa-deep/[0.06]">
+                                                    <MetaCol
+                                                        icon={Layers}
+                                                        label="Etapa actual"
+                                                        value={exp.etapa ?? '—'}
+                                                        highlight
+                                                    />
+                                                    <MetaCol
+                                                        icon={User}
+                                                        label={exp.responsables?.length > 1 ? `Responsables (${exp.responsables.length})` : 'Responsable'}
+                                                        value={responsablesTexto}
+                                                    />
+                                                    <MetaCol
+                                                        icon={Calendar}
+                                                        label="Ingreso"
+                                                        value={exp.created_at}
+                                                        mono
+                                                    />
+                                                </div>
+
+                                                {/* Pendiente */}
                                                 {mov && (
-                                                    <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2 border ${
+                                                    <div className={`mt-4 flex items-start gap-2.5 rounded-lg px-3.5 py-2.5 border ${
                                                         isUrgente
                                                             ? 'bg-red-50/60 border-red-100'
-                                                            : nivel === 'urgente'
+                                                            : isUrgenteSoft
                                                                 ? 'bg-amber-50/60 border-amber-100'
                                                                 : 'bg-ankawa-deep/[0.03] border-ankawa-deep/[0.08]'
                                                     }`}>
                                                         <AlertTriangle
-                                                            size={13}
+                                                            size={14}
                                                             className={`shrink-0 mt-0.5 ${
                                                                 isUrgente ? 'text-red-500' :
-                                                                nivel === 'urgente' ? 'text-amber-500' :
+                                                                isUrgenteSoft ? 'text-amber-500' :
                                                                 'text-ankawa-rose'
                                                             }`}
                                                             strokeWidth={2.4}
                                                         />
                                                         <div className="min-w-0 flex-1">
-                                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${
+                                                            <p className={`text-[10px] font-bold font-mono uppercase tracking-widest ${
                                                                 isUrgente ? 'text-red-700' :
-                                                                nivel === 'urgente' ? 'text-amber-700' :
+                                                                isUrgenteSoft ? 'text-amber-700' :
                                                                 'text-ankawa-rose'
                                                             }`}>
-                                                                Pendiente
+                                                                Pendiente · acción requerida
                                                             </p>
-                                                            <p className="text-xs text-ankawa-deep/75 mt-0.5 line-clamp-2">
+                                                            <p className="text-sm text-ankawa-deep/80 mt-0.5 line-clamp-2 leading-snug">
                                                                 {mov.instruccion}
                                                             </p>
                                                         </div>
@@ -422,10 +415,78 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                                 )}
                                             </div>
 
-                                            <ChevronRight
-                                                size={18}
-                                                className="shrink-0 text-ankawa-deep/25 group-hover:text-ankawa-rose group-hover:translate-x-0.5 transition-all self-center"
-                                            />
+                                            {/* ── Columna derecha: plazo + CTA ── */}
+                                            <div className={`relative flex flex-col justify-between p-6 border-t md:border-t-0 md:border-l ${plazoPanelClass}`}>
+                                                {mov ? (
+                                                    <div>
+                                                        <div className="font-mono text-[10px] uppercase tracking-widest text-ankawa-deep/55 flex items-center gap-1.5">
+                                                            <Clock
+                                                                size={10}
+                                                                className={isUrgente ? 'text-red-500' : isUrgenteSoft ? 'text-amber-500' : 'text-ankawa-rose'}
+                                                                strokeWidth={2.4}
+                                                            />
+                                                            Plazo
+                                                            {nivel && nivel !== 'normal' && nivel !== 'proximo' && (
+                                                                <span className={`ml-1 inline-block w-1.5 h-1.5 rounded-full animate-pulse ${
+                                                                    isUrgente ? 'bg-red-500' : 'bg-amber-500'
+                                                                }`} />
+                                                            )}
+                                                        </div>
+
+                                                        <div className="mt-2.5 flex items-baseline gap-2">
+                                                            {mov.dias_restantes !== null && mov.dias_restantes !== undefined && mov.dias_restantes <= 0 ? (
+                                                                <span className={`font-serif text-3xl font-medium leading-none ${
+                                                                    isUrgente ? 'text-red-700' : 'text-ankawa-deep'
+                                                                }`}>
+                                                                    {mov.dias_restantes === 0 ? 'Hoy' : 'Vencido'}
+                                                                </span>
+                                                            ) : (
+                                                                <>
+                                                                    <span className={`font-serif text-4xl font-medium leading-none tabular-nums ${
+                                                                        isUrgente ? 'text-red-700' : isUrgenteSoft ? 'text-amber-700' : 'text-ankawa-deep'
+                                                                    }`}>
+                                                                        {mov.dias_restantes ?? '—'}
+                                                                    </span>
+                                                                    <span className="font-mono text-xs text-ankawa-deep/65">
+                                                                        {mov.tipo_dias === 'habiles' ? 'días háb.' : 'días'}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+
+                                                        {mov.fecha_limite && (
+                                                            <div className="mt-1.5 text-xs font-mono text-ankawa-deep/55">
+                                                                Vence {mov.fecha_limite}
+                                                            </div>
+                                                        )}
+
+                                                        {mov.dias_plazo && (
+                                                            <div className="mt-3 pt-3 border-t border-ankawa-deep/[0.08] text-[10px] font-mono uppercase tracking-widest text-ankawa-deep/45">
+                                                                Plazo total · {mov.dias_plazo}{mov.tipo_dias === 'habiles' ? ' háb.' : 'd'}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div className="font-mono text-[10px] uppercase tracking-widest text-ankawa-deep/55">
+                                                            Estado del plazo
+                                                        </div>
+                                                        <div className="mt-2 flex items-baseline gap-2">
+                                                            <span className="font-serif text-2xl font-medium text-ankawa-deep/55 leading-none">
+                                                                Sin plazo
+                                                            </span>
+                                                        </div>
+                                                        <div className="mt-1.5 text-xs font-mono text-ankawa-deep/45">
+                                                            activo
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-5 flex items-center justify-end gap-1 text-sm font-semibold text-ankawa-rose group-hover:text-ankawa-rose-hover transition-colors">
+                                                    <span>Ver detalle</span>
+                                                    <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" strokeWidth={2.4}/>
+                                                </div>
+                                            </div>
                                         </div>
                                     </Link>
                                 );
