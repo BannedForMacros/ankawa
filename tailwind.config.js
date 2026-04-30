@@ -12,8 +12,18 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                'ankawa-deep':       '#291136',
+                'ankawa-deep-hover': '#3D1A52',
+                'ankawa-plum':       '#4A153D',
+                'ankawa-rose':       '#BE0F4A',
+                'ankawa-rose-hover': '#9C0A3B',
+                'ankawa-crimson':    '#BC1D35',
+                'ankawa-muted':      '#B23241',
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans:  ['Figtree', ...defaultTheme.fontFamily.sans],
+                serif: ['Fraunces', 'Source Serif 4', 'Georgia', ...defaultTheme.fontFamily.serif],
             },
             keyframes: {
                 'float': {

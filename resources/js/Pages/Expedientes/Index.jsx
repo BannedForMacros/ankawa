@@ -198,12 +198,16 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
             <Head title={titulo} />
 
             <PageHeader
-                title={titulo}
-                subtitle="Consulta y seguimiento de expedientes activos"
-                icon={Scale}
+                breadcrumb={[
+                    { label: 'Inicio',       href: route('dashboard') },
+                    { label: 'Expedientes' },
+                ]}
+                title="Expedientes"
+                titleAccent="Electrónicos"
+                description="Accede, consulta y da seguimiento a tus expedientes electrónicos de manera centralizada."
             />
 
-            <div className="pb-10">
+            <div className="pt-8 pb-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
                     {/* ── Métricas / Overview ── */}

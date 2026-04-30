@@ -120,10 +120,43 @@ export default function Show({
             <Head title={expediente.numero_expediente ?? 'Expediente'} />
 
             <PageHeader
-                title={expediente.numero_expediente ?? `EXP-${expediente.id}`}
-                backHref={route('expedientes.index')}
-                backLabel="Expedientes"
-                badge={
+                breadcrumb={[
+                    { label: 'Inicio',       href: route('dashboard') },
+                    { label: 'Expedientes',  href: route('expedientes.index') },
+                    { label: expediente.numero_expediente ?? `EXP-${expediente.id}` },
+                ]}
+                title="Expediente"
+                titleAccent={expediente.numero_expediente ?? `EXP-${expediente.id}`}
+                description={`Detalle, etapas y actuaciones del expediente. Servicio: ${expediente.servicio?.nombre ?? '—'} · Etapa actual: ${expediente.etapa_actual?.nombre ?? '—'}.`}
+            />
+
+            {/* ── Resumen ejecutivo del expediente ── */}
+            <div className="bg-white border-b border-ankawa-deep/10">
+                <div className="max-w-7xl mx-auto px-6 sm:px-10 py-4 flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                        {[
+                            { Icon: Briefcase, label: 'Servicio', value: expediente.servicio?.nombre ?? '—' },
+                            { Icon: Layers,    label: 'Etapa',    value: expediente.etapa_actual?.nombre ?? '—', highlight: true },
+                            {
+                                Icon: UserCheck,
+                                label: responsables.length > 1 ? `Responsables (${responsables.length})` : 'Responsable',
+                                value: responsables.length === 0
+                                    ? 'Sin designar'
+                                    : responsables.map(r => r.usuario?.name ?? r.nombre_externo ?? 'Sin nombre').join(' · '),
+                            },
+                            {
+                                Icon: Timer,
+                                label: 'Plazos',
+                                value: `${plazo.pendientes} pendiente(s)${plazo.por_vencer > 0 ? ` · ${plazo.por_vencer} por vencer` : ''}${plazo.vencidos > 0 ? ` · ${plazo.vencidos} vencido(s)` : ''}`,
+                            },
+                        ].map(({ Icon: MetaIcon, label, value, highlight }, i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                                <MetaIcon size={12} className={highlight ? 'text-ankawa-rose' : 'text-ankawa-deep/40'} strokeWidth={2.5} />
+                                <span className="text-[11px] font-bold uppercase tracking-wide text-ankawa-deep/45">{label}</span>
+                                <span className={`text-sm font-semibold ${highlight ? 'text-ankawa-rose' : 'text-ankawa-deep/85'}`}>{value}</span>
+                            </div>
+                        ))}
+                    </div>
                     <span className={{
                         activo:     'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700 border border-emerald-200',
                         suspendido: 'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-700 border border-amber-200',
@@ -131,20 +164,8 @@ export default function Show({
                     }[expediente.estado] ?? 'px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide bg-gray-100 text-gray-500 border border-gray-200'}>
                         {estadoLabel[expediente.estado] ?? expediente.estado}
                     </span>
-                }
-                meta={[
-                    { Icon: Briefcase, label: 'Servicio', value: expediente.servicio?.nombre ?? '—' },
-                    { Icon: Layers,    label: 'Etapa',    value: expediente.etapa_actual?.nombre ?? '—', highlight: true },
-                    {
-                        Icon: UserCheck,
-                        label: responsables.length > 1 ? `Responsables (${responsables.length})` : 'Responsable',
-                        value: responsables.length === 0
-                            ? 'Sin designar'
-                            : responsables.map(r => r.usuario?.name ?? r.nombre_externo ?? 'Sin nombre').join(' · '),
-                    },
-                    { Icon: Timer,     label: 'Plazos',   value: `${plazo.pendientes} pendiente(s)${plazo.por_vencer > 0 ? ` · ${plazo.por_vencer} por vencer` : ''}${plazo.vencidos > 0 ? ` · ${plazo.vencidos} vencido(s)` : ''}` },
-                ]}
-            />
+                </div>
+            </div>
 
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">

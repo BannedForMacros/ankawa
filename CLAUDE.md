@@ -15,15 +15,24 @@
 
 ## Identidad visual — The Ankawa Global Group SAC
 
-### Paleta oficial (Manual de Identidad Visual, Julio 2024)
+### Paleta oficial (Manual de Identidad Visual + uso real en código)
 
-| Token            | Hex       | Uso en la app                                      |
-|------------------|-----------|----------------------------------------------------|
-| `ankawa-deep`    | `#291136` | Fondos oscuros, texto principal en headers, gradientes |
-| `ankawa-rose`    | `#BE0F4A` | Acento principal, CTA, bordes activos, tabs activos, iconos destacados |
-| `ankawa-crimson` | `#BC1D35` | Variante de acento, uso en gradientes intermedios  |
-| `ankawa-plum`    | `#4A153D` | Gradiente secundario, fondos de hero (punto medio) |
-| `ankawa-muted`   | `#B23241` | Acento suave, hover states, variaciones de badge   |
+| Token              | Hex       | Tailwind token         | Uso en la app                                                              |
+|--------------------|-----------|------------------------|----------------------------------------------------------------------------|
+| `ankawa-deep`      | `#291136` | `ankawa-deep`          | Texto principal, fondos oscuros, base de gradientes hero                    |
+| `ankawa-deep-hover`| `#3D1A52` | `ankawa-deep-hover`    | **Hover state de `#291136`** (botones, modales, badges plum)                |
+| `ankawa-plum`      | `#4A153D` | `ankawa-plum`          | Punto medio de gradiente hero (`from-#291136 via-#4A153D to-#BE0F4A`)       |
+| `ankawa-rose`      | `#BE0F4A` | `ankawa-rose`          | Acento principal, CTA, bordes activos, tabs activos, iconos destacados      |
+| `ankawa-rose-hover`| `#9C0A3B` | `ankawa-rose-hover`    | **Hover state oscuro de `#BE0F4A`** (patrón en ConfirmDialog, Login, etc.)  |
+| `ankawa-crimson`   | `#BC1D35` | `ankawa-crimson`       | Hover alternativo de rose (usado en formularios de Mesa de Partes)          |
+| `ankawa-muted`     | `#B23241` | `ankawa-muted`         | Focus state (raro — solo en `Auth/Login.jsx`)                                |
+
+**Patrones de hover canónicos**:
+- `bg-ankawa-rose hover:bg-ankawa-rose-hover` — pares oscuros, predominante en componentes nuevos
+- `bg-ankawa-rose hover:bg-ankawa-crimson` — par cálido, predominante en formularios MesaPartes (legacy, equivalente)
+- `bg-ankawa-deep hover:bg-ankawa-deep-hover` — para botones plum/deep
+
+**IMPORTANTE**: los tokens están definidos en `tailwind.config.js` desde abril 2026. Para componentes **nuevos** usar tokens (`bg-ankawa-rose`, `text-ankawa-deep/55`). Los 61 archivos con hex hardcodeado (`bg-[#BE0F4A]`, `text-[#291136]/55`) siguen siendo válidos — equivalentes 1:1 a los tokens, no requieren migración inmediata.
 
 **Colores de soporte (Tailwind estándar)**
 - Fondo de página: `bg-gray-50`
