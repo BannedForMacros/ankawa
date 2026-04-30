@@ -44,20 +44,20 @@ export default function PageHeader({
     const hasBreadcrumb = Array.isArray(breadcrumb) && breadcrumb.length > 0;
 
     return (
-        <header className="relative overflow-hidden bg-white px-6 sm:px-10 py-12 border-b border-ankawa-deep/5">
+        <header className="relative overflow-hidden bg-white px-6 sm:px-10 py-8 border-b border-ankawa-deep/5">
             {showWatermark && (
                 <img
                     src="/logo-white.png"
                     alt=""
                     aria-hidden="true"
-                    className="hidden md:block pointer-events-none select-none absolute right-10 top-1/2 -translate-y-1/2 h-[220px] w-auto z-0"
+                    className="hidden md:block pointer-events-none select-none absolute right-10 top-1/2 -translate-y-1/2 h-[170px] w-auto z-0"
                     style={{ filter: WATERMARK_FILTER, opacity: 0.07 }}
                 />
             )}
 
             <div className="relative z-10 max-w-3xl">
                 {hasBreadcrumb && (
-                    <nav aria-label="Breadcrumb" className="mb-6">
+                    <nav aria-label="Breadcrumb" className="mb-4">
                         <ol className="flex flex-wrap items-center font-mono text-xs uppercase tracking-widest">
                             {breadcrumb.map((item, idx) => {
                                 const isLast = idx === breadcrumb.length - 1;
@@ -86,9 +86,9 @@ export default function PageHeader({
                     </nav>
                 )}
 
-                <div className="w-12 h-[3px] bg-ankawa-rose mb-6" aria-hidden="true" />
+                <div className="w-12 h-[3px] bg-ankawa-rose mb-4" aria-hidden="true" />
 
-                <h1 className="font-serif font-medium text-5xl md:text-6xl leading-tight text-ankawa-deep mb-5">
+                <h1 className="font-serif font-medium text-4xl md:text-5xl leading-tight text-ankawa-deep mb-3">
                     {title}
                     {titleAccent && (
                         <>
@@ -99,7 +99,7 @@ export default function PageHeader({
                 </h1>
 
                 {description && (
-                    <p className="text-base text-ankawa-deep/70 leading-relaxed max-w-xl">
+                    <p className="text-sm md:text-base text-ankawa-deep/70 leading-relaxed max-w-xl">
                         {description}
                     </p>
                 )}

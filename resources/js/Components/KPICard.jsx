@@ -33,7 +33,7 @@ export default function KPICard({
     const accentClass = ACCENT_BORDER[accentColor] ?? ACCENT_BORDER.deep;
 
     return (
-        <div className={`relative bg-white rounded-xl px-6 py-5 border border-ankawa-deep/[0.08] border-t-[3px] ${accentClass} flex flex-col gap-3`}>
+        <div className={`relative bg-white rounded-xl px-5 py-4 border border-ankawa-deep/[0.08] border-t-[3px] ${accentClass} flex flex-col gap-2.5`}>
             <div className="flex items-start justify-between gap-3">
                 <span className="font-mono text-xs tracking-widest uppercase text-ankawa-deep/60">
                     {label}

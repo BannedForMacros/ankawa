@@ -5,6 +5,7 @@ import KPIGrid from '@/Components/KPIGrid';
 import KPICard from '@/Components/KPICard';
 import SectionDivider from '@/Components/SectionDivider';
 import ListingSection from '@/Components/ListingSection';
+import CustomSelect from '@/Components/CustomSelect';
 import { Head, Link } from '@inertiajs/react';
 import {
     Scale, ChevronRight, Search, User, Clock,
@@ -151,76 +152,96 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
         setFiltroUrgencia('todos');
     };
 
+    const plazoOptions = [
+        { id: 'todos',     nombre: 'Todos los plazos' },
+        { id: 'criticos',  nombre: 'Vencidos / críticos' },
+        { id: 'urgentes',  nombre: 'Por vencer (≤ 5 días)' },
+        { id: 'sin_plazo', nombre: 'Sin plazo activo' },
+    ];
+
     const filtrosBar = (
-        <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-            <div className="flex gap-1.5 flex-wrap">
-                {filtroEstadoOptions.map(({ key, label, count }) => {
-                    const active = filtroEstado === key;
-                    return (
-                        <button
-                            key={key}
-                            onClick={() => setFiltroEstado(key)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                                active
-                                    ? 'bg-ankawa-deep text-white shadow-sm'
-                                    : 'bg-ankawa-deep/[0.05] text-ankawa-deep/75 hover:bg-ankawa-deep/[0.10]'
-                            }`}
-                        >
-                            {active && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-ankawa-rose animate-pulse shrink-0" />
-                            )}
-                            <span className="uppercase tracking-wide">{label}</span>
-                            <span className={`tabular-nums px-1.5 py-0.5 rounded-full text-[10px] ${
-                                active ? 'bg-white/15' : 'bg-white text-ankawa-deep/65 border border-ankawa-deep/[0.08]'
-                            }`}>
-                                {count}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            <div className="flex gap-2 items-center w-full lg:w-auto">
-                <select
-                    value={filtroUrgencia}
-                    onChange={e => setFiltroUrgencia(e.target.value)}
-                    className="text-xs font-medium text-ankawa-deep/85 bg-white border border-ankawa-deep/[0.15] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ankawa-rose/20 focus:border-ankawa-rose"
-                >
-                    <option value="todos">Plazo: todos</option>
-                    <option value="criticos">Vencidos / críticos</option>
-                    <option value="urgentes">Por vencer (≤5d)</option>
-                    <option value="sin_plazo">Sin plazo activo</option>
-                </select>
-
-                <div className="relative flex-1 lg:w-72">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ankawa-deep/40"/>
-                    <input
-                        type="text"
-                        placeholder="Buscar nº, servicio, etapa, responsable…"
-                        value={busqueda}
-                        onChange={e => setBusqueda(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-ankawa-deep/[0.15] rounded-lg focus:outline-none focus:ring-2 focus:ring-ankawa-rose/20 focus:border-ankawa-rose"
-                    />
-                    {busqueda && (
-                        <button
-                            onClick={() => setBusqueda('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-ankawa-deep/40 hover:text-ankawa-rose"
-                            aria-label="Limpiar búsqueda"
-                        >
-                            <X size={14}/>
-                        </button>
-                    )}
+        <div className="space-y-4">
+            {/* ── Fila 1: pills + select + búsqueda ── */}
+            <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+                {/* Pills de estado */}
+                <div className="flex gap-2 flex-wrap">
+                    {filtroEstadoOptions.map(({ key, label, count }) => {
+                        const active = filtroEstado === key;
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setFiltroEstado(key)}
+                                className={`group relative px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2.5 transition-all ${
+                                    active
+                                        ? 'bg-ankawa-rose text-white shadow-md shadow-ankawa-rose/20'
+                                        : 'bg-white text-ankawa-deep/75 border border-ankawa-deep/[0.10] hover:border-ankawa-deep/25 hover:bg-ankawa-deep/[0.025]'
+                                }`}
+                            >
+                                <span className="uppercase tracking-wide text-xs">{label}</span>
+                                <span className={`tabular-nums px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                    active
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-ankawa-deep/[0.05] text-ankawa-deep/70'
+                                }`}>
+                                    {count}
+                                </span>
+                                {active && (
+                                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-ankawa-rose shadow-sm" />
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {hayFiltros && (
+                {/* Plazo + búsqueda */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center w-full xl:w-auto">
+                    <div className="w-full sm:w-60">
+                        <CustomSelect
+                            value={filtroUrgencia}
+                            onChange={id => setFiltroUrgencia(id || 'todos')}
+                            options={plazoOptions}
+                            placeholder="Filtrar por plazo"
+                        />
+                    </div>
+
+                    <div className="relative flex-1 sm:w-80">
+                        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ankawa-deep/45" strokeWidth={2.2}/>
+                        <input
+                            type="text"
+                            placeholder="Buscar nº, servicio, etapa, responsable…"
+                            value={busqueda}
+                            onChange={e => setBusqueda(e.target.value)}
+                            className="w-full pl-10 pr-9 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-ankawa-rose/10 focus:border-ankawa-rose transition-all placeholder:text-ankawa-deep/40"
+                        />
+                        {busqueda && (
+                            <button
+                                onClick={() => setBusqueda('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-ankawa-deep/40 hover:text-ankawa-rose transition-colors"
+                                aria-label="Limpiar búsqueda"
+                            >
+                                <X size={16}/>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Fila 2: limpiar filtros (solo si hay filtros activos) ── */}
+            {hayFiltros && (
+                <div className="flex items-center justify-between gap-3 pt-3 border-t border-ankawa-deep/[0.06]">
+                    <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-ankawa-deep/55">
+                        <span className="w-1.5 h-1.5 rounded-full bg-ankawa-rose animate-pulse" />
+                        Filtros aplicados
+                    </div>
                     <button
                         onClick={limpiarFiltros}
-                        className="text-xs font-semibold text-ankawa-rose hover:text-ankawa-rose-hover whitespace-nowrap flex items-center gap-1 normal-case"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide bg-ankawa-rose/[0.08] text-ankawa-rose border border-ankawa-rose/20 hover:bg-ankawa-rose/15 hover:border-ankawa-rose/40 transition-all"
                     >
-                        <X size={12}/> Limpiar
+                        <X size={13} strokeWidth={2.5}/>
+                        Limpiar filtros
                     </button>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 
@@ -238,7 +259,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                 description="Accede, consulta y da seguimiento a tus expedientes electrónicos de manera centralizada."
             />
 
-            <div className="pt-10 pb-12">
+            <div className="pt-6 pb-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* ── Resumen ── */}

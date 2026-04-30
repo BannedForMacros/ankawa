@@ -7,7 +7,7 @@
 
 export default function SectionDivider() {
     return (
-        <div className="flex items-center justify-center gap-3 my-12" aria-hidden="true">
+        <div className="flex items-center justify-center gap-3 my-6" aria-hidden="true">
             <div className="h-px w-24 bg-ankawa-deep/15" />
             <div className="flex items-center gap-2">
                 <span className="block w-1.5 h-1.5 rotate-45 bg-ankawa-deep/30" />

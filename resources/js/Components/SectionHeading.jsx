@@ -14,7 +14,7 @@
 
 export default function SectionHeading({ title, meta }) {
     return (
-        <div className="flex items-end justify-between gap-4 mb-6 flex-wrap">
+        <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
             <div>
                 <div className="w-12 h-[3px] bg-ankawa-rose mb-4" aria-hidden="true" />
                 <h2 className="font-serif text-2xl md:text-3xl font-medium text-ankawa-deep leading-tight">
