@@ -56,11 +56,28 @@ class Expediente extends Model
         return $this->hasMany(ExpedienteActor::class, 'expediente_id')->where('activo', 1);
     }
 
+    /**
+     * Responsable "principal" — el primero registrado entre quienes tienen es_gestor=true.
+     * Pueden existir varios responsables (ej: Secretaría General + Adjunta auto-asignadas).
+     * Para obtener todos, usar la relación responsables().
+     */
     public function gestor(): HasOne
     {
         return $this->hasOne(ExpedienteActor::class, 'expediente_id')
                     ->where('es_gestor', true)
-                    ->where('activo', 1);
+                    ->where('activo', 1)
+                    ->oldest('id');
+    }
+
+    /**
+     * Todos los responsables activos del expediente.
+     */
+    public function responsables(): HasMany
+    {
+        return $this->hasMany(ExpedienteActor::class, 'expediente_id')
+                    ->where('es_gestor', true)
+                    ->where('activo', 1)
+                    ->orderBy('id');
     }
 
     public function movimientos(): HasMany

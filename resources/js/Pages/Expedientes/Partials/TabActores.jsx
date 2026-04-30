@@ -642,7 +642,7 @@ export default function TabActores({
                             {actoresParaGestor.map(a => (
                                 <option key={a.id} value={a.id}>
                                     {a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre'} — {nombreTipoActor(a)}
-                                    {a.es_gestor ? ' (Gestor actual)' : ''}
+                                    {a.es_gestor ? ' (Responsable actual)' : ''}
                                 </option>
                             ))}
                         </select>
@@ -662,7 +662,7 @@ export default function TabActores({
                             disabled={formGestor.processing}
                             className="px-5 py-2 text-sm font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors"
                         >
-                            {formGestor.processing ? 'Designando...' : 'Designar Gestor'}
+                            {formGestor.processing ? 'Designando...' : 'Designar Responsable'}
                         </button>
                     </div>
                 </form>

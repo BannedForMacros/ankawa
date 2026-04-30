@@ -37,7 +37,7 @@ class ConsultaDocumentoController extends Controller
 
                 if ($tipo === 'dni') {
                     return response()->json([
-                        'nombre'    => $data['full_name'] ?? null,
+                        'nombre'    => $this->formatearNombreReniec($data),
                         'documento' => $data['document_number'] ?? null,
                     ]);
                 } else {
@@ -74,5 +74,26 @@ class ConsultaDocumentoController extends Controller
             \Log::warning("Decolecta API error: " . $e->getMessage());
             return response()->json(['error' => 'No disponible'], 503);
         }
+    }
+
+    /**
+     * Construye el nombre de una persona natural en formato "APELLIDOS, NOMBRES".
+     * Usa los campos separados que devuelve Decolecta (first_name, first_last_name,
+     * second_last_name). Si por algún motivo no están disponibles, cae al full_name
+     * tal cual lo devolvió RENIEC.
+     */
+    private function formatearNombreReniec(array $data): ?string
+    {
+        $nombres   = trim((string) ($data['first_name'] ?? ''));
+        $paterno   = trim((string) ($data['first_last_name'] ?? ''));
+        $materno   = trim((string) ($data['second_last_name'] ?? ''));
+        $apellidos = trim($paterno . ' ' . $materno);
+
+        if ($apellidos !== '' && $nombres !== '') {
+            return mb_strtoupper($apellidos . ', ' . $nombres);
+        }
+
+        $fullName = $data['full_name'] ?? null;
+        return $fullName ? mb_strtoupper($fullName) : null;
     }
 }

@@ -293,7 +293,8 @@ class SolicitudJPRDController extends Controller
 
     private function autoAsignarActores(Expediente $expediente, int $servicioId): void
     {
-        $slugsExcluir = TipoActorExpediente::SLUGS_INMUTABLES;
+        $slugsExcluir         = TipoActorExpediente::SLUGS_INMUTABLES;
+        $slugsResponsableAuto = ['secretaria_general', 'secretaria_general_adjunta'];
 
         $configuraciones = ServicioTipoActor::where('servicio_id', $servicioId)
             ->where('es_automatico', true)
@@ -321,9 +322,16 @@ class SolicitudJPRDController extends Controller
 
             if (!$usuario) continue;
 
+            $esResponsableAuto = in_array($config->tipoActor->slug, $slugsResponsableAuto, true);
+
             ExpedienteActor::updateOrCreate(
                 ['expediente_id' => $expediente->id, 'tipo_actor_id' => $config->tipo_actor_id],
-                ['usuario_id' => $usuario->id, 'activo' => 1, 'credenciales_enviadas' => true]
+                [
+                    'usuario_id'            => $usuario->id,
+                    'activo'                => 1,
+                    'credenciales_enviadas' => true,
+                    'es_gestor'             => $esResponsableAuto,
+                ]
             );
         }
     }

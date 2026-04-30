@@ -63,16 +63,17 @@ export default function Show({
         }
     }, [miAccionPendiente]);
 
-    const gestor = expediente.actores?.find(a => a.es_gestor && a.activo);
+    const responsables = expediente.actores?.filter(a => a.es_gestor && a.activo) ?? [];
+    const responsablePrincipal = responsables[0] ?? null;
     const solicitud = expediente.solicitud;
 
-    // ── Banner de próximo paso (solo para el gestor) ──────────────────────
+    // ── Banner de próximo paso (solo para el responsable) ──────────────────
     const proximoPaso = (() => {
         if (!esGestor || expediente.estado !== 'activo') return null;
 
-        if (!gestor) return {
+        if (responsables.length === 0) return {
             tipo: 'urgente',
-            texto: 'Primero debes designar un Gestor para este expediente.',
+            texto: 'Aún no hay un Responsable designado para este expediente.',
             accion: 'Ir a Actores',
             tab: 'actores',
         };
@@ -134,7 +135,13 @@ export default function Show({
                 meta={[
                     { Icon: Briefcase, label: 'Servicio', value: expediente.servicio?.nombre ?? '—' },
                     { Icon: Layers,    label: 'Etapa',    value: expediente.etapa_actual?.nombre ?? '—', highlight: true },
-                    { Icon: UserCheck, label: 'Gestor',   value: gestor?.usuario?.name ?? 'Sin designar' },
+                    {
+                        Icon: UserCheck,
+                        label: responsables.length > 1 ? `Responsables (${responsables.length})` : 'Responsable',
+                        value: responsables.length === 0
+                            ? 'Sin designar'
+                            : responsables.map(r => r.usuario?.name ?? r.nombre_externo ?? 'Sin nombre').join(' · '),
+                    },
                     { Icon: Timer,     label: 'Plazos',   value: `${plazo.pendientes} pendiente(s)${plazo.por_vencer > 0 ? ` · ${plazo.por_vencer} por vencer` : ''}${plazo.vencidos > 0 ? ` · ${plazo.vencidos} vencido(s)` : ''}` },
                 ]}
             />

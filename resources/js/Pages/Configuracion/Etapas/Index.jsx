@@ -233,7 +233,7 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
                                 <p className="text-xs text-gray-400 mt-0.5">
                                     {bloqueadaConformidad && !formEtapa.data.requiere_conformidad
                                         ? 'Solo una etapa por servicio puede tener esta opción.'
-                                        : 'El gestor no podrá avanzar a otra etapa hasta que la solicitud esté declarada CONFORME.'
+                                        : 'El responsable no podrá avanzar a otra etapa hasta que la solicitud esté declarada CONFORME.'
                                     }
                                 </p>
                             </div>

@@ -164,11 +164,13 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
     const filtrados = useMemo(() => {
         const q = busqueda.trim().toLowerCase();
         return expedientes.filter(exp => {
+            const responsablesTexto = (exp.responsables ?? []).join(' ').toLowerCase();
             const coincideBusqueda = !q ||
                 exp.numero_expediente?.toLowerCase().includes(q) ||
                 exp.servicio?.toLowerCase().includes(q) ||
                 exp.etapa?.toLowerCase().includes(q) ||
-                exp.gestor?.toLowerCase().includes(q);
+                exp.gestor?.toLowerCase().includes(q) ||
+                responsablesTexto.includes(q);
             const coincideEstado = filtroEstado === 'todos' || exp.estado === filtroEstado;
 
             let coincideUrg = true;
@@ -281,7 +283,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
                                 <input
                                     type="text"
-                                    placeholder="Buscar nº, servicio, etapa, gestor…"
+                                    placeholder="Buscar nº, servicio, etapa, responsable…"
                                     value={busqueda}
                                     onChange={e => setBusqueda(e.target.value)}
                                     className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"
@@ -383,7 +385,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                                     </h3>
                                                 )}
 
-                                                {/* Línea 3: meta — etapa · gestor · fecha */}
+                                                {/* Línea 3: meta — etapa · responsable(s) · fecha */}
                                                 <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-500 flex-wrap">
                                                     {exp.etapa && (
                                                         <span className="inline-flex items-center gap-1.5">
@@ -391,10 +393,15 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                                             <span className="font-semibold text-[#BE0F4A]">{exp.etapa}</span>
                                                         </span>
                                                     )}
-                                                    {exp.gestor && (
-                                                        <span className="inline-flex items-center gap-1.5">
+                                                    {(exp.responsables?.length > 0 || exp.gestor) && (
+                                                        <span className="inline-flex items-center gap-1.5"
+                                                            title={exp.responsables?.join(', ')}>
                                                             <User size={11} className="text-gray-400"/>
-                                                            <span>{exp.gestor}</span>
+                                                            <span>
+                                                                {exp.responsables?.length > 1
+                                                                    ? `${exp.responsables[0]} +${exp.responsables.length - 1}`
+                                                                    : (exp.responsables?.[0] ?? exp.gestor)}
+                                                            </span>
                                                         </span>
                                                     )}
                                                     <span className="inline-flex items-center gap-1.5">

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Servicio;
 use App\Support\FileRules;
 use App\Models\SolicitudArbitraje;
+use App\Models\SolicitudJPRD;
+use App\Models\SolicitudOtros;
 use App\Models\SolicitudSubsanacion;
 use App\Models\Documento;
 use App\Models\User;
@@ -194,39 +196,219 @@ class MesaPartesController extends Controller
     {
         $user = Auth::user();
 
-        $solicitudes = SolicitudArbitraje::with([
+        // ── 1. Arbitraje (incluye Arbitraje de Emergencia) ──
+        $arbitraje = SolicitudArbitraje::with([
                 'servicio',
-                'expediente', 
+                'expediente',
                 'subsanaciones' => fn($q) => $q->where('activo', true)->orderByDesc('created_at'),
                 'documentos',
             ])
-            ->where('email_demandante', $user->email)
-            ->orWhere('usuario_id', $user->id)
-            ->orderByDesc('created_at')
+            ->where(function ($q) use ($user) {
+                $q->where('email_demandante', $user->email)
+                  ->orWhere('usuario_id', $user->id);
+            })
             ->get()
-            ->map(fn($s) => [
-                'id'                  => $s->id,
-                'numero_cargo'        => $s->numero_cargo,
-                'servicio'            => $s->servicio->nombre,
-                'nombre_demandado'    => $s->nombre_demandado,
-                'monto_involucrado'   => $s->monto_involucrado,
-                'estado'              => $s->estado,
-                'created_at'          => $s->created_at->format('d/m/Y H:i'),
-                'expediente_id'       => $s->expediente?->id,
-                'numero_expediente'   => $s->expediente?->numero_expediente,
-                'subsanacion_activa'  => $s->subsanaciones->where('estado', 'pendiente')->first(),
-                'documentos'          => $s->documentos->map(fn($d) => [
-                    'id'             => $d->id,
-                    'nombre_original'=> $d->nombre_original,
-                    'tipo_documento' => $d->tipo_documento,
-                    'ruta_archivo'   => $d->ruta_archivo,
-                    'created_at'     => $d->created_at->format('d/m/Y'),
-                ]),
-            ]);
+            ->map(fn($s) => $this->mapSolicitudArbitraje($s));
+
+        // ── 2. JPRD ──
+        $jprd = SolicitudJPRD::with([
+                'servicio',
+                'expediente',
+                'documentos',
+            ])
+            ->where('usuario_id', $user->id)
+            ->get()
+            ->map(fn($s) => $this->mapSolicitudJPRD($s));
+
+        // ── 3. Otros ──
+        $otros = SolicitudOtros::with(['servicio', 'tipoDocumento'])
+            ->where('email_remitente', $user->email)
+            ->get()
+            ->map(fn($s) => $this->mapSolicitudOtros($s));
+
+        $solicitudes = $arbitraje
+            ->concat($jprd)
+            ->concat($otros)
+            ->sortByDesc('created_at_raw')
+            ->values();
 
         return Inertia::render('MesaPartes/MisSolicitudes', [
             'solicitudes' => $solicitudes,
         ]);
+    }
+
+    private function mapSolicitudArbitraje(SolicitudArbitraje $s): array
+    {
+        $slug = $s->servicio?->slug;
+
+        return [
+            'id'                     => 'arbitraje:' . $s->id,
+            'pk'                     => $s->id,
+            'tipo_servicio'          => $slug === 'arbitraje-emergencia' ? 'arbitraje-emergencia' : 'arbitraje',
+            'numero_cargo'           => $s->numero_cargo,
+            'servicio'               => $s->servicio->nombre,
+            'estado'                 => $s->estado,
+            'created_at'             => $s->created_at->format('d/m/Y H:i'),
+            'created_at_raw'         => $s->created_at,
+            'expediente_id'          => $s->expediente?->id,
+            'numero_expediente'      => $s->expediente?->numero_expediente,
+            'acepta_reglamento_card' => (bool) $s->acepta_reglamento_card,
+            'subsanacion_activa'     => $s->subsanaciones->where('estado', 'pendiente')->first(),
+            'documentos'             => $s->documentos->map(fn($d) => [
+                'id'              => $d->id,
+                'nombre_original' => $d->nombre_original,
+                'tipo_documento'  => $d->tipo_documento,
+                'ruta_archivo'    => $d->ruta_archivo,
+                'created_at'      => $d->created_at->format('d/m/Y'),
+            ]),
+            'datos' => [
+                'demandante' => [
+                    'tipo_persona'       => $s->tipo_persona,
+                    'subtipo_juridico'   => $s->subtipo_juridico_demandante,
+                    'tipo_documento'     => $s->tipo_documento,
+                    'documento'          => $s->documento_demandante,
+                    'nombre'             => $s->nombre_demandante,
+                    'representante'      => [
+                        'nombre'    => $s->nombre_representante,
+                        'documento' => $s->documento_representante,
+                    ],
+                    'empresas_consorcio' => $this->jsonOrEmpty($s->empresas_consorcio_demandante),
+                    'domicilio'          => $s->domicilio_demandante,
+                    'email'              => $s->email_demandante,
+                    'telefono'           => $s->telefono_demandante,
+                ],
+                'demandado' => [
+                    'tipo_persona'       => $s->tipo_persona_demandado,
+                    'subtipo_juridico'   => $s->subtipo_juridico_demandado,
+                    'tipo_documento'     => $s->tipo_documento_demandado,
+                    'documento'          => $s->documento_demandado,
+                    'nombre'             => $s->nombre_demandado,
+                    'representante'      => [
+                        'nombre'    => $s->nombre_representante_demandado,
+                        'documento' => $s->documento_representante_demandado,
+                    ],
+                    'empresas_consorcio' => $this->jsonOrEmpty($s->empresas_consorcio_demandado),
+                    'domicilio'          => $s->domicilio_demandado,
+                    'email'              => $s->email_demandado,
+                    'telefono'           => $s->telefono_demandado,
+                ],
+                'controversia' => [
+                    'resumen'                       => $s->resumen_controversia,
+                    'pretensiones'                  => $s->pretensiones,
+                    'monto_involucrado'             => $s->monto_involucrado,
+                    'monto_controversias'           => $s->monto_controversias,
+                    'suma_pretensiones_determinadas'=> $s->suma_monto_pretensiones_determinadas,
+                    'pretensiones_indeterminadas'   => $s->pretensiones_indeterminadas,
+                ],
+                'arbitro' => [
+                    'solicita_designacion_director' => (bool) $s->solicita_designacion_director,
+                    'nombre'                        => $s->nombre_arbitro_propuesto,
+                    'documento'                     => $s->documento_arbitro_propuesto,
+                    'email'                         => $s->email_arbitro_propuesto,
+                    'domicilio'                     => $s->domicilio_arbitro_propuesto,
+                ],
+                'medida_cautelar' => (bool) $s->tiene_medida_cautelar,
+                'factura' => [
+                    'ruc'           => $s->factura_ruc,
+                    'razon_social'  => $s->factura_razon_social,
+                ],
+            ],
+        ];
+    }
+
+    private function mapSolicitudJPRD(SolicitudJPRD $s): array
+    {
+        return [
+            'id'                     => 'jprd:' . $s->id,
+            'pk'                     => $s->id,
+            'tipo_servicio'          => 'jprd',
+            'numero_cargo'           => $s->numero_cargo,
+            'servicio'               => $s->servicio->nombre,
+            'estado'                 => $s->estado,
+            'created_at'             => $s->created_at->format('d/m/Y H:i'),
+            'created_at_raw'         => $s->created_at,
+            'expediente_id'          => $s->expediente?->id,
+            'numero_expediente'      => $s->expediente?->numero_expediente,
+            'acepta_reglamento_card' => (bool) $s->acepta_reglamento_card,
+            'subsanacion_activa'     => null,
+            'documentos'             => $s->documentos->map(fn($d) => [
+                'id'              => $d->id,
+                'nombre_original' => $d->nombre_original,
+                'tipo_documento'  => $d->tipo_documento,
+                'ruta_archivo'    => $d->ruta_archivo,
+                'created_at'      => $d->created_at->format('d/m/Y'),
+            ]),
+            'datos' => [
+                'rol_solicitante'       => $s->rol_solicitante,
+                'tiene_peticion_previa' => (bool) $s->tiene_peticion_previa,
+                'observacion'           => $s->observacion,
+                'entidad' => [
+                    'nombre'        => $s->nombre_entidad,
+                    'ruc'           => $s->ruc_entidad,
+                    'tipo_persona'  => $s->tipo_persona_entidad,
+                    'subtipo'       => $s->subtipo_entidad,
+                    'representante' => [
+                        'dni'    => $s->representante_entidad_dni,
+                        'nombre' => $s->representante_entidad_nombre,
+                    ],
+                    'empresas'      => $s->empresas_entidad ?? [],
+                    'emails'        => $s->emails_entidad ?? [],
+                    'telefono'      => $s->telefono_entidad,
+                ],
+                'contratista' => [
+                    'nombre'        => $s->nombre_contratista,
+                    'ruc'           => $s->ruc_contratista,
+                    'tipo_persona'  => $s->tipo_persona_contratista,
+                    'subtipo'       => $s->subtipo_contratista,
+                    'representante' => [
+                        'dni'    => $s->representante_contratista_dni,
+                        'nombre' => $s->representante_contratista_nombre,
+                    ],
+                    'empresas'      => $s->empresas_contratista ?? [],
+                    'emails'        => $s->emails_contratista ?? [],
+                    'telefono'      => $s->telefono_contratista,
+                ],
+            ],
+        ];
+    }
+
+    private function mapSolicitudOtros(SolicitudOtros $s): array
+    {
+        return [
+            'id'                     => 'otros:' . $s->id,
+            'pk'                     => $s->id,
+            'tipo_servicio'          => 'otros',
+            'numero_cargo'           => $s->numero_cargo,
+            'servicio'               => $s->servicio->nombre,
+            'estado'                 => $s->cargo?->id ? 'admitida' : 'pendiente',
+            'created_at'             => $s->created_at->format('d/m/Y H:i'),
+            'created_at_raw'         => $s->created_at,
+            'expediente_id'          => null,
+            'numero_expediente'      => null,
+            'acepta_reglamento_card' => (bool) $s->acepta_reglamento_card,
+            'subsanacion_activa'     => null,
+            'documentos'             => collect(),
+            'datos' => [
+                'remitente' => [
+                    'tipo_persona'         => $s->tipo_persona,
+                    'tipo_doc_identidad'   => $s->tipo_doc_identidad,
+                    'numero_doc_identidad' => $s->numero_doc_identidad,
+                    'nombre'               => $s->nombre_remitente,
+                    'email'                => $s->email_remitente,
+                ],
+                'tipo_documento_nombre' => $s->tipoDocumento?->nombre,
+                'descripcion'           => $s->descripcion,
+                'observacion'           => $s->observacion,
+            ],
+        ];
+    }
+
+    private function jsonOrEmpty($value): array
+    {
+        if (is_array($value)) return $value;
+        if (!$value) return [];
+        $decoded = is_string($value) ? json_decode($value, true) : null;
+        return is_array($decoded) ? $decoded : [];
     }
 
     // ── Subsanar (Cliente sube documentos y responde) ──

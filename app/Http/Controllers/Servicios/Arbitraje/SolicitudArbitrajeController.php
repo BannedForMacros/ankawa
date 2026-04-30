@@ -415,10 +415,15 @@ class SolicitudArbitrajeController extends Controller
      * Auto-asigna los actores configurados en servicio_tipos_actor para el servicio dado.
      * Excluye slugs DEMANDANTE y DEMANDADO (ya asignados directamente del formulario).
      * Para cada entrada con es_automatico=true y rol_auto_slug, busca el usuario con menor carga.
+     *
+     * Adicionalmente marca como Responsable del expediente (es_gestor=true) a los actores
+     * de Secretaría General y Secretaría General Adjunta, ya que por convención organizativa
+     * estos roles asumen automáticamente la responsabilidad del expediente al crearse.
      */
     private function autoAsignarActores(Expediente $expediente, int $servicioId): void
     {
-        $slugsExcluir = TipoActorExpediente::SLUGS_INMUTABLES;
+        $slugsExcluir          = TipoActorExpediente::SLUGS_INMUTABLES;
+        $slugsResponsableAuto  = ['secretaria_general', 'secretaria_general_adjunta'];
 
         $configuraciones = ServicioTipoActor::where('servicio_id', $servicioId)
             ->where('es_automatico', true)
@@ -453,9 +458,16 @@ class SolicitudArbitrajeController extends Controller
                 continue;
             }
 
+            $esResponsableAuto = in_array($config->tipoActor->slug, $slugsResponsableAuto, true);
+
             ExpedienteActor::updateOrCreate(
                 ['expediente_id' => $expediente->id, 'tipo_actor_id' => $config->tipo_actor_id],
-                ['usuario_id' => $usuario->id, 'activo' => 1, 'credenciales_enviadas' => true]
+                [
+                    'usuario_id'            => $usuario->id,
+                    'activo'                => 1,
+                    'credenciales_enviadas' => true,
+                    'es_gestor'             => $esResponsableAuto,
+                ]
             );
         }
     }

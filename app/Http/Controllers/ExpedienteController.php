@@ -45,7 +45,7 @@ class ExpedienteController extends Controller
         $user = auth()->user();
 
         $query = Expediente::with([
-            'servicio', 'etapaActual', 'gestor.usuario',
+            'servicio', 'etapaActual', 'responsables.usuario:id,name',
             'movimientos' => fn($q) => $q
                 ->where('tipo', 'requerimiento')
                 ->where('estado', 'pendiente')
@@ -62,13 +62,15 @@ class ExpedienteController extends Controller
         $expedientes = $query->get()->map(function ($exp) {
             $movUrgente    = $exp->movimientos->first();
             $diasRestantes = $movUrgente?->diasRestantes();
+            $responsables  = $exp->responsables->map(fn($r) => $r->usuario?->name)->filter()->values();
             return [
                 'id'                => $exp->id,
                 'numero_expediente' => $exp->numero_expediente ?? 'EXP-' . $exp->id,
                 'servicio'          => $exp->servicio?->nombre,
                 'etapa'             => $exp->etapaActual?->nombre,
                 'estado'            => $exp->estado,
-                'gestor'            => $exp->gestor?->usuario?->name,
+                'responsables'      => $responsables,
+                'gestor'            => $responsables->first(),
                 'created_at'        => $exp->created_at->format('d/m/Y'),
                 'movimiento_urgente' => $movUrgente ? [
                     'instruccion'  => $movUrgente->instruccion,
