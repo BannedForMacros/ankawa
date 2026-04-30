@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { router, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/PageHeader';
 import { Head } from '@inertiajs/react';
 import {
     FileText, Clock, CheckCircle2, XCircle, AlertTriangle,
@@ -1008,31 +1009,32 @@ export default function MisSolicitudes({ solicitudes }) {
         <AuthenticatedLayout>
             <Head title="Mis Solicitudes" />
 
-            {/* Hero header */}
-            <div className="bg-gradient-to-r from-white via-[#BE0F4A]/[0.04] to-[#291136]/[0.07] border-b border-[#291136]/10">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 border-l-4 border-[#BE0F4A]">
-                    <div className="flex items-start justify-between flex-wrap gap-4">
-                        <div>
-                            <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase"
-                                style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                                Mis Solicitudes
-                            </h1>
-                            <p className="text-[#291136]/60 text-sm mt-1">
-                                Seguimiento completo de tus solicitudes presentadas en Mesa de Partes
-                            </p>
+            <PageHeader
+                breadcrumb={[
+                    { label: 'Inicio',          href: route('mesa-partes.inicio') },
+                    { label: 'Mis Solicitudes' },
+                ]}
+                title="Mis Solicitudes"
+                description="Seguimiento completo de tus solicitudes presentadas en Mesa de Partes."
+            />
+
+            <div className="py-6 bg-gradient-to-b from-[#291136]/[0.035] via-transparent to-[#BE0F4A]/[0.025] min-h-[calc(100vh-9rem)]">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                    {/* CTA nueva solicitud + conteo */}
+                    <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+                        <div className="font-mono text-[11px] uppercase tracking-widest text-[#291136]/55">
+                            {solicitudes.length === 0
+                                ? 'Sin solicitudes registradas'
+                                : `Total · ${solicitudes.length} solicitud${solicitudes.length === 1 ? '' : 'es'}`}
                         </div>
                         <Link href={route('mesa-partes.nueva-solicitud')}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#BC1D35] transition-colors shadow-sm">
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] transition-colors shadow-sm shadow-[#BE0F4A]/20">
                             <FileText size={15} />
                             Nueva Solicitud
                             <ArrowRight size={15} />
                         </Link>
                     </div>
-                </div>
-            </div>
-
-            <div className="py-8 bg-gradient-to-b from-[#291136]/[0.035] via-transparent to-[#BE0F4A]/[0.025] min-h-[calc(100vh-9rem)]">
-                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
                     {/* Filtros */}
                     {solicitudes.length > 0 && (

@@ -377,8 +377,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             tiposActorEnExpediente={tiposActorEnExpediente}
                             actoresExpediente={actoresExpediente}
                             tiposDocumento={tiposDocumento}
-                            actoresSinMesaPartes={actoresExpediente.filter(a => !a.acceso_mesa_partes)}
-                            actoresSinExpElectronico={actoresExpediente.filter(a => !a.acceso_expediente_electronico)}
+                            actoresSinMesaPartes={actoresExpediente.filter(a => !a.acceso_mesa_partes && !a.es_gestor)}
+                            actoresSinExpElectronico={actoresExpediente.filter(a => !a.acceso_expediente_electronico && !a.es_gestor)}
                             actoresNotificables={actoresNotificables}
                             archivos={archivosMovimientos[idx] ?? []}
                             onArchivos={files => setArchivos(prev => ({ ...prev, [idx]: files }))}

@@ -238,12 +238,13 @@ class SolicitudArbitrajeController extends Controller
             $tipoActorDemandante = TipoActorExpediente::where('slug', TipoActorExpediente::SLUG_DEMANDANTE)->first();
             if ($tipoActorDemandante) {
                 $actorDemandante = ExpedienteActor::create([
-                    'expediente_id'         => $expediente->id,
-                    'usuario_id'            => $userId,
-                    'tipo_actor_id'         => $tipoActorDemandante->id,
-                    'activo'                => 1,
-                    'credenciales_enviadas' => true,
-                    'acceso_mesa_partes'    => 1,
+                    'expediente_id'                 => $expediente->id,
+                    'usuario_id'                    => $userId,
+                    'tipo_actor_id'                 => $tipoActorDemandante->id,
+                    'activo'                        => 1,
+                    'credenciales_enviadas'         => true,
+                    'acceso_mesa_partes'            => 1,
+                    'acceso_expediente_electronico' => 1,
                 ]);
 
                 // Auto-validar el correo del demandante: él mismo se autenticó por OTP

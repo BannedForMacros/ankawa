@@ -208,25 +208,27 @@ class SolicitudJPRDController extends Controller
 
             if ($tipoActorEntidad) {
                 ExpedienteActor::create([
-                    'expediente_id'     => $expediente->id,
-                    'usuario_id'        => $esEntidadSolicitante ? $usuario->id : null,
-                    'tipo_actor_id'     => $tipoActorEntidad->id,
-                    'nombre_externo'    => $esEntidadSolicitante ? null : $request->nombre_entidad,
-                    'email_externo'     => $esEntidadSolicitante ? null : ($emailEntidad ?: null),
-                    'acceso_mesa_partes'=> $esEntidadSolicitante ? 1 : 0,
-                    'activo'            => 1,
+                    'expediente_id'                 => $expediente->id,
+                    'usuario_id'                    => $esEntidadSolicitante ? $usuario->id : null,
+                    'tipo_actor_id'                 => $tipoActorEntidad->id,
+                    'nombre_externo'                => $esEntidadSolicitante ? null : $request->nombre_entidad,
+                    'email_externo'                 => $esEntidadSolicitante ? null : ($emailEntidad ?: null),
+                    'acceso_mesa_partes'            => $esEntidadSolicitante ? 1 : 0,
+                    'acceso_expediente_electronico' => $esEntidadSolicitante ? 1 : 0,
+                    'activo'                        => 1,
                 ]);
             }
 
             if ($tipoActorContratista) {
                 ExpedienteActor::create([
-                    'expediente_id'     => $expediente->id,
-                    'usuario_id'        => $esContratistaSolicitante ? $usuario->id : null,
-                    'tipo_actor_id'     => $tipoActorContratista->id,
-                    'nombre_externo'    => $esContratistaSolicitante ? null : $request->nombre_contratista,
-                    'email_externo'     => $esContratistaSolicitante ? null : ($emailContratista ?: null),
-                    'acceso_mesa_partes'=> $esContratistaSolicitante ? 1 : 0,
-                    'activo'            => 1,
+                    'expediente_id'                 => $expediente->id,
+                    'usuario_id'                    => $esContratistaSolicitante ? $usuario->id : null,
+                    'tipo_actor_id'                 => $tipoActorContratista->id,
+                    'nombre_externo'                => $esContratistaSolicitante ? null : $request->nombre_contratista,
+                    'email_externo'                 => $esContratistaSolicitante ? null : ($emailContratista ?: null),
+                    'acceso_mesa_partes'            => $esContratistaSolicitante ? 1 : 0,
+                    'acceso_expediente_electronico' => $esContratistaSolicitante ? 1 : 0,
+                    'activo'                        => 1,
                 ]);
             }
 

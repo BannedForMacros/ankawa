@@ -895,14 +895,14 @@ export default function TabNuevoMovimiento({
         return tiposActor.filter(t => idsPresentes.has(t.id));
     }, [actoresExpediente, tiposActor]);
 
-    // Actores sin acceso a Mesa de Partes
+    // Actores sin acceso a Mesa de Partes (excluye gestores: ya acceden vía rol)
     const actoresSinMesaPartes = useMemo(() =>
-        actoresExpediente.filter(a => !a.acceso_mesa_partes),
+        actoresExpediente.filter(a => !a.acceso_mesa_partes && !a.es_gestor),
     [actoresExpediente]);
 
-    // Actores sin acceso a Expediente Electrónico
+    // Actores sin acceso a Expediente Electrónico (excluye gestores: ya acceden vía rol)
     const actoresSinExpElectronico = useMemo(() =>
-        actoresExpediente.filter(a => !a.acceso_expediente_electronico),
+        actoresExpediente.filter(a => !a.acceso_expediente_electronico && !a.es_gestor),
     [actoresExpediente]);
 
     function actualizar(idx, field, value) {

@@ -1,13 +1,12 @@
 import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/PageHeader';
 import ArbitrajeForm           from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 import ArbitrajeEmergenciaForm from '@/Pages/MesaPartes/Formularios/ArbitrajeEmergenciaForm';
 import JPRDForm                from '@/Pages/MesaPartes/Formularios/JPRDForm';
 import OtrosForm               from '@/Pages/MesaPartes/Formularios/OtrosForm';
-import { Scale, Briefcase } from 'lucide-react';
+import { Scale } from 'lucide-react';
 import { useState } from 'react';
-
-const iconoServicio = { Scale };
 
 const FORMS = {
     'arbitraje':            ArbitrajeForm,
@@ -25,58 +24,65 @@ export default function NuevaSolicitudAuth({ servicios }) {
         <AuthenticatedLayout>
             <Head title="Nueva Solicitud" />
 
-            <div className="p-6 max-w-5xl mx-auto">
+            <PageHeader
+                breadcrumb={[
+                    { label: 'Inicio',           href: route('mesa-partes.inicio') },
+                    { label: 'Mis Solicitudes',  href: route('mesa-partes.mis-solicitudes') },
+                    { label: 'Nueva solicitud' },
+                ]}
+                title="Nueva"
+                titleAccent="Solicitud"
+                description={
+                    servicioSeleccionado
+                        ? `Estás iniciando una solicitud de ${servicioSeleccionado.nombre}. Completa el formulario con los datos requeridos.`
+                        : 'Selecciona el tipo de trámite que deseas iniciar y completa el formulario correspondiente.'
+                }
+            />
 
-                {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-[#BE0F4A]">
-                        <Briefcase size={24} className="text-white" />
+            <div className="py-6">
+                <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                    {/* Selector de servicio */}
+                    <div className="mb-6">
+                        <label className="block font-mono text-[11px] uppercase tracking-widest text-[#291136]/55 mb-3">
+                            Tipo de Servicio
+                        </label>
+                        <div className="flex gap-2.5 flex-wrap">
+                            {servicios.map(s => {
+                                const active = servicioSeleccionado?.id === s.id;
+                                return (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => setServicioSeleccionado(s)}
+                                        className={`relative px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                                            active
+                                                ? 'bg-[#BE0F4A] text-white shadow-md shadow-[#BE0F4A]/20'
+                                                : 'bg-white text-[#291136]/75 border border-[#291136]/[0.10] hover:border-[#291136]/25 hover:bg-[#291136]/[0.025]'
+                                        }`}
+                                    >
+                                        {s.nombre}
+                                        {active && (
+                                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#BE0F4A] shadow-sm" />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-2xl font-extrabold text-[#291136] tracking-tight">
-                            Nueva Solicitud
-                        </h1>
-                        <p className="text-sm text-gray-400 font-medium">
-                            {servicioSeleccionado
-                                ? servicioSeleccionado.nombre
-                                : 'Seleccione el tipo de trámite'}
-                        </p>
-                    </div>
+
+                    {/* Formulario según servicio */}
+                    {!servicioSeleccionado ? (
+                        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-[#291136]/[0.08]">
+                            <Scale size={48} className="mb-4 text-[#291136]/20" />
+                            <p className="font-medium text-[#291136]/65">Selecciona el tipo de servicio para continuar</p>
+                        </div>
+                    ) : (() => {
+                        const Form = FORMS[servicioSeleccionado.slug] ?? OtrosForm;
+                        return <Form servicio={servicioSeleccionado} />;
+                    })()}
+
                 </div>
-
-                {/* Selector de servicio siempre visible arriba */}
-                <div className="mb-6">
-                    <label className="block text-xs font-bold text-[#291136] mb-3 uppercase tracking-widest opacity-60">
-                        Tipo de Servicio
-                    </label>
-                    <div className="flex gap-3 flex-wrap">
-                        {servicios.map(s => (
-                            <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => setServicioSeleccionado(s)}
-                                className={`px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all
-                                    ${servicioSeleccionado?.id === s.id
-                                        ? 'bg-[#291136] text-white border-[#291136] shadow-md'
-                                        : 'bg-white text-[#291136]/60 border-gray-200 hover:border-[#291136]/40 hover:text-[#291136]'}`}
-                            >
-                                {s.nombre}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Formulario según servicio */}
-                {!servicioSeleccionado ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                        <Scale size={48} className="mb-4 opacity-20" />
-                        <p className="font-medium">Selecciona el tipo de servicio para continuar</p>
-                    </div>
-                ) : (() => {
-                    const Form = FORMS[servicioSeleccionado.slug] ?? OtrosForm;
-                    return <Form servicio={servicioSeleccionado} />;
-                })()}
-
             </div>
         </AuthenticatedLayout>
     );
