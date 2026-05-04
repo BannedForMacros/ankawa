@@ -611,7 +611,7 @@ export function MovimientoCard({
                             <label className="mt-3 flex items-center gap-2 cursor-pointer w-fit px-4 py-2.5 rounded-lg border border-dashed border-[#BE0F4A]/40 text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors text-sm font-semibold">
                                 <Paperclip size={15}/>
                                 Adjuntar archivos
-                                <input type="file" multiple accept={upload_accept} className="sr-only"
+                                <input type="file" multiple accept={upload_accept} className="hidden"
                                     onChange={e => onArchivos([...archivos, ...Array.from(e.target.files)])}/>
                             </label>
                             <p className="text-xs text-gray-400 mt-1">{formatsLabel} — máx. {upload_max_mb} MB por archivo</p>
