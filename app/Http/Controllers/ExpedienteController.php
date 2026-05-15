@@ -142,10 +142,6 @@ class ExpedienteController extends Controller
         // Puede designar responsables: rol con puede_designar_gestor O quien ya es responsable
         $puedeDesignarGestor = ($user->rol?->puede_designar_gestor ?? false) || $esGestor;
 
-        $miAccionPendiente = $expediente->movimientos
-            ->where('estado', 'pendiente')
-            ->first(fn($mov) => $mov->esResponsable($user->id));
-
         // Tipo de actor del usuario logueado dentro de este servicio (según rol_auto_slug del pivot).
         // Se usa para filtrar los tipos de documento que puede subir al adjuntar archivos.
         $miTipoActorId = $user->rol?->slug
@@ -209,7 +205,6 @@ class ExpedienteController extends Controller
             'expediente'           => $expediente,
             'esGestor'             => $esGestor,
             'puedeDesignarGestor'  => $puedeDesignarGestor,
-            'miAccionPendiente'    => $miAccionPendiente,
             'etapas'               => $etapas,
             'tiposActor'           => $tiposActor,
             'usuariosAsignables'   => $usuariosAsignables,

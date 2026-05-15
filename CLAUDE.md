@@ -200,7 +200,8 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 - Tabla `cargos` con secuencia PostgreSQL `cargo_seq` → formato `CARGO-2026-0001`
 - Modelo `app/Models/Cargo.php` — método estático `Cargo::crear($tipo, $cargable, $userId)`
 - `genera_cargo` (boolean) en `expediente_movimientos`; default `true` para `requerimiento`, `false` para los demás
-- El cargo se genera en `MovimientoService::responder()` si `$movimiento->genera_cargo === true`
+- El cargo de respuesta se emite en `PortalController::responder()` (única vía de respuesta — Mesa de Partes) si `$movimiento->genera_cargo === true`
+- **Las respuestas a requerimientos solo se hacen desde Mesa de Partes** — el flujo de respuesta en Expediente Electrónico fue removido (los actores responden vía portal externo con OTP)
 - **Todos los controllers que crean movimientos deben pasar `genera_cargo`**: `MovimientoController::store()`, `storeLote()`, `ExpedienteController::registrarConformidad()`
 
 ### Configuración — Módulo de Tipos de Actor

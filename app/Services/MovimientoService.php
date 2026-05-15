@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Cargo;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteMovimiento;
@@ -12,7 +11,6 @@ use App\Models\MovimientoResponsable;
 use App\Models\User;
 use App\Models\Rol;
 use App\Mail\AccesoMesaPartesMail;
-use App\Mail\CargoRespuestaMail;
 use App\Mail\CredencialesAccesoMail;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -255,128 +253,6 @@ class MovimientoService
         } catch (\Exception $e) {
             \Log::warning("Error enviando credenciales exp. electrónico movimiento #{$movimiento->id}: " . $e->getMessage());
         }
-    }
-
-    /**
-     * Responder a un movimiento pendiente.
-     *
-     * El cargo de respuesta se emite cuando:
-     *   - el movimiento es de tipo 'requerimiento', y
-     *   - la columna `genera_cargo` del movimiento está en true (configurable al crear), y
-     *   - el tipo de evento 'respuesta_requerimiento' está activo en Configuración → Tipos de Cargo.
-     */
-    public function responder(
-        ExpedienteMovimiento $movimiento,
-        array $datos,
-        array $archivos = [],
-        array $notificarActorIds = [],
-    ): ExpedienteMovimiento {
-        return DB::transaction(function () use ($movimiento, $datos, $archivos, $notificarActorIds) {
-
-            $pivotRows = $movimiento->responsables;
-
-            if ($pivotRows->isNotEmpty()) {
-                // Nuevo path: actualizar la fila pivot del actor que responde
-                $actor = ExpedienteActor::where('usuario_id', $datos['respondido_por'])
-                    ->whereIn('id', $pivotRows->pluck('expediente_actor_id'))
-                    ->first();
-
-                if ($actor) {
-                    $pivotRows->where('expediente_actor_id', $actor->id)
-                        ->first()
-                        ?->update([
-                            'estado'          => ExpedienteMovimiento::ESTADO_RESPONDIDO,
-                            'respuesta'       => $datos['respuesta'],
-                            'respondido_por'  => $datos['respondido_por'],
-                            'fecha_respuesta' => now(),
-                        ]);
-                }
-
-                $todosRespondieron = !$movimiento->responsables()
-                    ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
-                    ->exists();
-
-                if (!$todosRespondieron) {
-                    $this->guardarDocumentos($movimiento, $archivos, $datos['respondido_por'], 'respuesta');
-                    ExpedienteHistorial::create([
-                        'expediente_id' => $movimiento->expediente_id,
-                        'usuario_id'    => $datos['respondido_por'],
-                        'tipo_evento'   => 'movimiento_respondido_parcial',
-                        'descripcion'   => "Respuesta parcial al movimiento: {$movimiento->instruccion}",
-                        'datos_extra'   => ['movimiento_id' => $movimiento->id],
-                        'created_at'    => now(),
-                    ]);
-                    return $movimiento;
-                }
-            }
-
-            $movimiento->update([
-                'respuesta'       => $datos['respuesta'],
-                'fecha_respuesta' => now(),
-                'respondido_por'  => $datos['respondido_por'],
-                'estado'          => ExpedienteMovimiento::ESTADO_RESPONDIDO,
-            ]);
-
-            // Si el expediente tiene solicitud en estado 'subsanacion',
-            // al responder el demandante se habilita la re-revisión del gestor
-            $expediente = $movimiento->expediente()->with('solicitud')->first();
-            if ($expediente?->solicitud?->estado === 'subsanacion') {
-                $expediente->solicitud->update([
-                    'estado'             => 'pendiente',
-                    'resultado_revision' => null,
-                ]);
-            }
-
-            $this->guardarDocumentos($movimiento, $archivos, $datos['respondido_por'], 'respuesta');
-
-            ExpedienteHistorial::create([
-                'expediente_id' => $movimiento->expediente_id,
-                'usuario_id'    => $datos['respondido_por'],
-                'tipo_evento'   => 'movimiento_respondido',
-                'descripcion'   => "Movimiento respondido: {$movimiento->instruccion}",
-                'datos_extra'   => ['movimiento_id' => $movimiento->id],
-                'created_at'    => now(),
-            ]);
-
-            if (!empty($notificarActorIds)) {
-                $this->notificacionService->notificarActores($movimiento, $notificarActorIds);
-            }
-
-            // Cargo de respuesta — emisión configurable por tipo de movimiento + tipo de evento.
-            if ($movimiento->tipo === ExpedienteMovimiento::TIPO_REQUERIMIENTO && $movimiento->genera_cargo) {
-                $cargo = Cargo::crear('respuesta_requerimiento', $movimiento, $datos['respondido_por']);
-                if ($cargo) {
-                    $respondedor = User::find($datos['respondido_por']);
-                    try {
-                        if ($respondedor?->email) {
-                            Mail::to($respondedor->email)->send(new CargoRespuestaMail($cargo, $movimiento));
-                        }
-                    } catch (\Exception $e) {
-                        \Log::warning("Error enviando cargo respuesta movimiento #{$movimiento->id}: " . $e->getMessage());
-                    }
-                }
-            }
-
-            return $movimiento;
-        });
-    }
-
-    /**
-     * Responder un movimiento Y crear el siguiente en una sola transacción.
-     */
-    public function responderYCrear(
-        ExpedienteMovimiento $movimiento,
-        array $datosRespuesta,
-        array $archivosRespuesta,
-        Expediente $expediente,
-        array $datosNuevo,
-        array $archivosNuevo,
-        array $notificarActorIds = []
-    ): ExpedienteMovimiento {
-        return DB::transaction(function () use ($movimiento, $datosRespuesta, $archivosRespuesta, $expediente, $datosNuevo, $archivosNuevo, $notificarActorIds) {
-            $this->responder($movimiento, $datosRespuesta, $archivosRespuesta);
-            return $this->crear($expediente, $datosNuevo, $archivosNuevo, $notificarActorIds);
-        });
     }
 
     private function calcularFechaLimite(int $dias, string $tipoDias): string

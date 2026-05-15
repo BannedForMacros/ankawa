@@ -2,10 +2,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/PageHeader';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Clock, FileText, Users, PlusCircle, AlertCircle, ClipboardList, ArrowRight, Info, Briefcase, Layers, UserCheck, Timer, Inbox } from 'lucide-react';
+import { Clock, FileText, Users, PlusCircle, ClipboardList, ArrowRight, Info, Briefcase, Layers, UserCheck, Timer, Inbox } from 'lucide-react';
 import TabHistorial from './Partials/TabHistorial';
 import TabNuevoMovimiento from './Partials/TabNuevoMovimiento';
-import TabAccionPendiente from './Partials/TabAccionPendiente';
 import TabActores from './Partials/TabActores';
 import TabSolicitud from './Partials/TabSolicitud';
 import TabEnvios from './Partials/TabEnvios';
@@ -20,7 +19,6 @@ export default function Show({
     expediente,
     esGestor,
     puedeDesignarGestor,
-    miAccionPendiente,
     etapas,
     tiposActor,
     usuariosAsignables,
@@ -48,20 +46,10 @@ export default function Show({
         tabs.push({ id: 'nuevo', label: 'Nuevo Movimiento', Icon: PlusCircle });
     }
 
-    if (miAccionPendiente) {
-        tabs.push({ id: 'accion', label: 'Mi Acción Pendiente', Icon: AlertCircle });
-    }
-
     tabs.push({ id: 'envios', label: 'Envíos', Icon: Inbox, badge: enviosBadge });
     tabs.push({ id: 'actores', label: 'Actores', Icon: Users });
 
-    const [activeTab, setActiveTab] = useState(miAccionPendiente ? 'accion' : 'historial');
-
-    useEffect(() => {
-        if (!miAccionPendiente && activeTab === 'accion') {
-            setActiveTab('historial');
-        }
-    }, [miAccionPendiente]);
+    const [activeTab, setActiveTab] = useState('historial');
 
     const responsables = expediente.actores?.filter(a => a.es_gestor && a.activo) ?? [];
     const responsablePrincipal = responsables[0] ?? null;
@@ -89,13 +77,6 @@ export default function Show({
             tipo: 'info',
             texto: 'La solicitud fue declarada NO CONFORME. Esperando subsanación del demandante.',
             accion: null,
-        };
-
-        if (miAccionPendiente) return {
-            tipo: 'alerta',
-            texto: 'Tienes una acción pendiente que requiere tu respuesta.',
-            accion: 'Ver mi acción',
-            tab: 'accion',
         };
 
         if (solicitud?.resultado_revision === 'conforme') return {
@@ -202,7 +183,7 @@ export default function Show({
                             >
                                 <Icon size={15}/>
                                 {label}
-                                {(id === 'accion' || alerta) && (
+                                {alerta && (
                                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
                                 )}
                                 {badge > 0 && (
@@ -249,19 +230,6 @@ export default function Show({
                             actoresNotificables={actoresNotificables}
                             tiposDocumento={tiposDocumento}
                             miTipoActorId={miTipoActorId}
-                        />
-                    )}
-
-                    {activeTab === 'accion' && miAccionPendiente && (
-                        <TabAccionPendiente
-                            expediente={expediente}
-                            movimiento={miAccionPendiente}
-                            actoresNotificables={actoresNotificables}
-                            esGestor={esGestor}
-                            etapas={etapas}
-                            tiposActor={tiposActor}
-                            usuariosAsignables={usuariosAsignables}
-                            tiposDocumento={tiposDocumento}
                         />
                     )}
 
