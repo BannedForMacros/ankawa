@@ -26,6 +26,7 @@ use App\Support\DniValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class PortalController extends Controller
@@ -57,7 +58,11 @@ class PortalController extends Controller
                     $nq->where('email_destino', $email)->orWhereIn('actor_id', $actorIds)
                 );
             })
-            ->with(['expediente.servicio', 'tipoDocumentoRequerido:id,nombre'])
+            ->with([
+                'expediente.servicio',
+                'tipoDocumentoRequerido:id,nombre',
+                'documentos' => fn($q) => $q->where('momento', 'creacion')->where('activo', true),
+            ])
             ->orderBy('created_at')
             ->select(['id', 'expediente_id', 'instruccion', 'fecha_limite', 'tipo_dias', 'dias_plazo', 'tipo_documento_requerido_id', 'created_at'])
             ->get();
@@ -90,6 +95,12 @@ class PortalController extends Controller
                         'dias_restantes'          => $mov->diasRestantes(),
                         'created_at'              => $mov->created_at->format('d/m/Y H:i'),
                         'tipo_documento_requerido' => $mov->tipoDocumentoRequerido?->nombre,
+                        'documentos'              => $mov->documentos->map(fn($d) => [
+                            'id'              => $d->id,
+                            'nombre_original' => $d->nombre_original,
+                            'peso_bytes'      => $d->peso_bytes,
+                            'url'             => Storage::disk('public')->url($d->ruta_archivo),
+                        ])->values()->toArray(),
                     ])->values()->toArray(),
                 ];
             })

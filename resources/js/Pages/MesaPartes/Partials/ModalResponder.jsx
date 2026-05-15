@@ -1,10 +1,17 @@
 import { useState, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
-import { X, Paperclip, FileText, AlertTriangle, Clock } from 'lucide-react';
+import { X, Paperclip, FileText, AlertTriangle, Clock, Download } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
 import PlazoUrgente from './PlazoUrgente';
 import toast from 'react-hot-toast';
+
+function formatBytes(bytes) {
+    if (!bytes) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ModalResponder({ mov, expediente, onClose, onRespondido }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
@@ -123,6 +130,35 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                 Documento solicitado: <span className="text-[#BE0F4A]">{mov.tipo_documento_requerido}</span>
                                 <span className="block font-normal text-amber-700 mt-0.5">Asegúrate de adjuntarlo en tu respuesta.</span>
                             </p>
+                        </div>
+                    )}
+                    {Array.isArray(mov.documentos) && mov.documentos.length > 0 && (
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
+                            <p className="text-xs font-bold text-[#291136] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                <FileText size={13} className="text-[#BE0F4A]"/>
+                                Documentos del requerimiento ({mov.documentos.length})
+                            </p>
+                            <p className="text-xs text-gray-500 mb-3">
+                                Estos archivos fueron adjuntados por quien creó el requerimiento. Haz clic para abrirlos en una nueva pestaña.
+                            </p>
+                            <div className="space-y-2">
+                                {mov.documentos.map(doc => (
+                                    <a
+                                        key={doc.id}
+                                        href={doc.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors group"
+                                    >
+                                        <FileText size={18} className="text-[#BE0F4A] shrink-0"/>
+                                        <span className="text-sm text-gray-700 group-hover:text-[#BE0F4A] flex-1 truncate font-medium">
+                                            {doc.nombre_original}
+                                        </span>
+                                        <span className="text-xs text-gray-400 shrink-0">{formatBytes(doc.peso_bytes)}</span>
+                                        <Download size={14} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0"/>
+                                    </a>
+                                ))}
+                            </div>
                         </div>
                     )}
                     <PlazoUrgente mov={mov} />

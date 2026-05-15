@@ -67,6 +67,33 @@
 @endsection
 
 @section('extra')
+    @php
+        $docsRequerimiento = $movimiento->documentos
+            ->where('momento', 'creacion')
+            ->where('activo', true)
+            ->values();
+    @endphp
+
+    @if($docsRequerimiento->count() > 0)
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #e0e0e0;">
+            <p style="font-size: 11.5px; font-weight: bold; color: #291136; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px;">
+                Documentos adjuntos al requerimiento ({{ $docsRequerimiento->count() }})
+            </p>
+            @foreach($docsRequerimiento as $doc)
+                <div style="margin-bottom: 8px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fafafa;">
+                    <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($doc->ruta_archivo) }}"
+                       target="_blank"
+                       style="color: #BE0F4A; text-decoration: none; font-size: 13px; font-weight: bold;">
+                        &#128206; {{ $doc->nombre_original }}
+                    </a>
+                    <span style="display: block; font-size: 11px; color: #888888; margin-top: 2px;">
+                        Click para abrir en una pestaña nueva
+                    </span>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     <div style="margin-top: 20px; padding: 14px 0; border-top: 1px solid #e0e0e0; font-size: 12px; color: #555555; line-height: 1.6;">
         @if($esPortal)
             Ingrese al <strong>Portal de Mesa de Partes</strong> con su correo electrónico para revisar los detalles
