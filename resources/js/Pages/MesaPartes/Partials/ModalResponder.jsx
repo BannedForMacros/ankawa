@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
-import { X, Paperclip, FileText, AlertTriangle, Clock, Download, CheckCircle2 } from 'lucide-react';
+import { X, Paperclip, FileText, AlertTriangle, Clock, Download, CheckCircle2, ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
 import PlazoUrgente from './PlazoUrgente';
@@ -30,6 +30,9 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
     const [confirmEnvio,    setConfirmEnvio]    = useState(false);
     const [confirmParcial,  setConfirmParcial]  = useState(null); // { tiposVacios: [{nombre, fecha_limite}] }
     const [procesando,      setProcesando]      = useState(false);
+    // Secciones de contexto colapsables (default cerradas — la acción primaria es subir docs)
+    const [openDocsReq,      setOpenDocsReq]      = useState(false);
+    const [openYaEntregados, setOpenYaEntregados] = useState(false);
     const [mostrarLoader,   setMostrarLoader]   = useState(false);
     const [previewFile,     setPreviewFile]     = useState(null);
     const loaderTimer                            = useRef(null);
@@ -198,19 +201,19 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                         <X size={20}/>
                     </button>
                 </div>
-                <div className="overflow-y-auto flex-1 p-6">
-                    <div className="bg-[#291136]/5 border border-[#291136]/10 rounded-xl p-4 mb-5">
-                        <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide mb-1">Instrucción</p>
+                <div className="overflow-y-auto flex-1 p-6 space-y-5">
+                    {/* ── 1. Cabecera: instrucción + pill de plazo integrado a la derecha ── */}
+                    <div className="bg-[#291136]/5 border border-[#291136]/10 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                            <p className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide">Instrucción del requerimiento</p>
+                            {mov.fecha_limite && <PlazoUrgente mov={mov} />}
+                        </div>
                         <p className="text-sm text-[#291136]">{mov.instruccion}</p>
-                        {mov.fecha_limite && (
-                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                                <Clock size={11}/> Plazo límite: {mov.fecha_limite}
-                            </p>
-                        )}
                     </div>
-                    {/* Aviso legacy: solo si NO hay responsables_pendientes pero sí tipo_documento_requerido global */}
+
+                    {/* ── 2. Aviso legacy (un solo doc requerido, sin pivot) ── */}
                     {esLegacy && mov.tipo_documento_requerido && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 flex items-start gap-2">
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
                             <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0"/>
                             <p className="text-xs text-amber-800 font-semibold">
                                 Documento solicitado: <span className="text-[#BE0F4A]">{mov.tipo_documento_requerido}</span>
@@ -218,98 +221,12 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                             </p>
                         </div>
                     )}
-                    {Array.isArray(mov.documentos) && mov.documentos.length > 0 && (
-                        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5">
-                            <p className="text-xs font-bold text-[#291136] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                                <FileText size={13} className="text-[#BE0F4A]"/>
-                                Documentos del requerimiento ({mov.documentos.length})
-                            </p>
-                            <p className="text-xs text-gray-500 mb-3">
-                                Estos archivos fueron adjuntados por quien creó el requerimiento. Haz clic para abrirlos en una nueva pestaña.
-                            </p>
-                            <div className="space-y-2">
-                                {mov.documentos.map(doc => (
-                                    <a
-                                        key={doc.id}
-                                        href={doc.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors group"
-                                    >
-                                        <FileText size={18} className="text-[#BE0F4A] shrink-0"/>
-                                        <span className="text-sm text-gray-700 group-hover:text-[#BE0F4A] flex-1 truncate font-medium">
-                                            {doc.nombre_original}
-                                        </span>
-                                        <span className="text-xs text-gray-400 shrink-0">{formatBytes(doc.peso_bytes)}</span>
-                                        <Download size={14} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0"/>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
-                    {/* ── Trazabilidad: docs que el actor YA entregó antes para este requerimiento ── */}
-                    {Array.isArray(mov.responsables_entregados) && mov.responsables_entregados.length > 0 && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5">
-                            <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                                <CheckCircle2 size={13}/>
-                                Ya entregaste anteriormente ({mov.responsables_entregados.length})
-                            </p>
-                            <p className="text-xs text-emerald-600 mb-3">
-                                Estos tipos de documento ya fueron presentados en una respuesta previa. Haz clic en cada archivo para revisarlo.
-                            </p>
-                            <div className="space-y-3">
-                                {mov.responsables_entregados.map(r => (
-                                    <div key={r.responsable_id} className="bg-white border border-emerald-200 rounded-lg p-3">
-                                        <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
-                                            <p className="text-sm font-bold text-emerald-800 flex items-center gap-1.5">
-                                                <FileText size={14}/>
-                                                {r.tipo_documento_nombre}
-                                            </p>
-                                            {r.fecha_respuesta && (
-                                                <span className="text-[11px] text-emerald-600">
-                                                    Entregado el {r.fecha_respuesta}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {Array.isArray(r.archivos) && r.archivos.length > 0 ? (
-                                            <div className="space-y-1.5 pl-1">
-                                                {r.archivos.map(a => (
-                                                    <a
-                                                        key={a.id}
-                                                        href={a.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="flex items-center gap-2 p-1.5 rounded border border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50 transition-colors group"
-                                                    >
-                                                        <FileText size={14} className="text-emerald-600 shrink-0"/>
-                                                        <span className="text-xs text-emerald-800 group-hover:underline flex-1 truncate font-medium">
-                                                            {a.nombre_original}
-                                                        </span>
-                                                        <span className="text-[11px] text-emerald-500 shrink-0">{formatBytes(a.peso_bytes)}</span>
-                                                        <Download size={12} className="text-emerald-400 group-hover:text-emerald-600 shrink-0"/>
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <p className="text-xs text-emerald-600 italic pl-1">Sin archivos registrados.</p>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <PlazoUrgente mov={mov} />
-                    <form id="form-respuesta" onSubmit={handleSubmit} className="space-y-4 mt-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
-                                Tu respuesta *
-                            </label>
-                            <textarea value={respuesta} onChange={e => setRespuesta(e.target.value)}
-                                rows={5} placeholder="Escribe tu respuesta detallada aquí..."
-                                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A] resize-none" />
-                        </div>
+                    {/* ── 3. ACCIÓN PRIMARIA: subir documentos (primero, lo más importante) + escribir respuesta (después) ── */}
+                    <form id="form-respuesta" onSubmit={handleSubmit} className="space-y-4">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest -mb-1 flex items-center gap-1.5">
+                            <Upload size={11}/> Tu entrega
+                        </p>
                         {/* ── Flujo NUEVO: una sección por tipo de documento pendiente ── */}
                         {!esLegacy && (
                             <div className="space-y-3">
@@ -405,7 +322,124 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                 )}
                             </div>
                         )}
+
+                        {/* ── Mensaje de respuesta (debajo de las cargas) ── */}
+                        <div className="pt-2 border-t border-gray-100">
+                            <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+                                Mensaje de respuesta *
+                            </label>
+                            <textarea value={respuesta} onChange={e => setRespuesta(e.target.value)}
+                                rows={4} placeholder="Describe brevemente lo que estás entregando o cualquier aclaración..."
+                                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A] resize-none" />
+                        </div>
                     </form>
+
+                    {/* ── 4. Contexto al final: docs del requerimiento + historial de entregas ── */}
+                    {(Array.isArray(mov.documentos) && mov.documentos.length > 0) ||
+                     (Array.isArray(mov.responsables_entregados) && mov.responsables_entregados.length > 0) ? (
+                        <div className="border-t border-gray-100 pt-4 space-y-2">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                                Información de contexto
+                            </p>
+
+                            {/* Collapsible: documentos del requerimiento */}
+                            {Array.isArray(mov.documentos) && mov.documentos.length > 0 && (
+                                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenDocsReq(o => !o)}
+                                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
+                                            <span className="text-xs font-bold text-[#291136] uppercase tracking-wide truncate">
+                                                Documentos del requerimiento
+                                            </span>
+                                            <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold shrink-0">
+                                                {mov.documentos.length}
+                                            </span>
+                                        </div>
+                                        {openDocsReq ? <ChevronUp size={14} className="text-gray-400 shrink-0"/> : <ChevronDown size={14} className="text-gray-400 shrink-0"/>}
+                                    </button>
+                                    {openDocsReq && (
+                                        <div className="px-3 pb-3 border-t border-gray-100 pt-2">
+                                            <p className="text-[11px] text-gray-500 mb-2">
+                                                Archivos adjuntados por quien creó el requerimiento.
+                                            </p>
+                                            <div className="space-y-1.5">
+                                                {mov.documentos.map(doc => (
+                                                    <a key={doc.id} href={doc.url} target="_blank" rel="noopener noreferrer"
+                                                        className="flex items-center gap-2 p-2 rounded-lg border border-gray-200 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors group">
+                                                        <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
+                                                        <span className="text-xs text-gray-700 group-hover:text-[#BE0F4A] flex-1 truncate font-medium">{doc.nombre_original}</span>
+                                                        <span className="text-[11px] text-gray-400 shrink-0">{formatBytes(doc.peso_bytes)}</span>
+                                                        <Download size={12} className="text-gray-300 group-hover:text-[#BE0F4A] shrink-0"/>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Collapsible: lo que ya entregaste antes */}
+                            {Array.isArray(mov.responsables_entregados) && mov.responsables_entregados.length > 0 && (
+                                <div className="border border-emerald-200 rounded-xl overflow-hidden bg-white">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenYaEntregados(o => !o)}
+                                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-emerald-50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0"/>
+                                            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wide truncate">
+                                                Ya entregaste anteriormente
+                                            </span>
+                                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold shrink-0">
+                                                {mov.responsables_entregados.length}
+                                            </span>
+                                        </div>
+                                        {openYaEntregados ? <ChevronUp size={14} className="text-emerald-500 shrink-0"/> : <ChevronDown size={14} className="text-emerald-500 shrink-0"/>}
+                                    </button>
+                                    {openYaEntregados && (
+                                        <div className="px-3 pb-3 border-t border-emerald-100 pt-2 space-y-2">
+                                            <p className="text-[11px] text-emerald-600 mb-1">
+                                                Estos tipos ya fueron presentados en respuestas previas.
+                                            </p>
+                                            {mov.responsables_entregados.map(r => (
+                                                <div key={r.responsable_id} className="bg-emerald-50/40 border border-emerald-100 rounded-lg p-2.5">
+                                                    <div className="flex items-start justify-between gap-2 mb-1.5 flex-wrap">
+                                                        <p className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                                                            <FileText size={12}/> {r.tipo_documento_nombre}
+                                                        </p>
+                                                        {r.fecha_respuesta && (
+                                                            <span className="text-[10px] text-emerald-600">Entregado el {r.fecha_respuesta}</span>
+                                                        )}
+                                                    </div>
+                                                    {Array.isArray(r.archivos) && r.archivos.length > 0 ? (
+                                                        <div className="space-y-1">
+                                                            {r.archivos.map(a => (
+                                                                <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                                                                    className="flex items-center gap-2 p-1.5 rounded border border-emerald-100 hover:border-emerald-300 hover:bg-white transition-colors group">
+                                                                    <FileText size={12} className="text-emerald-600 shrink-0"/>
+                                                                    <span className="text-[11px] text-emerald-800 group-hover:underline flex-1 truncate font-medium">{a.nombre_original}</span>
+                                                                    <span className="text-[10px] text-emerald-500 shrink-0">{formatBytes(a.peso_bytes)}</span>
+                                                                    <Download size={11} className="text-emerald-400 group-hover:text-emerald-600 shrink-0"/>
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-[11px] text-emerald-600 italic">Sin archivos registrados.</p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
+
                     {previewFile && (() => {
                         const url  = URL.createObjectURL(previewFile);
                         const ext2 = previewFile.name.split('.').pop().toLowerCase();
