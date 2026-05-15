@@ -115,6 +115,7 @@ class ExpedienteController extends Controller
                     'notificaciones',
                     'responsables.actor.usuario:id,name',
                     'responsables.tipoActor:id,nombre',
+                    'responsables.tipoDocumento:id,nombre',
                     'responsables.respondidoPor:id,name',
                     'extensiones.extendidoPor:id,name',
                 ]),

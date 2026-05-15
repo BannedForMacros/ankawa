@@ -238,15 +238,64 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
     const resolucion = mov.resolucion_tipo;
     const tieneRespuesta = !!mov.respuesta;
     const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
+    const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
     const todosDocsMov = [...docsCreacion, ...(docsSolicitud ?? [])];
     const pivotRows = mov.responsables ?? [];
     const extensiones = mov.extensiones ?? [];
-    const tieneExtras = todosDocsMov.length > 0 || mov.observaciones || resolucion || pivotRows.length > 0 || extensiones.length > 0;
+    const tieneExtras = todosDocsMov.length > 0 || docsRespuesta.length > 0 || mov.observaciones || resolucion || pivotRows.length > 0 || extensiones.length > 0;
     const tieneResponsable = !!mov.usuario_responsable_id || pivotRows.length > 0;
     const puedeResolver  = esGestor && mov.estado === 'respondido' && tieneResponsable && !mov.resolucion_tipo_id;
     const puedeContinuar = esGestor && mov.estado === 'pendiente'  && tieneResponsable && onIrANuevo;
     let responsablesDisplay = mov.usuario_responsable?.name ?? null;
     const tipoMov = TIPO_LABELS[mov.tipo] ?? TIPO_LABELS.requerimiento;
+
+    // ── Helpers para multi-doc ──────────────────────────────────────────────────
+    // ¿Este requerimiento usa el sistema nuevo (cada fila tiene tipo_documento_id)?
+    const tieneTipoDocumento = pivotRows.some(r => r.tipo_documento_id);
+
+    // Chips deduplicados por actor (estado combinado): para el top de la tarjeta no expandida.
+    const actoresAgrupados = (() => {
+        const groups = new Map();
+        for (const r of pivotRows) {
+            const key = r.actor?.id ?? r.expediente_actor_id ?? r.id;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    nombre: r.actor?.usuario?.name ?? r.actor?.nombre_externo ?? 'Actor',
+                    tipo:   r.tipo_actor?.nombre ?? r.actor?.tipo_actor?.nombre,
+                    rows:   [],
+                });
+            }
+            groups.get(key).rows.push(r);
+        }
+        return Array.from(groups.values()).map(g => ({
+            ...g,
+            estado: g.rows.every(r => r.estado === 'respondido') ? 'respondido'
+                  : g.rows.some(r => r.estado === 'vencido')    ? 'vencido'
+                  : 'pendiente',
+        }));
+    })();
+
+    // Agrupado por tipo de documento: para vista expandida cuando es multi-doc.
+    const tiposAgrupados = (() => {
+        if (!tieneTipoDocumento) return [];
+        const groups = new Map();
+        for (const r of pivotRows) {
+            const key = r.tipo_documento_id ?? 0;
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    tipo_documento_id:     r.tipo_documento_id,
+                    tipo_documento_nombre: r.tipo_documento?.nombre ?? 'Sin tipo asignado',
+                    rows:                  [],
+                });
+            }
+            groups.get(key).rows.push(r);
+        }
+        // Adjunto los archivos de respuesta por tipo (los que el actor subió).
+        return Array.from(groups.values()).map(g => ({
+            ...g,
+            archivos: docsRespuesta.filter(d => d.tipo_documento_id === g.tipo_documento_id),
+        }));
+    })();
 
     return (
         <div className="relative flex gap-3 pb-4">
@@ -294,24 +343,27 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     ) : mov.creado_por?.name && (
                                         <span>{mov.creado_por.name}</span>
                                     )}
-                                    {pivotRows.length > 0 ? (
+                                    {actoresAgrupados.length > 0 ? (
                                         <>
                                             <span className="text-gray-300">·</span>
                                             <span className="text-gray-400 text-xs">→</span>
                                             <div className="flex flex-wrap gap-1">
-                                                {pivotRows.map(r => {
-                                                    const nombre = r.actor?.usuario?.name ?? r.actor?.nombre_externo ?? 'Actor';
-                                                    const tipo   = r.tipo_actor?.nombre ?? r.actor?.tipo_actor?.nombre;
-                                                    const est    = r.estado ?? 'pendiente';
-                                                    const chipCls = est === 'respondido'
+                                                {actoresAgrupados.map((g, idx) => {
+                                                    const chipCls = g.estado === 'respondido'
                                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                                        : est === 'vencido'
+                                                        : g.estado === 'vencido'
                                                         ? 'bg-red-50 text-red-600 border-red-200'
                                                         : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                    // Si hay multi-doc: mostrar progreso "X/Y docs".
+                                                    const respondidas = g.rows.filter(r => r.estado === 'respondido').length;
+                                                    const totalDocs   = g.rows.length;
                                                     return (
-                                                        <span key={r.id} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${chipCls}`}>
-                                                            {nombre}{tipo ? ` (${tipo})` : ''}
-                                                            {est === 'respondido' ? ' ✓' : est === 'vencido' ? ' ✗' : ' ⏳'}
+                                                        <span key={idx} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${chipCls}`}>
+                                                            {g.nombre}{g.tipo ? ` (${g.tipo})` : ''}
+                                                            {tieneTipoDocumento && totalDocs > 1 && (
+                                                                <span className="ml-1 opacity-80">{respondidas}/{totalDocs}</span>
+                                                            )}
+                                                            {g.estado === 'respondido' ? ' ✓' : g.estado === 'vencido' ? ' ✗' : ' ⏳'}
                                                         </span>
                                                     );
                                                 })}
@@ -351,7 +403,87 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                             {mov.observaciones && (
                                 <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
                             )}
-                            {pivotRows.length > 0 && (
+                            {/* Vista MULTI-DOC: agrupado por tipo de documento, cada tipo con sus actores + archivos entregados */}
+                            {tieneTipoDocumento && tiposAgrupados.length > 0 && (
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-400 mb-1.5">Documentos pedidos en este requerimiento</p>
+                                    <div className="space-y-3">
+                                        {tiposAgrupados.map(grupo => {
+                                            const totalDocs    = grupo.rows.length;
+                                            const respondidas  = grupo.rows.filter(r => r.estado === 'respondido').length;
+                                            const completo     = respondidas === totalDocs;
+                                            // Badge del header:
+                                            //   - 1 solo actor obligado: muestra "Pendiente" o "Entregado"
+                                            //   - 2+ actores obligados al mismo tipo: muestra "X/Y entregados"
+                                            const badgeText = totalDocs === 1
+                                                ? (completo ? 'Entregado' : 'Pendiente')
+                                                : `${respondidas}/${totalDocs} entregados`;
+                                            return (
+                                                <div key={grupo.tipo_documento_id ?? 'sin'} className="border border-gray-200 rounded-xl overflow-hidden">
+                                                    <div className={`px-3 py-2 flex items-center justify-between gap-2 border-b ${completo ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
+                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                            <FileText size={13} className={completo ? 'text-emerald-600' : 'text-[#BE0F4A]'}/>
+                                                            <span className="text-sm font-bold text-[#291136] truncate">{grupo.tipo_documento_nombre}</span>
+                                                        </div>
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${completo ? 'bg-emerald-200 text-emerald-800' : 'bg-amber-200 text-amber-800'}`}>
+                                                            {badgeText}
+                                                        </span>
+                                                    </div>
+                                                    <div className="px-3 py-2 space-y-1.5">
+                                                        {grupo.rows.map(r => {
+                                                            const nombre = r.actor?.usuario?.name ?? r.actor?.nombre_externo ?? 'Actor';
+                                                            const tipo   = r.tipo_actor?.nombre ?? r.actor?.tipo_actor?.nombre;
+                                                            const est    = r.estado ?? 'pendiente';
+                                                            const chipCls = est === 'respondido'
+                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                : est === 'vencido'
+                                                                ? 'bg-red-50 text-red-600 border-red-200'
+                                                                : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                            return (
+                                                                <div key={r.id} className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-xs ${chipCls}`}>
+                                                                    <span className="font-semibold truncate">{nombre}{tipo ? ` — ${tipo}` : ''}</span>
+                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                        {r.dias_plazo && (
+                                                                            <span className="text-[10px] font-medium opacity-70">
+                                                                                {r.dias_plazo} días {r.tipo_dias === 'habiles' ? 'háb.' : 'cal.'}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className="font-bold uppercase tracking-wide text-[10px]">
+                                                                            {est === 'respondido' ? '✓' : est === 'vencido' ? '✗' : '⏳'}
+                                                                        </span>
+                                                                        {est === 'respondido' && r.respondido_por?.name && (
+                                                                            <span className="opacity-70 truncate max-w-[100px]">{r.respondido_por.name}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {grupo.archivos.length > 0 && (
+                                                            <div className="mt-2 pt-2 border-t border-gray-100">
+                                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+                                                                    Archivos entregados ({grupo.archivos.length})
+                                                                </p>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {grupo.archivos.map(doc => (
+                                                                        <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                                            target="_blank" rel="noopener noreferrer"
+                                                                            className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                                                                            <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
+                                                                        </a>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Vista LEGACY: lista plana de responsables (cuando ninguna fila tiene tipo_documento_id) */}
+                            {!tieneTipoDocumento && pivotRows.length > 0 && (
                                 <div>
                                     <p className="text-xs font-semibold text-gray-400 mb-1.5">Responsables del requerimiento</p>
                                     <div className="space-y-1.5">
