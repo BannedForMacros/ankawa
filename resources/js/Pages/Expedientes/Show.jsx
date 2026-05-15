@@ -23,6 +23,7 @@ export default function Show({
     tiposActor,
     usuariosAsignables,
     actoresNotificables,
+    actoresEmailValidado = [],
     plazo,
     tiposDocumento,
     tiposResolucion,
@@ -228,6 +229,7 @@ export default function Show({
                             tiposActor={tiposActor}
                             usuariosAsignables={usuariosAsignables}
                             actoresNotificables={actoresNotificables}
+                            actoresEmailValidado={actoresEmailValidado}
                             tiposDocumento={tiposDocumento}
                             miTipoActorId={miTipoActorId}
                         />

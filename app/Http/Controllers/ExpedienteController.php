@@ -176,7 +176,9 @@ class ExpedienteController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'rol_id']);
 
-        $actoresNotificables = $this->notificacionService->actoresNotificables($expediente->id);
+        $actoresNotificables    = $this->notificacionService->actoresNotificables($expediente->id);
+        // Subset con email validado previamente — base de selección para traslados automáticos.
+        $actoresEmailValidado   = $this->notificacionService->actoresConEmailValidado($expediente->id);
         $plazo = $this->vencimientoService->resumen($expediente->id);
 
         // Tipos de documento activos en el servicio del expediente, con permisos por actor
@@ -210,6 +212,7 @@ class ExpedienteController extends Controller
             'tiposActor'           => $tiposActor,
             'usuariosAsignables'   => $usuariosAsignables,
             'actoresNotificables'  => $actoresNotificables,
+            'actoresEmailValidado' => $actoresEmailValidado,
             'plazo'                => $plazo,
             'tiposDocumento'       => $tiposDocumento,
             'tiposResolucion'      => $tiposResolucion,

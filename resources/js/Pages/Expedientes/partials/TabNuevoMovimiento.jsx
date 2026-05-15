@@ -1,8 +1,9 @@
 import { router, usePage } from '@inertiajs/react';
 import { useState, useMemo, useRef, useEffect, Children } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
+import ModalTrasladoAuto from './ModalTrasladoAuto';
 import toast from 'react-hot-toast';
-import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail, Layers, ArrowRight } from 'lucide-react';
+import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail, Layers, ArrowRight, Zap } from 'lucide-react';
 
 // Cada "requerimiento" del array es un (tipo de documento) → (lista de responsables con plazo).
 // Estructura: requerimientos: [{ tipo_documento_id, responsables: [{ tipo_actor_id, actor_ids[], dias_plazo, tipo_dias }] }]
@@ -10,6 +11,9 @@ import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, Fil
 export const requerimientoVacio = () => ({
     tipo_documento_id: '',
     responsables: [{ tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
+    // Config opcional: cuando este tipo se entregue, dispara una notificación (y opcionalmente
+    // un nuevo requerimiento) en automático. Null = sin traslado automático configurado.
+    traslado_auto: null,
 });
 
 export const movVacioBase = (expediente, notificarIds = []) => ({
@@ -245,6 +249,7 @@ export function MovimientoCard({
     mov, idx, total,
     etapas, tiposActorEnExpediente, actoresExpediente,
     tiposDocumento, actoresSinMesaPartes, actoresSinExpElectronico, actoresNotificables,
+    actoresEmailValidado = [],
     archivos, onArchivos, onChange, onMover, onQuitar,
     errores = {}, etapaActualId = null, solicitudEsConforme = true,
     miTipoActorId = null,
@@ -316,6 +321,8 @@ export function MovimientoCard({
     }, [tiposDocumentoSubibles, mov.documento_tipo_id]);
 
     const [previewFile, setPreviewFile] = useState(null);
+    // Index del requerimiento cuyo modal de traslado-automático está abierto (o null si está cerrado).
+    const [modalTrasladoIdx, setModalTrasladoIdx] = useState(null);
 
     function removeFile(i) {
         onArchivos(archivos.filter((_, j) => j !== i));
@@ -593,6 +600,47 @@ export function MovimientoCard({
                                             Agregar responsable
                                         </button>
                                     </div>
+                                    {/* Footer: configuración de traslado automático para este tipo de documento */}
+                                    <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+                                        {req.traslado_auto ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-emerald-700">
+                                                <Zap size={12} className="text-amber-500 fill-amber-300"/>
+                                                <span className="font-bold">Traslado automático configurado</span>
+                                                <span className="text-emerald-600">·</span>
+                                                <span className="text-emerald-600">{(req.traslado_auto.destinatarios_actor_ids ?? []).length} destinatario(s)</span>
+                                                {req.traslado_auto.genera_requerimiento_auto && (
+                                                    <>
+                                                        <span className="text-emerald-600">·</span>
+                                                        <span className="text-emerald-600">+ requerimiento auto</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">Sin traslado automático</span>
+                                        )}
+                                        <div className="flex items-center gap-1">
+                                            <button type="button"
+                                                onClick={() => setModalTrasladoIdx(qi)}
+                                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${
+                                                    req.traslado_auto
+                                                        ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                                                        : 'bg-[#BE0F4A]/5 text-[#BE0F4A] hover:bg-[#BE0F4A]/10 border border-[#BE0F4A]/20'
+                                                }`}>
+                                                <Zap size={11}/>
+                                                {req.traslado_auto ? 'Editar traslado' : 'Configurar traslado automático'}
+                                            </button>
+                                            {req.traslado_auto && (
+                                                <button type="button"
+                                                    onClick={() => onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
+                                                        j === qi ? { ...r, traslado_auto: null } : r
+                                                    ))}
+                                                    title="Quitar traslado automático"
+                                                    className="p-1 text-gray-300 hover:text-red-400 transition-colors">
+                                                    <X size={13}/>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                                 );
                             })}
@@ -661,6 +709,41 @@ export function MovimientoCard({
                         </>
                     )}
                 </div>
+
+                {/* ── Modal de configuración de traslado automático ── */}
+                {modalTrasladoIdx !== null && (() => {
+                    const req = (mov.requerimientos ?? [])[modalTrasladoIdx];
+                    if (!req) return null;
+                    const tipoDoc = tiposDocumento.find(td => String(td.id) === String(req.tipo_documento_id));
+                    // Lista plana de responsables de este tipo (un item por actor_id efectivo)
+                    const responsablesDelTipo = (req.responsables ?? [])
+                        .flatMap(r => (r.actor_ids ?? []).map(id => ({ actor_id: id, tipo_actor_id: r.tipo_actor_id })))
+                        .map(({ actor_id, tipo_actor_id }) => {
+                            const actor = actoresExpediente.find(a => String(a.id) === String(actor_id));
+                            const tipoActorNombre = tiposActorEnExpediente.find(t => String(t.id) === String(tipo_actor_id))?.nombre;
+                            return {
+                                actor_id,
+                                nombre: (actor?.usuario?.name ?? actor?.nombre_externo ?? 'Actor') + (tipoActorNombre ? ` (${tipoActorNombre})` : ''),
+                            };
+                        });
+                    return (
+                        <ModalTrasladoAuto
+                            open={true}
+                            tipoDocumentoNombre={tipoDoc?.nombre ?? '— sin tipo —'}
+                            responsablesDelTipo={responsablesDelTipo}
+                            actoresEmailValidado={actoresEmailValidado}
+                            tiposDocumento={tiposDocumento}
+                            initial={req.traslado_auto}
+                            onSave={cfg => {
+                                onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
+                                    j === modalTrasladoIdx ? { ...r, traslado_auto: cfg } : r
+                                ));
+                                setModalTrasladoIdx(null);
+                            }}
+                            onCancel={() => setModalTrasladoIdx(null)}
+                        />
+                    );
+                })()}
 
                 {/* ── Modal de previsualización ── */}
                 {previewFile && (() => {
@@ -899,9 +982,26 @@ export function MovimientoCard({
 
 const movVacio = movVacioBase;
 
+// Serializa una config de traslado automático en FormData usando claves anidadas
+// estilo Laravel (`prefix[sumilla]`, `prefix[disparadores_actor_ids][]`, etc.).
+function serializarTrasladoAuto(form, prefix, cfg) {
+    if (!cfg) return;
+    form.append(`${prefix}[sumilla]`, cfg.sumilla ?? '');
+    (cfg.disparadores_actor_ids ?? []).forEach(id => form.append(`${prefix}[disparadores_actor_ids][]`, id));
+    (cfg.destinatarios_actor_ids ?? []).forEach(id => form.append(`${prefix}[destinatarios_actor_ids][]`, id));
+    form.append(`${prefix}[genera_requerimiento_auto]`, cfg.genera_requerimiento_auto ? '1' : '0');
+    if (cfg.genera_requerimiento_auto && cfg.requerimiento_auto_config) {
+        const r = cfg.requerimiento_auto_config;
+        form.append(`${prefix}[requerimiento_auto_config][tipo_documento_id]`,    r.tipo_documento_id ?? '');
+        form.append(`${prefix}[requerimiento_auto_config][dias_plazo]`,           r.dias_plazo ?? '');
+        form.append(`${prefix}[requerimiento_auto_config][tipo_dias]`,            r.tipo_dias ?? 'calendario');
+        form.append(`${prefix}[requerimiento_auto_config][responsable_actor_id]`, r.responsable_actor_id ?? '');
+    }
+}
+
 export default function TabNuevoMovimiento({
     expediente, etapas = [], tiposActor = [], usuariosAsignables = [],
-    actoresNotificables = [], tiposDocumento = [], miTipoActorId = null,
+    actoresNotificables = [], actoresEmailValidado = [], tiposDocumento = [], miTipoActorId = null,
 }) {
     const defaultNotificarIds = actoresNotificables.map(a => a.id);
 
@@ -1043,6 +1143,10 @@ export default function TabNuevoMovimiento({
                     if (r.dias_plazo) form.append(`requerimientos[${qi}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
                     form.append(`requerimientos[${qi}][responsables][${ri}][tipo_dias]`, r.tipo_dias ?? 'calendario');
                 });
+                // Traslado automático opcional
+                if (req.traslado_auto) {
+                    serializarTrasladoAuto(form, `requerimientos[${qi}][traslado_auto]`, req.traslado_auto);
+                }
             });
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
             form.append('tipo_dias',                   mov.tipo_dias ?? 'calendario');
@@ -1084,6 +1188,9 @@ export default function TabNuevoMovimiento({
                         if (r.dias_plazo) form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
                         form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
                     });
+                    if (req.traslado_auto) {
+                        serializarTrasladoAuto(form, `movimientos[${i}][requerimientos][${qi}][traslado_auto]`, req.traslado_auto);
+                    }
                 });
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
                 form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
@@ -1261,6 +1368,7 @@ export default function TabNuevoMovimiento({
                             actoresSinMesaPartes={actoresSinMesaPartes}
                             actoresSinExpElectronico={actoresSinExpElectronico}
                             actoresNotificables={actoresNotificables}
+                            actoresEmailValidado={actoresEmailValidado}
                             archivos={archivosMovimientos[idx] ?? []}
                             onArchivos={files => setArchivosIdx(idx, files)}
                             onChange={(field, value) => actualizar(idx, field, value)}

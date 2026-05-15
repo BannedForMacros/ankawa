@@ -8,6 +8,8 @@ use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteHistorial;
 use App\Models\MovimientoDocumento;
 use App\Models\MovimientoResponsable;
+use App\Models\MovimientoTrasladoAuto;
+use App\Models\MovimientoTrasladoAutoDisparo;
 use App\Models\User;
 use App\Models\Rol;
 use App\Mail\AccesoMesaPartesMail;
@@ -73,7 +75,7 @@ class MovimientoService
             ]);
 
             // Crear filas pivot de responsables — agrupados por tipo de documento.
-            // Estructura del payload: requerimientos[].{ tipo_documento_id, responsables[].{actor_ids, dias_plazo, tipo_dias} }
+            // Estructura del payload: requerimientos[].{ tipo_documento_id, responsables[].{actor_ids, dias_plazo, tipo_dias}, traslado_auto?: {...} }
             // Cada combinación (tipo_documento × actor) genera una fila independiente con su propio plazo/estado/respuesta.
             $requerimientosData = $datos['requerimientos'] ?? [];
             if (!empty($requerimientosData)) {
@@ -100,6 +102,22 @@ class MovimientoService
                         if ($maxFechaLimite === null || $fl > $maxFechaLimite) {
                             $maxFechaLimite = $fl;
                         }
+                    }
+
+                    // Persistir traslado automático si fue configurado para este tipo de documento.
+                    // Sólo tiene sentido si hay tipo_documento_id (necesario para disparar al matchear la entrega).
+                    if ($tipoDocId && !empty($req['traslado_auto'])) {
+                        $ta = $req['traslado_auto'];
+                        MovimientoTrasladoAuto::create([
+                            'movimiento_id'             => $movimiento->id,
+                            'tipo_documento_id'         => $tipoDocId,
+                            'sumilla'                   => $ta['sumilla'] ?? '',
+                            'disparadores_actor_ids'    => array_map('intval', $ta['disparadores_actor_ids'] ?? []),
+                            'destinatarios_actor_ids'   => array_map('intval', $ta['destinatarios_actor_ids'] ?? []),
+                            'genera_requerimiento_auto' => filter_var($ta['genera_requerimiento_auto'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            'requerimiento_auto_config' => $ta['requerimiento_auto_config'] ?? null,
+                            'activo'                    => true,
+                        ]);
                     }
                 }
                 $movimiento->update(['fecha_limite' => $maxFechaLimite]);

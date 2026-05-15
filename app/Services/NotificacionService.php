@@ -103,6 +103,58 @@ class NotificacionService
             ->all();
     }
 
+    /**
+     * Actores del expediente cuyo email YA fue validado previamente.
+     *
+     * Un email se considera validado si:
+     *  - El actor tiene `usuario_id` y el user tiene `email_verified_at` no nulo (verificación Laravel), o
+     *  - Alguno de los emails del actor figura en `verification_codes.email` con `usado=true` (OTP confirmado).
+     *
+     * Útil para selectores donde la regla de negocio exige email validado
+     * (p. ej. destinatarios/disparadores de traslado automático).
+     */
+    public function actoresConEmailValidado(int $expedienteId): array
+    {
+        $actores = ExpedienteActor::with(['usuario', 'tipoActor', 'emailsAdicionales'])
+            ->where('expediente_id', $expedienteId)
+            ->where('activo', 1)
+            ->get()
+            ->filter(fn($actor) => !empty($actor->todosLosEmails()));
+
+        // Set de emails ya validados por OTP (cualquier mail con al menos un code usado).
+        $emailsValidadosOtp = \DB::table('verification_codes')
+            ->where('usado', true)
+            ->whereNotNull('validado_at')
+            ->pluck('email')
+            ->map(fn($e) => mb_strtolower(trim($e)))
+            ->unique()
+            ->flip(); // como set lookup
+
+        return $actores
+            ->filter(function ($actor) use ($emailsValidadosOtp) {
+                // 1) interno con email verificado por Laravel
+                if ($actor->usuario_id && $actor->usuario?->email_verified_at) {
+                    return true;
+                }
+                // 2) alguno de sus emails pasó por OTP
+                foreach ($actor->todosLosEmails() as $email) {
+                    if ($emailsValidadosOtp->has(mb_strtolower(trim($email)))) {
+                        return true;
+                    }
+                }
+                return false;
+            })
+            ->map(fn($actor) => [
+                'id'              => $actor->id,
+                'nombre'          => $actor->usuario?->name ?? $actor->nombre_externo ?? 'Sin nombre',
+                'tipo_actor'      => ['nombre' => $actor->tipoActor?->nombre, 'slug' => $actor->tipoActor?->slug],
+                'emails'          => $actor->todosLosEmails(),
+                'email_principal' => $actor->todosLosEmails()[0] ?? null,
+            ])
+            ->values()
+            ->all();
+    }
+
     private function generarAsunto(ExpedienteMovimiento $movimiento): string
     {
         $movimiento->loadMissing('expediente');

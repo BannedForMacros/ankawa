@@ -159,6 +159,11 @@ class ExpedienteMovimiento extends Model
         return $this->hasMany(MovimientoResponsable::class, 'movimiento_id');
     }
 
+    public function trasladosAuto(): HasMany
+    {
+        return $this->hasMany(MovimientoTrasladoAuto::class, 'movimiento_id');
+    }
+
     public function puedeSerResuelto(): bool
     {
         $tieneResponsable = $this->usuario_responsable_id !== null
