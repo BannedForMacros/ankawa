@@ -90,41 +90,60 @@ class EnvioExternoController extends Controller
             'archivo.required'     => 'Debes adjuntar un documento que sustente el rechazo.',
         ]);
 
-        DB::transaction(function () use ($request, $expediente, $movimiento) {
-            $movimiento->update([
-                'estado'         => ExpedienteMovimiento::ESTADO_RECHAZADO,
-                'rechazado_por'  => Auth::id(),
-                'fecha_rechazo'  => now(),
-                'motivo_rechazo' => $request->motivo,
-            ]);
+        $rutaArchivoSubido = null;
 
-            $archivo = $request->file('archivo');
-            $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
-            $ruta    = $archivo->store($carpeta, 'public');
+        try {
+            DB::transaction(function () use ($request, $expediente, $movimiento, &$rutaArchivoSubido) {
+                $movimiento->update([
+                    'estado'         => ExpedienteMovimiento::ESTADO_RECHAZADO,
+                    'rechazado_por'  => Auth::id(),
+                    'fecha_rechazo'  => now(),
+                    'motivo_rechazo' => $request->motivo,
+                ]);
 
-            MovimientoDocumento::create([
-                'movimiento_id'     => $movimiento->id,
-                'tipo_documento_id' => (int) $request->tipo_documento_id,
-                'subido_por'        => Auth::id(),
-                'nombre_original'   => $archivo->getClientOriginalName(),
-                'ruta_archivo'      => $ruta,
-                'peso_bytes'        => $archivo->getSize(),
-                'momento'           => 'rechazo',
-            ]);
+                $archivo = $request->file('archivo');
+                $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
+                $rutaArchivoSubido = $archivo->store($carpeta, 'public');
 
-            ExpedienteHistorial::create([
-                'expediente_id' => $expediente->id,
-                'usuario_id'    => Auth::id(),
-                'tipo_evento'   => 'envio_externo_rechazado',
-                'descripcion'   => "Envío espontáneo rechazado.",
-                'datos_extra'   => [
+                if (!$rutaArchivoSubido) {
+                    throw new \RuntimeException('No se pudo almacenar el archivo de sustento.');
+                }
+
+                MovimientoDocumento::create([
                     'movimiento_id'     => $movimiento->id,
-                    'portal_email'      => $movimiento->portal_email_envio,
-                    'motivo'            => $request->motivo,
                     'tipo_documento_id' => (int) $request->tipo_documento_id,
-                ],
-            ]);
-        });
+                    'subido_por'        => Auth::id(),
+                    'nombre_original'   => $archivo->getClientOriginalName(),
+                    'ruta_archivo'      => $rutaArchivoSubido,
+                    'peso_bytes'        => $archivo->getSize(),
+                    'momento'           => 'rechazo',
+                ]);
+
+                ExpedienteHistorial::create([
+                    'expediente_id' => $expediente->id,
+                    'usuario_id'    => Auth::id(),
+                    'tipo_evento'   => 'envio_externo_rechazado',
+                    'descripcion'   => "Envío espontáneo rechazado.",
+                    'datos_extra'   => [
+                        'movimiento_id'     => $movimiento->id,
+                        'portal_email'      => $movimiento->portal_email_envio,
+                        'motivo'            => $request->motivo,
+                        'tipo_documento_id' => (int) $request->tipo_documento_id,
+                    ],
+                ]);
+            });
+        } catch (\Throwable $e) {
+            if ($rutaArchivoSubido && Storage::disk('public')->exists($rutaArchivoSubido)) {
+                Storage::disk('public')->delete($rutaArchivoSubido);
+            }
+
+            report($e);
+
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'No se pudo registrar el rechazo. La operación fue revertida.',
+            ], 500);
+        }
 
         return response()->json(['ok' => true, 'mensaje' => 'Envío rechazado.']);
     }
