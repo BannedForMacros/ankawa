@@ -19,6 +19,8 @@ use App\Models\Etapa;
 use App\Services\CorrelativoService;
 use App\Mail\CargoSolicitudMail;
 use App\Models\Cargo;
+use App\Support\AuditoriaPortal;
+use App\Support\CaptchaValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -107,7 +109,17 @@ class SolicitudArbitrajeController extends Controller
             'doc_resolucion_facultades_dado.*' => FileRules::accept(),
             'documentos_medida_cautelar.*'     => FileRules::accept(),
             'comprobante_pago_tasa.*'          => FileRules::accept(),
+            'captcha_token'                    => 'nullable|string',
         ], $reglasControversia));
+
+        if (!CaptchaValidator::valido($request->input('captcha_token'), $request->ip())) {
+            return back()->with('error', 'No pudimos verificar que eres humano. Recarga la página e intenta de nuevo.')->withInput();
+        }
+
+        AuditoriaPortal::registrar('solicitud_enviada', $request, [
+            'servicio_id' => $request->servicio_id,
+            'tipo'        => 'arbitraje',
+        ]);
 
         DB::beginTransaction();
 
@@ -186,7 +198,7 @@ class SolicitudArbitrajeController extends Controller
             ));
 
             // Generar número de cargo correlativo universal (configurable en Configuración → Tipos de Cargo)
-            $cargo = Cargo::crear('solicitud', $solicitud, $userId);
+            $cargo = Cargo::crear('solicitud', $solicitud, $userId, null, $request);
             if (!$cargo) {
                 throw new \RuntimeException(
                     "El tipo de evento de cargo 'solicitud' está desactivado. " .
@@ -400,6 +412,10 @@ class SolicitudArbitrajeController extends Controller
                 ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $expediente));
 
             DB::commit();
+
+            AuditoriaPortal::registrar('cargo_generado', $request, [
+                'numero_cargo' => $solicitud->numero_cargo,
+            ], $solicitud);
 
             return redirect()->route('mesa-partes.confirmacion', $solicitud->numero_cargo);
 

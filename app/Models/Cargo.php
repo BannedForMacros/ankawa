@@ -6,6 +6,7 @@ use App\Services\CorrelativoService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class Cargo extends Model
@@ -18,6 +19,10 @@ class Cargo extends Model
         'cargable_type',
         'cargable_id',
         'generado_por_id',
+        'ip_origen',
+        'user_agent_origen',
+        'email_solicitante',
+        'dni_solicitante',
     ];
 
     public function cargable(): MorphTo
@@ -60,6 +65,7 @@ class Cargo extends Model
         Model $cargable,
         ?int $userId,
         ?int $servicioId = null,
+        ?Request $request = null,
     ): ?static {
         $tipoEvento = TipoEventoCargo::where('codigo', $codigoEvento)->first();
 
@@ -92,7 +98,13 @@ class Cargo extends Model
             }
         }
 
-        return DB::transaction(function () use ($tipoEvento, $tipoCorrelativoCargo, $cargable, $userId, $servicioId) {
+        // Metadata de trazabilidad: IP, UA, email/dni de la sesión del portal si aplica
+        $ipOrigen     = $request?->ip();
+        $uaOrigen     = $request?->userAgent();
+        $emailSolic   = session('portal_email');
+        $dniSolic     = session('portal_dni');
+
+        return DB::transaction(function () use ($tipoEvento, $tipoCorrelativoCargo, $cargable, $userId, $servicioId, $ipOrigen, $uaOrigen, $emailSolic, $dniSolic) {
             $numeroCargo = app(CorrelativoService::class)
                 ->generarNumero($servicioId, $tipoCorrelativoCargo->id);
 
@@ -102,6 +114,10 @@ class Cargo extends Model
                 'cargable_type'        => get_class($cargable),
                 'cargable_id'          => $cargable->id,
                 'generado_por_id'      => $userId,
+                'ip_origen'            => $ipOrigen,
+                'user_agent_origen'    => $uaOrigen,
+                'email_solicitante'    => $emailSolic,
+                'dni_solicitante'      => $dniSolic,
             ]);
         });
     }

@@ -15,8 +15,14 @@ use App\Models\Servicio;
 use App\Models\User;
 use App\Models\ExpedienteActorAceptacion;
 use App\Models\VerificationCode;
+use App\Models\ValidacionDocumento;
 use App\Mail\CargoRespuestaMail;
 use App\Mail\CodigoVerificacionMail;
+use App\Support\AuditoriaPortal;
+use App\Support\CaptchaValidator;
+use App\Support\DecolectaClient;
+use App\Support\DisposableEmailGuard;
+use App\Support\DniValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -96,25 +102,111 @@ class PortalController extends Controller
         if (session('portal_email')) {
             return redirect()->route('portal.expedientes');
         }
-        return Inertia::render('Portal/Login');
+        return Inertia::render('Portal/Login', [
+            'hcaptchaSiteKey' => config('services.hcaptcha.site_key'),
+        ]);
     }
 
-    // ── Enviar OTP — acepta cualquier email ───────────────────────────────────
+    // ── Enviar OTP — exige captcha + identidad verificada por DNI ──────────
+    // Solo se acepta DNI: el que entra al portal es siempre una persona natural.
+    // Si representa a una empresa, los datos del RUC se piden DENTRO del formulario.
     public function enviarCodigo(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        $request->validate([
+            'email'              => 'required|email',
+            'numero_doc'         => 'required|string',
+            'digito_verificador' => 'required|string|max:2',
+            'captcha_token'      => 'nullable|string',
+        ]);
 
-        $email = strtolower(trim($request->email));
+        $email     = strtolower(trim($request->email));
+        $tipoDoc   = 'dni';
+        $numeroDoc = preg_replace('/\D/', '', (string) $request->numero_doc) ?? '';
+        $digito    = trim((string) $request->digito_verificador);
 
+        AuditoriaPortal::registrar('login_inicio', $request, [
+            'email'      => $email,
+            'numero_doc' => $numeroDoc,
+        ]);
+
+        // 1) Captcha
+        if (!CaptchaValidator::valido($request->captcha_token, $request->ip())) {
+            AuditoriaPortal::registrar('captcha_fallido', $request, ['email' => $email]);
+            return response()->json(['ok' => false, 'mensaje' => 'No pudimos verificar que eres humano. Intenta de nuevo.'], 422);
+        }
+
+        // 2) Email no desechable
+        if (DisposableEmailGuard::esDesechable($email)) {
+            AuditoriaPortal::registrar('email_desechable_bloqueado', $request, ['email' => $email]);
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'Por seguridad legal, no se aceptan correos temporales o desechables. Usa un correo permanente (Gmail, institucional, corporativo).',
+            ], 422);
+        }
+
+        // 3) Validar formato del DNI + dígito verificador (algoritmo Módulo 11 local)
+        if (!preg_match('/^\d{8}$/', $numeroDoc)) {
+            return response()->json(['ok' => false, 'mensaje' => 'El DNI debe tener 8 dígitos.'], 422);
+        }
+        if (!DniValidator::esValido($numeroDoc, $digito)) {
+            AuditoriaPortal::registrar('dni_digito_invalido', $request, ['numero_doc' => $numeroDoc]);
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'El dígito verificador no coincide con el DNI. Revisa el carácter impreso al lado del número en tu DNI.',
+            ], 422);
+        }
+
+        // 4) Consultar RENIEC y persistir snapshot
+        $consulta = DecolectaClient::consultarDni($numeroDoc);
+
+        $resultado = match ($consulta['estado']) {
+            'ok'             => 'valido',
+            'no_encontrado'  => 'no_encontrado',
+            default          => 'invalido',
+        };
+
+        ValidacionDocumento::create([
+            'tipo'               => $tipoDoc,
+            'numero'             => $numeroDoc,
+            'digito_verificador' => mb_strtoupper($digito),
+            'resultado'          => $resultado,
+            'respuesta_completa' => $consulta['data'],
+            'ip'                 => $request->ip(),
+            'user_agent'         => $request->userAgent(),
+            'contexto'           => 'login_portal',
+            'email_sesion'       => $email,
+        ]);
+
+        if ($consulta['estado'] === 'no_encontrado') {
+            AuditoriaPortal::registrar('documento_no_encontrado_reniec', $request, ['numero' => $numeroDoc]);
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'No encontramos este DNI en RENIEC. Verifica el número.',
+            ], 422);
+        }
+
+        if ($consulta['estado'] === 'error') {
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'No pudimos verificar tu documento en este momento. Intenta de nuevo en unos minutos.',
+            ], 503);
+        }
+
+        AuditoriaPortal::registrar('login_dni_validado', $request, ['numero' => $numeroDoc]);
+
+        // 5) Generar OTP y enviar
         VerificationCode::where('email', $email)->where('usado', false)->update(['usado' => true]);
 
-        $codigo = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $codigo = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         VerificationCode::create([
-            'email'      => $email,
-            'codigo'     => $codigo,
-            'expires_at' => now()->addMinutes(15),
-            'usado'      => false,
+            'email'                => $email,
+            'codigo'               => $codigo,
+            'expires_at'           => now()->addMinutes(15),
+            'usado'                => false,
+            'ip_solicitud'         => $request->ip(),
+            'user_agent_solicitud' => $request->userAgent(),
+            'numero_documento'     => $numeroDoc,
         ]);
 
         try {
@@ -122,6 +214,8 @@ class PortalController extends Controller
         } catch (\Exception $e) {
             \Log::warning("Error enviando OTP a {$email}: " . $e->getMessage());
         }
+
+        AuditoriaPortal::registrar('otp_solicitado', $request, ['email' => $email]);
 
         return response()->json(['ok' => true]);
     }
@@ -142,11 +236,35 @@ class PortalController extends Controller
             ->first();
 
         if (!$registro || !$registro->esValido()) {
+            // Sumar 1 al último código vigente del email para tener intentos por usuario
+            VerificationCode::where('email', $email)
+                ->where('usado', false)
+                ->latest()
+                ->limit(1)
+                ->update(['intentos_fallidos' => DB::raw('intentos_fallidos + 1')]);
+            AuditoriaPortal::registrar('otp_fallido', $request, ['email' => $email]);
             return response()->json(['ok' => false, 'mensaje' => 'Código inválido o expirado.'], 422);
         }
 
-        $registro->update(['usado' => true]);
-        session(['portal_email' => $email]);
+        $registro->update([
+            'usado'                  => true,
+            'ip_validacion'          => $request->ip(),
+            'user_agent_validacion'  => $request->userAgent(),
+            'validado_at'            => now(),
+        ]);
+
+        $usuarioVinculado = $registro->numero_documento
+            ? User::where('numero_documento', $registro->numero_documento)->first()
+            : User::where('email', $email)->first();
+
+        session([
+            'portal_email'   => $email,
+            'portal_dni'     => $registro->numero_documento,
+            'portal_user_id' => $usuarioVinculado?->id,
+        ]);
+
+        AuditoriaPortal::registrar('otp_validado', $request, ['email' => $email]);
+        AuditoriaPortal::registrar('sesion_iniciada', $request, ['email' => $email]);
 
         return response()->json(['ok' => true]);
     }
@@ -289,9 +407,10 @@ class PortalController extends Controller
     }
 
     // ── Logout ────────────────────────────────────────────────────────────────
-    public function logout()
+    public function logout(Request $request)
     {
-        session()->forget('portal_email');
+        AuditoriaPortal::registrar('sesion_cerrada', $request);
+        session()->forget(['portal_email', 'portal_dni', 'portal_user_id']);
         return redirect()->route('mesa-partes.index');
     }
 

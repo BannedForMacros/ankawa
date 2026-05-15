@@ -17,6 +17,8 @@ use App\Models\TipoCorrelativo;
 use App\Models\User;
 use App\Mail\CargoSolicitudJPRDMail;
 use App\Services\CorrelativoService;
+use App\Support\AuditoriaPortal;
+use App\Support\CaptchaValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -59,6 +61,16 @@ class SolicitudJPRDController extends Controller
             'doc_peticion_previa'               => 'nullable|array',
             'doc_peticion_previa.*'             => FileRules::accept(),
             'acepta_reglamento_card'            => 'nullable|in:0,1',
+            'captcha_token'                     => 'nullable|string',
+        ]);
+
+        if (!CaptchaValidator::valido($request->input('captcha_token'), $request->ip())) {
+            return back()->with('error', 'No pudimos verificar que eres humano. Recarga la página e intenta de nuevo.')->withInput();
+        }
+
+        AuditoriaPortal::registrar('solicitud_enviada', $request, [
+            'servicio_id' => $request->servicio_id,
+            'tipo'        => 'jprd',
         ]);
 
         if ($request->boolean('tiene_peticion_previa') && empty($request->file('doc_peticion_previa'))) {
@@ -152,7 +164,7 @@ class SolicitudJPRDController extends Controller
                 'tipo_documento_id'                => $request->tipo_documento_id ?: null,
             ]);
 
-            $cargo = Cargo::crear('solicitud', $solicitud, $usuario->id);
+            $cargo = Cargo::crear('solicitud', $solicitud, $usuario->id, null, $request);
             if (!$cargo) {
                 throw new \RuntimeException(
                     "El tipo de evento de cargo 'solicitud' está desactivado. " .
@@ -271,6 +283,10 @@ class SolicitudJPRDController extends Controller
             }
 
             DB::commit();
+
+            AuditoriaPortal::registrar('cargo_generado', $request, [
+                'numero_cargo' => $cargo->numero_cargo,
+            ], $solicitud);
 
             return redirect()->route('mesa-partes.confirmacion', $cargo->numero_cargo);
 

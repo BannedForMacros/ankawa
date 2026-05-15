@@ -40,5 +40,10 @@ return [
         'token' => env('DECOLECTA_TOKEN'),
     ],
 
+    'hcaptcha' => [
+        'site_key' => env('HCAPTCHA_SITE_KEY'),
+        'secret'   => env('HCAPTCHA_SECRET'),
+    ],
+
 ];
 

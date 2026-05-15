@@ -8,6 +8,7 @@ import {
 import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
+import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
 
 /* ─── Utilitario de extensión ─── */
@@ -142,10 +143,11 @@ function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
 }
 
 /* ─── Formulario principal ─── */
-export default function OtrosForm({ servicio, portalEmail }) {
+export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
     const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
     const isPortal = !!portalEmail;
+    const [captchaToken, setCaptchaToken] = useState('');
 
     /* ── Tipos de documento del servicio ── */
     const [tiposDocumento, setTiposDocumento] = useState([]);
@@ -277,6 +279,7 @@ export default function OtrosForm({ servicio, portalEmail }) {
         fd.append('descripcion',          form.descripcion);
         if (form.observacion.trim()) fd.append('observacion', form.observacion);
         fd.append('acepta_reglamento_card', aceptaReglamento ? '1' : '0');
+        if (captchaToken) fd.append('captcha_token', captchaToken);
         archivos.forEach(f => fd.append('documentos[]', f));
 
         router.post(route('solicitud.otros.store'), fd, {
@@ -572,6 +575,13 @@ export default function OtrosForm({ servicio, portalEmail }) {
                 ]}
             />
 
+            {/* ── Captcha ── */}
+            {hcaptchaSiteKey && (
+                <div className="flex justify-center pb-2">
+                    <HCaptchaWidget siteKey={hcaptchaSiteKey} onToken={setCaptchaToken} />
+                </div>
+            )}
+
             {/* ── Submit ── */}
             <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-gray-400">
@@ -579,7 +589,7 @@ export default function OtrosForm({ servicio, portalEmail }) {
                 </p>
                 <button
                     type="submit"
-                    disabled={procesando || (tiposDocumento.length === 0 && !cargandoTipos)}
+                    disabled={procesando || (tiposDocumento.length === 0 && !cargandoTipos) || (hcaptchaSiteKey && !captchaToken)}
                     className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold bg-[#BE0F4A] text-white rounded-xl hover:bg-[#9c0a3b] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                 >
                     <Send size={14}/> {procesando ? 'Enviando...' : 'Enviar documento'}

@@ -10,6 +10,7 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import Checkbox from '@/Components/Checkbox';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
+import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -777,7 +778,8 @@ export function BloquePersona({
 }
 
 /* ─── Formulario principal ─── */
-export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
+export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcaptchaSiteKey }) {
+    const [captchaToken, setCaptchaToken] = useState('');
     const { auth } = usePage().props;
     const isPortal = !!portalEmail;
     const isAuth   = !!auth?.user && !isPortal;
@@ -1125,6 +1127,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
         Object.entries(gruposArchivos).forEach(([key, files]) => {
             files.forEach(f => fd.append(key + '[]', f));
         });
+
+        if (captchaToken) fd.append('captcha_token', captchaToken);
 
         router.post(route('solicitud.arbitraje.store'), fd, {
             forceFormData: true,
@@ -1529,8 +1533,18 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser }) {
                 ]}
             />
 
+            {hcaptchaSiteKey && (
+                <div className="flex justify-center pb-2">
+                    <HCaptchaWidget siteKey={hcaptchaSiteKey} onToken={setCaptchaToken} />
+                </div>
+            )}
+
             <div className="flex justify-end">
-                <PrimaryButton type="submit" disabled={processing} className="px-8 py-3 text-base shadow-lg">
+                <PrimaryButton
+                    type="submit"
+                    disabled={processing || (hcaptchaSiteKey && !captchaToken)}
+                    className="px-8 py-3 text-base shadow-lg"
+                >
                     {processing ? 'Enviando solicitud...' : 'Enviar Solicitud'}
                 </PrimaryButton>
             </div>

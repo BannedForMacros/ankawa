@@ -31,7 +31,9 @@ class MesaPartesController extends Controller
         if (session('portal_email')) {
             return redirect()->route('mesa-partes.inicio');
         }
-        return Inertia::render('MesaPartes/Login');
+        return Inertia::render('MesaPartes/Login', [
+            'hcaptchaSiteKey' => config('services.hcaptcha.site_key'),
+        ]);
     }
 
     // ── Formulario de solicitud por slug (protegido por portal.auth) ──
@@ -51,9 +53,10 @@ class MesaPartesController extends Controller
         ] : null;
 
         return Inertia::render('MesaPartes/Solicitud', [
-            'servicio'   => $servicio,
-            'portalEmail' => $email,
-            'portalUser'  => $portalUser,
+            'servicio'        => $servicio,
+            'portalEmail'     => $email,
+            'portalUser'      => $portalUser,
+            'hcaptchaSiteKey' => config('services.hcaptcha.site_key'),
         ]);
     }
 

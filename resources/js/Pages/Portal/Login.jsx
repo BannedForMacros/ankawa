@@ -1,36 +1,96 @@
-import { useState, useRef } from 'react';
-import { Head } from '@inertiajs/react';
-import { Mail, ArrowRight, KeyRound, CheckCircle2 } from 'lucide-react';
-import AnkawaLoader from '@/Components/AnkawaLoader';
+import { useEffect, useRef, useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { ArrowLeft, ArrowRight, KeyRound, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
 
-export default function PortalLogin() {
-    const [step,          setStep]          = useState('email'); // 'email' | 'otp'
-    const [email,         setEmail]         = useState('');
-    const [codigo,        setCodigo]        = useState(['', '', '', '', '', '']);
-    const [cargando,      setCargando]      = useState(false);
-    const [mostrarLoader, setMostrarLoader] = useState(false);
-    const [error,         setError]         = useState('');
-    const inputsRef                         = useRef([]);
-    const loaderTimer                       = useRef(null);
+export default function PortalLogin({ hcaptchaSiteKey }) {
+    const [step, setStep] = useState('identidad'); // 'identidad' | 'otp'
+    const [email, setEmail] = useState('');
+    const [numeroDoc, setNumeroDoc] = useState('');
+    const [digito, setDigito] = useState('');
+    const [codigo, setCodigo] = useState(['', '', '', '', '', '']);
+    const [cargando, setCargando] = useState(false);
+    const [error, setError] = useState('');
+    const inputsRef = useRef([]);
+    const captchaRef = useRef(null);
+    const [captchaWidgetId, setCaptchaWidgetId] = useState(null);
+    const [captchaToken, setCaptchaToken] = useState('');
+
+    useEffect(() => {
+        if (!hcaptchaSiteKey) return;
+        if (window.hcaptcha) return;
+        if (document.getElementById('hcaptcha-api-script')) return;
+
+        const script = document.createElement('script');
+        script.id = 'hcaptcha-api-script';
+        script.src = 'https://js.hcaptcha.com/1/api.js?render=explicit';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+    }, [hcaptchaSiteKey]);
+
+    useEffect(() => {
+        if (!hcaptchaSiteKey) return;
+        if (step !== 'identidad') return;
+        if (captchaWidgetId !== null) return;
+
+        const intervalo = setInterval(() => {
+            if (window.hcaptcha && captchaRef.current) {
+                clearInterval(intervalo);
+                const id = window.hcaptcha.render(captchaRef.current, {
+                    sitekey: hcaptchaSiteKey,
+                    callback: (token) => setCaptchaToken(token),
+                    'expired-callback': () => setCaptchaToken(''),
+                });
+                setCaptchaWidgetId(id);
+            }
+        }, 200);
+
+        return () => clearInterval(intervalo);
+    }, [hcaptchaSiteKey, step, captchaWidgetId]);
 
     async function enviarCodigo(e) {
         e.preventDefault();
-        if (!email.trim()) return;
-        setCargando(true); setError('');
+        if (!email.trim() || !numeroDoc.trim()) return;
+        if (!digito.trim()) {
+            setError('Ingresa el dígito verificador del DNI.');
+            return;
+        }
+        if (hcaptchaSiteKey && !captchaToken) {
+            setError('Completa la verificación de seguridad.');
+            return;
+        }
+
+        setCargando(true);
+        setError('');
+
         try {
             const res = await fetch(route('portal.enviar-codigo'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-                body: JSON.stringify({ email }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({
+                    email: email.trim(),
+                    tipo_doc: 'dni',
+                    numero_doc: numeroDoc.trim(),
+                    digito_verificador: digito.trim().toUpperCase(),
+                    captcha_token: captchaToken,
+                }),
             });
             const data = await res.json();
+
             if (data.ok) {
                 setStep('otp');
             } else {
-                setError(data.mensaje ?? 'No encontramos ese correo en nuestros registros.');
+                setError(data.mensaje ?? 'No se pudo iniciar sesión.');
+                if (window.hcaptcha && captchaWidgetId !== null) {
+                    window.hcaptcha.reset(captchaWidgetId);
+                    setCaptchaToken('');
+                }
             }
         } catch {
-            setError('Error de conexión. Intente nuevamente.');
+            setError('Error de conexión. Intenta nuevamente.');
         } finally {
             setCargando(false);
         }
@@ -50,70 +110,158 @@ export default function PortalLogin() {
         }
     }
 
+    function handlePaste(e, i) {
+        e.preventDefault();
+        const pasteData = e.clipboardData.getData('text').replace(/\D/g, '').split('');
+        if (pasteData.length === 0) return;
+
+        const nuevo = [...codigo];
+        let nextFocus = i;
+        pasteData.forEach((char, index) => {
+            if (i + index < 6) {
+                nuevo[i + index] = char;
+                nextFocus = i + index;
+            }
+        });
+        setCodigo(nuevo);
+        inputsRef.current[Math.min(nextFocus + 1, 5)]?.focus();
+    }
+
     async function verificarCodigo(e) {
         e.preventDefault();
         const codigoStr = codigo.join('');
         if (codigoStr.length < 6) return;
-
         setCargando(true); setError('');
-        loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
-
         try {
             const res = await fetch(route('portal.verificar-codigo'), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
                 body: JSON.stringify({ email, codigo: codigoStr }),
             });
             const data = await res.json();
             if (data.ok) {
                 window.location.href = route('portal.expedientes');
             } else {
-                clearTimeout(loaderTimer.current); setMostrarLoader(false);
-                setError(data.mensaje ?? 'Código incorrecto.');
+                setError(data.mensaje ?? 'Código incorrecto o expirado.');
             }
         } catch {
-            clearTimeout(loaderTimer.current); setMostrarLoader(false);
-            setError('Error de conexión. Intente nuevamente.');
+            setError('Error de conexión. Intenta nuevamente.');
         } finally {
             setCargando(false);
         }
     }
 
-    return (
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4"
-             style={{ fontFamily: 'Montserrat, sans-serif' }}>
-            <Head title="Portal de Expedientes — Ankawa" />
-            <AnkawaLoader visible={mostrarLoader} />
+    function volverAIdentidad() {
+        setStep('identidad');
+        setCodigo(['', '', '', '', '', '']);
+        setError('');
+    }
 
-            {/* Logo */}
+    return (
+        <div className="min-h-screen bg-gray-50 flex flex-col p-4"
+             style={{ fontFamily: 'Montserrat, sans-serif' }}>
+            <Head title="Portal Externo — Ankawa" />
+
+            {/* Header con botón Volver al inicio */}
+            <div className="w-full max-w-5xl mx-auto pt-2 pb-4">
+                <Link
+                    href={route('welcome')}
+                    className="group inline-flex items-center text-gray-500 hover:text-[#BE0F4A] transition-all duration-300 font-medium"
+                >
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-2 group-hover:bg-[#BE0F4A]/10 transition-colors">
+                        <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform duration-300" />
+                    </div>
+                    <span className="text-sm">Volver al inicio</span>
+                </Link>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center">
             <div className="mb-8">
                 <img src="/logo.png" alt="Ankawa" className="h-14 object-contain" />
             </div>
 
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-md overflow-hidden">
                 <div className="h-1.5 bg-gradient-to-r from-[#291136] via-[#BE0F4A] to-[#291136]" />
                 <div className="p-8">
-                    {step === 'email' ? (
+                    {step === 'identidad' ? (
                         <>
                             <div className="text-center mb-6">
                                 <div className="w-12 h-12 rounded-full bg-[#BE0F4A]/10 flex items-center justify-center mx-auto mb-3">
-                                    <Mail size={22} className="text-[#BE0F4A]" />
+                                    <ShieldCheck size={22} className="text-[#BE0F4A]" />
                                 </div>
-                                <h1 className="text-xl font-black text-[#291136]">Portal de Expedientes</h1>
-                                <p className="text-sm text-gray-500 mt-1">Ingresa tu correo para ver tus expedientes con acción pendiente</p>
+                                <h1 className="text-xl font-black text-[#291136]">Portal Externo</h1>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Verifica tu identidad para acceder.
+                                </p>
                             </div>
 
                             <form onSubmit={enviarCodigo} className="space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Correo electrónico</label>
-                                    <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                                        placeholder="correo@ejemplo.com" required
-                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A]" />
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        placeholder="correo@ejemplo.com"
+                                        required
+                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A]"
+                                    />
+                                    <p className="text-[11px] text-gray-400 mt-1">No se aceptan correos temporales o desechables.</p>
                                 </div>
-                                {error && <p className="text-xs text-red-500">{error}</p>}
-                                <button type="submit" disabled={cargando}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] disabled:opacity-60 transition-colors">
-                                    {cargando ? 'Enviando código...' : <><span>Recibir código</span><ArrowRight size={16}/></>}
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">DNI</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={numeroDoc}
+                                        onChange={e => setNumeroDoc(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                                        placeholder="8 dígitos"
+                                        required
+                                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A]"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Dígito verificador del DNI</label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="text"
+                                            value={digito}
+                                            onChange={e => setDigito(e.target.value.replace(/[^0-9A-Za-z]/g, '').slice(0, 1).toUpperCase())}
+                                            placeholder="X"
+                                            required
+                                            maxLength={1}
+                                            className="w-16 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#BE0F4A]"
+                                        />
+                                        <p className="text-[11px] text-gray-500 leading-tight">
+                                            Carácter (número o letra) impreso al lado/debajo del número de DNI en tu documento físico.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {hcaptchaSiteKey && (
+                                    <div className="flex justify-center pt-1">
+                                        <div ref={captchaRef} />
+                                    </div>
+                                )}
+
+                                {error && (
+                                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                        <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                                        <p className="text-xs text-red-600">{error}</p>
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={cargando}
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] disabled:opacity-60 transition-colors"
+                                >
+                                    {cargando ? 'Verificando…' : <><span>Continuar</span><ArrowRight size={16} /></>}
                                 </button>
                             </form>
                         </>
@@ -125,32 +273,46 @@ export default function PortalLogin() {
                                 </div>
                                 <h1 className="text-xl font-black text-[#291136]">Código de verificación</h1>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    Enviamos un código de 6 dígitos a<br/>
+                                    Enviamos un código a<br />
                                     <span className="font-semibold text-[#291136]">{email}</span>
                                 </p>
                             </div>
-
                             <form onSubmit={verificarCodigo} className="space-y-4">
                                 <div className="flex gap-2 justify-center">
                                     {codigo.map((d, i) => (
-                                        <input key={i}
+                                        <input
+                                            key={i}
                                             ref={el => inputsRef.current[i] = el}
-                                            type="text" inputMode="numeric" maxLength={1}
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={1}
                                             value={d}
                                             onChange={e => onDigit(i, e.target.value)}
                                             onKeyDown={e => onKeyDown(i, e)}
+                                            onPaste={e => handlePaste(e, i)}
                                             className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#BE0F4A] transition-colors"
                                         />
                                     ))}
                                 </div>
-                                {error && <p className="text-xs text-red-500 text-center">{error}</p>}
-                                <button type="submit" disabled={cargando || codigo.join('').length < 6}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] disabled:opacity-60 transition-colors">
-                                    {cargando ? 'Verificando...' : <><CheckCircle2 size={16}/><span>Ingresar al portal</span></>}
+                                {error && (
+                                    <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                        <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                                        <p className="text-xs text-red-600">{error}</p>
+                                    </div>
+                                )}
+                                <button
+                                    type="submit"
+                                    disabled={cargando || codigo.join('').length < 6}
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] disabled:opacity-60 transition-colors"
+                                >
+                                    {cargando ? 'Verificando…' : <><CheckCircle2 size={16} /><span>Ingresar</span></>}
                                 </button>
-                                <button type="button" onClick={() => { setStep('email'); setCodigo(['','','','','','']); setError(''); }}
-                                    className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors">
-                                    ← Cambiar correo
+                                <button
+                                    type="button"
+                                    onClick={volverAIdentidad}
+                                    className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    ← Volver a verificar identidad
                                 </button>
                             </form>
                         </>
@@ -158,9 +320,8 @@ export default function PortalLogin() {
                 </div>
             </div>
 
-            <p className="text-xs text-gray-400 mt-6">
-                The Ankawa Global Group SAC — Plataforma de Expedientes Electrónicos
-            </p>
+            <p className="text-xs text-gray-400 mt-6">The Ankawa Global Group SAC — Plataforma de Expedientes Electrónicos</p>
+            </div>
         </div>
     );
 }

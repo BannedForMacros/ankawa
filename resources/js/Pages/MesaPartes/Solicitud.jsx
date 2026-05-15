@@ -13,7 +13,7 @@ const FORMS = {
     'jprd':                 JPRDForm,
 };
 
-export default function Solicitud({ servicio, portalEmail, portalUser }) {
+export default function Solicitud({ servicio, portalEmail, portalUser, hcaptchaSiteKey }) {
     const Form = FORMS[servicio.slug] ?? OtrosForm;
 
     return (
@@ -41,6 +41,7 @@ export default function Solicitud({ servicio, portalEmail, portalUser }) {
                     servicio={servicio}
                     portalEmail={portalEmail}
                     portalUser={portalUser}
+                    hcaptchaSiteKey={hcaptchaSiteKey}
                 />
             </div>
         </div>

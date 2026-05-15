@@ -7,6 +7,8 @@ use App\Models\Cargo;
 use App\Models\Servicio;
 use App\Models\SolicitudOtros;
 use App\Mail\CargoSolicitudOtrosMail;
+use App\Support\AuditoriaPortal;
+use App\Support\CaptchaValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -26,6 +28,16 @@ class SolicitudOtrosController extends Controller
             'email_remitente'        => 'required|email|max:255',
             'descripcion'            => 'nullable|string|max:2000',
             'acepta_reglamento_card' => 'nullable|in:0,1',
+            'captcha_token'          => 'nullable|string',
+        ]);
+
+        if (!CaptchaValidator::valido($request->captcha_token, $request->ip())) {
+            return back()->with('error', 'No pudimos verificar que eres humano. Recarga la página e intenta de nuevo.');
+        }
+
+        AuditoriaPortal::registrar('solicitud_enviada', $request, [
+            'servicio_id' => $request->servicio_id,
+            'tipo'        => 'otros',
         ]);
 
         $solicitud = SolicitudOtros::create([
@@ -41,7 +53,7 @@ class SolicitudOtrosController extends Controller
             'acepta_reglamento_card' => $request->boolean('acepta_reglamento_card'),
         ]);
 
-        $cargo = Cargo::crear('solicitud', $solicitud, null);
+        $cargo = Cargo::crear('solicitud', $solicitud, null, null, $request);
 
         if (!$cargo) {
             // El tipo de evento 'solicitud' está desactivado en Configuración → Tipos de Cargo.
@@ -51,6 +63,10 @@ class SolicitudOtrosController extends Controller
         }
 
         $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
+
+        AuditoriaPortal::registrar('cargo_generado', $request, [
+            'numero_cargo' => $cargo->numero_cargo,
+        ], $solicitud);
 
         try {
             Mail::to($request->email_remitente)

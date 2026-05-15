@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ValidacionDocumento;
+use App\Support\DecolectaClient;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 class ConsultaDocumentoController extends Controller
 {
@@ -11,77 +12,79 @@ class ConsultaDocumentoController extends Controller
     {
         $tipo   = $request->query('tipo');   // 'dni' | 'ruc'
         $numero = trim($request->query('numero', ''));
+        $contexto = (string) $request->query('contexto', 'form_lookup');
 
-        if (!in_array($tipo, ['dni', 'ruc']) || !$numero) {
+        if (!in_array($tipo, ['dni', 'ruc'], true) || $numero === '') {
             return response()->json(['error' => 'Parámetros inválidos'], 422);
         }
 
-        $token = config('services.decolecta.token');
-        if (!$token) {
+        $consulta = $tipo === 'dni'
+            ? DecolectaClient::consultarDni($numero)
+            : DecolectaClient::consultarRuc($numero);
+
+        $resultado = match ($consulta['estado']) {
+            'ok'             => 'valido',
+            'no_encontrado'  => 'no_encontrado',
+            default          => 'invalido',
+        };
+
+        // Persistir snapshot de la consulta para historial/auditoría
+        ValidacionDocumento::create([
+            'tipo'               => $tipo,
+            'numero'             => $numero,
+            'digito_verificador' => null,
+            'resultado'          => $resultado,
+            'respuesta_completa' => $consulta['data'],
+            'ip'                 => $request->ip(),
+            'user_agent'         => $request->userAgent(),
+            'contexto'           => in_array($contexto, ['form_demandante', 'form_demandado', 'form_representante', 'form_arbitro', 'form_lookup'], true)
+                ? $contexto
+                : 'form_lookup',
+            'email_sesion'       => session('portal_email'),
+        ]);
+
+        if ($consulta['estado'] === 'no_configurado') {
             return response()->json(['error' => 'Servicio no configurado'], 503);
         }
 
-        try {
-            if ($tipo === 'dni') {
-                $resp = Http::withToken($token)
-                    ->timeout(8)
-                    ->get('https://api.decolecta.com/v1/reniec/dni', ['numero' => $numero]);
-            } else {
-                $resp = Http::withToken($token)
-                    ->timeout(8)
-                    ->get('https://api.decolecta.com/v1/sunat/ruc', ['numero' => $numero]);
-            }
-
-            if ($resp->successful()) {
-                $data = $resp->json();
-
-                if ($tipo === 'dni') {
-                    return response()->json([
-                        'nombre'    => $this->formatearNombreReniec($data),
-                        'documento' => $data['document_number'] ?? null,
-                    ]);
-                } else {
-                    // Construir dirección desde campos SUNAT
-                    $partes = array_filter([
-                        $data['via_tipo'] ?? null,
-                        $data['via_nombre'] ?? null,
-                        $data['numero'] ? 'NRO. ' . $data['numero'] : null,
-                        $data['interior'] && $data['interior'] !== '-' ? 'INT. ' . $data['interior'] : null,
-                        $data['zona_codigo'] ?? null,
-                        $data['zona_tipo'] ?? null,
-                        $data['distrito'] ?? null,
-                        $data['provincia'] ?? null,
-                        $data['departamento'] ?? null,
-                    ]);
-
-                    return response()->json([
-                        'nombre'    => $data['razon_social'] ?? null,
-                        'documento' => $data['numero_documento'] ?? null,
-                        'domicilio' => implode(' ', $partes) ?: ($data['direccion'] ?? null),
-                        'estado'    => $data['estado'] ?? null,
-                        'condicion' => $data['condicion'] ?? null,
-                    ]);
-                }
-            }
-
-            if ($resp->status() === 404 || $resp->status() === 422) {
-                return response()->json(['no_encontrado' => true], 404);
-            }
-
-            return response()->json(['error' => 'Error en servicio externo'], 502);
-
-        } catch (\Exception $e) {
-            \Log::warning("Decolecta API error: " . $e->getMessage());
-            return response()->json(['error' => 'No disponible'], 503);
+        if ($consulta['estado'] === 'no_encontrado') {
+            return response()->json(['no_encontrado' => true], 404);
         }
+
+        if ($consulta['estado'] === 'error') {
+            return response()->json(['error' => $consulta['mensaje'] ?? 'Error en servicio externo'], 502);
+        }
+
+        $data = $consulta['data'] ?? [];
+
+        if ($tipo === 'dni') {
+            return response()->json([
+                'nombre'    => $this->formatearNombreReniec($data),
+                'documento' => $data['document_number'] ?? null,
+            ]);
+        }
+
+        $partes = array_filter([
+            $data['via_tipo'] ?? null,
+            $data['via_nombre'] ?? null,
+            isset($data['numero']) && $data['numero'] !== '' ? 'NRO. ' . $data['numero'] : null,
+            isset($data['interior']) && $data['interior'] !== '' && $data['interior'] !== '-' ? 'INT. ' . $data['interior'] : null,
+            $data['zona_codigo'] ?? null,
+            $data['zona_tipo'] ?? null,
+            $data['distrito'] ?? null,
+            $data['provincia'] ?? null,
+            $data['departamento'] ?? null,
+        ]);
+
+        return response()->json([
+            'nombre'    => $data['razon_social'] ?? null,
+            'documento' => $data['numero_documento'] ?? null,
+            'domicilio' => implode(' ', $partes) ?: ($data['direccion'] ?? null),
+            'estado'    => $data['estado'] ?? null,
+            'condicion' => $data['condicion'] ?? null,
+        ]);
     }
 
-    /**
-     * Construye el nombre de una persona natural en formato "APELLIDOS, NOMBRES".
-     * Usa los campos separados que devuelve Decolecta (first_name, first_last_name,
-     * second_last_name). Si por algún motivo no están disponibles, cae al full_name
-     * tal cual lo devolvió RENIEC.
-     */
     private function formatearNombreReniec(array $data): ?string
     {
         $nombres   = trim((string) ($data['first_name'] ?? ''));

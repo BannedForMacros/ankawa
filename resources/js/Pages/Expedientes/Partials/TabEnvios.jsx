@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Inbox, FileText, Clock, CheckCircle2, XCircle, Mail,
-    ChevronDown, ChevronUp, AlertCircle, Loader2
+    ChevronDown, ChevronUp, AlertCircle, Loader2, Upload, Paperclip
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { usePage } from '@inertiajs/react';
 import ConfirmModal from '@/Components/ConfirmModal';
 
 function formatBytes(bytes) {
@@ -108,9 +109,28 @@ function EnvioCard({ envio, onAceptar, onRechazar, accionable }) {
                     </div>
 
                     {envio.motivo_rechazo && (
-                        <div className="p-3 rounded-lg border border-red-200 bg-red-50">
-                            <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Motivo de rechazo</p>
-                            <p className="text-sm text-red-700 whitespace-pre-wrap">{envio.motivo_rechazo}</p>
+                        <div className="p-3 rounded-lg border border-red-200 bg-red-50 space-y-2">
+                            <div>
+                                <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Motivo de rechazo</p>
+                                <p className="text-sm text-red-700 whitespace-pre-wrap">{envio.motivo_rechazo}</p>
+                            </div>
+                            {envio.documento_rechazo && (
+                                <div>
+                                    <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-1">Documento de sustento</p>
+                                    <a
+                                        href={envio.documento_rechazo.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 p-2.5 rounded-lg border border-red-200 bg-white hover:border-red-400 hover:bg-red-50 transition-colors group"
+                                    >
+                                        <FileText size={18} className="text-red-600 shrink-0" />
+                                        <span className="text-sm text-red-800 group-hover:text-red-900 flex-1 truncate font-medium">
+                                            {envio.documento_rechazo.nombre_original}
+                                        </span>
+                                        <span className="text-xs text-red-400 shrink-0">{formatBytes(envio.documento_rechazo.peso_bytes)}</span>
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -136,15 +156,34 @@ function EnvioCard({ envio, onAceptar, onRechazar, accionable }) {
     );
 }
 
-function ModalRechazar({ envio, onCancelar, onConfirmar, procesando }) {
+function ModalRechazar({ envio, onCancelar, onConfirmar, procesando, tiposDocumento, uploadAccept }) {
     const [motivo, setMotivo] = useState('');
+    const [tipoDocumentoId, setTipoDocumentoId] = useState('');
+    const [archivo, setArchivo] = useState(null);
+    const fileInputRef = useRef(null);
+
+    const sinTipos = !tiposDocumento || tiposDocumento.length === 0;
+    const puedeEnviar = motivo.trim() && tipoDocumentoId && archivo && !sinTipos;
+
+    function onPickFile(e) {
+        const f = e.target.files?.[0];
+        setArchivo(f ?? null);
+    }
 
     function submit() {
         if (!motivo.trim()) {
             toast.error('Debes indicar el motivo del rechazo.');
             return;
         }
-        onConfirmar(motivo);
+        if (!tipoDocumentoId) {
+            toast.error('Debes seleccionar el tipo de documento.');
+            return;
+        }
+        if (!archivo) {
+            toast.error('Debes adjuntar el documento de sustento.');
+            return;
+        }
+        onConfirmar({ motivo, tipoDocumentoId, archivo });
     }
 
     return (
@@ -154,10 +193,21 @@ function ModalRechazar({ envio, onCancelar, onConfirmar, procesando }) {
                     <h3 className="text-white font-bold">Rechazar envío</h3>
                     <p className="text-white/60 text-xs mt-0.5">{envio.tipo_documento}</p>
                 </div>
-                <div className="p-5 space-y-3">
+                <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
                     <p className="text-sm text-gray-600">
-                        El envío se marcará como rechazado y no aparecerá en el historial del expediente. El motivo quedará auditado.
+                        El envío se marcará como rechazado y no aparecerá en el historial del expediente. El motivo y el documento de sustento quedarán auditados.
                     </p>
+
+                    {sinTipos && (
+                        <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-800 flex items-start gap-2">
+                            <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                            <span>
+                                Tu perfil no tiene tipos de documento habilitados para subir en este expediente.
+                                Solicita a un administrador que te asigne permisos antes de rechazar.
+                            </span>
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
                             Motivo del rechazo *
@@ -172,6 +222,59 @@ function ModalRechazar({ envio, onCancelar, onConfirmar, procesando }) {
                         />
                         <p className="text-xs text-gray-400 mt-1 text-right">{motivo.length}/2000</p>
                     </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+                            Tipo de documento *
+                        </label>
+                        <select
+                            value={tipoDocumentoId}
+                            onChange={e => setTipoDocumentoId(e.target.value)}
+                            disabled={sinTipos}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#BE0F4A] disabled:bg-gray-50 disabled:text-gray-400"
+                        >
+                            <option value="">— Selecciona un tipo —</option>
+                            {tiposDocumento?.map(t => (
+                                <option key={t.id} value={t.id}>{t.nombre}</option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-gray-400 mt-1">Solo se muestran los tipos asignados a tu perfil en este servicio.</p>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+                            Documento de sustento *
+                        </label>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept={uploadAccept}
+                            onChange={onPickFile}
+                            className="hidden"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={sinTipos}
+                            className="w-full flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-xl text-sm text-gray-600 hover:border-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Upload size={15} className="text-[#BE0F4A]" />
+                            {archivo ? 'Cambiar archivo' : 'Seleccionar archivo'}
+                        </button>
+                        {archivo && (
+                            <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-gray-50 border border-gray-200">
+                                <Paperclip size={14} className="text-[#BE0F4A] shrink-0" />
+                                <span className="text-xs text-gray-700 flex-1 truncate">{archivo.name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => { setArchivo(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                                    className="text-xs text-red-600 hover:text-red-700 font-semibold"
+                                >
+                                    Quitar
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
                     <button
@@ -183,7 +286,7 @@ function ModalRechazar({ envio, onCancelar, onConfirmar, procesando }) {
                     </button>
                     <button
                         onClick={submit}
-                        disabled={procesando || !motivo.trim()}
+                        disabled={procesando || !puedeEnviar}
                         className="px-5 py-2 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
                     >
                         {procesando ? 'Procesando...' : 'Rechazar envío'}
@@ -195,10 +298,14 @@ function ModalRechazar({ envio, onCancelar, onConfirmar, procesando }) {
 }
 
 export default function TabEnvios({ expedienteId, onCambio = null }) {
+    const { props } = usePage();
+    const uploadAccept = props.upload_accept ?? '';
+
     const [loading, setLoading]     = useState(true);
     const [error, setError]         = useState(null);
     const [pendientes, setPend]     = useState([]);
     const [procesados, setProces]   = useState([]);
+    const [tiposDocumento, setTiposDocumento] = useState([]);
     const [mostrarProc, setMostrarProc] = useState(false);
 
     const [confirmAceptar, setConfirmAceptar] = useState(null);
@@ -212,6 +319,7 @@ export default function TabEnvios({ expedienteId, onCambio = null }) {
             const { data } = await window.axios.get(route('expedientes.envios.index', expedienteId));
             setPend(data.pendientes ?? []);
             setProces(data.procesados ?? []);
+            setTiposDocumento(data.tipos_documento_permitidos ?? []);
         } catch (e) {
             setError(e.response?.data?.mensaje ?? e.message ?? 'Error de conexión');
         } finally {
@@ -243,13 +351,19 @@ export default function TabEnvios({ expedienteId, onCambio = null }) {
         }
     }
 
-    async function rechazarConfirmado(motivo) {
+    async function rechazarConfirmado({ motivo, tipoDocumentoId, archivo }) {
         if (!modalRechazar) return;
         setProcesando(true);
         try {
+            const fd = new FormData();
+            fd.append('motivo', motivo);
+            fd.append('tipo_documento_id', tipoDocumentoId);
+            fd.append('archivo', archivo);
+
             const { data } = await window.axios.post(
                 route('expedientes.envios.rechazar', [expedienteId, modalRechazar.id]),
-                { motivo }
+                fd,
+                { headers: { 'Content-Type': 'multipart/form-data' } }
             );
             if (data.ok) {
                 toast.success(data.mensaje ?? 'Envío rechazado');
@@ -260,7 +374,9 @@ export default function TabEnvios({ expedienteId, onCambio = null }) {
                 toast.error(data.mensaje ?? 'No se pudo rechazar');
             }
         } catch (e) {
-            toast.error(e.response?.data?.message ?? e.response?.data?.mensaje ?? 'Error de conexión');
+            const errs = e.response?.data?.errors;
+            const primerError = errs ? Object.values(errs)[0]?.[0] : null;
+            toast.error(primerError ?? e.response?.data?.message ?? e.response?.data?.mensaje ?? 'Error de conexión');
         } finally {
             setProcesando(false);
         }
@@ -321,6 +437,8 @@ export default function TabEnvios({ expedienteId, onCambio = null }) {
                 <ModalRechazar
                     envio={modalRechazar}
                     procesando={procesando}
+                    tiposDocumento={tiposDocumento}
+                    uploadAccept={uploadAccept}
                     onCancelar={() => !procesando && setModalRechazar(null)}
                     onConfirmar={rechazarConfirmado}
                 />

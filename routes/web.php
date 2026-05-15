@@ -49,17 +49,29 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 Route::get('/mesa-partes', [MesaPartesController::class, 'index'])->name('mesa-partes.index');
 Route::get('/mesa-partes/confirmacion/{numeroCargo}', [MesaPartesController::class, 'confirmacion'])->name('mesa-partes.confirmacion');
 
-// OTP unificado (acepta cualquier email)
-Route::post('/mesa-partes/enviar-codigo', [PortalController::class, 'enviarCodigo'])->name('mesa-partes.enviarCodigo');
-Route::post('/mesa-partes/verificar-codigo', [PortalController::class, 'verificarCodigo'])->name('mesa-partes.verificarCodigo');
+// OTP unificado — flujo verificado: email + DNI/RUC + dígito verificador + captcha
+Route::post('/mesa-partes/enviar-codigo', [PortalController::class, 'enviarCodigo'])
+    ->middleware('throttle:portal-otp-enviar')
+    ->name('mesa-partes.enviarCodigo');
+Route::post('/mesa-partes/verificar-codigo', [PortalController::class, 'verificarCodigo'])
+    ->middleware('throttle:portal-otp-verificar')
+    ->name('mesa-partes.verificarCodigo');
 
 // Submit de formularios (sin auth requerida, el portal_email se verifica en el controller)
-Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::class, 'store'])->name('solicitud.arbitraje.store');
-Route::post('/mesa-partes/servicios/otros', [SolicitudOtrosController::class, 'store'])->name('solicitud.otros.store');
-Route::post('/mesa-partes/servicios/jprd', [SolicitudJPRDController::class, 'store'])->name('solicitud.jprd.store');
+Route::post('/mesa-partes/servicios/arbitraje', [SolicitudArbitrajeController::class, 'store'])
+    ->middleware('throttle:portal-form-submit')
+    ->name('solicitud.arbitraje.store');
+Route::post('/mesa-partes/servicios/otros', [SolicitudOtrosController::class, 'store'])
+    ->middleware('throttle:portal-form-submit')
+    ->name('solicitud.otros.store');
+Route::post('/mesa-partes/servicios/jprd', [SolicitudJPRDController::class, 'store'])
+    ->middleware('throttle:portal-form-submit')
+    ->name('solicitud.jprd.store');
 
 // Consulta de documentos (proxy Decolecta — público, sin auth)
-Route::get('/consulta-documento', [\App\Http\Controllers\ConsultaDocumentoController::class, 'consultar'])->name('consulta.documento');
+Route::get('/consulta-documento', [\App\Http\Controllers\ConsultaDocumentoController::class, 'consultar'])
+    ->middleware('throttle:consulta-documento')
+    ->name('consulta.documento');
 Route::get('/mesa-partes/servicios/{servicio}/tipos-documento', function (\App\Models\Servicio $servicio) {
     $tipos = $servicio->tiposDocumento()
         ->where('tipo_documentos.activo', true)
@@ -201,6 +213,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('tipos-documentos/{tipoDocumento}/actores',           [TipoDocumentoController::class, 'syncActores'])    ->name('configuracion.tipos-documentos.sync-actores')  ->middleware('permiso:configuracion.tipos-documentos,editar');
     });
 
+    // ── Auditoría del Portal Público (acceso interno) ──
+    // Una vez creado el módulo `auditoria.portal` en `modules` y asignado el permiso `ver`
+    // al rol correspondiente, agregar `->middleware('permiso:auditoria.portal,ver')`.
+    Route::get('/auditoria/portal',                       [\App\Http\Controllers\Admin\AuditoriaPortalController::class, 'index'])
+        ->name('auditoria.portal.index');
+    Route::get('/auditoria/portal/cargo/{numeroCargo}',   [\App\Http\Controllers\Admin\AuditoriaPortalController::class, 'porCargo'])
+        ->name('auditoria.portal.por-cargo');
 });
 
 // =========================================================================
@@ -208,8 +227,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // =========================================================================
 Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/',                    [PortalController::class, 'index'])        ->name('login');
-    Route::post('/enviar-codigo',      [PortalController::class, 'enviarCodigo']) ->name('enviar-codigo');
-    Route::post('/verificar-codigo',   [PortalController::class, 'verificarCodigo'])->name('verificar-codigo');
+    Route::post('/enviar-codigo',      [PortalController::class, 'enviarCodigo'])
+        ->middleware('throttle:portal-otp-enviar')
+        ->name('enviar-codigo');
+    Route::post('/verificar-codigo',   [PortalController::class, 'verificarCodigo'])
+        ->middleware('throttle:portal-otp-verificar')
+        ->name('verificar-codigo');
     Route::get('/logout',              [PortalController::class, 'logout'])       ->name('logout');
 
     Route::middleware('portal.auth')->group(function () {

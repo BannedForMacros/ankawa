@@ -10,6 +10,7 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import CustomSelect from '@/Components/CustomSelect';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
+import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
 
 /* ─── Constantes ─── */
@@ -561,7 +562,8 @@ function actorVacio(emailFijo = null, subtipoInicial = '') {
 }
 
 /* ─── Formulario JPRD ─── */
-export default function JPRDForm({ servicio, portalEmail, portalUser }) {
+export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSiteKey }) {
+    const [captchaToken, setCaptchaToken] = useState('');
     const isPortal = !!portalEmail;
 
     const [procesando,    setProcesando]    = useState(false);
@@ -741,6 +743,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
         if (tienePeticionPrevia) {
             docPeticionPrevia.forEach(f => fd.append('doc_peticion_previa[]', f));
         }
+
+        if (captchaToken) fd.append('captcha_token', captchaToken);
 
         router.post(route('solicitud.jprd.store'), fd, {
             forceFormData: true,
@@ -1014,8 +1018,14 @@ export default function JPRDForm({ servicio, portalEmail, portalUser }) {
                 ]}
             />
 
+            {hcaptchaSiteKey && (
+                <div className="flex justify-center pb-2">
+                    <HCaptchaWidget siteKey={hcaptchaSiteKey} onToken={setCaptchaToken} />
+                </div>
+            )}
+
             <div className="flex justify-end mt-2">
-                <button type="submit" disabled={procesando}
+                <button type="submit" disabled={procesando || (hcaptchaSiteKey && !captchaToken)}
                     className="inline-flex items-center gap-2 px-8 py-3 text-sm font-bold bg-[#BE0F4A] text-white rounded-xl hover:bg-[#9c0a3b] disabled:opacity-50 transition-colors shadow-lg">
                     <Send size={16}/> {procesando ? 'Enviando...' : 'Enviar Solicitud JPRD'}
                 </button>
