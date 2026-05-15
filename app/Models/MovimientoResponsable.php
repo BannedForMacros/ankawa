@@ -13,6 +13,7 @@ class MovimientoResponsable extends Model
         'movimiento_id',
         'expediente_actor_id',
         'tipo_actor_id',
+        'tipo_documento_id',
         'dias_plazo',
         'tipo_dias',
         'fecha_limite',
@@ -40,6 +41,11 @@ class MovimientoResponsable extends Model
     public function tipoActor(): BelongsTo
     {
         return $this->belongsTo(TipoActorExpediente::class, 'tipo_actor_id');
+    }
+
+    public function tipoDocumento(): BelongsTo
+    {
+        return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
     }
 
     public function respondidoPor(): BelongsTo

@@ -64,21 +64,16 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
         setError('');
 
         try {
-            const res = await fetch(route('portal.enviar-codigo'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({
-                    email: email.trim(),
-                    tipo_doc: 'dni',
-                    numero_doc: numeroDoc.trim(),
-                    digito_verificador: digito.trim().toUpperCase(),
-                    captcha_token: captchaToken,
-                }),
+            // window.axios usa la cookie XSRF-TOKEN (rotada por Laravel en cada respuesta).
+            // Si usamos fetch con meta token estático, el token queda obsoleto cuando la
+            // sesión rota (login/logout en otra pestaña, cambio de auth web ↔ portal) → 419.
+            const { data } = await window.axios.post(route('portal.enviar-codigo'), {
+                email: email.trim(),
+                tipo_doc: 'dni',
+                numero_doc: numeroDoc.trim(),
+                digito_verificador: digito.trim().toUpperCase(),
+                captcha_token: captchaToken,
             });
-            const data = await res.json();
 
             if (data.ok) {
                 setStep('otp');
@@ -89,8 +84,8 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                     setCaptchaToken('');
                 }
             }
-        } catch {
-            setError('Error de conexión. Intenta nuevamente.');
+        } catch (err) {
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intenta nuevamente.');
         } finally {
             setCargando(false);
         }
@@ -133,22 +128,17 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
         if (codigoStr.length < 6) return;
         setCargando(true); setError('');
         try {
-            const res = await fetch(route('portal.verificar-codigo'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({ email, codigo: codigoStr }),
+            const { data } = await window.axios.post(route('portal.verificar-codigo'), {
+                email,
+                codigo: codigoStr,
             });
-            const data = await res.json();
             if (data.ok) {
                 window.location.href = route('portal.expedientes');
             } else {
                 setError(data.mensaje ?? 'Código incorrecto o expirado.');
             }
-        } catch {
-            setError('Error de conexión. Intenta nuevamente.');
+        } catch (err) {
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intenta nuevamente.');
         } finally {
             setCargando(false);
         }

@@ -180,11 +180,14 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                 usuario_responsable_id:          String(demandado.usuario.id),
                 dias_plazo:                      String(plazoApers),
                 tipo_dias:                       'calendario',
-                responsables:                    [{
-                    tipo_actor_id: String(demandado.tipo_actor_id ?? ''),
-                    actor_ids:     [String(demandado.id)],
-                    dias_plazo:    String(plazoApers),
-                    tipo_dias:     'calendario',
+                requerimientos: [{
+                    tipo_documento_id: '',
+                    responsables: [{
+                        tipo_actor_id: String(demandado.tipo_actor_id ?? ''),
+                        actor_ids:     [String(demandado.id)],
+                        dias_plazo:    String(plazoApers),
+                        tipo_dias:     'calendario',
+                    }],
                 }],
                 habilitar_mesa_partes:           false,
                 actores_mesa_partes_ids:         [],
@@ -207,11 +210,14 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             usuario_responsable_id:    String(demandante?.usuario?.id ?? ''),
             dias_plazo:                String(plazo),
             tipo_dias:                 'calendario',
-            responsables:              [{
-                tipo_actor_id: String(demandante?.tipo_actor_id ?? ''),
-                actor_ids:     demandante?.id ? [String(demandante.id)] : [],
-                dias_plazo:    String(plazo),
-                tipo_dias:     'calendario',
+            requerimientos: [{
+                tipo_documento_id: '',
+                responsables: [{
+                    tipo_actor_id: String(demandante?.tipo_actor_id ?? ''),
+                    actor_ids:     demandante?.id ? [String(demandante.id)] : [],
+                    dias_plazo:    String(plazo),
+                    tipo_dias:     'calendario',
+                }],
             }],
         }]);
         setArchivos({ 0: [] });

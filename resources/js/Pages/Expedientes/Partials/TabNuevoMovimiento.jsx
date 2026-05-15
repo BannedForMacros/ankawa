@@ -4,6 +4,14 @@ import ConfirmModal from '@/Components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail, Layers, ArrowRight } from 'lucide-react';
 
+// Cada "requerimiento" del array es un (tipo de documento) → (lista de responsables con plazo).
+// Estructura: requerimientos: [{ tipo_documento_id, responsables: [{ tipo_actor_id, actor_ids[], dias_plazo, tipo_dias }] }]
+// El tipo_documento_id puede ser '' (caso requerimiento libre, ej. apersonamiento) o un id real.
+export const requerimientoVacio = () => ({
+    tipo_documento_id: '',
+    responsables: [{ tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
+});
+
 export const movVacioBase = (expediente, notificarIds = []) => ({
     tipo:                        'requerimiento',
     etapa_id:                    String(expediente.etapa_actual_id ?? ''),
@@ -11,7 +19,7 @@ export const movVacioBase = (expediente, notificarIds = []) => ({
     observaciones:               '',
     tipo_actor_responsable_id:   '',
     usuario_responsable_id:      '',
-    responsables:                [{ tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
+    requerimientos:              [requerimientoVacio()],
     dias_plazo:                  '',
     tipo_dias:                   'calendario',
     tipo_documento_requerido_id: '',
@@ -442,146 +450,163 @@ export function MovimientoCard({
                     <FieldError msg={errores.instruccion ? 'Este campo es obligatorio.' : null}/>
                 </div>
 
-                {/* ── SECCIÓN 3: Responsables (solo requerimiento) ── */}
+                {/* ── SECCIÓN 3+4 COMBINADAS: Requerimientos por tipo de documento (solo requerimiento) ── */}
                 {esReq && (
                     <div>
-                        <SectionLabel>Responsables *</SectionLabel>
-                        <div className={`border rounded-xl ${errores.responsables ? 'border-red-300' : 'border-[#BE0F4A]/20'}`}>
-                            <div className="px-3.5 py-2.5 bg-[#BE0F4A]/5 border-b border-[#BE0F4A]/10 flex items-center justify-between">
-                                <p className="text-xs font-black text-[#BE0F4A] uppercase tracking-widest">
-                                    Actores responsables
-                                </p>
-                                {mov.responsables.reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0) > 0 && (
-                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#BE0F4A] text-white">
-                                        {mov.responsables.reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0)} actor(es)
-                                    </span>
-                                )}
-                            </div>
-                            <div className="p-3 space-y-2">
-                                {mov.responsables.map((fila, ri) => {
-                                    // Actores del tipo seleccionado para esta fila
-                                    const actoresDeFila = fila.tipo_actor_id
-                                        ? actoresConAcceso.filter(a => String(a.tipo_actor_id) === String(fila.tipo_actor_id))
-                                        : [];
-
-                                    return (
-                                    <div key={ri} className="flex flex-wrap items-start gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-                                        {/* Select 1: tipo de actor */}
-                                        <div className="flex-1 min-w-[140px]">
-                                            <AnkawaSelect
-                                                value={String(fila.tipo_actor_id ?? '')}
-                                                hasError={!!errores[`responsables_${ri}_tipo`]}
-                                                onChange={e => {
-                                                    const nuevoTipoId = e.target.value;
-                                                    const actoresDelTipo = actoresConAcceso
-                                                        .filter(a => String(a.tipo_actor_id) === String(nuevoTipoId))
-                                                        .map(a => String(a.id));
-                                                    onChange('responsables', mov.responsables.map((r, j) =>
-                                                        j === ri ? { ...r, tipo_actor_id: nuevoTipoId, actor_ids: actoresDelTipo } : r
-                                                    ));
-                                                }}>
-                                                <option value="">— Tipo de actor —</option>
-                                                {tiposActorConAcceso.map(ta => (
-                                                    <option key={ta.id} value={String(ta.id)}>{ta.nombre}</option>
-                                                ))}
-                                            </AnkawaSelect>
+                        <SectionLabel>Requerimientos *</SectionLabel>
+                        <p className="text-xs text-gray-500 mb-2">
+                            Cada bloque define qué tipo de documento se pide y a qué actores con su propio plazo. Podés pedir varios tipos en un mismo requerimiento.
+                        </p>
+                        <div className="space-y-3">
+                            {(mov.requerimientos ?? []).map((req, qi) => {
+                                const totalActores = (req.responsables ?? []).reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0);
+                                return (
+                                <div key={qi} className={`border rounded-xl ${errores[`requerimientos_${qi}`] ? 'border-red-300' : 'border-[#BE0F4A]/20'}`}>
+                                    {/* Header del bloque: tipo de documento */}
+                                    <div className="px-3.5 py-2.5 bg-[#BE0F4A]/5 border-b border-[#BE0F4A]/10 flex items-center justify-between gap-3 flex-wrap">
+                                        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                                            <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
+                                            <div className="flex-1">
+                                                <p className="text-[11px] font-black text-[#BE0F4A] uppercase tracking-widest mb-1">
+                                                    Tipo de documento
+                                                </p>
+                                                <AnkawaSelect
+                                                    value={String(req.tipo_documento_id ?? '')}
+                                                    hasError={!!errores[`requerimientos_${qi}_tipo_doc`]}
+                                                    onChange={e => onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
+                                                        j === qi ? { ...r, tipo_documento_id: e.target.value } : r
+                                                    ))}
+                                                >
+                                                    <option value="">— Seleccionar tipo de documento —</option>
+                                                    {tiposDocumento.map(td => (
+                                                        <option key={td.id} value={String(td.id)}>{td.nombre}</option>
+                                                    ))}
+                                                </AnkawaSelect>
+                                            </div>
                                         </div>
-                                        {/* Select 2: usuarios de ese tipo (multi-checkbox) */}
-                                        <MultiActorSelect
-                                            value={fila.actor_ids ?? []}
-                                            hasError={!!errores[`responsables_${ri}_actor`]}
-                                            actores={actoresDeFila}
-                                            disabled={!fila.tipo_actor_id}
-                                            onChange={ids => {
-                                                const updated = mov.responsables.map((r, j) =>
-                                                    j === ri ? { ...r, actor_ids: ids } : r
-                                                );
-                                                onChange('responsables', updated);
-                                            }}
-                                        />
-                                        {/* Plazo input */}
-                                        <input
-                                            type="number" min="1" max="365"
-                                            value={fila.dias_plazo ?? ''}
-                                            placeholder="Días"
-                                            onChange={e => {
-                                                const updated = mov.responsables.map((r, j) =>
-                                                    j === ri ? { ...r, dias_plazo: e.target.value } : r
-                                                );
-                                                onChange('responsables', updated);
-                                            }}
-                                            className={`w-20 text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A] bg-white transition-colors shrink-0 ${
-                                                errores[`responsables_${ri}_plazo`] ? 'border-red-400' : 'border-gray-200'
-                                            }`}
-                                        />
-                                        {/* Cal/Háb toggle */}
-                                        <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
-                                            {[
-                                                { v: 'calendario', label: 'Cal.' },
-                                                { v: 'habiles',    label: 'Háb.' },
-                                            ].map(opt => (
-                                                <button key={opt.v} type="button"
-                                                    onClick={() => {
-                                                        const updated = mov.responsables.map((r, j) =>
-                                                            j === ri ? { ...r, tipo_dias: opt.v } : r
-                                                        );
-                                                        onChange('responsables', updated);
-                                                    }}
-                                                    title={opt.v === 'calendario' ? 'Días calendario' : 'Días hábiles (excluye sábados y domingos)'}
-                                                    className={`px-3 py-2 text-xs font-bold transition-colors ${
-                                                        (fila.tipo_dias ?? 'calendario') === opt.v
-                                                            ? 'bg-[#291136] text-white'
-                                                            : 'bg-white text-gray-500 hover:bg-gray-50'
-                                                    }`}>
-                                                    {opt.label}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {totalActores > 0 && (
+                                                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#BE0F4A] text-white">
+                                                    {totalActores} actor(es)
+                                                </span>
+                                            )}
+                                            {(mov.requerimientos ?? []).length > 1 && (
+                                                <button type="button"
+                                                    onClick={() => onChange('requerimientos', (mov.requerimientos ?? []).filter((_, j) => j !== qi))}
+                                                    className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
+                                                    title="Quitar este tipo de documento">
+                                                    <Trash2 size={15}/>
                                                 </button>
-                                            ))}
+                                            )}
                                         </div>
-                                        {/* Remove button */}
-                                        {mov.responsables.length > 1 && (
-                                            <button type="button"
-                                                onClick={() => onChange('responsables', mov.responsables.filter((_, j) => j !== ri))}
-                                                className="p-2 text-gray-300 hover:text-red-400 transition-colors shrink-0">
-                                                <X size={15}/>
-                                            </button>
-                                        )}
                                     </div>
-                                    );
-                                })}
-                                <button type="button"
-                                    onClick={() => onChange('responsables', [
-                                        ...mov.responsables,
-                                        { tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' },
-                                    ])}
-                                    className="flex items-center gap-1.5 text-xs font-bold text-[#BE0F4A] hover:text-[#291136] transition-colors mt-1">
-                                    <PlusCircle size={13}/>
-                                    Agregar grupo de responsables
-                                </button>
-                            </div>
+                                    {/* Responsables de este tipo de documento */}
+                                    <div className="p-3 space-y-2">
+                                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                                            Responsables y plazo
+                                        </p>
+                                        {(req.responsables ?? []).map((fila, ri) => {
+                                            const actoresDeFila = fila.tipo_actor_id
+                                                ? actoresConAcceso.filter(a => String(a.tipo_actor_id) === String(fila.tipo_actor_id))
+                                                : [];
+                                            const updateFila = (cambios) => {
+                                                onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
+                                                    j === qi ? {
+                                                        ...r,
+                                                        responsables: r.responsables.map((f, k) => k === ri ? { ...f, ...cambios } : f),
+                                                    } : r
+                                                ));
+                                            };
+                                            return (
+                                            <div key={ri} className="flex flex-wrap items-start gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                                                <div className="flex-1 min-w-[140px]">
+                                                    <AnkawaSelect
+                                                        value={String(fila.tipo_actor_id ?? '')}
+                                                        hasError={!!errores[`requerimientos_${qi}_resp_${ri}_tipo`]}
+                                                        onChange={e => {
+                                                            const nuevoTipoId = e.target.value;
+                                                            const actoresDelTipo = actoresConAcceso
+                                                                .filter(a => String(a.tipo_actor_id) === String(nuevoTipoId))
+                                                                .map(a => String(a.id));
+                                                            updateFila({ tipo_actor_id: nuevoTipoId, actor_ids: actoresDelTipo });
+                                                        }}>
+                                                        <option value="">— Tipo de actor —</option>
+                                                        {tiposActorConAcceso.map(ta => (
+                                                            <option key={ta.id} value={String(ta.id)}>{ta.nombre}</option>
+                                                        ))}
+                                                    </AnkawaSelect>
+                                                </div>
+                                                <MultiActorSelect
+                                                    value={fila.actor_ids ?? []}
+                                                    hasError={!!errores[`requerimientos_${qi}_resp_${ri}_actor`]}
+                                                    actores={actoresDeFila}
+                                                    disabled={!fila.tipo_actor_id}
+                                                    onChange={ids => updateFila({ actor_ids: ids })}
+                                                />
+                                                <input
+                                                    type="number" min="1" max="365"
+                                                    value={fila.dias_plazo ?? ''}
+                                                    placeholder="Días"
+                                                    onChange={e => updateFila({ dias_plazo: e.target.value })}
+                                                    className={`w-20 text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A] bg-white transition-colors shrink-0 ${
+                                                        errores[`requerimientos_${qi}_resp_${ri}_plazo`] ? 'border-red-400' : 'border-gray-200'
+                                                    }`}
+                                                />
+                                                <div className="flex rounded-xl overflow-hidden border border-gray-200 shrink-0">
+                                                    {[
+                                                        { v: 'calendario', label: 'Cal.' },
+                                                        { v: 'habiles',    label: 'Háb.' },
+                                                    ].map(opt => (
+                                                        <button key={opt.v} type="button"
+                                                            onClick={() => updateFila({ tipo_dias: opt.v })}
+                                                            title={opt.v === 'calendario' ? 'Días calendario' : 'Días hábiles (excluye sábados y domingos)'}
+                                                            className={`px-3 py-2 text-xs font-bold transition-colors ${
+                                                                (fila.tipo_dias ?? 'calendario') === opt.v
+                                                                    ? 'bg-[#291136] text-white'
+                                                                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                                                            }`}>
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {(req.responsables ?? []).length > 1 && (
+                                                    <button type="button"
+                                                        onClick={() => onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
+                                                            j === qi ? { ...r, responsables: r.responsables.filter((_, k) => k !== ri) } : r
+                                                        ))}
+                                                        className="p-2 text-gray-300 hover:text-red-400 transition-colors shrink-0">
+                                                        <X size={15}/>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            );
+                                        })}
+                                        <button type="button"
+                                            onClick={() => onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
+                                                j === qi ? {
+                                                    ...r,
+                                                    responsables: [...(r.responsables ?? []), { tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
+                                                } : r
+                                            ))}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-[#BE0F4A] hover:text-[#291136] transition-colors mt-1">
+                                            <PlusCircle size={13}/>
+                                            Agregar responsable
+                                        </button>
+                                    </div>
+                                </div>
+                                );
+                            })}
+                            <button type="button"
+                                onClick={() => onChange('requerimientos', [
+                                    ...(mov.requerimientos ?? []),
+                                    requerimientoVacio(),
+                                ])}
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border-2 border-dashed border-[#BE0F4A]/40 rounded-xl text-xs font-bold text-[#BE0F4A] hover:bg-[#BE0F4A]/5 transition-colors">
+                                <PlusCircle size={14}/>
+                                Agregar otro tipo de documento
+                            </button>
                         </div>
-                        <FieldError msg={errores.responsables ? errores.responsables : null}/>
-                    </div>
-                )}
-
-                {/* ── SECCIÓN 4: Tipo documento requerido (solo requerimiento) ── */}
-                {esReq && (
-                    <div>
-                        <SectionLabel>Documento requerido *</SectionLabel>
-                        {tiposDocumento.length === 0 ? (
-                            <p className="text-xs text-gray-400 italic mt-1">
-                                Sin documentos configurados para este servicio.
-                            </p>
-                        ) : (
-                            <>
-                            <AnkawaSelect value={mov.tipo_documento_requerido_id}
-                                hasError={!!errores.tipo_documento_requerido}
-                                onChange={e => onChange('tipo_documento_requerido_id', e.target.value)}>
-                                <option value="">— Seleccionar —</option>
-                                {tiposDocumento.map(td => <option key={td.id} value={td.id}>{td.nombre}</option>)}
-                            </AnkawaSelect>
-                            <FieldError msg={errores.tipo_documento_requerido ? 'Selecciona el tipo de documento requerido.' : null}/>
-                            </>
-                        )}
+                        <FieldError msg={errores.requerimientos ? errores.requerimientos : null}/>
                     </div>
                 )}
 
@@ -952,17 +977,30 @@ export default function TabNuevoMovimiento({
             const e = {};
             if (!mov.instruccion?.trim()) e.instruccion = true;
             if (mov.tipo === 'requerimiento') {
-                const totalActores = (mov.responsables ?? []).reduce((acc, r) => acc + (r.actor_ids?.length ?? 0), 0);
-                if (!mov.responsables || mov.responsables.length === 0 || totalActores === 0) {
-                    e.responsables = 'Selecciona al menos un actor responsable.';
+                const requerimientos = mov.requerimientos ?? [];
+                const totalActores = requerimientos.reduce((acc, req) =>
+                    acc + (req.responsables ?? []).reduce((a, r) => a + (r.actor_ids?.length ?? 0), 0),
+                0);
+                if (requerimientos.length === 0 || totalActores === 0) {
+                    e.requerimientos = 'Agregá al menos un tipo de documento con un actor responsable.';
                 } else {
-                    mov.responsables.forEach((r, ri) => {
-                        if (!r.tipo_actor_id) e[`responsables_${ri}_tipo`] = true;
-                        if (!r.actor_ids || r.actor_ids.length === 0) e[`responsables_${ri}_actor`] = true;
-                        if (!r.dias_plazo || Number(r.dias_plazo) < 1) e[`responsables_${ri}_plazo`] = true;
+                    requerimientos.forEach((req, qi) => {
+                        if (tiposDocumento.length > 0 && !req.tipo_documento_id) {
+                            e[`requerimientos_${qi}_tipo_doc`] = true;
+                            e.requerimientos = 'Cada bloque debe tener un tipo de documento seleccionado.';
+                        }
+                        const totalActoresReq = (req.responsables ?? []).reduce((a, r) => a + (r.actor_ids?.length ?? 0), 0);
+                        if (totalActoresReq === 0) {
+                            e[`requerimientos_${qi}`] = true;
+                            e.requerimientos = 'Cada tipo de documento debe tener al menos un actor responsable.';
+                        }
+                        (req.responsables ?? []).forEach((r, ri) => {
+                            if (!r.tipo_actor_id) e[`requerimientos_${qi}_resp_${ri}_tipo`] = true;
+                            if (!r.actor_ids || r.actor_ids.length === 0) e[`requerimientos_${qi}_resp_${ri}_actor`] = true;
+                            if (!r.dias_plazo || Number(r.dias_plazo) < 1) e[`requerimientos_${qi}_resp_${ri}_plazo`] = true;
+                        });
                     });
                 }
-                if (tiposDocumento.length > 0 && !mov.tipo_documento_requerido_id) e.tipo_documento_requerido = true;
             }
             // Si adjuntó archivos, debe haber elegido tipo de documento.
             if ((archivosMovimientos[movimientos.indexOf(mov)] ?? []).length > 0 && !mov.documento_tipo_id) {
@@ -996,10 +1034,15 @@ export default function TabNuevoMovimiento({
             form.append('instruccion',                 mov.instruccion);
             form.append('observaciones',               mov.observaciones ?? '');
             form.append('tipo_actor_responsable_id',   mov.tipo_actor_responsable_id ?? '');
-            (mov.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0).forEach((r, ri) => {
-                (r.actor_ids ?? []).forEach(id => form.append(`responsables[${ri}][actor_ids][]`, id));
-                if (r.dias_plazo) form.append(`responsables[${ri}][dias_plazo]`, r.dias_plazo);
-                form.append(`responsables[${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
+            (mov.requerimientos ?? []).forEach((req, qi) => {
+                const responsablesValidos = (req.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0);
+                if (responsablesValidos.length === 0) return;
+                if (req.tipo_documento_id) form.append(`requerimientos[${qi}][tipo_documento_id]`, req.tipo_documento_id);
+                responsablesValidos.forEach((r, ri) => {
+                    (r.actor_ids ?? []).forEach(id => form.append(`requerimientos[${qi}][responsables][${ri}][actor_ids][]`, id));
+                    if (r.dias_plazo) form.append(`requerimientos[${qi}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
+                    form.append(`requerimientos[${qi}][responsables][${ri}][tipo_dias]`, r.tipo_dias ?? 'calendario');
+                });
             });
             form.append('dias_plazo',                  mov.dias_plazo ?? '');
             form.append('tipo_dias',                   mov.tipo_dias ?? 'calendario');
@@ -1032,10 +1075,15 @@ export default function TabNuevoMovimiento({
                 form.append(`movimientos[${i}][instruccion]`,                 mov.instruccion);
                 form.append(`movimientos[${i}][observaciones]`,               mov.observaciones ?? '');
                 form.append(`movimientos[${i}][tipo_actor_responsable_id]`,   mov.tipo_actor_responsable_id ?? '');
-                (mov.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0).forEach((r, ri) => {
-                    (r.actor_ids ?? []).forEach(id => form.append(`movimientos[${i}][responsables][${ri}][actor_ids][]`, id));
-                    if (r.dias_plazo) form.append(`movimientos[${i}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
-                    form.append(`movimientos[${i}][responsables][${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
+                (mov.requerimientos ?? []).forEach((req, qi) => {
+                    const responsablesValidos = (req.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0);
+                    if (responsablesValidos.length === 0) return;
+                    if (req.tipo_documento_id) form.append(`movimientos[${i}][requerimientos][${qi}][tipo_documento_id]`, req.tipo_documento_id);
+                    responsablesValidos.forEach((r, ri) => {
+                        (r.actor_ids ?? []).forEach(id => form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][actor_ids][]`, id));
+                        if (r.dias_plazo) form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
+                        form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
+                    });
                 });
                 form.append(`movimientos[${i}][dias_plazo]`,                  mov.dias_plazo ?? '');
                 form.append(`movimientos[${i}][tipo_dias]`,                   mov.tipo_dias ?? 'calendario');
@@ -1080,16 +1128,24 @@ export default function TabNuevoMovimiento({
             const esBatch = movimientos.length > 1;
 
             const tipoActorNombre   = tiposActorEnExpediente.find(t => String(t.id) === String(mov?.tipo_actor_responsable_id))?.nombre;
+            // Aplana todas las filas de responsables a través de todos los tipos de documento
+            const allResponsablesRows = (mov?.requerimientos ?? []).flatMap(req =>
+                (req.responsables ?? []).filter(r => (r.actor_ids ?? []).length > 0)
+            );
             const responsablesNombres = (() => {
-                const nombres = (mov?.responsables ?? []).flatMap(r =>
+                const nombres = allResponsablesRows.flatMap(r =>
                     (r.actor_ids ?? [])
                         .map(id => actoresExpediente.find(a => String(a.id) === String(id)))
                         .filter(Boolean)
                         .map(a => a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre')
                 );
-                return nombres.length > 0 ? nombres.join(', ') : null;
+                return nombres.length > 0 ? [...new Set(nombres)].join(', ') : null;
             })();
-            const docNombre         = tiposDocumento.find(d => String(d.id) === String(mov?.tipo_documento_requerido_id))?.nombre;
+            // Lista los tipos de documento de los requerimientos definidos
+            const docsRequeridos = (mov?.requerimientos ?? [])
+                .map(req => tiposDocumento.find(d => String(d.id) === String(req.tipo_documento_id))?.nombre)
+                .filter(Boolean);
+            const docNombre = docsRequeridos.length > 0 ? docsRequeridos.join(', ') : null;
             const expNumero         = expediente.numero_expediente ?? `EXP-${expediente.id}`;
 
             // Detectar avance de etapa
@@ -1129,14 +1185,13 @@ export default function TabNuevoMovimiento({
                     hayAvanceEtapa && { label: '→ Nueva etapa',  value: etapaNuevaNombre },
                     tipoActorNombre    && { label: 'Tipo actor',      value: tipoActorNombre },
                     responsablesNombres && { label: 'Responsable(s)', value: responsablesNombres },
-                    (mov?.responsables ?? []).some(r => r.actor_ids?.length > 0) && {
+                    allResponsablesRows.length > 0 && {
                         label: 'Plazos',
-                        value: (mov.responsables ?? [])
-                            .filter(r => r.actor_ids?.length > 0)
+                        value: allResponsablesRows
                             .map(r => `${r.dias_plazo} días ${r.tipo_dias === 'habiles' ? 'hábiles' : 'cal.'}`)
                             .join(' / '),
                     },
-                    docNombre         && { label: 'Documento requerido', value: docNombre },
+                    docNombre         && { label: 'Documentos requeridos', value: docNombre },
                 ].filter(Boolean);
                 variant  = hayAvanceEtapa ? 'danger' : 'warning';
             } else if (tipo === 'notificacion') {

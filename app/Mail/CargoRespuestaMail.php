@@ -17,6 +17,11 @@ class CargoRespuestaMail extends Mailable
     public function __construct(
         public Cargo $cargo,
         public ExpedienteMovimiento $movimiento,
+        // Lista de docs entregados en ESTE cargo: [['nombre' => 'Acta', 'count' => 2], ...]
+        public array $docsEntregados = [],
+        // Lista de docs que el actor TODAVÍA debe presentar (pendientes después de esta entrega):
+        // [['nombre' => 'Legajos', 'fecha_limite' => '30/05/2026', 'dias_plazo' => 15, 'tipo_dias' => 'calendario'], ...]
+        public array $docsPendientes = [],
     ) {}
 
     public function envelope(): Envelope

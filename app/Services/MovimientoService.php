@@ -72,29 +72,34 @@ class MovimientoService
                 'credenciales_email_destino'     => $datos['credenciales_email_destino'] ?? null,
             ]);
 
-            // Crear filas pivot de responsables (nuevo sistema multi-responsable)
-            // Cada "fila" del frontend agrupa varios actor_ids con un mismo plazo.
-            $responsablesData = $datos['responsables'] ?? [];
-            if (!empty($responsablesData)) {
+            // Crear filas pivot de responsables — agrupados por tipo de documento.
+            // Estructura del payload: requerimientos[].{ tipo_documento_id, responsables[].{actor_ids, dias_plazo, tipo_dias} }
+            // Cada combinación (tipo_documento × actor) genera una fila independiente con su propio plazo/estado/respuesta.
+            $requerimientosData = $datos['requerimientos'] ?? [];
+            if (!empty($requerimientosData)) {
                 $maxFechaLimite = $fechaLimite;
-                foreach ($responsablesData as $r) {
-                    $actorIds = $r['actor_ids'] ?? [];
-                    if (empty($actorIds)) continue;
-                    $fl = $this->calcularFechaLimite((int) $r['dias_plazo'], $r['tipo_dias'] ?? 'calendario');
-                    foreach ($actorIds as $actorId) {
-                        $actor = ExpedienteActor::find($actorId);
-                        MovimientoResponsable::create([
-                            'movimiento_id'       => $movimiento->id,
-                            'expediente_actor_id' => $actorId,
-                            'tipo_actor_id'       => $actor?->tipo_actor_id,
-                            'dias_plazo'          => $r['dias_plazo'],
-                            'tipo_dias'           => $r['tipo_dias'] ?? 'calendario',
-                            'fecha_limite'        => $fl,
-                            'estado'              => ExpedienteMovimiento::ESTADO_PENDIENTE,
-                        ]);
-                    }
-                    if ($maxFechaLimite === null || $fl > $maxFechaLimite) {
-                        $maxFechaLimite = $fl;
+                foreach ($requerimientosData as $req) {
+                    $tipoDocId = $req['tipo_documento_id'] ?? null;
+                    foreach (($req['responsables'] ?? []) as $r) {
+                        $actorIds = $r['actor_ids'] ?? [];
+                        if (empty($actorIds)) continue;
+                        $fl = $this->calcularFechaLimite((int) $r['dias_plazo'], $r['tipo_dias'] ?? 'calendario');
+                        foreach ($actorIds as $actorId) {
+                            $actor = ExpedienteActor::find($actorId);
+                            MovimientoResponsable::create([
+                                'movimiento_id'       => $movimiento->id,
+                                'expediente_actor_id' => $actorId,
+                                'tipo_actor_id'       => $actor?->tipo_actor_id,
+                                'tipo_documento_id'   => $tipoDocId,
+                                'dias_plazo'          => $r['dias_plazo'],
+                                'tipo_dias'           => $r['tipo_dias'] ?? 'calendario',
+                                'fecha_limite'        => $fl,
+                                'estado'              => ExpedienteMovimiento::ESTADO_PENDIENTE,
+                            ]);
+                        }
+                        if ($maxFechaLimite === null || $fl > $maxFechaLimite) {
+                            $maxFechaLimite = $fl;
+                        }
                     }
                 }
                 $movimiento->update(['fecha_limite' => $maxFechaLimite]);

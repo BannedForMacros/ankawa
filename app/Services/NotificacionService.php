@@ -65,6 +65,7 @@ class NotificacionService
                         $nombre,
                         $esPortal,
                         $numeroCedula,
+                        $actor->id,
                     ));
 
                     $notificacion->update([

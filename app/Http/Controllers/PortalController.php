@@ -6,6 +6,7 @@ use App\Models\Cargo;
 use App\Support\FileRules;
 use App\Models\Expediente;
 use App\Models\MovimientoDocumento;
+use App\Models\MovimientoResponsable;
 use App\Models\ExpedienteActor;
 use App\Models\ExpedienteActorEmail;
 use App\Models\ExpedienteHistorial;
@@ -61,7 +62,15 @@ class PortalController extends Controller
             ->with([
                 'expediente.servicio',
                 'tipoDocumentoRequerido:id,nombre',
-                'documentos' => fn($q) => $q->where('momento', 'creacion')->where('activo', true),
+                'documentos' => fn($q) => $q->where('activo', true),
+                // Filas del pivot del actor logueado — pendientes Y ya respondidas — para que
+                // el modal pueda separar y mostrar trazabilidad de lo ya entregado.
+                'responsables' => function ($q) use ($actorIds) {
+                    $q->whereIn('expediente_actor_id', $actorIds)
+                      ->whereNotNull('tipo_documento_id')
+                      ->orderBy('fecha_limite');
+                },
+                'responsables.tipoDocumento:id,nombre',
             ])
             ->orderBy('created_at')
             ->select(['id', 'expediente_id', 'instruccion', 'fecha_limite', 'tipo_dias', 'dias_plazo', 'tipo_documento_requerido_id', 'created_at'])
@@ -86,22 +95,59 @@ class PortalController extends Controller
                     'estado'                => $exp->estado,
                     'etapa_actual'          => $exp->etapa_actual,
                     'tiene_pendiente'       => $expedienteIdsConPendiente->contains($exp->id),
-                    'movimientos_pendientes' => $movsPendientes->map(fn($mov) => [
-                        'id'                      => $mov->id,
-                        'instruccion'             => $mov->instruccion,
-                        'fecha_limite'            => $mov->fecha_limite?->format('d/m/Y'),
-                        'tipo_dias'               => $mov->tipo_dias,
-                        'dias_plazo'              => $mov->dias_plazo,
-                        'dias_restantes'          => $mov->diasRestantes(),
-                        'created_at'              => $mov->created_at->format('d/m/Y H:i'),
-                        'tipo_documento_requerido' => $mov->tipoDocumentoRequerido?->nombre,
-                        'documentos'              => $mov->documentos->map(fn($d) => [
-                            'id'              => $d->id,
-                            'nombre_original' => $d->nombre_original,
-                            'peso_bytes'      => $d->peso_bytes,
-                            'url'             => Storage::disk('public')->url($d->ruta_archivo),
-                        ])->values()->toArray(),
-                    ])->values()->toArray(),
+                    'movimientos_pendientes' => $movsPendientes->map(function ($mov) {
+                        // Docs del requerimiento original (momento='creacion'): los que adjuntó el remitente.
+                        $docsCreacion = $mov->documentos->where('momento', 'creacion');
+                        // Docs de respuesta (momento='respuesta'): lo que ya entregó alguien.
+                        // Para cada responsable respondido, filtramos los docs del mismo tipo.
+                        $docsRespuesta = $mov->documentos->where('momento', 'respuesta');
+
+                        $responsablesPendientes = $mov->responsables->where('estado', 'pendiente');
+                        $responsablesRespondidos = $mov->responsables->where('estado', 'respondido');
+
+                        return [
+                            'id'                      => $mov->id,
+                            'instruccion'             => $mov->instruccion,
+                            'fecha_limite'            => $mov->fecha_limite?->format('d/m/Y'),
+                            'tipo_dias'               => $mov->tipo_dias,
+                            'dias_plazo'              => $mov->dias_plazo,
+                            'dias_restantes'          => $mov->diasRestantes(),
+                            'created_at'              => $mov->created_at->format('d/m/Y H:i'),
+                            'tipo_documento_requerido' => $mov->tipoDocumentoRequerido?->nombre,
+                            'documentos'              => $docsCreacion->map(fn($d) => [
+                                'id'              => $d->id,
+                                'nombre_original' => $d->nombre_original,
+                                'peso_bytes'      => $d->peso_bytes,
+                                'url'             => Storage::disk('public')->url($d->ruta_archivo),
+                            ])->values()->toArray(),
+                            // Tipos de documento que el actor logueado todavía debe presentar.
+                            'responsables_pendientes' => $responsablesPendientes->map(fn($r) => [
+                                'responsable_id'         => $r->id,
+                                'tipo_documento_id'      => $r->tipo_documento_id,
+                                'tipo_documento_nombre'  => $r->tipoDocumento?->nombre,
+                                'dias_plazo'             => $r->dias_plazo,
+                                'tipo_dias'              => $r->tipo_dias,
+                                'fecha_limite'           => $r->fecha_limite?->format('d/m/Y'),
+                                'estado'                 => $r->estado,
+                            ])->values()->toArray(),
+                            // Tipos que el actor YA entregó antes — para mostrar trazabilidad en el modal.
+                            // Cada item trae los archivos efectivamente subidos para ese tipo.
+                            'responsables_entregados' => $responsablesRespondidos->map(fn($r) => [
+                                'responsable_id'         => $r->id,
+                                'tipo_documento_id'      => $r->tipo_documento_id,
+                                'tipo_documento_nombre'  => $r->tipoDocumento?->nombre,
+                                'fecha_respuesta'        => $r->fecha_respuesta?->format('d/m/Y H:i'),
+                                'archivos'               => $docsRespuesta
+                                    ->where('tipo_documento_id', $r->tipo_documento_id)
+                                    ->map(fn($d) => [
+                                        'id'              => $d->id,
+                                        'nombre_original' => $d->nombre_original,
+                                        'peso_bytes'      => $d->peso_bytes,
+                                        'url'             => Storage::disk('public')->url($d->ruta_archivo),
+                                    ])->values()->toArray(),
+                            ])->values()->toArray(),
+                        ];
+                    })->values()->toArray(),
                 ];
             })
             ->toArray();
@@ -349,11 +395,37 @@ class PortalController extends Controller
         abort_unless($autorizado, 403, 'No tiene autorización para responder este movimiento.');
         abort_unless($movimiento->estado === 'pendiente', 422, 'Este movimiento ya no está pendiente.');
 
+        // Reglas de validación:
+        //   - archivos[<tipo_documento_id>][] = files (flujo nuevo, agrupado por tipo)
+        //   - documentos[]                    = files (flujo legacy, sin agrupar)
         $request->validate([
             'respuesta'    => 'required|string|max:5000',
+            'archivos'     => 'nullable|array',
+            'archivos.*'   => 'nullable|array',
+            'archivos.*.*' => FileRules::accept(),
             'documentos'   => 'nullable|array',
             'documentos.*' => FileRules::accept(),
         ]);
+
+        // Filas pendientes de los actores asociados al email — sólo éstas pueden marcarse como respondidas hoy.
+        $responsablesPendientes = MovimientoResponsable::where('movimiento_id', $movimiento->id)
+            ->whereIn('expediente_actor_id', $actorIds)
+            ->where('estado', 'pendiente')
+            ->get();
+
+        // Agrupar archivos por tipo de documento (sólo los que corresponden a filas pendientes del actor).
+        $archivosPorTipo = collect($request->file('archivos') ?? [])
+            ->filter(fn($files, $tipoId) => $responsablesPendientes->contains('tipo_documento_id', (int) $tipoId))
+            ->mapWithKeys(fn($files, $tipoId) => [(int) $tipoId => is_array($files) ? array_filter($files) : []]);
+
+        $archivosLegacy = array_filter($request->file('documentos') ?? []);
+
+        if ($archivosPorTipo->flatten()->isEmpty() && empty($archivosLegacy)) {
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'Debes adjuntar al menos un documento de los requeridos.',
+            ], 422);
+        }
 
         $actorDelEmail = ExpedienteActor::where('email_externo', $email)
             ->orWhereHas('usuario', fn($q) => $q->where('email', $email))
@@ -361,58 +433,183 @@ class PortalController extends Controller
             ->first();
         $usuarioIdActor = $actorDelEmail?->usuario_id;
 
-        DB::transaction(function () use ($request, $movimiento, $email, $usuarioIdActor) {
-            $movimiento->update([
-                'respuesta'       => $request->respuesta,
-                'fecha_respuesta' => now(),
-                'respondido_por'  => $usuarioIdActor,
-                'estado'          => 'respondido',
-            ]);
+        $rutasArchivosSubidos = [];
+        // [tipo_id => [{nombre_original, peso_bytes, ruta}, ...]] — para reconstruir docsEntregados con URL después de la TX.
+        $archivosGuardadosPorTipo = [];
 
-            // Si la solicitud estaba en subsanación, volver a pendiente
-            $solicitud = SolicitudArbitraje::where('id',
-                Expediente::where('id', $movimiento->expediente_id)->value('solicitud_id')
-            )->where('estado', 'subsanacion')->first();
-            if ($solicitud) {
-                $solicitud->update(['estado' => 'pendiente']);
-            }
-
-            if ($request->hasFile('documentos')) {
+        try {
+            DB::transaction(function () use (
+                $request, $movimiento, $email, $usuarioIdActor,
+                $responsablesPendientes, $archivosPorTipo, $archivosLegacy,
+                &$rutasArchivosSubidos, &$archivosGuardadosPorTipo
+            ) {
                 $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
-                foreach ($request->file('documentos') as $archivo) {
-                    $ruta = $archivo->store($carpeta, 'public');
-                    MovimientoDocumento::create([
-                        'movimiento_id'     => $movimiento->id,
-                        'tipo_documento_id' => $movimiento->tipo_documento_requerido_id,
-                        'subido_por'        => $usuarioIdActor,
-                        'nombre_original'   => $archivo->getClientOriginalName(),
-                        'ruta_archivo'      => $ruta,
-                        'peso_bytes'        => $archivo->getSize(),
-                        'momento'           => 'respuesta',
-                    ]);
+
+                // ── Flujo nuevo: por cada (tipo_documento_id => files) marcar fila + guardar docs ──
+                $tiposEntregadosHoy = [];
+                foreach ($archivosPorTipo as $tipoId => $files) {
+                    if (empty($files)) continue;
+
+                    // Marcar como respondida la(s) fila(s) pendiente(s) del actor para este tipo.
+                    foreach ($responsablesPendientes->where('tipo_documento_id', $tipoId) as $resp) {
+                        $resp->update([
+                            'estado'          => 'respondido',
+                            'respuesta'       => $request->respuesta,
+                            'respondido_por'  => $usuarioIdActor,
+                            'fecha_respuesta' => now(),
+                        ]);
+                    }
+
+                    foreach ($files as $archivo) {
+                        if (!$archivo) continue;
+                        $ruta = $archivo->store($carpeta, 'public');
+                        if (!$ruta) {
+                            throw new \RuntimeException('No se pudo guardar uno de los archivos.');
+                        }
+                        $rutasArchivosSubidos[] = $ruta;
+                        $archivosGuardadosPorTipo[$tipoId][] = [
+                            'nombre_original' => $archivo->getClientOriginalName(),
+                            'peso_bytes'      => $archivo->getSize(),
+                            'ruta'            => $ruta,
+                        ];
+                        MovimientoDocumento::create([
+                            'movimiento_id'     => $movimiento->id,
+                            'tipo_documento_id' => $tipoId,
+                            'subido_por'        => $usuarioIdActor,
+                            'nombre_original'   => $archivo->getClientOriginalName(),
+                            'ruta_archivo'      => $ruta,
+                            'peso_bytes'        => $archivo->getSize(),
+                            'momento'           => 'respuesta',
+                        ]);
+                    }
+                    $tiposEntregadosHoy[] = $tipoId;
                 }
-            }
 
-            ExpedienteHistorial::create([
-                'expediente_id' => $movimiento->expediente_id,
-                'usuario_id'    => $usuarioIdActor,
-                'tipo_evento'   => 'movimiento_respondido',
-                'descripcion'   => "Movimiento respondido desde portal por: {$email}",
-                'datos_extra'   => ['movimiento_id' => $movimiento->id, 'portal_email' => $email],
-                'created_at'    => now(),
-            ]);
-
-            if ($movimiento->tipo === 'requerimiento' && $movimiento->genera_cargo) {
-                $cargo = Cargo::crear('respuesta_requerimiento', $movimiento, null);
-                if ($cargo) {
-                    try {
-                        Mail::to($email)->send(new CargoRespuestaMail($cargo, $movimiento));
-                    } catch (\Exception $e) {
-                        \Log::warning("Error enviando cargo portal a {$email}: " . $e->getMessage());
+                // ── Flujo legacy: documentos[] sin agrupar (movimientos viejos) ──
+                if (!empty($archivosLegacy)) {
+                    foreach ($archivosLegacy as $archivo) {
+                        if (!$archivo) continue;
+                        $ruta = $archivo->store($carpeta, 'public');
+                        if (!$ruta) {
+                            throw new \RuntimeException('No se pudo guardar uno de los archivos.');
+                        }
+                        $rutasArchivosSubidos[] = $ruta;
+                        MovimientoDocumento::create([
+                            'movimiento_id'     => $movimiento->id,
+                            'tipo_documento_id' => $movimiento->tipo_documento_requerido_id,
+                            'subido_por'        => $usuarioIdActor,
+                            'nombre_original'   => $archivo->getClientOriginalName(),
+                            'ruta_archivo'      => $ruta,
+                            'peso_bytes'        => $archivo->getSize(),
+                            'momento'           => 'respuesta',
+                        ]);
                     }
                 }
+
+                // ── ¿Todo el movimiento quedó respondido? ──
+                // Sólo se marca el movimiento entero si TODAS las filas (para todos los actores) están respondidas.
+                $todasRespondidas = !MovimientoResponsable::where('movimiento_id', $movimiento->id)
+                    ->where('estado', 'pendiente')
+                    ->exists();
+
+                // Si no había filas en el pivot (movimiento legacy) se cierra directo.
+                $sinPivot = !MovimientoResponsable::where('movimiento_id', $movimiento->id)->exists();
+
+                if ($todasRespondidas || $sinPivot) {
+                    $movimiento->update([
+                        'respuesta'       => $request->respuesta,
+                        'fecha_respuesta' => now(),
+                        'respondido_por'  => $usuarioIdActor,
+                        'estado'          => 'respondido',
+                    ]);
+
+                    // Si la solicitud estaba en subsanación, volver a pendiente (solo al cerrar el movimiento)
+                    $solicitud = SolicitudArbitraje::where('id',
+                        Expediente::where('id', $movimiento->expediente_id)->value('solicitud_id')
+                    )->where('estado', 'subsanacion')->first();
+                    if ($solicitud) {
+                        $solicitud->update(['estado' => 'pendiente']);
+                    }
+                }
+
+                ExpedienteHistorial::create([
+                    'expediente_id' => $movimiento->expediente_id,
+                    'usuario_id'    => $usuarioIdActor,
+                    'tipo_evento'   => $todasRespondidas || $sinPivot ? 'movimiento_respondido' : 'movimiento_respondido_parcial',
+                    'descripcion'   => ($todasRespondidas || $sinPivot
+                        ? "Movimiento respondido desde portal por: {$email}"
+                        : "Respuesta parcial desde portal por: {$email} (algunos documentos siguen pendientes)"),
+                    'datos_extra'   => [
+                        'movimiento_id'        => $movimiento->id,
+                        'portal_email'         => $email,
+                        'tipos_entregados'     => $tiposEntregadosHoy,
+                    ],
+                    'created_at'    => now(),
+                ]);
+
+                // ── 1 cargo por evento de entrega (sin importar cuántos tipos abarca) ──
+                if ($movimiento->tipo === 'requerimiento' && $movimiento->genera_cargo) {
+                    $cargo = Cargo::crear('respuesta_requerimiento', $movimiento, $usuarioIdActor);
+                    if ($cargo) {
+                        // Detalle de docs ENTREGADOS en este cargo: por cada tipo, la lista de archivos
+                        // (nombre original + peso + URL pública) para que el actor pueda auditar y abrir cada archivo.
+                        $docsEntregados = collect($archivosGuardadosPorTipo)
+                            ->map(function ($archivos, $tipoId) use ($responsablesPendientes) {
+                                $resp = $responsablesPendientes->firstWhere('tipo_documento_id', (int) $tipoId);
+                                $resp?->loadMissing('tipoDocumento');
+                                return [
+                                    'nombre'   => $resp?->tipoDocumento?->nombre ?? 'Documento',
+                                    'archivos' => collect($archivos)->map(fn($a) => [
+                                        'nombre_original' => $a['nombre_original'],
+                                        'peso_bytes'      => $a['peso_bytes'],
+                                        'url'             => Storage::disk('public')->url($a['ruta']),
+                                    ])->values()->all(),
+                                ];
+                            })
+                            ->values()
+                            ->all();
+
+                        // Docs que TODAVÍA siguen pendientes para este actor después de esta entrega.
+                        $actorIdsParaPend = collect([$actorDelEmail?->id])->filter()->all();
+                        $docsPendientes = !empty($actorIdsParaPend)
+                            ? MovimientoResponsable::where('movimiento_id', $movimiento->id)
+                                ->whereIn('expediente_actor_id', $actorIdsParaPend)
+                                ->where('estado', 'pendiente')
+                                ->whereNotNull('tipo_documento_id')
+                                ->with('tipoDocumento:id,nombre')
+                                ->orderBy('fecha_limite')
+                                ->get()
+                                ->map(fn($r) => [
+                                    'nombre'       => $r->tipoDocumento?->nombre ?? 'Documento',
+                                    'fecha_limite' => $r->fecha_limite?->format('d/m/Y'),
+                                    'dias_plazo'   => $r->dias_plazo,
+                                    'tipo_dias'    => $r->tipo_dias,
+                                ])
+                                ->all()
+                            : [];
+
+                        try {
+                            Mail::to($email)->send(new CargoRespuestaMail(
+                                $cargo, $movimiento, $docsEntregados, $docsPendientes
+                            ));
+                        } catch (\Exception $e) {
+                            \Log::warning("Error enviando cargo portal a {$email}: " . $e->getMessage());
+                        }
+                    }
+                }
+            });
+        } catch (\Throwable $e) {
+            foreach ($rutasArchivosSubidos as $ruta) {
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($ruta)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($ruta);
+                }
             }
-        });
+            report($e);
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'No se pudo registrar la respuesta. La operación fue revertida.',
+            ], 500);
+        }
 
         return response()->json(['ok' => true, 'mensaje' => 'Respuesta registrada correctamente.']);
     }

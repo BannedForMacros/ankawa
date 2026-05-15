@@ -55,11 +55,15 @@ class MovimientoController extends Controller
             ],
             'tipo_actor_responsable_id'  => ['nullable', $existsTipoActorEnServicio],
             'usuario_responsable_id'     => 'nullable|exists:users,id',
-            'responsables'                 => 'nullable|array',
-            'responsables.*.actor_ids'    => 'nullable|array',
-            'responsables.*.actor_ids.*'  => ['integer', $existsActorEnExpediente],
-            'responsables.*.dias_plazo'   => [Rule::requiredIf(fn() => $request->input('tipo') === 'requerimiento'), 'nullable', 'integer', 'min:1', 'max:365'],
-            'responsables.*.tipo_dias'    => 'nullable|in:calendario,habiles',
+            // Nuevo: agrupado por tipo de documento. Cada tipo de doc lleva sus propios responsables con plazo individual.
+            // tipo_documento_id es opcional (puede ser NULL para requerimientos "libres" sin doc específico, ej. apersonamiento).
+            'requerimientos'                                  => 'nullable|array',
+            'requerimientos.*.tipo_documento_id'              => ['nullable', $existsTipoDocEnServicio],
+            'requerimientos.*.responsables'                   => 'nullable|array',
+            'requerimientos.*.responsables.*.actor_ids'       => 'nullable|array',
+            'requerimientos.*.responsables.*.actor_ids.*'     => ['integer', $existsActorEnExpediente],
+            'requerimientos.*.responsables.*.dias_plazo'      => [Rule::requiredIf(fn() => $request->input('tipo') === 'requerimiento'), 'nullable', 'integer', 'min:1', 'max:365'],
+            'requerimientos.*.responsables.*.tipo_dias'       => 'nullable|in:calendario,habiles',
             'instruccion'                => 'required|string|max:2000',
             'observaciones'              => 'nullable|string|max:2000',
             'dias_plazo'                 => 'nullable|integer|min:1|max:365',
@@ -86,7 +90,7 @@ class MovimientoController extends Controller
         ]), [
             'creado_por'                         => auth()->id(),
             'tipo'                               => $request->input('tipo', 'requerimiento'),
-            'responsables'                       => $request->input('responsables') ?: [],
+            'requerimientos'                     => $request->input('requerimientos') ?: [],
             'habilitar_mesa_partes'              => $request->boolean('habilitar_mesa_partes'),
             'actores_mesa_partes_ids'            => $request->input('actores_mesa_partes_ids', []),
             'enviar_credenciales_expediente'     => $request->boolean('enviar_credenciales_expediente'),
@@ -99,7 +103,9 @@ class MovimientoController extends Controller
 
         // tipo: 'requerimiento' → pendiente | 'propia' → respondido | 'notificacion' → recibido
         $tipo = $request->input('tipo', 'requerimiento');
-        $totalActorIds = collect($datos['responsables'] ?? [])->sum(fn($r) => count($r['actor_ids'] ?? []));
+        $totalActorIds = collect($datos['requerimientos'] ?? [])
+            ->flatMap(fn($r) => $r['responsables'] ?? [])
+            ->sum(fn($resp) => count($resp['actor_ids'] ?? []));
         $tieneResponsable = !empty($datos['usuario_responsable_id']) || $totalActorIds > 0;
         if ($tipo === 'notificacion') {
             $estadoInicial = 'recibido';     // traslado/notificación → no requiere respuesta
@@ -153,11 +159,14 @@ class MovimientoController extends Controller
             'movimientos.*.observaciones'            => 'nullable|string|max:2000',
             'movimientos.*.tipo_actor_responsable_id'      => ['nullable', $existsTipoActorEnServicio],
             'movimientos.*.usuario_responsable_id'        => 'nullable|exists:users,id',
-            'movimientos.*.responsables'                   => 'nullable|array',
-            'movimientos.*.responsables.*.actor_ids'      => 'nullable|array',
-            'movimientos.*.responsables.*.actor_ids.*'    => ['integer', $existsActorEnExpediente],
-            'movimientos.*.responsables.*.dias_plazo'     => 'nullable|integer|min:1|max:365',
-            'movimientos.*.responsables.*.tipo_dias'      => 'nullable|in:calendario,habiles',
+            // Nuevo: requerimientos agrupados por tipo de documento (cada uno con sus responsables y plazos)
+            'movimientos.*.requerimientos'                                      => 'nullable|array',
+            'movimientos.*.requerimientos.*.tipo_documento_id'                  => ['nullable', $existsTipoDocEnServicio],
+            'movimientos.*.requerimientos.*.responsables'                       => 'nullable|array',
+            'movimientos.*.requerimientos.*.responsables.*.actor_ids'           => 'nullable|array',
+            'movimientos.*.requerimientos.*.responsables.*.actor_ids.*'         => ['integer', $existsActorEnExpediente],
+            'movimientos.*.requerimientos.*.responsables.*.dias_plazo'          => 'nullable|integer|min:1|max:365',
+            'movimientos.*.requerimientos.*.responsables.*.tipo_dias'           => 'nullable|in:calendario,habiles',
             'movimientos.*.dias_plazo'                    => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],
@@ -180,7 +189,9 @@ class MovimientoController extends Controller
         \Illuminate\Support\Facades\DB::transaction(function () use ($request, $expediente, $documentosPorMovimiento) {
             foreach ($request->movimientos as $i => $item) {
                 $tipo = $item['tipo'] ?? 'requerimiento';
-                $totalActorIds = collect($item['responsables'] ?? [])->sum(fn($r) => count($r['actor_ids'] ?? []));
+                $totalActorIds = collect($item['requerimientos'] ?? [])
+                    ->flatMap(fn($r) => $r['responsables'] ?? [])
+                    ->sum(fn($resp) => count($resp['actor_ids'] ?? []));
                 $tieneResponsable = !empty($item['usuario_responsable_id']) || $totalActorIds > 0;
                 if ($tipo === 'notificacion') {
                     $estadoInicial = 'recibido';
@@ -203,9 +214,9 @@ class MovimientoController extends Controller
                             'documento_tipo_id',
                         ]),
                         [
-                            'creado_por'   => auth()->id(),
-                            'responsables' => $item['responsables'] ?? [],
-                            'tipo'         => $tipo,
+                            'creado_por'    => auth()->id(),
+                            'requerimientos' => $item['requerimientos'] ?? [],
+                            'tipo'          => $tipo,
                             'habilitar_mesa_partes'              => !empty($item['habilitar_mesa_partes']),
                             'actores_mesa_partes_ids'            => $item['actores_mesa_partes_ids'] ?? [],
                             'enviar_credenciales_expediente'     => !empty($item['enviar_credenciales_expediente']),

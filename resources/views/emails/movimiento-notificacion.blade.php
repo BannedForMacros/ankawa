@@ -1,5 +1,14 @@
 @extends('emails.layout')
 
+@php
+    // Documentos que el destinatario debe presentar (filas del pivot con tipo_documento_id).
+    // El Mailable ya pre-filtró por actor_id; acá solo descartamos filas sin tipo asignado.
+    $docsAPresentar = $movimiento->responsables
+        ->filter(fn($r) => !empty($r->tipo_documento_id) && $r->tipoDocumento)
+        ->values();
+    $tieneDocsAPresentar = $docsAPresentar->count() > 0;
+@endphp
+
 @section('fields')
     @if(!empty($numeroCedula))
     <tr>
@@ -34,25 +43,24 @@
     </tr>
     @endif
 
-    @if($movimiento->tipoDocumentoRequerido)
-    <tr>
-        <td class="field-label">Doc. Requerido</td>
-        <td class="field-value">{{ $movimiento->tipoDocumentoRequerido->nombre }}</td>
-    </tr>
-    @endif
+    {{-- Campos legacy: SOLO se muestran para movimientos viejos sin filas en el pivot (un solo tipo de doc y una sola fecha).
+         Para los nuevos movimientos con varios tipos de documento, cada uno trae su propia fecha en la sección de abajo. --}}
+    @if(!$tieneDocsAPresentar)
+        @if($movimiento->tipoDocumentoRequerido)
+        <tr>
+            <td class="field-label">Doc. Requerido</td>
+            <td class="field-value">{{ $movimiento->tipoDocumentoRequerido->nombre }}</td>
+        </tr>
+        @endif
 
-    <tr>
-        <td class="field-label">Folios</td>
-        <td class="field-value">{{ $movimiento->documentos->count() ?: '—' }}</td>
-    </tr>
-
-    @if($movimiento->fecha_limite)
-    <tr>
-        <td class="field-label">Fecha Límite</td>
-        <td class="field-value" style="font-weight: bold; color: #BE0F4A;">
-            {{ \Carbon\Carbon::parse($movimiento->fecha_limite)->format('d/m/Y') }}
-        </td>
-    </tr>
+        @if($movimiento->fecha_limite)
+        <tr>
+            <td class="field-label">Fecha Límite</td>
+            <td class="field-value" style="font-weight: bold; color: #BE0F4A;">
+                {{ \Carbon\Carbon::parse($movimiento->fecha_limite)->format('d/m/Y') }}
+            </td>
+        </tr>
+        @endif
     @endif
 
     <tr>
@@ -74,10 +82,53 @@
             ->values();
     @endphp
 
+    {{-- ── Sección: documentos que el destinatario debe presentar ─────────────── --}}
+    @if($tieneDocsAPresentar)
+        <div style="margin-top: 20px; padding: 14px 14px 8px; border: 2px solid #BE0F4A; border-radius: 6px; background: #fff5f8;">
+            <p style="font-size: 12px; font-weight: bold; color: #BE0F4A; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">
+                Documentos que debe presentar ({{ $docsAPresentar->count() }})
+            </p>
+            <p style="font-size: 11px; color: #555555; margin-bottom: 12px;">
+                Cada documento tiene su propio plazo de presentación. Ingresa a Mesa de Partes para adjuntarlos.
+            </p>
+            @foreach($docsAPresentar as $resp)
+                @php
+                    $fechaLim = $resp->fecha_limite ? \Carbon\Carbon::parse($resp->fecha_limite) : null;
+                    $tipoDiasLabel = $resp->tipo_dias === 'habiles' ? 'días hábiles' : 'días calendario';
+                @endphp
+                <div style="margin-bottom: 8px; padding: 10px 12px; background: #ffffff; border: 1px solid #f0c8d4; border-radius: 4px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="vertical-align: top; padding-right: 10px; width: 22px;">
+                                <span style="font-size: 16px;">&#128221;</span>
+                            </td>
+                            <td style="vertical-align: top;">
+                                <p style="font-size: 13px; font-weight: bold; color: #291136; margin: 0 0 4px;">
+                                    {{ $resp->tipoDocumento->nombre }}
+                                </p>
+                                <p style="font-size: 11.5px; color: #555555; margin: 0;">
+                                    <strong style="color: #555555;">Plazo:</strong>
+                                    {{ $resp->dias_plazo }} {{ $tipoDiasLabel }}
+                                    @if($fechaLim)
+                                        &nbsp;·&nbsp;
+                                        <strong style="color: #BE0F4A;">Vence el {{ $fechaLim->format('d/m/Y') }}</strong>
+                                    @endif
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     @if($docsRequerimiento->count() > 0)
         <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #e0e0e0;">
             <p style="font-size: 11.5px; font-weight: bold; color: #291136; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px;">
                 Documentos adjuntos al requerimiento ({{ $docsRequerimiento->count() }})
+            </p>
+            <p style="font-size: 11px; color: #888888; margin-bottom: 10px;">
+                Archivos enviados por el remitente como referencia.
             </p>
             @foreach($docsRequerimiento as $doc)
                 <div style="margin-bottom: 8px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fafafa;">

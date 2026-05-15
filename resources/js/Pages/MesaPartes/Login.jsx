@@ -66,21 +66,16 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
         setError('');
 
         try {
-            const res = await fetch(route('mesa-partes.enviarCodigo'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({
-                    email: email.trim(),
-                    tipo_doc: 'dni',
-                    numero_doc: numeroDoc.trim(),
-                    digito_verificador: digito.trim().toUpperCase(),
-                    captcha_token: captchaToken,
-                }),
+            // Usamos window.axios (configurado en bootstrap.js): lee la cookie XSRF-TOKEN
+            // que Laravel rota en cada respuesta. Evita el "419 CSRF mismatch" que ocurre
+            // si el usuario llega acá tras una rotación de sesión (ej. login/logout en otra pestaña).
+            const { data } = await window.axios.post(route('mesa-partes.enviarCodigo'), {
+                email: email.trim(),
+                tipo_doc: 'dni',
+                numero_doc: numeroDoc.trim(),
+                digito_verificador: digito.trim().toUpperCase(),
+                captcha_token: captchaToken,
             });
-            const data = await res.json();
 
             if (data.ok) {
                 setStep('otp');
@@ -91,8 +86,8 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
                     setCaptchaToken('');
                 }
             }
-        } catch {
-            setError('Error de conexión. Intenta nuevamente.');
+        } catch (err) {
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intenta nuevamente.');
         } finally {
             setCargando(false);
         }
@@ -135,22 +130,17 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
         if (codigoStr.length < 6) return;
         setCargando(true); setError('');
         try {
-            const res = await fetch(route('mesa-partes.verificarCodigo'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                },
-                body: JSON.stringify({ email, codigo: codigoStr }),
+            const { data } = await window.axios.post(route('mesa-partes.verificarCodigo'), {
+                email,
+                codigo: codigoStr,
             });
-            const data = await res.json();
             if (data.ok) {
                 window.location.href = route('mesa-partes.inicio');
             } else {
                 setError(data.mensaje ?? 'Código incorrecto o expirado.');
             }
-        } catch {
-            setError('Error de conexión. Intenta nuevamente.');
+        } catch (err) {
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intenta nuevamente.');
         } finally {
             setCargando(false);
         }
