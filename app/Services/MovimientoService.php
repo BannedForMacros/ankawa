@@ -72,6 +72,8 @@ class MovimientoService
                 'enviar_credenciales_expediente' => !empty($datos['enviar_credenciales_expediente']),
                 'actor_credenciales_exp_id'      => $datos['actor_credenciales_exp_id'] ?? null,
                 'credenciales_email_destino'     => $datos['credenciales_email_destino'] ?? null,
+                // Solo true cuando lo invoca dispararTrasladosAuto() — para habilitar cancelación posterior.
+                'creado_por_auto'                => !empty($datos['creado_por_auto']),
             ]);
 
             // Crear filas pivot de responsables — agrupados por tipo de documento.
@@ -326,15 +328,16 @@ class MovimientoService
 
             // 1) Crear movimiento de NOTIFICACIÓN con la sumilla configurada.
             $notif = ExpedienteMovimiento::create([
-                'expediente_id' => $movimiento->expediente_id,
-                'tipo'          => ExpedienteMovimiento::TIPO_NOTIFICACION,
-                'etapa_id'      => $movimiento->etapa_id,
-                'creado_por'    => $usuarioDisparadorId,
-                'instruccion'   => $cfg->sumilla,
-                'estado'        => ExpedienteMovimiento::ESTADO_RECIBIDO,
-                'genera_cargo'  => false,
+                'expediente_id'   => $movimiento->expediente_id,
+                'tipo'            => ExpedienteMovimiento::TIPO_NOTIFICACION,
+                'etapa_id'        => $movimiento->etapa_id,
+                'creado_por'      => $usuarioDisparadorId,
+                'instruccion'     => $cfg->sumilla,
+                'estado'          => ExpedienteMovimiento::ESTADO_RECIBIDO,
+                'genera_cargo'    => false,
                 'fecha_respuesta' => now(),
                 'respondido_por'  => $usuarioDisparadorId,
+                'creado_por_auto' => true,
             ]);
 
             // Notificar a los destinatarios configurados.
@@ -349,11 +352,12 @@ class MovimientoService
                 $reqGenerado = $this->crear(
                     $movimiento->expediente,
                     [
-                        'etapa_id'      => $movimiento->etapa_id,
-                        'instruccion'   => $cfg->sumilla,
-                        'creado_por'    => $usuarioDisparadorId,
-                        'tipo'          => ExpedienteMovimiento::TIPO_REQUERIMIENTO,
-                        'requerimientos' => [[
+                        'etapa_id'        => $movimiento->etapa_id,
+                        'instruccion'     => $cfg->sumilla,
+                        'creado_por'      => $usuarioDisparadorId,
+                        'tipo'            => ExpedienteMovimiento::TIPO_REQUERIMIENTO,
+                        'creado_por_auto' => true,
+                        'requerimientos'  => [[
                             'tipo_documento_id' => $rc['tipo_documento_id'] ?? null,
                             'responsables'      => [[
                                 'actor_ids'  => [$rc['responsable_actor_id']],
@@ -380,6 +384,116 @@ class MovimientoService
         }
 
         return $cantDisparados;
+    }
+
+    /**
+     * Cancelar un movimiento generado automáticamente por un auto-traslado.
+     *
+     * Requisitos validados por el caller (controller):
+     *   - El movimiento existe, `creado_por_auto = true`, no está ya cancelado.
+     *   - El usuario es gestor del expediente.
+     *
+     * Acciones:
+     *   1. Marca el movimiento como `cancelado` (estado), guarda timestamp, usuario, motivo.
+     *   2. Persiste el documento de sustento del gestor en `movimiento_documentos` con momento='cancelacion'.
+     *   3. Busca el disparo (`movimiento_traslados_auto_disparos`) que generó este movimiento y, si existe,
+     *      reabre las filas de `movimiento_responsables` del movimiento padre que respondió ese actor
+     *      para ese tipo_documento_id (vuelven a 'pendiente'), y elimina el disparo para que la
+     *      cascada pueda re-dispararse cuando el actor entregue de nuevo.
+     *   4. Registra la cancelación en `expediente_historial`.
+     */
+    public function cancelarMovimientoAuto(
+        ExpedienteMovimiento $movimiento,
+        int $userId,
+        string $motivo,
+        int $tipoDocumentoId,
+        \Illuminate\Http\UploadedFile $archivo,
+    ): void {
+        DB::transaction(function () use ($movimiento, $userId, $motivo, $tipoDocumentoId, $archivo) {
+            $movimiento->update([
+                'estado'             => ExpedienteMovimiento::ESTADO_CANCELADO,
+                'cancelado_at'       => now(),
+                'cancelado_por'      => $userId,
+                'motivo_cancelacion' => $motivo,
+            ]);
+
+            // Guardar el documento de sustento del gestor (momento='cancelacion').
+            $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
+            $ruta = $archivo->store($carpeta, 'public');
+            if (!$ruta) {
+                throw new \RuntimeException('No se pudo guardar el documento de sustento de la cancelación.');
+            }
+            MovimientoDocumento::create([
+                'movimiento_id'     => $movimiento->id,
+                'tipo_documento_id' => $tipoDocumentoId,
+                'subido_por'        => $userId,
+                'nombre_original'   => $archivo->getClientOriginalName(),
+                'ruta_archivo'      => $ruta,
+                'peso_bytes'        => $archivo->getSize(),
+                'momento'           => 'cancelacion',
+            ]);
+
+            // Rollback de la cascada: encontrar el disparo que produjo este movimiento.
+            $disparo = MovimientoTrasladoAutoDisparo::where('movimiento_generado_id', $movimiento->id)->first();
+            $tiposReabiertos = [];
+            if ($disparo) {
+                $cfg = MovimientoTrasladoAuto::find($disparo->traslado_auto_id);
+                if ($cfg) {
+                    // Reabrir filas del movimiento padre que disparó la cascada
+                    // para este actor + este tipo de documento.
+                    $padreId = $cfg->movimiento_id;
+                    $rowsReabrir = MovimientoResponsable::where('movimiento_id', $padreId)
+                        ->where('expediente_actor_id', $disparo->triggered_by_actor_id)
+                        ->where('tipo_documento_id', $cfg->tipo_documento_id)
+                        ->whereIn('estado', [ExpedienteMovimiento::ESTADO_RESPONDIDO, ExpedienteMovimiento::ESTADO_OMITIDO])
+                        ->get();
+                    foreach ($rowsReabrir as $r) {
+                        $r->update([
+                            'estado'          => ExpedienteMovimiento::ESTADO_PENDIENTE,
+                            'respuesta'       => null,
+                            'respondido_por'  => null,
+                            'fecha_respuesta' => null,
+                        ]);
+                        $tiposReabiertos[] = $r->tipo_documento_id;
+                    }
+
+                    // Si el movimiento padre estaba cerrado por este actor, volvemos a pendiente
+                    // si quedan responsables abiertos.
+                    $padre = ExpedienteMovimiento::find($padreId);
+                    if ($padre && $padre->estado === ExpedienteMovimiento::ESTADO_RESPONDIDO) {
+                        $sigueAlgoPendiente = MovimientoResponsable::where('movimiento_id', $padreId)
+                            ->where('es_opcional', false)
+                            ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
+                            ->exists();
+                        if ($sigueAlgoPendiente) {
+                            $padre->update([
+                                'estado'          => ExpedienteMovimiento::ESTADO_PENDIENTE,
+                                'respuesta'       => null,
+                                'respondido_por'  => null,
+                                'fecha_respuesta' => null,
+                            ]);
+                        }
+                    }
+
+                    // Eliminar el disparo para que pueda volver a dispararse cuando el actor entregue de nuevo.
+                    $disparo->delete();
+                }
+            }
+
+            ExpedienteHistorial::create([
+                'expediente_id' => $movimiento->expediente_id,
+                'usuario_id'    => $userId,
+                'tipo_evento'   => 'movimiento_auto_cancelado',
+                'descripcion'   => "Movimiento auto-generado cancelado por el gestor. Motivo: {$motivo}",
+                'datos_extra'   => [
+                    'movimiento_id'            => $movimiento->id,
+                    'tipo_documento_id_doc'    => $tipoDocumentoId,
+                    'tipos_reabiertos'         => $tiposReabiertos,
+                    'disparo_eliminado'        => (bool) $disparo,
+                ],
+                'created_at'    => now(),
+            ]);
+        });
     }
 
     private function calcularFechaLimite(int $dias, string $tipoDias): string

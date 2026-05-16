@@ -20,6 +20,9 @@ class ExpedienteMovimiento extends Model
     // ESTADO_OMITIDO aplica a filas de movimiento_responsables marcadas es_opcional=true que
     // el actor decidió no presentar. No bloquea el cierre del movimiento y queda como traza auditable.
     public const ESTADO_OMITIDO               = 'omitido';
+    // ESTADO_CANCELADO aplica a movimientos creados automáticamente que el gestor canceló
+    // (rollback de un auto-traslado por entrega errónea). El plazo deja de correr.
+    public const ESTADO_CANCELADO             = 'cancelado';
 
     public const ESTADOS = [
         self::ESTADO_PENDIENTE,
@@ -29,6 +32,7 @@ class ExpedienteMovimiento extends Model
         self::ESTADO_PENDIENTE_ACEPTACION,
         self::ESTADO_RECHAZADO,
         self::ESTADO_OMITIDO,
+        self::ESTADO_CANCELADO,
     ];
 
     // Tipos de movimiento
@@ -81,6 +85,10 @@ class ExpedienteMovimiento extends Model
         'motivo_rechazo',
         'portal_email_envio',
         'activo',
+        'creado_por_auto',
+        'cancelado_at',
+        'cancelado_por',
+        'motivo_cancelacion',
     ];
 
     protected $casts = [
@@ -96,6 +104,8 @@ class ExpedienteMovimiento extends Model
         'actores_mesa_partes_ids'        => 'array',
         'fecha_aceptacion'               => 'datetime',
         'fecha_rechazo'                  => 'datetime',
+        'creado_por_auto'                => 'boolean',
+        'cancelado_at'                   => 'datetime',
     ];
 
     public function expediente(): BelongsTo
@@ -240,6 +250,11 @@ class ExpedienteMovimiento extends Model
     public function rechazadoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'rechazado_por');
+    }
+
+    public function canceladoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelado_por');
     }
 
     public function estaVencido(): bool
