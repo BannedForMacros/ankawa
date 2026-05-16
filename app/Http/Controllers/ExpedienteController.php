@@ -117,6 +117,8 @@ class ExpedienteController extends Controller
                     'responsables.tipoActor:id,nombre',
                     'responsables.tipoDocumento:id,nombre',
                     'responsables.respondidoPor:id,name',
+                    'trasladosAuto.tipoDocumento:id,nombre',
+                    'trasladosAuto.disparos.movimientoGenerado:id,instruccion,tipo,fecha_limite,created_at',
                     'extensiones.extendidoPor:id,name',
                 ]),
         ]);

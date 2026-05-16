@@ -278,6 +278,109 @@ class MovimientoService
         }
     }
 
+    /**
+     * Disparar traslados automáticos configurados para los tipos entregados por un actor.
+     *
+     * Se invoca desde el flujo de respuesta (PortalController::responder) DESPUÉS de marcar
+     * las filas de movimiento_responsables como 'respondido'. Por cada tipo entregado:
+     *   - Busca config en movimiento_traslados_auto (movimiento + tipo_documento).
+     *   - Si el actor está en disparadores_actor_ids (o la lista está vacía → todos disparan)
+     *     y no se disparó antes para este (config, actor), crea:
+     *       1) Un movimiento 'notificacion' con la sumilla, dirigido a destinatarios_actor_ids
+     *       2) Si genera_requerimiento_auto: un movimiento 'requerimiento' adicional con el
+     *          responsable y plazo configurados.
+     *   - Registra el disparo en movimiento_traslados_auto_disparos (idempotencia).
+     *
+     * Devuelve la cantidad de cascadas efectivamente disparadas.
+     */
+    public function dispararTrasladosAuto(
+        ExpedienteMovimiento $movimiento,
+        int $actorIdDisparador,
+        array $tiposEntregadosIds,
+        ?int $usuarioDisparadorId = null,
+    ): int {
+        if (empty($tiposEntregadosIds)) return 0;
+
+        $configs = MovimientoTrasladoAuto::where('movimiento_id', $movimiento->id)
+            ->whereIn('tipo_documento_id', $tiposEntregadosIds)
+            ->where('activo', true)
+            ->get();
+
+        if ($configs->isEmpty()) return 0;
+
+        $movimiento->loadMissing('expediente');
+        $cantDisparados = 0;
+
+        foreach ($configs as $cfg) {
+            // ¿Este actor está habilitado para disparar esta config?
+            $disparadores = $cfg->disparadores_actor_ids ?? [];
+            $habilitado   = empty($disparadores) || in_array($actorIdDisparador, $disparadores, false);
+            if (!$habilitado) continue;
+
+            // Idempotencia: no disparar dos veces para el mismo (config × actor).
+            $yaDisparado = MovimientoTrasladoAutoDisparo::where('traslado_auto_id', $cfg->id)
+                ->where('triggered_by_actor_id', $actorIdDisparador)
+                ->exists();
+            if ($yaDisparado) continue;
+
+            // 1) Crear movimiento de NOTIFICACIÓN con la sumilla configurada.
+            $notif = ExpedienteMovimiento::create([
+                'expediente_id' => $movimiento->expediente_id,
+                'tipo'          => ExpedienteMovimiento::TIPO_NOTIFICACION,
+                'etapa_id'      => $movimiento->etapa_id,
+                'creado_por'    => $usuarioDisparadorId,
+                'instruccion'   => $cfg->sumilla,
+                'estado'        => ExpedienteMovimiento::ESTADO_RECIBIDO,
+                'genera_cargo'  => false,
+                'fecha_respuesta' => now(),
+                'respondido_por'  => $usuarioDisparadorId,
+            ]);
+
+            // Notificar a los destinatarios configurados.
+            if (!empty($cfg->destinatarios_actor_ids)) {
+                $this->notificacionService->notificarActores($notif, $cfg->destinatarios_actor_ids);
+            }
+
+            // 2) (Opcional) crear REQUERIMIENTO automático.
+            $reqGenerado = null;
+            if ($cfg->genera_requerimiento_auto && !empty($cfg->requerimiento_auto_config)) {
+                $rc = $cfg->requerimiento_auto_config;
+                $reqGenerado = $this->crear(
+                    $movimiento->expediente,
+                    [
+                        'etapa_id'      => $movimiento->etapa_id,
+                        'instruccion'   => $cfg->sumilla,
+                        'creado_por'    => $usuarioDisparadorId,
+                        'tipo'          => ExpedienteMovimiento::TIPO_REQUERIMIENTO,
+                        'requerimientos' => [[
+                            'tipo_documento_id' => $rc['tipo_documento_id'] ?? null,
+                            'responsables'      => [[
+                                'actor_ids'  => [$rc['responsable_actor_id']],
+                                'dias_plazo' => $rc['dias_plazo'],
+                                'tipo_dias'  => $rc['tipo_dias'] ?? 'calendario',
+                            ]],
+                        ]],
+                    ],
+                    [],  // sin archivos
+                    [$rc['responsable_actor_id']],  // notificar al responsable
+                    ExpedienteMovimiento::ESTADO_PENDIENTE,
+                );
+            }
+
+            // 3) Registrar el disparo para idempotencia y trazabilidad.
+            MovimientoTrasladoAutoDisparo::create([
+                'traslado_auto_id'       => $cfg->id,
+                'triggered_by_actor_id'  => $actorIdDisparador,
+                'movimiento_generado_id' => $reqGenerado?->id ?? $notif->id,
+                'triggered_at'           => now(),
+            ]);
+
+            $cantDisparados++;
+        }
+
+        return $cantDisparados;
+    }
+
     private function calcularFechaLimite(int $dias, string $tipoDias): string
     {
         if ($tipoDias === 'habiles') {

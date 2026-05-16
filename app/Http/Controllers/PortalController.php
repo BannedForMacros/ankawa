@@ -547,6 +547,17 @@ class PortalController extends Controller
                     'created_at'    => now(),
                 ]);
 
+                // ── Disparar traslados automáticos configurados para los tipos entregados ──
+                // Se hace ANTES del cargo para que, si algo falla, el rollback también revierta los movs generados.
+                if (!empty($tiposEntregadosHoy) && $actorDelEmail) {
+                    app(\App\Services\MovimientoService::class)->dispararTrasladosAuto(
+                        $movimiento,
+                        $actorDelEmail->id,
+                        $tiposEntregadosHoy,
+                        $usuarioIdActor,
+                    );
+                }
+
                 // ── 1 cargo por evento de entrega (sin importar cuántos tipos abarca) ──
                 if ($movimiento->tipo === 'requerimiento' && $movimiento->genera_cargo) {
                     $cargo = Cargo::crear('respuesta_requerimiento', $movimiento, $usuarioIdActor);

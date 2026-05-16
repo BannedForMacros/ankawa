@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import {
-    FileText, Download, ChevronDown, ChevronUp,
+    FileText, Download, ChevronDown, ChevronUp, ChevronRight,
     Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
-    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail, Inbox, Timer
+    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail, Inbox, Timer, Zap
 } from 'lucide-react';
 
 const estadoConfig = {
@@ -276,6 +276,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
     })();
 
     // Agrupado por tipo de documento: para vista expandida cuando es multi-doc.
+    const trasladosAuto = mov.traslados_auto ?? [];
     const tiposAgrupados = (() => {
         if (!tieneTipoDocumento) return [];
         const groups = new Map();
@@ -290,10 +291,11 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
             }
             groups.get(key).rows.push(r);
         }
-        // Adjunto los archivos de respuesta por tipo (los que el actor subió).
+        // Adjunto los archivos de respuesta + traslado_auto por tipo.
         return Array.from(groups.values()).map(g => ({
             ...g,
             archivos: docsRespuesta.filter(d => d.tipo_documento_id === g.tipo_documento_id),
+            traslado_auto: trasladosAuto.find(t => t.tipo_documento_id === g.tipo_documento_id) ?? null,
         }));
     })();
 
@@ -424,6 +426,20 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                                         <div className="flex items-center gap-2 flex-1 min-w-0">
                                                             <FileText size={13} className={completo ? 'text-emerald-600' : 'text-[#BE0F4A]'}/>
                                                             <span className="text-sm font-bold text-[#291136] truncate">{grupo.tipo_documento_nombre}</span>
+                                                            {grupo.traslado_auto && (() => {
+                                                                const yaDisparado = (grupo.traslado_auto.disparos ?? []).length > 0;
+                                                                return (
+                                                                    <span title={grupo.traslado_auto.sumilla}
+                                                                        className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                                                                            yaDisparado
+                                                                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                                                : 'bg-amber-100 text-amber-700 border border-amber-200'
+                                                                        }`}>
+                                                                        <Zap size={9} className={yaDisparado ? 'text-emerald-600 fill-emerald-500' : 'text-amber-600 fill-amber-400'}/>
+                                                                        {yaDisparado ? `Traslado ejecutado ×${grupo.traslado_auto.disparos.length}` : 'Traslado auto pendiente'}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </div>
                                                         <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${completo ? 'bg-emerald-200 text-emerald-800' : 'bg-amber-200 text-amber-800'}`}>
                                                             {badgeText}
@@ -650,13 +666,23 @@ function agruparPorEtapa(movimientos) {
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
-export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, tiposResolucion = [], onIrANuevo = null, actores = [] }) {
+export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, etapaActualId = null, tiposResolucion = [], onIrANuevo = null, actores = [] }) {
     const [expandidos, setExpandidos] = useState(new Set());
+    // Etapas expandidas a nivel de grupo (estilo "carpeta VS Code"). Por defecto solo la etapa actual.
+    const [etapasExpandidas, setEtapasExpandidas] = useState(new Set());
 
     function toggleExpandir(id) {
         setExpandidos(prev => {
             const next = new Set(prev);
             next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    }
+
+    function toggleEtapa(etapaKey) {
+        setEtapasExpandidas(prev => {
+            const next = new Set(prev);
+            next.has(etapaKey) ? next.delete(etapaKey) : next.add(etapaKey);
             return next;
         });
     }
@@ -667,6 +693,25 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
         m.tipo !== 'envio_externo' || m.estado === 'recibido'
     );
     const grupos = agruparPorEtapa(movimientosVisibles);
+
+    // Inicializar: expandir SOLO la etapa actual del expediente al primer render.
+    // Si no hay etapaActualId definido, expandir el último grupo (más reciente cronológicamente).
+    useEffect(() => {
+        if (etapasExpandidas.size > 0 || grupos.length === 0) return;
+        const inicial = new Set();
+        if (etapaActualId != null) {
+            // Buscar todos los grupos con esta etapa (puede haber varios si el expediente reentró a la etapa).
+            grupos.forEach((g, i) => {
+                if (String(g.etapaId) === String(etapaActualId)) inicial.add(`${g.etapaId}-${i}`);
+            });
+        }
+        if (inicial.size === 0) {
+            // Fallback: último grupo cronológicamente
+            const ultimo = grupos[grupos.length - 1];
+            if (ultimo) inicial.add(`${ultimo.etapaId}-${grupos.length - 1}`);
+        }
+        setEtapasExpandidas(inicial);
+    }, [grupos.length, etapaActualId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="space-y-4">
@@ -721,55 +766,108 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                 </div>
             )}
 
-            {/* ── Timeline agrupado por etapa ── */}
+            {/* ── Timeline agrupado por etapa (carpetas colapsables) ── */}
             {movimientosVisibles.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
                     <Clock size={32} className="mx-auto mb-2 text-gray-200"/>
                     <p className="text-sm text-gray-400">Aún no se han registrado movimientos.</p>
                 </div>
             ) : (
-                <div className="space-y-4">
-                    {grupos.map((grupo, gi) => (
-                        <div key={`${grupo.etapaId}-${gi}`} className="flex animate-fade-in-up" style={{ animationDelay: `${gi * 60}ms` }}>
-                            {/* Header vertical de etapa */}
-                            <div className="relative shrink-0 flex items-stretch" style={{ width: '32px' }}>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="h-full w-px bg-[#BE0F4A]/20"/>
-                                </div>
-                                <div className="relative flex items-center justify-center w-full">
-                                    <span
-                                        className="text-[10px] font-bold text-[#BE0F4A] uppercase tracking-widest whitespace-nowrap bg-white px-1"
-                                        style={{ transform: 'rotate(-90deg)' }}
-                                    >
-                                        {grupo.etapaNombre}
-                                    </span>
-                                </div>
+                <div className="space-y-2">
+                    {(() => {
+                        // Control para expandir / colapsar todas con un click
+                        const allKeys = grupos.map((g, i) => `${g.etapaId}-${i}`);
+                        const todasExpandidas = allKeys.every(k => etapasExpandidas.has(k));
+                        return (
+                            <div className="flex items-center justify-between mb-1">
+                                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Línea de tiempo · {grupos.length} etapa{grupos.length !== 1 ? 's' : ''}
+                                </p>
+                                <button type="button"
+                                    onClick={() => setEtapasExpandidas(todasExpandidas ? new Set() : new Set(allKeys))}
+                                    className="text-[11px] font-semibold text-[#BE0F4A] hover:text-[#291136] transition-colors">
+                                    {todasExpandidas ? 'Colapsar todas' : 'Expandir todas'}
+                                </button>
                             </div>
+                        );
+                    })()}
+                    {grupos.map((grupo, gi) => {
+                        const etapaKey = `${grupo.etapaId}-${gi}`;
+                        const abierta = etapasExpandidas.has(etapaKey);
+                        const esEtapaActual = String(grupo.etapaId) === String(etapaActualId);
+                        const fechaPrimera = grupo.movimientos[0]?.created_at;
+                        const fechaUltima  = grupo.movimientos[grupo.movimientos.length - 1]?.created_at;
+                        // Cuántos pendientes hay en esta etapa (informativo para colapsada)
+                        const pendientes = grupo.movimientos.filter(m => m.estado === 'pendiente').length;
+                        return (
+                            <div key={etapaKey} className={`bg-white rounded-xl border overflow-hidden animate-fade-in-up ${
+                                esEtapaActual ? 'border-[#BE0F4A]/40 shadow-sm' : 'border-gray-200'
+                            }`} style={{ animationDelay: `${gi * 50}ms` }}>
+                                {/* Header colapsable de etapa */}
+                                <button type="button"
+                                    onClick={() => toggleEtapa(etapaKey)}
+                                    className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors ${
+                                        esEtapaActual ? 'bg-[#BE0F4A]/5 hover:bg-[#BE0F4A]/10' : 'hover:bg-gray-50'
+                                    }`}>
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        {abierta
+                                            ? <ChevronDown size={14} className="text-[#BE0F4A] shrink-0"/>
+                                            : <ChevronRight size={14} className="text-gray-400 shrink-0"/>}
+                                        <span className={`text-xs font-black uppercase tracking-widest truncate ${esEtapaActual ? 'text-[#BE0F4A]' : 'text-[#291136]'}`}>
+                                            {grupo.etapaNombre}
+                                        </span>
+                                        {esEtapaActual && (
+                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#BE0F4A] text-white shrink-0">
+                                                Etapa actual
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0 text-[11px]">
+                                        <span className="text-gray-400 font-semibold">
+                                            {grupo.movimientos.length} mov{grupo.movimientos.length !== 1 ? 's' : ''}
+                                        </span>
+                                        {pendientes > 0 && (
+                                            <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">
+                                                {pendientes} pendiente{pendientes !== 1 ? 's' : ''}
+                                            </span>
+                                        )}
+                                        {!abierta && fechaPrimera && (
+                                            <span className="text-gray-300 hidden sm:inline">{formatFecha(fechaPrimera)}{fechaUltima && fechaUltima !== fechaPrimera ? ` – ${formatFecha(fechaUltima)}` : ''}</span>
+                                        )}
+                                    </div>
+                                </button>
 
-                            {/* Movimientos de esta etapa */}
-                            <div className="flex-1 space-y-2 py-2 min-w-0 border-l-2 border-[#BE0F4A]/20 pl-3">
-                                {grupo.movimientos.map((mov, mi) => {
-                                    const esPrimerMov = gi === 0 && mi === 0;
-                                    const esUltimoMov = mi === grupo.movimientos.length - 1;
-                                    return (
-                                        <MovimientoCard
-                                            key={mov.id}
-                                            mov={mov}
-                                            esGestor={esGestor}
-                                            expedienteId={expedienteId}
-                                            tiposResolucion={tiposResolucion}
-                                            onIrANuevo={onIrANuevo}
-                                            expandidos={expandidos}
-                                            toggleExpandir={toggleExpandir}
-                                            docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
-                                            esUltimo={esUltimoMov}
-                                            actores={actores}
-                                        />
-                                    );
-                                })}
+                                {/* Contenido: movimientos de la etapa, solo si está abierta */}
+                                {abierta && (
+                                    <div className="border-t border-gray-100 px-3 py-3 bg-gray-50/30">
+                                        <div className="flex">
+                                            <div className="border-l-2 border-[#BE0F4A]/20 pl-3 flex-1 min-w-0 space-y-2">
+                                                {grupo.movimientos.map((mov, mi) => {
+                                                    const esPrimerMov = gi === 0 && mi === 0;
+                                                    const esUltimoMov = mi === grupo.movimientos.length - 1;
+                                                    return (
+                                                        <MovimientoCard
+                                                            key={mov.id}
+                                                            mov={mov}
+                                                            esGestor={esGestor}
+                                                            expedienteId={expedienteId}
+                                                            tiposResolucion={tiposResolucion}
+                                                            onIrANuevo={onIrANuevo}
+                                                            expandidos={expandidos}
+                                                            toggleExpandir={toggleExpandir}
+                                                            docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
+                                                            esUltimo={esUltimoMov}
+                                                            actores={actores}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>

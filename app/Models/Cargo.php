@@ -48,17 +48,11 @@ class Cargo extends Model
      *   - Si está inactivo o `genera_cargo=false` → retorna null
      *     (la operación se completa sin emitir cargo; configurable por admin).
      *
-     * El número correlativo del cargo es POR SERVICIO (igual que EXP, CEDULA): cada servicio
-     * tiene su propia secuencia (ARB-0001, JPRD-0001, OTROS-0001) y el código del servicio
-     * puede aparecer en el formato vía el token {SERVICIO}.
+     * El número correlativo del cargo es GLOBAL (un solo contador para todos los servicios).
+     * El parámetro $servicioId existe por compatibilidad histórica pero se ignora — internamente
+     * se fuerza a NULL para usar la fila global del correlativo (codigo_servicio='GEN').
      *
-     * El servicio se infiere automáticamente del `$cargable`:
-     *   - SolicitudArbitraje / SolicitudJPRD / SolicitudOtros → servicio_id directo.
-     *   - ExpedienteMovimiento → vía $movimiento->expediente->servicio_id.
-     *   - Si no se puede inferir y no se pasa $servicioId, se usa correlativo global.
-     *
-     * El formato del número (CARGO-2026-0001, CARGO-ARB-2026-0001, etc.) es configurable
-     * desde Configuración → Nomenclatura de Correlativos.
+     * Formato resultante: CARGO-GEN-2026-001 (configurable en Configuración → Nomenclatura).
      */
     public static function crear(
         string $codigoEvento,
@@ -88,15 +82,11 @@ class Cargo extends Model
             );
         }
 
-        // Inferir servicio_id desde el cargable cuando el caller no lo pasa explícitamente.
-        if ($servicioId === null) {
-            if (isset($cargable->servicio_id)) {
-                $servicioId = $cargable->servicio_id;
-            } elseif ($cargable instanceof ExpedienteMovimiento) {
-                $cargable->loadMissing('expediente');
-                $servicioId = $cargable->expediente?->servicio_id;
-            }
-        }
+        // CARGO es un correlativo GLOBAL (único contador para todos los servicios).
+        // Forzamos servicio_id = NULL para que CorrelativoService use la fila global
+        // (codigo_servicio='GEN') y se emitan números del tipo "CARGO-GEN-2026-001"
+        // sin importar el servicio del cargable. El parámetro $servicioId se ignora.
+        $servicioId = null;
 
         // Metadata de trazabilidad: IP, UA, email/dni de la sesión del portal si aplica
         $ipOrigen     = $request?->ip();
