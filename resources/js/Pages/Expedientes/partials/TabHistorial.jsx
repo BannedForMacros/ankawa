@@ -233,7 +233,7 @@ function RespuestaCard({ mov }) {
 }
 
 // ── Tarjeta de movimiento ────────────────────────────────────────────────────
-function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo, actores = [] }) {
+function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo, actores = [], tiposDocumento = [], onAbrirCancelarAuto }) {
     const expandido = expandidos.has(mov.id);
     const resolucion = mov.resolucion_tipo;
     const tieneRespuesta = !!mov.respuesta;
@@ -246,6 +246,9 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
     const tieneResponsable = !!mov.usuario_responsable_id || pivotRows.length > 0;
     const puedeResolver  = esGestor && mov.estado === 'respondido' && tieneResponsable && !mov.resolucion_tipo_id;
     const puedeContinuar = esGestor && mov.estado === 'pendiente'  && tieneResponsable && onIrANuevo;
+    // Cancelación de auto: solo gestor, solo si el mov fue creado por la cascada y aún no fue cancelado.
+    const puedeCancelarAuto = esGestor && mov.creado_por_auto && mov.estado !== 'cancelado';
+    const docsCancelacion = mov.documentos?.filter(d => d.momento === 'cancelacion') ?? [];
     let responsablesDisplay = mov.usuario_responsable?.name ?? null;
     const tipoMov = TIPO_LABELS[mov.tipo] ?? TIPO_LABELS.requerimiento;
 

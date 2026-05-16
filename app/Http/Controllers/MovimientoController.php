@@ -250,6 +250,44 @@ class MovimientoController extends Controller
     }
 
     /**
+     * Cancelar un movimiento creado automáticamente por un auto-traslado.
+     * Solo gestor + el movimiento debe ser creado_por_auto y no estar ya cancelado.
+     * Requiere motivo + tipo_documento_id + archivo (documento de sustento del gestor).
+     */
+    public function cancelarAuto(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
+    {
+        abort_unless($movimiento->expediente_id === $expediente->id, 404);
+        abort_unless($this->gestorService->esGestor($expediente, auth()->id()), 403,
+            'Solo el Gestor del expediente puede cancelar un movimiento automático.');
+        abort_unless($movimiento->creado_por_auto, 422,
+            'Solo se pueden cancelar movimientos creados automáticamente por un auto-traslado.');
+        abort_if($movimiento->estado === ExpedienteMovimiento::ESTADO_CANCELADO, 422,
+            'Este movimiento ya fue cancelado.');
+
+        $existsTipoDocEnServicio = Rule::exists('servicio_tipo_documento', 'tipo_documento_id')
+            ->where('servicio_id', $expediente->servicio_id);
+
+        $request->validate([
+            'motivo'            => ['required', 'string', 'max:2000'],
+            'tipo_documento_id' => ['required', 'integer', $existsTipoDocEnServicio],
+            'archivo'           => ['required', ...explode('|', FileRules::accept())],
+        ], [
+            'motivo.required'  => 'Debes indicar el motivo de la cancelación.',
+            'archivo.required' => 'Debes adjuntar el documento de sustento que respalda la cancelación.',
+        ]);
+
+        $this->movimientoService->cancelarMovimientoAuto(
+            $movimiento,
+            auth()->id(),
+            $request->input('motivo'),
+            (int) $request->input('tipo_documento_id'),
+            $request->file('archivo'),
+        );
+
+        return back()->with('success', 'Movimiento automático cancelado. El plazo se detuvo y la fila padre fue reabierta para resubmisión.');
+    }
+
+    /**
      * Resolver un movimiento respondido (solo Gestor).
      * Aprueba, observa, rechaza, valida, etc. según tipos_resolucion_movimiento.
      */

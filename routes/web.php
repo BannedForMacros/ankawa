@@ -120,6 +120,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/expedientes/{expediente}/movimientos', [MovimientoController::class, 'store'])->name('expedientes.movimientos.store');
     Route::post('/expedientes/{expediente}/movimientos/lote', [MovimientoController::class, 'storeLote'])->name('expedientes.movimientos.lote');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/resolver', [MovimientoController::class, 'resolver'])->name('expedientes.movimientos.resolver');
+    Route::post('/expedientes/{expediente}/movimientos/{movimiento}/cancelar-auto', [MovimientoController::class, 'cancelarAuto'])->name('expedientes.movimientos.cancelar-auto');
     Route::post('/expedientes/{expediente}/movimientos/{movimiento}/extender-plazo', [MovimientoController::class, 'extenderPlazo'])->name('expedientes.movimientos.extender-plazo');
 
     // Envíos espontáneos del usuario externo (lado interno: aceptar/rechazar)
