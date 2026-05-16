@@ -64,6 +64,7 @@ class MovimientoController extends Controller
             'requerimientos.*.responsables.*.actor_ids.*'     => ['integer', $existsActorEnExpediente],
             'requerimientos.*.responsables.*.dias_plazo'      => [Rule::requiredIf(fn() => $request->input('tipo') === 'requerimiento'), 'nullable', 'integer', 'min:1', 'max:365'],
             'requerimientos.*.responsables.*.tipo_dias'       => 'nullable|in:calendario,habiles',
+            'requerimientos.*.responsables.*.es_opcional'     => 'nullable|boolean',
             // Traslado automático opcional por tipo de documento
             'requerimientos.*.traslado_auto'                                                  => 'nullable|array',
             'requerimientos.*.traslado_auto.sumilla'                                          => 'required_with:requerimientos.*.traslado_auto|string|max:2000',
@@ -179,6 +180,7 @@ class MovimientoController extends Controller
             'movimientos.*.requerimientos.*.responsables.*.actor_ids.*'         => ['integer', $existsActorEnExpediente],
             'movimientos.*.requerimientos.*.responsables.*.dias_plazo'          => 'nullable|integer|min:1|max:365',
             'movimientos.*.requerimientos.*.responsables.*.tipo_dias'           => 'nullable|in:calendario,habiles',
+            'movimientos.*.requerimientos.*.responsables.*.es_opcional'         => 'nullable|boolean',
             'movimientos.*.dias_plazo'                    => 'nullable|integer|min:1|max:365',
             'movimientos.*.tipo_dias'                => 'nullable|in:calendario,habiles',
             'movimientos.*.tipo_documento_requerido_id' => ['nullable', $existsTipoDocEnServicio],

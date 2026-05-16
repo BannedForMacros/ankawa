@@ -102,8 +102,10 @@ class PortalController extends Controller
                         // Para cada responsable respondido, filtramos los docs del mismo tipo.
                         $docsRespuesta = $mov->documentos->where('momento', 'respuesta');
 
-                        $responsablesPendientes = $mov->responsables->where('estado', 'pendiente');
-                        $responsablesRespondidos = $mov->responsables->where('estado', 'respondido');
+                        $responsablesPendientes  = $mov->responsables->where('estado', 'pendiente');
+                        // Tanto respondidos como omitidos van al historial "ya entregaste"
+                        // (omitido = el actor decidió previamente no presentar un opcional).
+                        $responsablesRespondidos = $mov->responsables->whereIn('estado', ['respondido', 'omitido']);
 
                         return [
                             'id'                      => $mov->id,
@@ -125,26 +127,31 @@ class PortalController extends Controller
                                 'responsable_id'         => $r->id,
                                 'tipo_documento_id'      => $r->tipo_documento_id,
                                 'tipo_documento_nombre'  => $r->tipoDocumento?->nombre,
+                                'es_opcional'            => (bool) $r->es_opcional,
                                 'dias_plazo'             => $r->dias_plazo,
                                 'tipo_dias'              => $r->tipo_dias,
                                 'fecha_limite'           => $r->fecha_limite?->format('d/m/Y'),
                                 'estado'                 => $r->estado,
                             ])->values()->toArray(),
-                            // Tipos que el actor YA entregó antes — para mostrar trazabilidad en el modal.
-                            // Cada item trae los archivos efectivamente subidos para ese tipo.
+                            // Tipos sobre los que YA hay una decisión del actor — para trazabilidad en el modal.
+                            // Incluye 'respondido' (entregó algo) y 'omitido' (decidió no presentar el opcional).
                             'responsables_entregados' => $responsablesRespondidos->map(fn($r) => [
                                 'responsable_id'         => $r->id,
                                 'tipo_documento_id'      => $r->tipo_documento_id,
                                 'tipo_documento_nombre'  => $r->tipoDocumento?->nombre,
+                                'es_opcional'            => (bool) $r->es_opcional,
+                                'estado'                 => $r->estado,
                                 'fecha_respuesta'        => $r->fecha_respuesta?->format('d/m/Y H:i'),
-                                'archivos'               => $docsRespuesta
-                                    ->where('tipo_documento_id', $r->tipo_documento_id)
-                                    ->map(fn($d) => [
-                                        'id'              => $d->id,
-                                        'nombre_original' => $d->nombre_original,
-                                        'peso_bytes'      => $d->peso_bytes,
-                                        'url'             => Storage::disk('public')->url($d->ruta_archivo),
-                                    ])->values()->toArray(),
+                                'archivos'               => $r->estado === 'respondido'
+                                    ? $docsRespuesta
+                                        ->where('tipo_documento_id', $r->tipo_documento_id)
+                                        ->map(fn($d) => [
+                                            'id'              => $d->id,
+                                            'nombre_original' => $d->nombre_original,
+                                            'peso_bytes'      => $d->peso_bytes,
+                                            'url'             => Storage::disk('public')->url($d->ruta_archivo),
+                                        ])->values()->toArray()
+                                    : [],
                             ])->values()->toArray(),
                         ];
                     })->values()->toArray(),
@@ -485,6 +492,21 @@ class PortalController extends Controller
                     $tiposEntregadosHoy[] = $tipoId;
                 }
 
+                // ── Marcar como OMITIDO los tipos OPCIONALES pendientes del actor que NO se entregaron en este envío.
+                //    Solo aplica si el actor entregó al menos un tipo (caso normal: termina su submission decidiendo
+                //    no presentar los opcionales). Si no entregó nada, ya retornamos 422 antes.
+                if (!empty($tiposEntregadosHoy)) {
+                    foreach ($responsablesPendientes as $resp) {
+                        if (!$resp->es_opcional) continue;                                  // requeridos no se omiten
+                        if (in_array($resp->tipo_documento_id, $tiposEntregadosHoy)) continue; // este tipo SÍ se entregó
+                        $resp->update([
+                            'estado'          => ExpedienteMovimiento::ESTADO_OMITIDO,
+                            'respondido_por'  => $usuarioIdActor,
+                            'fecha_respuesta' => now(),
+                        ]);
+                    }
+                }
+
                 // ── Flujo legacy: documentos[] sin agrupar (movimientos viejos) ──
                 if (!empty($archivosLegacy)) {
                     foreach ($archivosLegacy as $archivo) {
@@ -507,9 +529,11 @@ class PortalController extends Controller
                 }
 
                 // ── ¿Todo el movimiento quedó respondido? ──
-                // Sólo se marca el movimiento entero si TODAS las filas (para todos los actores) están respondidas.
+                // Cierra cuando ninguna fila REQUERIDA (es_opcional=false) sigue pendiente.
+                // Las filas opcionales en estado `omitido` o `pendiente` no bloquean el cierre.
                 $todasRespondidas = !MovimientoResponsable::where('movimiento_id', $movimiento->id)
-                    ->where('estado', 'pendiente')
+                    ->where('es_opcional', false)
+                    ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
                     ->exists();
 
                 // Si no había filas en el pivot (movimiento legacy) se cierra directo.

@@ -413,13 +413,18 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                         {tiposAgrupados.map(grupo => {
                                             const totalDocs    = grupo.rows.length;
                                             const respondidas  = grupo.rows.filter(r => r.estado === 'respondido').length;
-                                            const completo     = respondidas === totalDocs;
+                                            // Una fila "omitida" ya tiene decisión tomada → cuenta como cerrada para el conteo del tipo.
+                                            const cerradas     = grupo.rows.filter(r => r.estado === 'respondido' || r.estado === 'omitido').length;
+                                            const completo     = cerradas === totalDocs;
+                                            const todasOmitidas = completo && respondidas === 0;
                                             // Badge del header:
-                                            //   - 1 solo actor obligado: muestra "Pendiente" o "Entregado"
-                                            //   - 2+ actores obligados al mismo tipo: muestra "X/Y entregados"
+                                            //   - 1 sola fila: "Entregado" / "Omitido" / "Pendiente"
+                                            //   - 2+ filas: "X/Y entregados" (los omitidos no suman al numerador, pero el badge verde se activa cuando cerradas===totalDocs)
                                             const badgeText = totalDocs === 1
-                                                ? (completo ? 'Entregado' : 'Pendiente')
-                                                : `${respondidas}/${totalDocs} entregados`;
+                                                ? (grupo.rows[0]?.estado === 'respondido' ? 'Entregado'
+                                                   : grupo.rows[0]?.estado === 'omitido' ? 'No presentado (opcional)'
+                                                   : 'Pendiente')
+                                                : (todasOmitidas ? 'No presentados (opcional)' : `${respondidas}/${totalDocs} entregados`);
                                             return (
                                                 <div key={grupo.tipo_documento_id ?? 'sin'} className="border border-gray-200 rounded-xl overflow-hidden">
                                                     <div className={`px-3 py-2 flex items-center justify-between gap-2 border-b ${completo ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
@@ -454,20 +459,31 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                                 : est === 'vencido'
                                                                 ? 'bg-red-50 text-red-600 border-red-200'
+                                                                : est === 'omitido'
+                                                                ? 'bg-gray-100 text-gray-600 border-gray-300'
                                                                 : 'bg-amber-50 text-amber-700 border-amber-200';
+                                                            const estadoLabel = est === 'respondido' ? '✓'
+                                                                : est === 'vencido' ? '✗'
+                                                                : est === 'omitido' ? '∅'
+                                                                : '⏳';
                                                             return (
                                                                 <div key={r.id} className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-xs ${chipCls}`}>
-                                                                    <span className="font-semibold truncate">{nombre}{tipo ? ` — ${tipo}` : ''}</span>
+                                                                    <span className="font-semibold truncate flex items-center gap-1.5">
+                                                                        {nombre}{tipo ? ` — ${tipo}` : ''}
+                                                                        {r.es_opcional && (
+                                                                            <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-white/60 border border-current/20 uppercase">Opcional</span>
+                                                                        )}
+                                                                    </span>
                                                                     <div className="flex items-center gap-2 shrink-0">
                                                                         {r.dias_plazo && (
                                                                             <span className="text-[10px] font-medium opacity-70">
                                                                                 {r.dias_plazo} días {r.tipo_dias === 'habiles' ? 'háb.' : 'cal.'}
                                                                             </span>
                                                                         )}
-                                                                        <span className="font-bold uppercase tracking-wide text-[10px]">
-                                                                            {est === 'respondido' ? '✓' : est === 'vencido' ? '✗' : '⏳'}
+                                                                        <span className="font-bold uppercase tracking-wide text-[10px]" title={est}>
+                                                                            {estadoLabel}
                                                                         </span>
-                                                                        {est === 'respondido' && r.respondido_por?.name && (
+                                                                        {(est === 'respondido' || est === 'omitido') && r.respondido_por?.name && (
                                                                             <span className="opacity-70 truncate max-w-[100px]">{r.respondido_por.name}</span>
                                                                         )}
                                                                     </div>

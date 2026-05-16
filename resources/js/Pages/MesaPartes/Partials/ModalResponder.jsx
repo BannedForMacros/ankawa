@@ -88,17 +88,18 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
         }
 
         // Flujo nuevo: revisar qué tipos tienen archivos y cuáles no.
-        const tiposConArchivos = responsablesPendientes.filter(r => (archivosPorTipo[r.tipo_documento_id] ?? []).length > 0);
-        const tiposVacios      = responsablesPendientes.filter(r => (archivosPorTipo[r.tipo_documento_id] ?? []).length === 0);
+        // Los opcionales NO bloquean ni gatillan advertencia: si el actor no los adjunta, simplemente se omiten.
+        const tiposConArchivos     = responsablesPendientes.filter(r => (archivosPorTipo[r.tipo_documento_id] ?? []).length > 0);
+        const tiposVaciosRequeridos = responsablesPendientes.filter(r => !r.es_opcional && (archivosPorTipo[r.tipo_documento_id] ?? []).length === 0);
 
         if (tiposConArchivos.length === 0) {
-            toast.error('Debes adjuntar al menos un documento de los requeridos.');
+            toast.error('Debes adjuntar al menos un documento.');
             return;
         }
 
-        if (tiposVacios.length > 0) {
-            // Mostrar warning de respuesta parcial
-            setConfirmParcial({ tiposVacios, tiposConArchivos });
+        if (tiposVaciosRequeridos.length > 0) {
+            // Mostrar warning de respuesta parcial — solo cuenta tipos REQUERIDOS sin archivo.
+            setConfirmParcial({ tiposVacios: tiposVaciosRequeridos, tiposConArchivos });
             return;
         }
 
@@ -234,18 +235,34 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                     Documentos a presentar
                                 </label>
                                 <p className="text-xs text-gray-500 -mt-2">
-                                    Adjunta cada tipo de documento en su propia sección. Si no entregas alguno, ese plazo seguirá corriendo.
+                                    Adjunta cada tipo en su propia sección. Los marcados como <strong>opcionales</strong> podés saltearlos. Si no entregás un tipo <strong>requerido</strong>, su plazo seguirá corriendo.
                                 </p>
                                 {responsablesPendientes.map(r => {
                                     const files = archivosPorTipo[r.tipo_documento_id] ?? [];
                                     const tieneArchivos = files.length > 0;
+                                    const esOpcional = !!r.es_opcional;
+                                    // Estilos / etiquetas según opcional vs requerido
+                                    const borderCls = tieneArchivos
+                                        ? 'border-emerald-400 bg-emerald-50/30'
+                                        : (esOpcional ? 'border-dashed border-gray-300 bg-white' : 'border-gray-200 bg-white');
+                                    const badgeCls = tieneArchivos
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : (esOpcional ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-700');
+                                    const badgeText = tieneArchivos
+                                        ? `Listo · ${files.length}`
+                                        : (esOpcional ? 'Opcional' : 'Pendiente');
                                     return (
-                                        <div key={r.responsable_id} className={`rounded-xl border-2 ${tieneArchivos ? 'border-emerald-400 bg-emerald-50/30' : 'border-gray-200 bg-white'} p-3 transition-colors`}>
+                                        <div key={r.responsable_id} className={`rounded-xl border-2 ${borderCls} p-3 transition-colors`}>
                                             <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-bold text-[#291136] flex items-center gap-1.5">
+                                                    <p className="text-sm font-bold text-[#291136] flex items-center gap-1.5 flex-wrap">
                                                         <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
                                                         {r.tipo_documento_nombre}
+                                                        {esOpcional && (
+                                                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                                                OPCIONAL
+                                                            </span>
+                                                        )}
                                                     </p>
                                                     {r.fecha_limite && (
                                                         <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1">
@@ -253,9 +270,14 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                                             <span className="ml-1">({r.dias_plazo} días {r.tipo_dias === 'habiles' ? 'hábiles' : 'cal.'})</span>
                                                         </p>
                                                     )}
+                                                    {esOpcional && (
+                                                        <p className="text-[11px] text-gray-500 italic mt-0.5">
+                                                            Solo adjunta si corresponde — no es obligatorio presentarlo.
+                                                        </p>
+                                                    )}
                                                 </div>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${tieneArchivos ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                    {tieneArchivos ? `Listo · ${files.length}` : 'Pendiente'}
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${badgeCls}`}>
+                                                    {badgeText}
                                                 </span>
                                             </div>
                                             <button type="button"
@@ -404,19 +426,32 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                     {openYaEntregados && (
                                         <div className="px-3 pb-3 border-t border-emerald-100 pt-2 space-y-2">
                                             <p className="text-[11px] text-emerald-600 mb-1">
-                                                Estos tipos ya fueron presentados en respuestas previas.
+                                                Estos tipos ya tienen una decisión previa (presentados u omitidos).
                                             </p>
-                                            {mov.responsables_entregados.map(r => (
-                                                <div key={r.responsable_id} className="bg-emerald-50/40 border border-emerald-100 rounded-lg p-2.5">
+                                            {mov.responsables_entregados.map(r => {
+                                                const omitido = r.estado === 'omitido';
+                                                return (
+                                                <div key={r.responsable_id} className={`border rounded-lg p-2.5 ${omitido ? 'bg-gray-50 border-gray-200' : 'bg-emerald-50/40 border-emerald-100'}`}>
                                                     <div className="flex items-start justify-between gap-2 mb-1.5 flex-wrap">
-                                                        <p className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                                                        <p className={`text-xs font-bold flex items-center gap-1 flex-wrap ${omitido ? 'text-gray-600' : 'text-emerald-800'}`}>
                                                             <FileText size={12}/> {r.tipo_documento_nombre}
+                                                            {omitido && (
+                                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 border border-gray-300">
+                                                                    OMITIDO
+                                                                </span>
+                                                            )}
                                                         </p>
                                                         {r.fecha_respuesta && (
-                                                            <span className="text-[10px] text-emerald-600">Entregado el {r.fecha_respuesta}</span>
+                                                            <span className={`text-[10px] ${omitido ? 'text-gray-500' : 'text-emerald-600'}`}>
+                                                                {omitido ? 'Decidido el' : 'Entregado el'} {r.fecha_respuesta}
+                                                            </span>
                                                         )}
                                                     </div>
-                                                    {Array.isArray(r.archivos) && r.archivos.length > 0 ? (
+                                                    {omitido ? (
+                                                        <p className="text-[11px] text-gray-500 italic">
+                                                            Decidiste no presentar este documento (opcional). No se enviará automáticamente.
+                                                        </p>
+                                                    ) : Array.isArray(r.archivos) && r.archivos.length > 0 ? (
                                                         <div className="space-y-1">
                                                             {r.archivos.map(a => (
                                                                 <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
@@ -432,7 +467,8 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                                         <p className="text-[11px] text-emerald-600 italic">Sin archivos registrados.</p>
                                                     )}
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

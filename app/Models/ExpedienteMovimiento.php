@@ -10,13 +10,16 @@ class ExpedienteMovimiento extends Model
 {
     protected $table = 'expediente_movimientos';
 
-    // Estados posibles de un movimiento
+    // Estados posibles de un movimiento (también usados en movimiento_responsables)
     public const ESTADO_PENDIENTE             = 'pendiente';
     public const ESTADO_RESPONDIDO            = 'respondido';
     public const ESTADO_VENCIDO               = 'vencido';
     public const ESTADO_RECIBIDO              = 'recibido';
     public const ESTADO_PENDIENTE_ACEPTACION  = 'pendiente_aceptacion';
     public const ESTADO_RECHAZADO             = 'rechazado';
+    // ESTADO_OMITIDO aplica a filas de movimiento_responsables marcadas es_opcional=true que
+    // el actor decidió no presentar. No bloquea el cierre del movimiento y queda como traza auditable.
+    public const ESTADO_OMITIDO               = 'omitido';
 
     public const ESTADOS = [
         self::ESTADO_PENDIENTE,
@@ -25,6 +28,7 @@ class ExpedienteMovimiento extends Model
         self::ESTADO_RECIBIDO,
         self::ESTADO_PENDIENTE_ACEPTACION,
         self::ESTADO_RECHAZADO,
+        self::ESTADO_OMITIDO,
     ];
 
     // Tipos de movimiento

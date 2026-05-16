@@ -93,6 +93,7 @@ class MovimientoService
                                 'expediente_actor_id' => $actorId,
                                 'tipo_actor_id'       => $actor?->tipo_actor_id,
                                 'tipo_documento_id'   => $tipoDocId,
+                                'es_opcional'         => !empty($r['es_opcional']),
                                 'dias_plazo'          => $r['dias_plazo'],
                                 'tipo_dias'           => $r['tipo_dias'] ?? 'calendario',
                                 'fecha_limite'        => $fl,

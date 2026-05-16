@@ -10,7 +10,7 @@ import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, Fil
 // El tipo_documento_id puede ser '' (caso requerimiento libre, ej. apersonamiento) o un id real.
 export const requerimientoVacio = () => ({
     tipo_documento_id: '',
-    responsables: [{ tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
+    responsables: [{ tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario', es_opcional: false }],
     // Config opcional: cuando este tipo se entregue, dispara una notificación (y opcionalmente
     // un nuevo requerimiento) en automático. Null = sin traslado automático configurado.
     traslado_auto: null,
@@ -576,6 +576,20 @@ export function MovimientoCard({
                                                         </button>
                                                     ))}
                                                 </div>
+                                                {/* Toggle: marcar este responsable como opcional (no exige adjuntar) */}
+                                                <button type="button"
+                                                    onClick={() => updateFila({ es_opcional: !fila.es_opcional })}
+                                                    title="Si está activo, el actor puede no presentar este documento sin penalidad procesal"
+                                                    className={`shrink-0 px-2.5 py-2 text-[11px] font-bold rounded-xl border transition-colors flex items-center gap-1 ${
+                                                        fila.es_opcional
+                                                            ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                                            : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                                                    }`}>
+                                                    <span className={`inline-block w-3 h-3 rounded-sm border ${fila.es_opcional ? 'bg-amber-500 border-amber-600' : 'bg-white border-gray-300'}`}>
+                                                        {fila.es_opcional && <span className="block text-white text-[9px] leading-[10px] text-center">✓</span>}
+                                                    </span>
+                                                    Opcional
+                                                </button>
                                                 {(req.responsables ?? []).length > 1 && (
                                                     <button type="button"
                                                         onClick={() => onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
@@ -592,7 +606,7 @@ export function MovimientoCard({
                                             onClick={() => onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
                                                 j === qi ? {
                                                     ...r,
-                                                    responsables: [...(r.responsables ?? []), { tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario' }],
+                                                    responsables: [...(r.responsables ?? []), { tipo_actor_id: '', actor_ids: [], dias_plazo: '', tipo_dias: 'calendario', es_opcional: false }],
                                                 } : r
                                             ))}
                                             className="flex items-center gap-1.5 text-xs font-bold text-[#BE0F4A] hover:text-[#291136] transition-colors mt-1">
@@ -1142,6 +1156,7 @@ export default function TabNuevoMovimiento({
                     (r.actor_ids ?? []).forEach(id => form.append(`requerimientos[${qi}][responsables][${ri}][actor_ids][]`, id));
                     if (r.dias_plazo) form.append(`requerimientos[${qi}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
                     form.append(`requerimientos[${qi}][responsables][${ri}][tipo_dias]`, r.tipo_dias ?? 'calendario');
+                    form.append(`requerimientos[${qi}][responsables][${ri}][es_opcional]`, r.es_opcional ? '1' : '0');
                 });
                 // Traslado automático opcional
                 if (req.traslado_auto) {
@@ -1187,6 +1202,7 @@ export default function TabNuevoMovimiento({
                         (r.actor_ids ?? []).forEach(id => form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][actor_ids][]`, id));
                         if (r.dias_plazo) form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][dias_plazo]`, r.dias_plazo);
                         form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][tipo_dias]`,  r.tipo_dias ?? 'calendario');
+                        form.append(`movimientos[${i}][requerimientos][${qi}][responsables][${ri}][es_opcional]`, r.es_opcional ? '1' : '0');
                     });
                     if (req.traslado_auto) {
                         serializarTrasladoAuto(form, `movimientos[${i}][requerimientos][${qi}][traslado_auto]`, req.traslado_auto);

@@ -14,6 +14,7 @@ class MovimientoResponsable extends Model
         'expediente_actor_id',
         'tipo_actor_id',
         'tipo_documento_id',
+        'es_opcional',
         'dias_plazo',
         'tipo_dias',
         'fecha_limite',
@@ -24,6 +25,7 @@ class MovimientoResponsable extends Model
     ];
 
     protected $casts = [
+        'es_opcional'     => 'boolean',
         'fecha_limite'    => 'date',
         'fecha_respuesta' => 'datetime',
     ];
