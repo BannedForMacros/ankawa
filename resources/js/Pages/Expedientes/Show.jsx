@@ -205,6 +205,7 @@ export default function Show({
                             expedienteId={expediente.id}
                             etapaActualId={expediente.etapa_actual_id}
                             tiposResolucion={tiposResolucion ?? []}
+                            tiposDocumento={tiposDocumento ?? []}
                             onIrANuevo={esGestor && expediente.estado === 'activo' ? () => setActiveTab('nuevo') : null}
                             actores={expediente.actores ?? []}
                         />

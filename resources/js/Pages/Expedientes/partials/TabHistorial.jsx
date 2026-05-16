@@ -5,12 +5,14 @@ import {
     Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
     ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail, Inbox, Timer, Zap
 } from 'lucide-react';
+import ModalCancelarAuto from './ModalCancelarAuto';
 
 const estadoConfig = {
     recibido:   { Icon: Eye,           color: 'bg-purple-50 text-purple-600 border-purple-200',    label: 'Recibido' },
     pendiente:  { Icon: Clock,         color: 'bg-amber-50 text-amber-700 border-amber-200',       label: 'Pendiente' },
     respondido: { Icon: CheckCircle,   color: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'Respondido' },
     vencido:    { Icon: AlertTriangle, color: 'bg-red-50 text-red-600 border-red-200',             label: 'Vencido' },
+    cancelado:  { Icon: Zap,           color: 'bg-gray-100 text-gray-600 border-gray-300',         label: 'Cancelado' },
 };
 
 const colorMap = {
@@ -389,10 +391,15 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                         <Timer size={11}/> {extensiones.length === 1 ? 'Plazo extendido' : `${extensiones.length} extensiones`}
                                     </span>
                                 )}
+                                {mov.creado_por_auto && (
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 inline-flex items-center gap-1" title="Movimiento creado automáticamente por un traslado">
+                                        <Zap size={11}/> Auto
+                                    </span>
+                                )}
                                 <TipoBadge tipo={mov.tipo} />
                                 {resolucion && <ResolucionBadge resolucion={resolucion} />}
                                 <EstadoBadge estado={mov.estado} />
-                                {(tieneExtras || puedeResolver || puedeContinuar) && (
+                                {(tieneExtras || puedeResolver || puedeContinuar || puedeCancelarAuto) && (
                                     <button onClick={() => toggleExpandir(mov.id)}
                                         className="text-[#BE0F4A]/50 hover:text-[#BE0F4A] transition-colors">
                                         {expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
@@ -631,10 +638,50 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     </div>
                                 </div>
                             )}
-                            {(puedeResolver || puedeContinuar) && (
+                            {/* Panel informativo si el movimiento ya fue cancelado por el gestor */}
+                            {mov.estado === 'cancelado' && (
+                                <div className="bg-gray-100 border border-gray-300 rounded-xl p-3 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <Zap size={13} className="text-gray-500"/>
+                                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Movimiento cancelado por el gestor</p>
+                                    </div>
+                                    {mov.motivo_cancelacion && (
+                                        <p className="text-xs text-gray-600 italic">"{mov.motivo_cancelacion}"</p>
+                                    )}
+                                    {mov.cancelado_at && (
+                                        <p className="text-[11px] text-gray-500">
+                                            {formatFecha(mov.cancelado_at)}{mov.cancelado_por?.name ? ` · por ${mov.cancelado_por.name}` : ''}
+                                        </p>
+                                    )}
+                                    {docsCancelacion.length > 0 && (
+                                        <div className="pt-2 border-t border-gray-200">
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                                                Sustento ({docsCancelacion.length})
+                                            </p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {docsCancelacion.map(doc => (
+                                                    <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                        target="_blank" rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+                                                        <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {(puedeResolver || puedeContinuar || puedeCancelarAuto) && (
                                 <div className="pt-2 border-t border-gray-100 space-y-2">
                                     {puedeResolver && <ResolverPanel mov={mov} expedienteId={expedienteId} tiposResolucion={tiposResolucion}/>}
                                     {puedeContinuar && <ContinuarPanel mov={mov} expedienteId={expedienteId} onContinuar={onIrANuevo}/>}
+                                    {puedeCancelarAuto && (
+                                        <button type="button"
+                                            onClick={() => onAbrirCancelarAuto?.(mov)}
+                                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                                            <Zap size={13}/> Cancelar movimiento automático
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -685,10 +732,12 @@ function agruparPorEtapa(movimientos) {
 }
 
 // ── Componente principal ─────────────────────────────────────────────────────
-export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, etapaActualId = null, tiposResolucion = [], onIrANuevo = null, actores = [] }) {
+export default function TabHistorial({ movimientos = [], solicitud, esGestor = false, expedienteId, etapaActualId = null, tiposResolucion = [], tiposDocumento = [], onIrANuevo = null, actores = [] }) {
     const [expandidos, setExpandidos] = useState(new Set());
     // Etapas expandidas a nivel de grupo (estilo "carpeta VS Code"). Por defecto solo la etapa actual.
     const [etapasExpandidas, setEtapasExpandidas] = useState(new Set());
+    // Movimiento que el gestor está por cancelar (o null si modal cerrado).
+    const [movCancelar, setMovCancelar] = useState(null);
 
     function toggleExpandir(id) {
         setExpandidos(prev => {
@@ -871,12 +920,14 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                                             esGestor={esGestor}
                                                             expedienteId={expedienteId}
                                                             tiposResolucion={tiposResolucion}
+                                                            tiposDocumento={tiposDocumento}
                                                             onIrANuevo={onIrANuevo}
                                                             expandidos={expandidos}
                                                             toggleExpandir={toggleExpandir}
                                                             docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
                                                             esUltimo={esUltimoMov}
                                                             actores={actores}
+                                                            onAbrirCancelarAuto={setMovCancelar}
                                                         />
                                                     );
                                                 })}
@@ -889,6 +940,16 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                     })}
                 </div>
             )}
+
+            {/* Modal de cancelación de auto-movimiento (solo gestor) */}
+            <ModalCancelarAuto
+                open={!!movCancelar}
+                expedienteId={expedienteId}
+                movimiento={movCancelar}
+                tiposDocumento={tiposDocumento}
+                onClose={() => setMovCancelar(null)}
+                onCancelado={() => {}}
+            />
         </div>
     );
 }
