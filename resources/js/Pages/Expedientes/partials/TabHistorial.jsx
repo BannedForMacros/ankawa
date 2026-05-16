@@ -3,7 +3,7 @@ import { router, useForm } from '@inertiajs/react';
 import {
     FileText, Download, ChevronDown, ChevronUp, ChevronRight,
     Clock, CheckCircle, AlertTriangle, Eye, CheckSquare,
-    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail, Inbox, Timer, Zap
+    ArrowRight, Send, Bell, UserCheck, CalendarDays, Mail, Inbox, Timer, Zap, Ban
 } from 'lucide-react';
 import ModalCancelarAuto from './ModalCancelarAuto';
 
@@ -12,7 +12,7 @@ const estadoConfig = {
     pendiente:  { Icon: Clock,         color: 'bg-amber-50 text-amber-700 border-amber-200',       label: 'Pendiente' },
     respondido: { Icon: CheckCircle,   color: 'bg-emerald-50 text-emerald-600 border-emerald-200', label: 'Respondido' },
     vencido:    { Icon: AlertTriangle, color: 'bg-red-50 text-red-600 border-red-200',             label: 'Vencido' },
-    cancelado:  { Icon: Zap,           color: 'bg-gray-100 text-gray-600 border-gray-300',         label: 'Cancelado' },
+    cancelado:  { Icon: Ban,           color: 'bg-[#291136] text-white border-[#291136]',          label: 'Cancelado' },
 };
 
 const colorMap = {
@@ -402,19 +402,21 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                 {(tieneExtras || puedeResolver || puedeContinuar || puedeCancelarAuto) && (
                                     <button onClick={() => toggleExpandir(mov.id)}
                                         className="text-[#BE0F4A]/50 hover:text-[#BE0F4A] transition-colors">
-                                        {expandido ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}
+                                        <ChevronDown size={14}
+                                            className={`transition-transform duration-300 ease-out ${expandido ? 'rotate-180' : ''}`}/>
                                     </button>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Contenido Expandido */}
-                    {expandido && (
-                        <div className="px-3.5 pb-3.5 border-t border-gray-50 space-y-3 pt-3">
-                            {mov.observaciones && (
-                                <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
-                            )}
+                    {/* Contenido Expandido — animación con grid-template-rows 0fr→1fr para height auto suave */}
+                    <div className={`grid transition-all duration-300 ease-out ${expandido ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                        <div className="overflow-hidden">
+                            <div className="px-3.5 pb-3.5 border-t border-gray-50 space-y-3 pt-3">
+                                {mov.observaciones && (
+                                    <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2">{mov.observaciones}</p>
+                                )}
                             {/* Vista MULTI-DOC: agrupado por tipo de documento, cada tipo con sus actores + archivos entregados */}
                             {tieneTipoDocumento && tiposAgrupados.length > 0 && (
                                 <div>
@@ -640,29 +642,29 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                             )}
                             {/* Panel informativo si el movimiento ya fue cancelado por el gestor */}
                             {mov.estado === 'cancelado' && (
-                                <div className="bg-gray-100 border border-gray-300 rounded-xl p-3 space-y-2">
+                                <div className="bg-[#291136] text-white rounded-xl p-3 space-y-2 border border-[#291136]">
                                     <div className="flex items-center gap-2">
-                                        <Zap size={13} className="text-gray-500"/>
-                                        <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Movimiento cancelado por el gestor</p>
+                                        <Ban size={14} className="text-amber-300"/>
+                                        <p className="text-xs font-bold uppercase tracking-wide">Movimiento cancelado por el gestor</p>
                                     </div>
                                     {mov.motivo_cancelacion && (
-                                        <p className="text-xs text-gray-600 italic">"{mov.motivo_cancelacion}"</p>
+                                        <p className="text-xs italic text-white/85">"{mov.motivo_cancelacion}"</p>
                                     )}
                                     {mov.cancelado_at && (
-                                        <p className="text-[11px] text-gray-500">
+                                        <p className="text-[11px] text-white/60">
                                             {formatFecha(mov.cancelado_at)}{mov.cancelado_por?.name ? ` · por ${mov.cancelado_por.name}` : ''}
                                         </p>
                                     )}
                                     {docsCancelacion.length > 0 && (
-                                        <div className="pt-2 border-t border-gray-200">
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">
+                                        <div className="pt-2 border-t border-white/15">
+                                            <p className="text-[10px] font-bold text-white/70 uppercase tracking-wide mb-1">
                                                 Sustento ({docsCancelacion.length})
                                             </p>
                                             <div className="flex flex-wrap gap-1">
                                                 {docsCancelacion.map(doc => (
                                                     <a key={doc.id} href={route('documentos.descargar', doc.id)}
                                                         target="_blank" rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
+                                                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors">
                                                         <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
                                                     </a>
                                                 ))}
@@ -684,8 +686,9 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     )}
                                 </div>
                             )}
+                            </div>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* Sub-nodo de respuesta */}
@@ -878,9 +881,10 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                         esEtapaActual ? 'bg-[#BE0F4A]/5 hover:bg-[#BE0F4A]/10' : 'hover:bg-gray-50'
                                     }`}>
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        {abierta
-                                            ? <ChevronDown size={14} className="text-[#BE0F4A] shrink-0"/>
-                                            : <ChevronRight size={14} className="text-gray-400 shrink-0"/>}
+                                        <ChevronRight size={14}
+                                            className={`shrink-0 transition-transform duration-300 ease-out ${
+                                                abierta ? 'rotate-90 text-[#BE0F4A]' : 'text-gray-400'
+                                            }`}/>
                                         <span className={`text-xs font-black uppercase tracking-widest truncate ${esEtapaActual ? 'text-[#BE0F4A]' : 'text-[#291136]'}`}>
                                             {grupo.etapaNombre}
                                         </span>
@@ -905,36 +909,38 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                                     </div>
                                 </button>
 
-                                {/* Contenido: movimientos de la etapa, solo si está abierta */}
-                                {abierta && (
-                                    <div className="border-t border-gray-100 px-3 py-3 bg-gray-50/30">
-                                        <div className="flex">
-                                            <div className="border-l-2 border-[#BE0F4A]/20 pl-3 flex-1 min-w-0 space-y-2">
-                                                {grupo.movimientos.map((mov, mi) => {
-                                                    const esPrimerMov = gi === 0 && mi === 0;
-                                                    const esUltimoMov = mi === grupo.movimientos.length - 1;
-                                                    return (
-                                                        <MovimientoCard
-                                                            key={mov.id}
-                                                            mov={mov}
-                                                            esGestor={esGestor}
-                                                            expedienteId={expedienteId}
-                                                            tiposResolucion={tiposResolucion}
-                                                            tiposDocumento={tiposDocumento}
-                                                            onIrANuevo={onIrANuevo}
-                                                            expandidos={expandidos}
-                                                            toggleExpandir={toggleExpandir}
-                                                            docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
-                                                            esUltimo={esUltimoMov}
-                                                            actores={actores}
-                                                            onAbrirCancelarAuto={setMovCancelar}
-                                                        />
-                                                    );
-                                                })}
+                                {/* Contenido: movimientos de la etapa, animación grid-rows para apertura suave */}
+                                <div className={`grid transition-all duration-300 ease-out ${abierta ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                    <div className="overflow-hidden">
+                                        <div className="border-t border-gray-100 px-3 py-3 bg-gray-50/30">
+                                            <div className="flex">
+                                                <div className="border-l-2 border-[#BE0F4A]/20 pl-3 flex-1 min-w-0 space-y-2">
+                                                    {grupo.movimientos.map((mov, mi) => {
+                                                        const esPrimerMov = gi === 0 && mi === 0;
+                                                        const esUltimoMov = mi === grupo.movimientos.length - 1;
+                                                        return (
+                                                            <MovimientoCard
+                                                                key={mov.id}
+                                                                mov={mov}
+                                                                esGestor={esGestor}
+                                                                expedienteId={expedienteId}
+                                                                tiposResolucion={tiposResolucion}
+                                                                tiposDocumento={tiposDocumento}
+                                                                onIrANuevo={onIrANuevo}
+                                                                expandidos={expandidos}
+                                                                toggleExpandir={toggleExpandir}
+                                                                docsSolicitud={esPrimerMov ? (solicitud?.documentos ?? []) : []}
+                                                                esUltimo={esUltimoMov}
+                                                                actores={actores}
+                                                                onAbrirCancelarAuto={setMovCancelar}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         );
                     })}

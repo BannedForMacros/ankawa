@@ -326,30 +326,20 @@ class MovimientoService
                 ->exists();
             if ($yaDisparado) continue;
 
-            // 1) Crear movimiento de NOTIFICACIÓN con la sumilla configurada.
-            $notif = ExpedienteMovimiento::create([
-                'expediente_id'   => $movimiento->expediente_id,
-                'tipo'            => ExpedienteMovimiento::TIPO_NOTIFICACION,
-                'etapa_id'        => $movimiento->etapa_id,
-                'creado_por'      => $usuarioDisparadorId,
-                'instruccion'     => $cfg->sumilla,
-                'estado'          => ExpedienteMovimiento::ESTADO_RECIBIDO,
-                'genera_cargo'    => false,
-                'fecha_respuesta' => now(),
-                'respondido_por'  => $usuarioDisparadorId,
-                'creado_por_auto' => true,
-            ]);
+            // Un cascade = UN solo movimiento en el historial (trazabilidad lineal):
+            //   - Si genera_requerimiento_auto = true  → crea un REQUERIMIENTO con plazo
+            //     que ya intrínsecamente notifica vía notificar_a (no hace falta notif separada).
+            //   - Si genera_requerimiento_auto = false → crea una NOTIFICACIÓN informativa.
+            $movGenerado = null;
 
-            // Notificar a los destinatarios configurados.
-            if (!empty($cfg->destinatarios_actor_ids)) {
-                $this->notificacionService->notificarActores($notif, $cfg->destinatarios_actor_ids);
-            }
-
-            // 2) (Opcional) crear REQUERIMIENTO automático.
-            $reqGenerado = null;
             if ($cfg->genera_requerimiento_auto && !empty($cfg->requerimiento_auto_config)) {
                 $rc = $cfg->requerimiento_auto_config;
-                $reqGenerado = $this->crear(
+                // El requerimiento notifica al responsable + todos los destinatarios configurados.
+                $destinatariosUnicos = array_values(array_unique(array_merge(
+                    array_map('intval', $cfg->destinatarios_actor_ids ?? []),
+                    [(int) $rc['responsable_actor_id']],
+                )));
+                $movGenerado = $this->crear(
                     $movimiento->expediente,
                     [
                         'etapa_id'        => $movimiento->etapa_id,
@@ -367,16 +357,32 @@ class MovimientoService
                         ]],
                     ],
                     [],  // sin archivos
-                    [$rc['responsable_actor_id']],  // notificar al responsable
+                    $destinatariosUnicos,  // notificar a TODOS los destinatarios + responsable
                     ExpedienteMovimiento::ESTADO_PENDIENTE,
                 );
+            } else {
+                $movGenerado = ExpedienteMovimiento::create([
+                    'expediente_id'   => $movimiento->expediente_id,
+                    'tipo'            => ExpedienteMovimiento::TIPO_NOTIFICACION,
+                    'etapa_id'        => $movimiento->etapa_id,
+                    'creado_por'      => $usuarioDisparadorId,
+                    'instruccion'     => $cfg->sumilla,
+                    'estado'          => ExpedienteMovimiento::ESTADO_RECIBIDO,
+                    'genera_cargo'    => false,
+                    'fecha_respuesta' => now(),
+                    'respondido_por'  => $usuarioDisparadorId,
+                    'creado_por_auto' => true,
+                ]);
+                if (!empty($cfg->destinatarios_actor_ids)) {
+                    $this->notificacionService->notificarActores($movGenerado, $cfg->destinatarios_actor_ids);
+                }
             }
 
-            // 3) Registrar el disparo para idempotencia y trazabilidad.
+            // Registrar el disparo para idempotencia y trazabilidad.
             MovimientoTrasladoAutoDisparo::create([
                 'traslado_auto_id'       => $cfg->id,
                 'triggered_by_actor_id'  => $actorIdDisparador,
-                'movimiento_generado_id' => $reqGenerado?->id ?? $notif->id,
+                'movimiento_generado_id' => $movGenerado->id,
                 'triggered_at'           => now(),
             ]);
 
@@ -389,6 +395,11 @@ class MovimientoService
     /**
      * Cancelar un movimiento generado automáticamente por un auto-traslado.
      *
+     * Filosofía: **trazabilidad lineal**. La cancelación CONGELA el movimiento auto-generado
+     * (estado=cancelado, plazo deja de correr) pero NO retrocede estado de movimientos previos.
+     * Si el gestor necesita pedirle al actor que resubmita, debe emitir un NUEVO requerimiento
+     * (acción explícita hacia adelante) — la cancelación por sí sola no reabre nada.
+     *
      * Requisitos validados por el caller (controller):
      *   - El movimiento existe, `creado_por_auto = true`, no está ya cancelado.
      *   - El usuario es gestor del expediente.
@@ -396,11 +407,11 @@ class MovimientoService
      * Acciones:
      *   1. Marca el movimiento como `cancelado` (estado), guarda timestamp, usuario, motivo.
      *   2. Persiste el documento de sustento del gestor en `movimiento_documentos` con momento='cancelacion'.
-     *   3. Busca el disparo (`movimiento_traslados_auto_disparos`) que generó este movimiento y, si existe,
-     *      reabre las filas de `movimiento_responsables` del movimiento padre que respondió ese actor
-     *      para ese tipo_documento_id (vuelven a 'pendiente'), y elimina el disparo para que la
-     *      cascada pueda re-dispararse cuando el actor entregue de nuevo.
-     *   4. Registra la cancelación en `expediente_historial`.
+     *   3. Registra la cancelación en `expediente_historial`.
+     *
+     * NO se modifica el movimiento padre, NO se reabren filas de responsables, NO se borra el disparo.
+     * Todo el rastro previo queda intacto: el demandado entregó, el cascade se ejecutó, después fue
+     * cancelado. La línea de tiempo es lineal.
      */
     public function cancelarMovimientoAuto(
         ExpedienteMovimiento $movimiento,
@@ -433,63 +444,14 @@ class MovimientoService
                 'momento'           => 'cancelacion',
             ]);
 
-            // Rollback de la cascada: encontrar el disparo que produjo este movimiento.
-            $disparo = MovimientoTrasladoAutoDisparo::where('movimiento_generado_id', $movimiento->id)->first();
-            $tiposReabiertos = [];
-            if ($disparo) {
-                $cfg = MovimientoTrasladoAuto::find($disparo->traslado_auto_id);
-                if ($cfg) {
-                    // Reabrir filas del movimiento padre que disparó la cascada
-                    // para este actor + este tipo de documento.
-                    $padreId = $cfg->movimiento_id;
-                    $rowsReabrir = MovimientoResponsable::where('movimiento_id', $padreId)
-                        ->where('expediente_actor_id', $disparo->triggered_by_actor_id)
-                        ->where('tipo_documento_id', $cfg->tipo_documento_id)
-                        ->whereIn('estado', [ExpedienteMovimiento::ESTADO_RESPONDIDO, ExpedienteMovimiento::ESTADO_OMITIDO])
-                        ->get();
-                    foreach ($rowsReabrir as $r) {
-                        $r->update([
-                            'estado'          => ExpedienteMovimiento::ESTADO_PENDIENTE,
-                            'respuesta'       => null,
-                            'respondido_por'  => null,
-                            'fecha_respuesta' => null,
-                        ]);
-                        $tiposReabiertos[] = $r->tipo_documento_id;
-                    }
-
-                    // Si el movimiento padre estaba cerrado por este actor, volvemos a pendiente
-                    // si quedan responsables abiertos.
-                    $padre = ExpedienteMovimiento::find($padreId);
-                    if ($padre && $padre->estado === ExpedienteMovimiento::ESTADO_RESPONDIDO) {
-                        $sigueAlgoPendiente = MovimientoResponsable::where('movimiento_id', $padreId)
-                            ->where('es_opcional', false)
-                            ->where('estado', ExpedienteMovimiento::ESTADO_PENDIENTE)
-                            ->exists();
-                        if ($sigueAlgoPendiente) {
-                            $padre->update([
-                                'estado'          => ExpedienteMovimiento::ESTADO_PENDIENTE,
-                                'respuesta'       => null,
-                                'respondido_por'  => null,
-                                'fecha_respuesta' => null,
-                            ]);
-                        }
-                    }
-
-                    // Eliminar el disparo para que pueda volver a dispararse cuando el actor entregue de nuevo.
-                    $disparo->delete();
-                }
-            }
-
             ExpedienteHistorial::create([
                 'expediente_id' => $movimiento->expediente_id,
                 'usuario_id'    => $userId,
                 'tipo_evento'   => 'movimiento_auto_cancelado',
                 'descripcion'   => "Movimiento auto-generado cancelado por el gestor. Motivo: {$motivo}",
                 'datos_extra'   => [
-                    'movimiento_id'            => $movimiento->id,
-                    'tipo_documento_id_doc'    => $tipoDocumentoId,
-                    'tipos_reabiertos'         => $tiposReabiertos,
-                    'disparo_eliminado'        => (bool) $disparo,
+                    'movimiento_id'         => $movimiento->id,
+                    'tipo_documento_id_doc' => $tipoDocumentoId,
                 ],
                 'created_at'    => now(),
             ]);

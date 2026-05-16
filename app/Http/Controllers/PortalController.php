@@ -446,7 +446,7 @@ class PortalController extends Controller
 
         try {
             DB::transaction(function () use (
-                $request, $movimiento, $email, $usuarioIdActor,
+                $request, $movimiento, $email, $usuarioIdActor, $actorDelEmail,
                 $responsablesPendientes, $archivosPorTipo, $archivosLegacy,
                 &$rutasArchivosSubidos, &$archivosGuardadosPorTipo
             ) {

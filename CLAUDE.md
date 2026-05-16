@@ -191,10 +191,12 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 ## Estado actual del sistema (marzo 2026)
 
 ### Motor de Expedientes
-- Expedientes con tabs: Solicitud, Actores, Historial, Nuevo Movimiento, Acción Pendiente
-- Movimientos: tipos `requerimiento` | `propia` | `notificacion`; estados `pendiente` | `respondido` | `recibido` | `vencido`
-- Componente `MovimientoCard` exportado desde `TabNuevoMovimiento.jsx` — **reutilizar siempre**, nunca duplicar. También exporta `movVacioBase` y `GENERA_CARGO_DEFAULT`
+- **Doc arquitectónico canónico**: ver [`docs/movimientos.md`](docs/movimientos.md) — toda la lógica de movimientos, primitivas (multi-tipo de doc, opcionales, auto-traslado, cancelación), estados, endpoints, SQL.
+- Expedientes con tabs: Solicitud, Actores, Historial, Nuevo Movimiento, Envíos
+- Movimientos: tipos `requerimiento` | `propia` | `notificacion` | `envio_externo`; estados `pendiente` | `respondido` | `recibido` | `vencido` | `omitido` | `pendiente_aceptacion` | `rechazado` | `cancelado`
+- Componente `MovimientoCard` exportado desde `TabNuevoMovimiento.jsx` — **reutilizar siempre**, nunca duplicar. También exporta `movVacioBase`, `requerimientoVacio` y `GENERA_CARGO_DEFAULT`
 - `TabSolicitud.jsx` importa `MovimientoCard`, `movVacioBase` y `GENERA_CARGO_DEFAULT` desde `TabNuevoMovimiento.jsx`
+- Payload de creación: `requerimientos: [{ tipo_documento_id, responsables: [{ actor_ids, dias_plazo, tipo_dias, es_opcional }], traslado_auto?: {...} }]`
 
 ### Sistema de Cargos
 - Tabla `cargos` con secuencia PostgreSQL `cargo_seq` → formato `CARGO-2026-0001`
