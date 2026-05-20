@@ -51,7 +51,8 @@
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d cargos\" -c \"SELECT sequence_name FROM information_schema.sequences WHERE sequence_name ILIKE '%cargo%' OR sequence_name ILIKE '%expediente%';\")",
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d documentos\")",
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND \\(column_name LIKE '%_tipo' OR column_name LIKE '%_type'\\) ORDER BY table_name, column_name;\")",
-      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, slug, nombre FROM tipos_actor_expediente ORDER BY id;\")"
+      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, slug, nombre FROM tipos_actor_expediente ORDER BY id;\")",
+      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d expediente_actor_aceptaciones\")"
     ]
   }
 }

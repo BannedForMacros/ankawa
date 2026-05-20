@@ -9,6 +9,7 @@ use App\Models\Documento;
 use App\Models\Etapa;
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorAceptacion;
 use App\Models\Rol;
 use App\Models\ServicioTipoActor;
 use App\Models\SolicitudJPRD;
@@ -218,12 +219,13 @@ class SolicitudJPRDController extends Controller
             $esEntidadSolicitante     = ($rolSolicitante === 'entidad');
             $esContratistaSolicitante = ($rolSolicitante === 'contratista');
 
+            $actorEntidad = null;
             if ($tipoActorEntidad) {
-                ExpedienteActor::create([
+                $actorEntidad = ExpedienteActor::create([
                     'expediente_id'                 => $expediente->id,
                     'usuario_id'                    => $esEntidadSolicitante ? $usuario->id : null,
                     'tipo_actor_id'                 => $tipoActorEntidad->id,
-                    'nombre_externo'                => $esEntidadSolicitante ? null : $request->nombre_entidad,
+                    'nombre_externo'                => $esEntidadSolicitante ? null : $nombreEntidad,
                     'email_externo'                 => $esEntidadSolicitante ? null : ($emailEntidad ?: null),
                     'acceso_mesa_partes'            => $esEntidadSolicitante ? 1 : 0,
                     'acceso_expediente_electronico' => $esEntidadSolicitante ? 1 : 0,
@@ -231,16 +233,34 @@ class SolicitudJPRDController extends Controller
                 ]);
             }
 
+            $actorContratista = null;
             if ($tipoActorContratista) {
-                ExpedienteActor::create([
+                $actorContratista = ExpedienteActor::create([
                     'expediente_id'                 => $expediente->id,
                     'usuario_id'                    => $esContratistaSolicitante ? $usuario->id : null,
                     'tipo_actor_id'                 => $tipoActorContratista->id,
-                    'nombre_externo'                => $esContratistaSolicitante ? null : $request->nombre_contratista,
+                    'nombre_externo'                => $esContratistaSolicitante ? null : $nombreContratista,
                     'email_externo'                 => $esContratistaSolicitante ? null : ($emailContratista ?: null),
                     'acceso_mesa_partes'            => $esContratistaSolicitante ? 1 : 0,
                     'acceso_expediente_electronico' => $esContratistaSolicitante ? 1 : 0,
                     'activo'                        => 1,
+                ]);
+            }
+
+            // Auto-validar el correo del actor solicitante: él mismo se autenticó por OTP
+            // o ya estaba autenticado en el sistema, lo que implica que controla el correo.
+            $actorSolicitante = $esEntidadSolicitante ? $actorEntidad : $actorContratista;
+            if ($actorSolicitante) {
+                User::where('id', $usuario->id)->update(['email_verified_at' => now()]);
+                ExpedienteActorAceptacion::create([
+                    'expediente_actor_id'  => $actorSolicitante->id,
+                    'expediente_id'        => $expediente->id,
+                    'tipo'                 => 'validado_por_gestor',
+                    'ip_address'           => $request->ip(),
+                    'user_agent'           => $request->userAgent(),
+                    'portal_email'         => $usuario->email,
+                    'validado_por_user_id' => $usuario->id,
+                    'created_at'           => now(),
                 ]);
             }
 
