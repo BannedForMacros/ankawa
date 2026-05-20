@@ -615,7 +615,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                     <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo *</label>
                                     <input type="text" value={formDemandado.data.nombre_externo}
                                         onChange={e => formDemandado.setData('nombre_externo', e.target.value)}
-                                        placeholder="Nombre del demandado" className={inputSmCls}/>
+                                        placeholder={`Nombre del ${labelDado.toLowerCase()}`} className={inputSmCls}/>
                                     {formDemandado.errors.nombre_externo && <p className="text-xs text-red-500 mt-1">{formDemandado.errors.nombre_externo}</p>}
                                 </div>
                                 <div>
@@ -716,9 +716,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             {/* ── Banner: esperando subsanación ── */}
             {esGestor && solicitud.estado === 'subsanacion' && (
                 <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
-                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación del demandante</h3>
+                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación de {labelDem.toLowerCase()}</h3>
                     <p className="text-sm text-amber-700">
-                        Se declaró NO CONFORME. Una vez que el demandante responda, podrás volver a revisar la conformidad desde esta sección.
+                        Se declaró NO CONFORME. Una vez que {labelDem.toLowerCase()} responda, podrás volver a revisar la conformidad desde esta sección.
                     </p>
                 </div>
             )}

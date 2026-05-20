@@ -803,12 +803,12 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                     <div className="p-5">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
-                            <span className="text-sm text-gray-400 block mb-0.5">Demandante</span>
-                            <span className="text-base font-semibold text-[#291136]">{solicitud.nombre_demandante}</span>
+                            <span className="text-sm text-gray-400 block mb-0.5">{solicitud.nombre_entidad != null ? 'Entidad' : 'Demandante'}</span>
+                            <span className="text-base font-semibold text-[#291136]">{solicitud.nombre_entidad ?? solicitud.nombre_demandante}</span>
                         </div>
                         <div>
-                            <span className="text-sm text-gray-400 block mb-0.5">Demandado</span>
-                            <span className="text-base font-semibold text-[#291136]">{solicitud.nombre_demandado}</span>
+                            <span className="text-sm text-gray-400 block mb-0.5">{solicitud.nombre_contratista != null ? 'Contratista' : 'Demandado'}</span>
+                            <span className="text-base font-semibold text-[#291136]">{solicitud.nombre_contratista ?? solicitud.nombre_demandado}</span>
                         </div>
                         <div>
                             <span className="text-sm text-gray-400 block mb-0.5">N. Cargo</span>

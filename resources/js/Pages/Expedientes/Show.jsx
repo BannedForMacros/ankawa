@@ -74,11 +74,15 @@ export default function Show({
             tab: 'solicitud',
         };
 
-        if (solicitud?.resultado_revision === 'no_conforme' && solicitud?.estado === 'subsanacion') return {
-            tipo: 'info',
-            texto: 'La solicitud fue declarada NO CONFORME. Esperando subsanación del demandante.',
-            accion: null,
-        };
+        if (solicitud?.resultado_revision === 'no_conforme' && solicitud?.estado === 'subsanacion') {
+            const esJPRD = (expediente.solicitud_type ?? '').includes('JPRD');
+            const quien  = esJPRD ? 'la Entidad Contratante' : 'el demandante';
+            return {
+                tipo: 'info',
+                texto: `La solicitud fue declarada NO CONFORME. Esperando subsanación de ${quien}.`,
+                accion: null,
+            };
+        }
 
         if (solicitud?.resultado_revision === 'conforme') return {
             tipo: 'ok',

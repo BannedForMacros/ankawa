@@ -141,7 +141,7 @@ export default function ModalTrasladoAuto({
                             onChange={e => setSumilla(e.target.value)}
                             rows={3}
                             maxLength={2000}
-                            placeholder="Ej. Se corre traslado de la demanda presentada por el demandante a fin de que se pronuncie..."
+                            placeholder="Ej. Se corre traslado del escrito presentado a la otra parte a fin de que se pronuncie..."
                             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#BE0F4A] resize-none"
                         />
                         <p className="text-xs text-gray-400 mt-1 text-right">{sumilla.length}/2000</p>

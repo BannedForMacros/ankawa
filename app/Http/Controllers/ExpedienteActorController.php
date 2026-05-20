@@ -50,16 +50,20 @@ class ExpedienteActorController extends Controller
         $usuarioId = null;
         $credencialesEnviadas = false;
 
-        // Detectar si es un demandado (flujo con validación diferida del User)
+        // Detectar si es una parte externa principal (demandado/contratista) con flujo
+        // de validación diferida del User.
         $tipoActor = TipoActorExpediente::find($request->tipo_actor_id);
-        $esDemandado = $tipoActor?->slug === TipoActorExpediente::SLUG_DEMANDADO;
+        $esParteExterna = in_array($tipoActor?->slug, [
+            TipoActorExpediente::SLUG_DEMANDADO,
+            TipoActorExpediente::SLUG_CONTRATISTA,
+        ], true);
 
         if ($request->modo === 'interno') {
             $usuarioId = $request->usuario_id;
             // Usuario interno ya tiene credenciales del sistema
             $credencialesEnviadas = true;
-        } elseif ($esDemandado) {
-            // Demandado externo: NO crear User. El User se creará cuando el gestor
+        } elseif ($esParteExterna) {
+            // Parte externa principal: NO crear User. El User se creará cuando el gestor
             // valide el correo (vía endpoint validar()).
             $usuarioId = null;
             $credencialesEnviadas = false;
@@ -101,9 +105,9 @@ class ExpedienteActorController extends Controller
             $usuarioId = $userExterno->id;
         }
 
-        // Para demandado externo sin User no podemos usar updateOrCreate por usuario_id,
+        // Para parte externa principal sin User no podemos usar updateOrCreate por usuario_id,
         // así que insertamos directo con email_externo/nombre_externo.
-        if ($esDemandado && $request->modo === 'externo') {
+        if ($esParteExterna && $request->modo === 'externo') {
             $actor = ExpedienteActor::create([
                 'expediente_id'         => $expediente->id,
                 'tipo_actor_id'         => $request->tipo_actor_id,
@@ -148,9 +152,9 @@ class ExpedienteActorController extends Controller
         $this->autorizarGestion($expediente);
         abort_unless($actor->expediente_id === $expediente->id, 404);
 
-        // No permitir remover demandante/demandado
+        // No permitir remover partes principales del expediente (demandante/demandado o entidad/contratista)
         if (in_array($actor->tipoActor?->slug, TipoActorExpediente::SLUGS_INMUTABLES, true)) {
-            return back()->withErrors(['general' => 'No se puede remover al demandante ni al demandado.']);
+            return back()->withErrors(['general' => 'No se puede remover a las partes principales del expediente.']);
         }
 
         $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
@@ -195,9 +199,9 @@ class ExpedienteActorController extends Controller
             ->where('activo', 1)
             ->firstOrFail();
 
-        // No permitir designar como responsable a demandante/demandado
+        // No permitir designar como responsable a las partes principales del expediente
         if (in_array($actor->tipoActor?->slug, TipoActorExpediente::SLUGS_INMUTABLES, true)) {
-            return back()->withErrors(['general' => 'El demandante y demandado no pueden ser designados como responsable.']);
+            return back()->withErrors(['general' => 'Las partes principales del expediente no pueden ser designadas como responsable.']);
         }
 
         // Ya es responsable
