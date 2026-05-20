@@ -73,6 +73,8 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     // Labels según servicio: JPRD usa Entidad/Contratista en lugar de Demandante/Demandado
     const labelDem  = esJPRD ? 'Entidad'      : 'Demandante';
     const labelDado = esJPRD ? 'Contratista'  : 'Demandado';
+    const slugDem   = esJPRD ? 'entidad_contratante' : 'demandante';
+    const slugDado  = esJPRD ? 'contratista'         : 'demandado';
 
     // Actores activos del expediente con cuenta de usuario
     const actoresExpediente = useMemo(() =>
@@ -129,12 +131,12 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     function iniciarConforme() {
-        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
-        const demandado  = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandado');
+        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugDem);
+        const demandado  = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugDado);
         const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
 
         if (!demandante) {
-            toast.error('No se encontró al demandante activo en el expediente.');
+            toast.error(`No se encontró al ${labelDem.toLowerCase()} activo en el expediente.`);
             return;
         }
         if (!demandado) {
@@ -201,7 +203,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     function iniciarNoConforme() {
-        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === 'demandante');
+        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugDem);
         const plazo = expediente.servicio?.plazo_subsanacion_dias ?? '';
         setMovimientos([{
             ...movVacio(expediente, defaultNotificarIds),
@@ -286,9 +288,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     // ── Partes del proceso ──
-    const demandantes = (expediente.actores ?? []).filter(a => a.activo && a.tipo_actor?.slug === 'demandante');
-    const demandados  = (expediente.actores ?? []).filter(a => a.activo && a.tipo_actor?.slug === 'demandado');
-    const tipoActorDemandado = tiposActor.find(t => t.slug === 'demandado');
+    const demandantes = (expediente.actores ?? []).filter(a => a.activo && a.tipo_actor?.slug === slugDem);
+    const demandados  = (expediente.actores ?? []).filter(a => a.activo && a.tipo_actor?.slug === slugDado);
+    const tipoActorDemandado = tiposActor.find(t => t.slug === slugDado);
 
     const formEmail = useForm({ email: '', label: '' });
     function abrirFormEmail(actorId) { formEmail.reset(); setEmailFormActorId(actorId); }
@@ -647,7 +649,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                     </p>
 
                     {paso === 'idle' && (() => {
-                        const demandadoActor = (expediente.actores ?? []).find(a => a.activo && a.tipo_actor?.slug === 'demandado');
+                        const demandadoActor = (expediente.actores ?? []).find(a => a.activo && a.tipo_actor?.slug === slugDado);
                         const puedeDeclarar = !!demandadoActor?.validado_por_gestor && !!demandadoActor?.usuario?.id;
                         return (
                             <div>
