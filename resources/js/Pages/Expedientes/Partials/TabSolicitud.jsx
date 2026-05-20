@@ -460,9 +460,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         const mostrando = emailFormActorId === actor.id;
         const editandoEmail = editandoEmailActorId === actor.id;
         const validado = !!actor.validado_por_gestor;
-        // La validación solo aplica a partes en disputa (demandante/demandado);
+        // La validación solo aplica a partes en disputa (demandante/demandado o entidad/contratista);
         // los demás actores internos no la requieren para declarar conforme.
-        const requiereValidacion = ['demandante', 'demandado'].includes(actor.tipo_actor?.slug);
+        const requiereValidacion = [slugDem, slugDado].includes(actor.tipo_actor?.slug);
         return (
             <div key={actor.id} className={`bg-gray-50 rounded-xl border p-3 space-y-2 ${requiereValidacion && !validado ? 'border-amber-300 bg-amber-50/30' : 'border-gray-100'}`}>
                 <div className="flex items-start justify-between gap-2">
