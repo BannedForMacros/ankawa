@@ -66,6 +66,6 @@ class SolicitudJPRD extends Model
 
     public function documentos()
     {
-        return $this->morphMany(Documento::class, 'modelo');
+        return $this->morphMany(Documento::class, 'modelo', 'modelo_tipo', 'modelo_id');
     }
 }
