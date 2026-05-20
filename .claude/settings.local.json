@@ -40,7 +40,9 @@
       "Bash(crontab -l)",
       "PowerShell(psql *)",
       "Bash(npx eslint *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000)",
+      "Bash(mv partials *)",
+      "Bash(mv partials_tmp_rename Partials)"
     ]
   }
 }
