@@ -175,10 +175,6 @@ export default function TabActores({
         router.delete(route('expedientes.actores.emails.destroy', [expediente.id, actorId, emailId]));
     }
 
-    function toggleAcceso(actorId, campo) {
-        router.patch(route('expedientes.actores.acceso', [expediente.id, actorId]), { campo });
-    }
-
     const inputCls = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]";
 
     return (

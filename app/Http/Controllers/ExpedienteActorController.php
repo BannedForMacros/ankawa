@@ -323,6 +323,23 @@ class ExpedienteActorController extends Controller
 
         $campo = $request->campo;
         $nuevoValor = $actor->$campo ? 0 : 1;
+
+        // Solo se puede CONCEDER acceso (Mesa de Partes / Expediente Electrónico) a un actor cuyo
+        // correo ya fue validado por el gestor: el portal envía OTP/credenciales a ese correo, así
+        // que hacerlo sobre un correo no verificado sería un riesgo. Revocar siempre se permite.
+        if ($nuevoValor === 1) {
+            $estaValidado = ExpedienteActorAceptacion::where('expediente_id', $expediente->id)
+                ->where('expediente_actor_id', $actor->id)
+                ->where('tipo', 'validado_por_gestor')
+                ->exists();
+            if (!$estaValidado) {
+                $nombreActor = $actor->usuario?->name ?? $actor->nombre_externo ?? 'este actor';
+                return back()->with('error',
+                    "No se puede habilitar el acceso: el correo de {$nombreActor} aún no ha sido validado. " .
+                    'Valida el correo en "Partes del Proceso" antes de otorgar acceso.');
+            }
+        }
+
         $actor->update([$campo => $nuevoValor]);
 
         $nombre = $actor->usuario?->name ?? $actor->nombre_externo ?? 'Actor';
