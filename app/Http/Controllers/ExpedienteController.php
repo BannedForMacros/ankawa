@@ -233,6 +233,12 @@ class ExpedienteController extends Controller
         $solicitud = $expediente->solicitud;
         abort_unless($solicitud, 404, 'Este expediente no tiene solicitud asociada.');
 
+        // JPRD tiene su propio conjunto de campos (entidad/contratista). Arbitraje y
+        // Arbitraje de Emergencia comparten el modelo SolicitudArbitraje (rama por defecto).
+        if ($solicitud instanceof \App\Models\SolicitudJPRD) {
+            return $this->updateSolicitudJPRD($request, $expediente, $solicitud, $user);
+        }
+
         $request->validate([
             'nombre_demandante'       => 'required|string|max:255',
             'documento_demandante'    => 'required|string|max:20',
@@ -295,6 +301,70 @@ class ExpedienteController extends Controller
                 'email' => $request->email_demandado,
             ]));
         }
+
+        ExpedienteHistorial::create([
+            'expediente_id' => $expediente->id,
+            'usuario_id'    => $user->id,
+            'tipo_evento'   => 'solicitud_actualizada',
+            'descripcion'   => 'Se actualizaron datos de la solicitud: ' . implode(', ', $camposActualizados),
+            'datos_extra'   => ['campos' => $camposActualizados],
+            'created_at'    => now(),
+        ]);
+
+        return back()->with('success', 'Datos de la solicitud actualizados correctamente.');
+    }
+
+    /**
+     * Actualización de datos de solicitud para el servicio JPRD (entidad / contratista).
+     * Espeja el comportamiento de updateSolicitud (Arbitraje) con los campos propios de JPRD.
+     */
+    private function updateSolicitudJPRD(Request $request, Expediente $expediente, $solicitud, $user)
+    {
+        $request->validate([
+            'nombre_entidad'                   => 'required|string|max:255',
+            'ruc_entidad'                      => 'nullable|string|max:20',
+            'telefono_entidad'                 => 'nullable|string|max:20',
+            'representante_entidad_nombre'     => 'nullable|string|max:255',
+            'representante_entidad_dni'        => 'nullable|string|max:20',
+            'nombre_contratista'               => 'required|string|max:255',
+            'ruc_contratista'                  => 'nullable|string|max:20',
+            'telefono_contratista'             => 'nullable|string|max:20',
+            'representante_contratista_nombre' => 'nullable|string|max:255',
+            'representante_contratista_dni'    => 'nullable|string|max:20',
+            'observacion'                      => 'nullable|string|max:3000',
+        ]);
+
+        $camposEditables = [
+            'nombre_entidad', 'ruc_entidad', 'telefono_entidad',
+            'representante_entidad_nombre', 'representante_entidad_dni',
+            'nombre_contratista', 'ruc_contratista', 'telefono_contratista',
+            'representante_contratista_nombre', 'representante_contratista_dni',
+            'observacion',
+        ];
+
+        $camposActualizados = [];
+        foreach ($camposEditables as $campo) {
+            if ($request->has($campo) && $solicitud->{$campo} != $request->{$campo}) {
+                $camposActualizados[] = $campo;
+            }
+        }
+
+        $solicitud->update($request->only($camposEditables));
+
+        // Sincronizar el nombre en el usuario de cada parte (si tiene cuenta interna).
+        // El correo no se toca aquí: se gestiona por actor en "Partes del Proceso".
+        $sincronizarNombre = function (string $slug, ?string $nombre) use ($expediente) {
+            if (!$nombre) return;
+            $actor = ExpedienteActor::where('expediente_id', $expediente->id)
+                ->whereHas('tipoActor', fn($q) => $q->where('slug', $slug))
+                ->with('usuario')
+                ->first();
+            if ($actor?->usuario) {
+                $actor->usuario->update(['name' => $nombre]);
+            }
+        };
+        $sincronizarNombre(TipoActorExpediente::SLUG_ENTIDAD_CONTRATANTE, $request->nombre_entidad);
+        $sincronizarNombre(TipoActorExpediente::SLUG_CONTRATISTA, $request->nombre_contratista);
 
         ExpedienteHistorial::create([
             'expediente_id' => $expediente->id,

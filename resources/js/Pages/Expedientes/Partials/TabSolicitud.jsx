@@ -76,6 +76,17 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     const slugDem   = esJPRD ? 'entidad_contratante' : 'demandante';
     const slugDado  = esJPRD ? 'contratista'         : 'demandado';
 
+    // Roles procesales dinámicos (NO hardcodear quién emplaza a quién):
+    //  - "solicitante" = parte que presentó la solicitud → recibe la notificación CONFORME / la subsanación.
+    //  - "emplazado"   = la otra parte → recibe el traslado (emplazamiento) + apersonamiento.
+    // Arbitraje: el solicitante siempre es el demandante. JPRD: puede ser cualquiera de las
+    // dos partes según solicitud.rol_solicitante (entidad | contratista).
+    const contratistaEsSolicitante = esJPRD && solicitud.rol_solicitante === 'contratista';
+    const slugSolicitante  = contratistaEsSolicitante ? slugDado  : slugDem;
+    const slugEmplazado    = contratistaEsSolicitante ? slugDem   : slugDado;
+    const labelSolicitante = contratistaEsSolicitante ? labelDado : labelDem;
+    const labelEmplazado   = contratistaEsSolicitante ? labelDem  : labelDado;
+
     // Actores activos del expediente con cuenta de usuario
     const actoresExpediente = useMemo(() =>
         (expediente.actores ?? []).filter(a => a.activo && a.usuario),
@@ -131,62 +142,62 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     function iniciarConforme() {
-        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugDem);
-        const demandado  = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugDado);
+        const solicitante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugSolicitante);
+        const emplazado   = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
         const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
 
-        if (!demandante) {
-            toast.error(`No se encontró al ${labelDem.toLowerCase()} activo en el expediente.`);
+        if (!solicitante) {
+            toast.error(`No se encontró al ${labelSolicitante.toLowerCase()} activo en el expediente.`);
             return;
         }
-        if (!demandado) {
-            toast.error(`No se encontró al ${labelDado.toLowerCase()} activo. Verifique los actores antes de declarar conforme.`);
+        if (!emplazado) {
+            toast.error(`No se encontró al ${labelEmplazado.toLowerCase()} activo. Verifique los actores antes de declarar conforme.`);
             return;
         }
-        if (!demandado.validado_por_gestor) {
-            toast.error(`El correo del ${labelDado.toLowerCase()} no ha sido validado. Use el botón "Validar correo" en "Partes del Proceso" antes de declarar conforme.`);
+        if (!emplazado.validado_por_gestor) {
+            toast.error(`El correo del ${labelEmplazado.toLowerCase()} no ha sido validado. Use el botón "Validar correo" en "Partes del Proceso" antes de declarar conforme.`);
             return;
         }
-        if (!demandado.usuario?.id) {
-            toast.error(`Inconsistencia: el ${labelDado.toLowerCase()} figura validado pero no tiene cuenta interna. Re-valide el correo.`);
+        if (!emplazado.usuario?.id) {
+            toast.error(`Inconsistencia: el ${labelEmplazado.toLowerCase()} figura validado pero no tiene cuenta interna. Re-valide el correo.`);
             return;
         }
 
         setMovimientos([
-            // 1. Notificación al demandante: CONFORME
+            // 1. Notificación al solicitante: CONFORME
             {
                 ...movVacio(expediente, defaultNotificarIds),
                 tipo:                       'notificacion',
                 instruccion:                'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
-                tipo_actor_responsable_id:  String(demandante.tipo_actor_id ?? ''),
-                usuario_responsable_id:     String(demandante.usuario?.id ?? ''),
+                tipo_actor_responsable_id:  String(solicitante.tipo_actor_id ?? ''),
+                usuario_responsable_id:     String(solicitante.usuario?.id ?? ''),
             },
-            // 2. Notificación al demandado: TRASLADO + habilitar Mesa de Partes
+            // 2. Notificación al emplazado: TRASLADO + habilitar Mesa de Partes
             {
                 ...movVacio(expediente, defaultNotificarIds),
                 tipo:                            'notificacion',
-                instruccion:                     `Traslado de la solicitud al ${labelDado.toLowerCase()}: Se le notifica que ha sido emplazado en el presente proceso. Se le otorga acceso a Mesa de Partes para presentar escritos y recibir notificaciones.`,
-                tipo_actor_responsable_id:       String(demandado.tipo_actor_id ?? ''),
-                usuario_responsable_id:          String(demandado.usuario.id),
+                instruccion:                     `Traslado de la solicitud al ${labelEmplazado.toLowerCase()}: Se le notifica que ha sido emplazado en el presente proceso. Se le otorga acceso a Mesa de Partes para presentar escritos y recibir notificaciones.`,
+                tipo_actor_responsable_id:       String(emplazado.tipo_actor_id ?? ''),
+                usuario_responsable_id:          String(emplazado.usuario.id),
                 habilitar_mesa_partes:           true,
-                actores_mesa_partes_ids:         [demandado.id],
+                actores_mesa_partes_ids:         [emplazado.id],
                 enviar_credenciales_expediente:  false,
                 actor_credenciales_exp_id:       '',
             },
-            // 3. Requerimiento al demandado: APERSONAMIENTO con plazo
+            // 3. Requerimiento al emplazado: APERSONAMIENTO con plazo
             {
                 ...movVacio(expediente, defaultNotificarIds),
                 tipo:                            'requerimiento',
-                instruccion:                     `Requerimiento de apersonamiento: Se requiere al ${labelDado.toLowerCase()} apersonarse al presente proceso en el plazo indicado, designando árbitro y/o presentando contestación según corresponda.`,
-                tipo_actor_responsable_id:       String(demandado.tipo_actor_id ?? ''),
-                usuario_responsable_id:          String(demandado.usuario.id),
+                instruccion:                     `Requerimiento de apersonamiento: Se requiere al ${labelEmplazado.toLowerCase()} apersonarse al presente proceso en el plazo indicado, ${esJPRD ? '' : 'designando árbitro y/o '}presentando contestación según corresponda.`,
+                tipo_actor_responsable_id:       String(emplazado.tipo_actor_id ?? ''),
+                usuario_responsable_id:          String(emplazado.usuario.id),
                 dias_plazo:                      String(plazoApers),
                 tipo_dias:                       'calendario',
                 requerimientos: [{
                     tipo_documento_id: '',
                     responsables: [{
-                        tipo_actor_id: String(demandado.tipo_actor_id ?? ''),
-                        actor_ids:     [String(demandado.id)],
+                        tipo_actor_id: String(emplazado.tipo_actor_id ?? ''),
+                        actor_ids:     [String(emplazado.id)],
                         dias_plazo:    String(plazoApers),
                         tipo_dias:     'calendario',
                     }],
@@ -203,20 +214,20 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     function iniciarNoConforme() {
-        const demandante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugDem);
+        const solicitante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugSolicitante);
         const plazo = expediente.servicio?.plazo_subsanacion_dias ?? '';
         setMovimientos([{
             ...movVacio(expediente, defaultNotificarIds),
             tipo:                      'requerimiento',
-            tipo_actor_responsable_id: String(demandante?.tipo_actor_id ?? ''),
-            usuario_responsable_id:    String(demandante?.usuario?.id ?? ''),
+            tipo_actor_responsable_id: String(solicitante?.tipo_actor_id ?? ''),
+            usuario_responsable_id:    String(solicitante?.usuario?.id ?? ''),
             dias_plazo:                String(plazo),
             tipo_dias:                 'calendario',
             requerimientos: [{
                 tipo_documento_id: '',
                 responsables: [{
-                    tipo_actor_id: String(demandante?.tipo_actor_id ?? ''),
-                    actor_ids:     demandante?.id ? [String(demandante.id)] : [],
+                    tipo_actor_id: String(solicitante?.tipo_actor_id ?? ''),
+                    actor_ids:     solicitante?.id ? [String(solicitante.id)] : [],
                     dias_plazo:    String(plazo),
                     tipo_dias:     'calendario',
                 }],
@@ -350,7 +361,19 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     // ── Form edición ──
-    const formEdit = useForm({
+    const formEdit = useForm(esJPRD ? {
+        nombre_entidad:                   solicitud.nombre_entidad ?? '',
+        ruc_entidad:                      solicitud.ruc_entidad ?? '',
+        telefono_entidad:                 solicitud.telefono_entidad ?? '',
+        representante_entidad_nombre:     solicitud.representante_entidad_nombre ?? '',
+        representante_entidad_dni:        solicitud.representante_entidad_dni ?? '',
+        nombre_contratista:               solicitud.nombre_contratista ?? '',
+        ruc_contratista:                  solicitud.ruc_contratista ?? '',
+        telefono_contratista:             solicitud.telefono_contratista ?? '',
+        representante_contratista_nombre: solicitud.representante_contratista_nombre ?? '',
+        representante_contratista_dni:    solicitud.representante_contratista_dni ?? '',
+        observacion:                      solicitud.observacion ?? '',
+    } : {
         nombre_demandante:       solicitud.nombre_demandante ?? '',
         documento_demandante:    solicitud.documento_demandante ?? '',
         nombre_representante:    solicitud.nombre_representante ?? '',
@@ -649,14 +672,14 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                     </p>
 
                     {paso === 'idle' && (() => {
-                        const demandadoActor = (expediente.actores ?? []).find(a => a.activo && a.tipo_actor?.slug === slugDado);
-                        const puedeDeclarar = !!demandadoActor?.validado_por_gestor && !!demandadoActor?.usuario?.id;
+                        const emplazadoActor = (expediente.actores ?? []).find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
+                        const puedeDeclarar = !!emplazadoActor?.validado_por_gestor && !!emplazadoActor?.usuario?.id;
                         return (
                             <div>
                                 <div className="flex gap-3 flex-wrap">
                                     <button onClick={iniciarConforme}
                                         disabled={!puedeDeclarar}
-                                        title={!puedeDeclarar ? `Primero valide el correo del ${labelDado.toLowerCase()} en "Partes del Proceso"` : ''}
+                                        title={!puedeDeclarar ? `Primero valide el correo del ${labelEmplazado.toLowerCase()} en "Partes del Proceso"` : ''}
                                         className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg ${
                                             puedeDeclarar
                                                 ? 'bg-emerald-600 text-white hover:bg-emerald-700'
@@ -672,7 +695,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 {!puedeDeclarar && (
                                     <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
                                         <ShieldAlert size={14} className="shrink-0 mt-0.5"/>
-                                        <span>El correo del {labelDado.toLowerCase()} debe estar validado antes de declarar conforme. Use el botón de validación junto al actor en "Partes del Proceso".</span>
+                                        <span>El correo del {labelEmplazado.toLowerCase()} debe estar validado antes de declarar conforme. Use el botón de validación junto al actor en "Partes del Proceso".</span>
                                     </p>
                                 )}
                             </div>
@@ -684,7 +707,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
                                 <CheckCircle size={16} className="text-emerald-600 shrink-0"/>
                                 <p className="text-sm font-bold text-emerald-700">
-                                    Declarar solicitud como <strong>CONFORME</strong>. Se generarán 3 movimientos: notificación al {labelDem.toLowerCase()}, traslado al {labelDado.toLowerCase()} (con habilitación de Mesa de Partes) y requerimiento de apersonamiento.
+                                    Declarar solicitud como <strong>CONFORME</strong>. Se generarán 3 movimientos: notificación al {labelSolicitante.toLowerCase()}, traslado al {labelEmplazado.toLowerCase()} (con habilitación de Mesa de Partes) y requerimiento de apersonamiento.
                                 </p>
                             </div>
                             {panelMovimientosJSX('bg-emerald-600 hover:bg-emerald-700', 'conforme')}
@@ -696,7 +719,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-200">
                                 <XCircle size={16} className="text-red-600 shrink-0"/>
                                 <p className="text-sm font-bold text-red-700">
-                                    Declarar solicitud como <strong>NO CONFORME</strong>. Se habilitará subsanación para el demandante.
+                                    Declarar solicitud como <strong>NO CONFORME</strong>. Se habilitará subsanación para el {labelSolicitante.toLowerCase()}.
                                 </p>
                             </div>
                             <div>
@@ -716,9 +739,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             {/* ── Banner: esperando subsanación ── */}
             {esGestor && solicitud.estado === 'subsanacion' && (
                 <div className="bg-amber-50 border border-amber-300 rounded-2xl p-5">
-                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación de {labelDem.toLowerCase()}</h3>
+                    <h3 className="text-base font-bold text-amber-700 mb-1">⏳ Esperando subsanación de {labelSolicitante.toLowerCase()}</h3>
                     <p className="text-sm text-amber-700">
-                        Se declaró NO CONFORME. Una vez que {labelDem.toLowerCase()} responda, podrás volver a revisar la conformidad desde esta sección.
+                        Se declaró NO CONFORME. Una vez que {labelSolicitante.toLowerCase()} responda, podrás volver a revisar la conformidad desde esta sección.
                     </p>
                 </div>
             )}
@@ -797,8 +820,8 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
     const esJPRD    = tipoClass.includes('JPRD');
     const esArb     = tipoClass.includes('SolicitudArbitraje');
 
-    // Solo arbitraje tiene endpoint de edición implementado
-    const puedeEditar = esGestor && esArb;
+    // Arbitraje (y Emergencia) y JPRD tienen endpoint de edición implementado
+    const puedeEditar = esGestor && (esArb || esJPRD);
 
     const docsAgrupados = esJPRD
         ? agruparDocumentos(solicitud.documentos, DOC_LABELS_JPRD)
@@ -842,6 +865,8 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
 
                 {editando && esArb ? (
                     <FormEditArbitraje formEdit={formEdit} guardarEdicion={guardarEdicion} setEditando={setEditando} inputField={inputField} />
+                ) : editando && esJPRD ? (
+                    <FormEditJPRD formEdit={formEdit} guardarEdicion={guardarEdicion} setEditando={setEditando} inputField={inputField} />
                 ) : esJPRD ? (
                     <VistaJPRD solicitud={solicitud} campo={campo} />
                 ) : (
@@ -1203,6 +1228,50 @@ function FormEditArbitraje({ formEdit, guardarEdicion, setEditando, inputField }
                         <span className="text-sm font-semibold text-gray-700">Demandado solicita designación de árbitro por el Centro</span>
                     </label>
                 </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button type="button" onClick={() => { setEditando(false); formEdit.reset(); }}
+                    className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">
+                    <X size={12} className="inline mr-1"/> Cancelar
+                </button>
+                <button type="submit" disabled={formEdit.processing}
+                    className="px-5 py-2 text-xs font-bold bg-[#291136] text-white rounded-lg hover:bg-[#3d1a52] disabled:opacity-50">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    );
+}
+
+// ─── Form edición JPRD (entidad / contratista) ──────────────────
+function FormEditJPRD({ formEdit, guardarEdicion, setEditando, inputField }) {
+    return (
+        <form onSubmit={guardarEdicion} className="space-y-6">
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Entidad</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {inputField('Nombre / Razón Social', 'nombre_entidad', 'text', true)}
+                    {inputField('RUC', 'ruc_entidad')}
+                    {inputField('Teléfono', 'telefono_entidad')}
+                    {inputField('Representante', 'representante_entidad_nombre')}
+                    {inputField('DNI Representante', 'representante_entidad_dni')}
+                </div>
+            </div>
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Contratista</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {inputField('Nombre / Razón Social', 'nombre_contratista', 'text', true)}
+                    {inputField('RUC', 'ruc_contratista')}
+                    {inputField('Teléfono', 'telefono_contratista')}
+                    {inputField('Representante', 'representante_contratista_nombre')}
+                    {inputField('DNI Representante', 'representante_contratista_dni')}
+                </div>
+            </div>
+            <div>
+                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Observación</h4>
+                <textarea value={formEdit.data.observacion}
+                    onChange={e => formEdit.setData('observacion', e.target.value)}
+                    rows={3} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5"/>
             </div>
             <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
                 <button type="button" onClick={() => { setEditando(false); formEdit.reset(); }}
