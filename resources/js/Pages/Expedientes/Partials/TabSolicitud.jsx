@@ -141,76 +141,44 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         });
     }
 
+    // Forma 2 — "Admitir a trámite" abre el editor de movimientos VACÍO.
+    // El gestor arma lo que necesite; el traslado/emplazamiento es un atajo opcional
+    // (ver agregarTrasladoEmplazamiento). Nada hardcodeado.
     function iniciarConforme() {
-        const solicitante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugSolicitante);
-        const emplazado   = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
-        const plazoApers = expediente.servicio?.plazo_apersonamiento_dias ?? '';
-
-        if (!solicitante) {
-            toast.error(`No se encontró al ${labelSolicitante.toLowerCase()} activo en el expediente.`);
-            return;
-        }
-        if (!emplazado) {
-            toast.error(`No se encontró al ${labelEmplazado.toLowerCase()} activo. Verifique los actores antes de declarar conforme.`);
-            return;
-        }
-        if (!emplazado.validado_por_gestor) {
-            toast.error(`El correo del ${labelEmplazado.toLowerCase()} no ha sido validado. Use el botón "Validar correo" en "Partes del Proceso" antes de declarar conforme.`);
-            return;
-        }
-        if (!emplazado.usuario?.id) {
-            toast.error(`Inconsistencia: el ${labelEmplazado.toLowerCase()} figura validado pero no tiene cuenta interna. Re-valide el correo.`);
-            return;
-        }
-
-        setMovimientos([
-            // 1. Notificación al solicitante: CONFORME
-            {
-                ...movVacio(expediente, defaultNotificarIds),
-                tipo:                       'notificacion',
-                instruccion:                'Conformidad de la solicitud: La solicitud ha sido declarada CONFORME.',
-                tipo_actor_responsable_id:  String(solicitante.tipo_actor_id ?? ''),
-                usuario_responsable_id:     String(solicitante.usuario?.id ?? ''),
-            },
-            // 2. Notificación al emplazado: TRASLADO + habilitar Mesa de Partes
-            {
-                ...movVacio(expediente, defaultNotificarIds),
-                tipo:                            'notificacion',
-                instruccion:                     `Traslado de la solicitud al ${labelEmplazado.toLowerCase()}: Se le notifica que ha sido emplazado en el presente proceso. Se le otorga acceso a Mesa de Partes para presentar escritos y recibir notificaciones.`,
-                tipo_actor_responsable_id:       String(emplazado.tipo_actor_id ?? ''),
-                usuario_responsable_id:          String(emplazado.usuario.id),
-                habilitar_mesa_partes:           true,
-                actores_mesa_partes_ids:         [emplazado.id],
-                enviar_credenciales_expediente:  false,
-                actor_credenciales_exp_id:       '',
-            },
-            // 3. Requerimiento al emplazado: APERSONAMIENTO con plazo
-            {
-                ...movVacio(expediente, defaultNotificarIds),
-                tipo:                            'requerimiento',
-                instruccion:                     `Requerimiento de apersonamiento: Se requiere al ${labelEmplazado.toLowerCase()} apersonarse al presente proceso en el plazo indicado, ${esJPRD ? '' : 'designando árbitro y/o '}presentando contestación según corresponda.`,
-                tipo_actor_responsable_id:       String(emplazado.tipo_actor_id ?? ''),
-                usuario_responsable_id:          String(emplazado.usuario.id),
-                dias_plazo:                      String(plazoApers),
-                tipo_dias:                       'calendario',
-                requerimientos: [{
-                    tipo_documento_id: '',
-                    responsables: [{
-                        tipo_actor_id: String(emplazado.tipo_actor_id ?? ''),
-                        actor_ids:     [String(emplazado.id)],
-                        dias_plazo:    String(plazoApers),
-                        tipo_dias:     'calendario',
-                    }],
-                }],
-                habilitar_mesa_partes:           false,
-                actores_mesa_partes_ids:         [],
-                enviar_credenciales_expediente:  false,
-                actor_credenciales_exp_id:       '',
-            },
-        ]);
-        setArchivos({ 0: [], 1: [], 2: [] });
+        setMovimientos([]);
+        setArchivos({});
+        setErroresMov([]);
         setPaso('conforme');
         setErrores({});
+    }
+
+    // Atajo opcional: inyecta el movimiento de traslado/emplazamiento pre-armado
+    // (notificación + habilitar Mesa de Partes a la contraparte). Editable y quitable.
+    // Mesa de Partes = la contraparte VE el expediente y puede ENVIAR documentos
+    // (cualquiera de sus correos registrados). NO son credenciales de Exp. Electrónico.
+    function agregarTrasladoEmplazamiento() {
+        const emplazado = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
+        if (!emplazado) {
+            toast.error(`No se encontró al ${labelEmplazado.toLowerCase()} activo en el expediente.`);
+            return;
+        }
+        if (!emplazado.validado_por_gestor || !emplazado.usuario?.id) {
+            toast.error(`Primero valide el correo del ${labelEmplazado.toLowerCase()} en "Partes del Proceso" para poder emplazarlo y habilitar Mesa de Partes.`);
+            return;
+        }
+        const ni = movimientos.length;
+        setMovimientos(prev => [...prev, {
+            ...movVacio(expediente, defaultNotificarIds),
+            tipo:                            'notificacion',
+            instruccion:                     `Traslado de la solicitud al ${labelEmplazado.toLowerCase()}: Se le notifica que ha sido emplazado en el presente proceso. Se habilita Mesa de Partes para que pueda ver el expediente y presentar escritos.`,
+            tipo_actor_responsable_id:       String(emplazado.tipo_actor_id ?? ''),
+            usuario_responsable_id:          String(emplazado.usuario.id),
+            habilitar_mesa_partes:           true,
+            actores_mesa_partes_ids:         [emplazado.id],
+            enviar_credenciales_expediente:  false,
+            actor_credenciales_exp_id:       '',
+        }]);
+        setArchivos(prev => ({ ...prev, [ni]: [] }));
     }
 
     function iniciarNoConforme() {
@@ -242,6 +210,16 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         if (resultado === 'no_conforme' && !motivoNoConforme.trim()) {
             setErrores({ motivo_no_conformidad: 'El motivo es obligatorio.' });
             return;
+        }
+        // Aviso suave: admitir a trámite sin emplazar a la contraparte. No bloquea
+        // (el gestor puede emplazar después con un movimiento de traslado), solo confirma.
+        if (resultado === 'conforme' && !movimientos.some(m => m.habilitar_mesa_partes)) {
+            const ok = window.confirm(
+                `Vas a admitir a trámite sin emplazar al ${labelEmplazado.toLowerCase()} ` +
+                `(no se habilitará Mesa de Partes a nadie). Podrás emplazar después con un ` +
+                `movimiento de traslado. ¿Continuar?`
+            );
+            if (!ok) return;
         }
         // Validar campos de cada movimiento
         const nuevosMov = movimientos.map((mov, i) => {
@@ -446,6 +424,14 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         />
                     </div>
                 ))}
+
+                {resultado === 'conforme' && !movimientos.some(m => m.habilitar_mesa_partes) && (
+                    <button type="button" onClick={agregarTrasladoEmplazamiento}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-[#BE0F4A] rounded-xl hover:bg-[#9C0A3B] transition-colors"
+                    >
+                        <PlusCircle size={14}/> Agregar traslado de emplazamiento (recomendado)
+                    </button>
+                )}
 
                 <button type="button"
                     onClick={() => {
@@ -673,18 +659,12 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
 
                     {paso === 'idle' && (() => {
                         const emplazadoActor = (expediente.actores ?? []).find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
-                        const puedeDeclarar = !!emplazadoActor?.validado_por_gestor && !!emplazadoActor?.usuario?.id;
+                        const emplazadoValidado = !!emplazadoActor?.validado_por_gestor && !!emplazadoActor?.usuario?.id;
                         return (
                             <div>
                                 <div className="flex gap-3 flex-wrap">
                                     <button onClick={iniciarConforme}
-                                        disabled={!puedeDeclarar}
-                                        title={!puedeDeclarar ? `Primero valide el correo del ${labelEmplazado.toLowerCase()} en "Partes del Proceso"` : ''}
-                                        className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg ${
-                                            puedeDeclarar
-                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                        }`}>
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
                                         <CheckCircle size={16}/> Admitir a Trámite
                                     </button>
                                     <button onClick={iniciarNoConforme}
@@ -692,10 +672,10 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                         <XCircle size={16}/> Observado
                                     </button>
                                 </div>
-                                {!puedeDeclarar && (
-                                    <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-start gap-2">
-                                        <ShieldAlert size={14} className="shrink-0 mt-0.5"/>
-                                        <span>El correo del {labelEmplazado.toLowerCase()} debe estar validado antes de declarar conforme. Use el botón de validación junto al actor en "Partes del Proceso".</span>
+                                {!emplazadoValidado && (
+                                    <p className="mt-3 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-start gap-2">
+                                        <ShieldAlert size={14} className="shrink-0 mt-0.5 text-amber-500"/>
+                                        <span>Puede admitir a trámite ahora. Para <strong>emplazar al {labelEmplazado.toLowerCase()}</strong> y habilitar Mesa de Partes, primero valide su correo en "Partes del Proceso".</span>
                                     </p>
                                 )}
                             </div>
@@ -704,10 +684,12 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
 
                     {paso === 'conforme' && (
                         <div className="space-y-4">
-                            <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                                <CheckCircle size={16} className="text-emerald-600 shrink-0"/>
-                                <p className="text-sm font-bold text-emerald-700">
-                                    Declarar solicitud como <strong>CONFORME</strong>. Se generarán 3 movimientos: notificación al {labelSolicitante.toLowerCase()}, traslado al {labelEmplazado.toLowerCase()} (con habilitación de Mesa de Partes) y requerimiento de apersonamiento.
+                            <div className="flex items-start gap-2 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                                <CheckCircle size={16} className="text-emerald-600 shrink-0 mt-0.5"/>
+                                <p className="text-sm font-medium text-emerald-800">
+                                    Admitir la solicitud a <strong>trámite</strong>. Agregue los movimientos que correspondan.
+                                    Para emplazar al {labelEmplazado.toLowerCase()} y habilitar Mesa de Partes, use el botón
+                                    <strong> "Agregar traslado de emplazamiento"</strong>. Puede admitir sin movimientos y emplazar después.
                                 </p>
                             </div>
                             {panelMovimientosJSX('bg-emerald-600 hover:bg-emerald-700', 'conforme')}
