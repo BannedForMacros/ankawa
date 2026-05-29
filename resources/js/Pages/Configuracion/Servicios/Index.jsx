@@ -146,12 +146,7 @@ export default function Index({ servicios }) {
                 ]}
                 title="Servicios"
                 description="Tipos de proceso arbitral disponibles."
-                actions={
-                    <PrimaryButton onClick={abrirCrear}>
-                        <Plus size={18} strokeWidth={2.5} />
-                        Nuevo Servicio
-                    </PrimaryButton>
-                }
+                action={{ label: 'Nuevo Servicio', onClick: abrirCrear, icon: Plus }}
             />
             <div className="p-6 max-w-6xl mx-auto">
 

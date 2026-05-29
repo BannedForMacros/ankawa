@@ -150,12 +150,7 @@ export default function Index({ roles }) {
                 ]}
                 title="Roles"
                 description="Gestión de permisos y acceso al sistema."
-                actions={
-                    <PrimaryButton onClick={abrirCrear} className="gap-2 shadow-md">
-                        <Plus size={18} strokeWidth={2.5} />
-                        Nuevo Rol
-                    </PrimaryButton>
-                }
+                action={{ label: 'Nuevo Rol', onClick: abrirCrear, icon: Plus }}
             />
             <div className="p-6 max-w-6xl mx-auto">
 

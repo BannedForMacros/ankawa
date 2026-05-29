@@ -668,12 +668,7 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                 title="Tipos de"
                 titleAccent="Documento"
                 description="Catálogo de documentos, servicios y permisos por tipo de actor."
-                actions={
-                    <button onClick={abrirCrear}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
-                        <Plus size={16} /> Nuevo Tipo
-                    </button>
-                }
+                action={{ label: 'Nuevo Tipo', onClick: abrirCrear, icon: Plus }}
             />
             <div className="p-6 max-w-6xl mx-auto">
 

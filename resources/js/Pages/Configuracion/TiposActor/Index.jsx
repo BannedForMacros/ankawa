@@ -349,13 +349,7 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                 title="Tipos de"
                 titleAccent="Actor"
                 description="Define los roles que pueden participar en los expedientes y en qué servicios aplican."
-                actions={
-                    <button
-                        onClick={() => { setEditando(null); setModalTipo(true); }}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
-                        <Plus size={16} /> Nuevo tipo de actor
-                    </button>
-                }
+                action={{ label: 'Nuevo tipo de actor', onClick: () => { setEditando(null); setModalTipo(true); }, icon: Plus }}
             />
             <div className="p-6 max-w-6xl mx-auto">
 

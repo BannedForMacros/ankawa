@@ -17,31 +17,20 @@
 
 import { Link } from '@inertiajs/react';
 
-const WATERMARK_FILTER = 'brightness(0) saturate(100%) invert(11%) sepia(34%) saturate(2419%) hue-rotate(264deg) brightness(95%) contrast(96%)';
-
 export default function ConfigHeader({
     breadcrumb = [],
     title,
     titleAccent,
     description,
-    actions = null,
-    showWatermark = true,
+    action = null,   // { label, onClick, icon } — CTA estandarizado y proporcional al header
+    actions = null,  // nodo libre, por si se necesita algo a medida
 }) {
     const hasBreadcrumb = Array.isArray(breadcrumb) && breadcrumb.length > 0;
+    const ActionIcon = action?.icon;
 
     return (
         <header className="relative overflow-hidden bg-white px-6 sm:px-10 py-8 border-b border-ankawa-deep/5">
-            {showWatermark && (
-                <img
-                    src="/logo-white.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="hidden md:block pointer-events-none select-none absolute right-8 bottom-0 h-[120px] w-auto z-0"
-                    style={{ filter: WATERMARK_FILTER, opacity: 0.06 }}
-                />
-            )}
-
-            <div className="relative z-10 flex items-start justify-between gap-6 flex-wrap">
+            <div className="relative z-10 flex items-center justify-between gap-6 flex-wrap">
                 <div className="max-w-3xl">
                     {hasBreadcrumb && (
                         <nav aria-label="Breadcrumb" className="mb-4">
@@ -92,8 +81,19 @@ export default function ConfigHeader({
                     )}
                 </div>
 
-                {actions && (
-                    <div className="shrink-0 pt-1">{actions}</div>
+                {(action || actions) && (
+                    <div className="shrink-0 pt-1">
+                        {action ? (
+                            <button
+                                type="button"
+                                onClick={action.onClick}
+                                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl text-[15px] font-bold text-white bg-ankawa-rose hover:bg-ankawa-rose-hover shadow-lg shadow-ankawa-rose/25 transition-all hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-ankawa-rose/40"
+                            >
+                                {ActionIcon && <ActionIcon size={20} strokeWidth={2.5} />}
+                                {action.label}
+                            </button>
+                        ) : actions}
+                    </div>
                 )}
             </div>
         </header>

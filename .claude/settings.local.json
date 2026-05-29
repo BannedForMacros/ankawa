@@ -72,7 +72,8 @@
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,720 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_s\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_s/index.html\")",
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,200 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_n\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_n/index.html\")",
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,420 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_e\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_e/index.html\")",
-      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,420 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_c\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_c/index.html\")"
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,420 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_c\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_c/index.html\")",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,400 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_c\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_c/index.html\")"
     ]
   }
 }

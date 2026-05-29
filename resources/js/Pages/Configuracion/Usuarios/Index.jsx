@@ -164,12 +164,7 @@ export default function Index({ usuarios, roles }) {
                 ]}
                 title="Usuarios"
                 description="Gestión de accesos al sistema."
-                actions={
-                    <PrimaryButton onClick={abrirCrear}>
-                        <Plus size={18} strokeWidth={2.5} />
-                        Nuevo Usuario
-                    </PrimaryButton>
-                }
+                action={{ label: 'Nuevo Usuario', onClick: abrirCrear, icon: Plus }}
             />
             <div className="p-6 max-w-6xl mx-auto">
 

@@ -218,12 +218,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
                 ]}
                 title="Correlativos"
                 description="Numeración automática por tipo, servicio y año."
-                actions={
-                    <PrimaryButton onClick={abrirCrear}>
-                        <Plus size={18} strokeWidth={2.5} />
-                        Nuevo Correlativo
-                    </PrimaryButton>
-                }
+                action={{ label: 'Nuevo Correlativo', onClick: abrirCrear, icon: Plus }}
             />
             <div className="p-6 max-w-7xl mx-auto">
 

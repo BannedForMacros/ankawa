@@ -254,12 +254,7 @@ export default function ModulosIndex({ modulos }) {
                 ]}
                 title="Módulos"
                 description="Estructura del menú y control de acceso por módulo."
-                actions={
-                    <button onClick={abrirCrear}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] shadow-lg transition-colors">
-                        <Plus size={16} /> Nuevo Módulo
-                    </button>
-                }
+                action={{ label: 'Nuevo Módulo', onClick: abrirCrear, icon: Plus }}
             />
             <div className="p-6 max-w-6xl mx-auto">
 
