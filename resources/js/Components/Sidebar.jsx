@@ -1,144 +1,142 @@
-import { Link, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Link, usePage } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 import * as Icons from 'lucide-react';
-import { ChevronDown, ChevronRight, LogOut, Menu } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
-function SidebarItem({ item, collapsed }) {
+// ── Item del menú: enlace directo o grupo acordeón ────────────────────────────
+function SidebarItem({ item, onNavigate }) {
     const { url } = usePage();
-    const algunoActivo = item.hijos.some(h => url.startsWith(h.ruta));
+    const Icono = Icons[item.icono] ?? Icons.Folder;
+    const tieneHijos = Array.isArray(item.hijos) && item.hijos.length > 0;
+    const algunoActivo = tieneHijos && item.hijos.some(h => url.startsWith(h.ruta));
     const [abierto, setAbierto] = useState(algunoActivo);
 
-    const IconoPadre = Icons[item.icono] ?? Icons.Folder;
+    // Mantener expandido el grupo cuyo hijo está activo
+    useEffect(() => { if (algunoActivo) setAbierto(true); }, [algunoActivo]);
 
+    // Enlace directo (sin hijos)
+    if (!tieneHijos) {
+        const activo = url.startsWith(item.ruta);
+        return (
+            <Link
+                href={item.ruta}
+                onClick={onNavigate}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    activo
+                        ? 'bg-[#BE0F4A] text-white shadow-sm shadow-[#BE0F4A]/30'
+                        : 'text-white/75 hover:text-white hover:bg-white/10'
+                }`}
+            >
+                <Icono size={18} className="shrink-0" />
+                <span className="truncate">{item.nombre}</span>
+            </Link>
+        );
+    }
+
+    // Grupo con hijos (acordeón)
     return (
         <div>
             <button
-                onClick={() => setAbierto(!abierto)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
-                    ${algunoActivo
-                        ? 'text-[#BE0F4A] bg-[#BE0F4A]/10'
-                        : 'text-[#291136] hover:bg-[#291136]/5 hover:text-[#BE0F4A]'
-                    }`}
+                type="button"
+                onClick={() => setAbierto(o => !o)}
+                aria-expanded={abierto}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                    algunoActivo ? 'text-white bg-white/10' : 'text-white/75 hover:text-white hover:bg-white/10'
+                }`}
             >
-                <IconoPadre size={18} className="shrink-0" />
-                {!collapsed && (
-                    <>
-                        <span className="flex-1 text-left">{item.nombre}</span>
-                        {abierto
-                            ? <ChevronDown size={14} className="shrink-0 opacity-60" />
-                            : <ChevronRight size={14} className="shrink-0 opacity-60" />
-                        }
-                    </>
-                )}
+                <Icono size={18} className="shrink-0" />
+                <span className="flex-1 text-left truncate">{item.nombre}</span>
+                <ChevronDown size={15} className={`shrink-0 opacity-60 transition-transform duration-200 ${abierto ? 'rotate-180' : ''}`} />
             </button>
 
-            {abierto && !collapsed && (
-                <div className="mt-1 ml-4 pl-3 border-l-2 border-[#BE0F4A]/30 space-y-0.5">
-                    {item.hijos.map(hijo => {
-                        const IconoHijo = Icons[hijo.icono] ?? Icons.File;
-                        const activo = url.startsWith(hijo.ruta);
-
-                        return (
-                            <Link
-                                key={hijo.slug}
-                                href={hijo.ruta}
-                                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200
-                                    ${activo
-                                        ? 'bg-[#BE0F4A] text-white font-semibold shadow-sm'
-                                        : 'text-[#291136]/70 hover:bg-[#291136]/5 hover:text-[#BE0F4A]'
+            {/* Acordeón animado: grid-rows 0fr→1fr anima la altura (CSS puro) + fade */}
+            <div
+                aria-hidden={!abierto}
+                className={`grid transition-[grid-template-rows] duration-300 ease-out ${abierto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+            >
+                <div className="overflow-hidden">
+                    <div className={`mt-1 ml-4 pl-3 border-l border-white/15 flex flex-col gap-0.5 transition-opacity duration-200 ${abierto ? 'opacity-100' : 'opacity-0'}`}>
+                        {item.hijos.map(hijo => {
+                            const IconoHijo = Icons[hijo.icono] ?? Icons.Dot;
+                            const activo = url.startsWith(hijo.ruta);
+                            return (
+                                <Link
+                                    key={hijo.slug}
+                                    href={hijo.ruta}
+                                    onClick={onNavigate}
+                                    tabIndex={abierto ? 0 : -1}
+                                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                                        activo
+                                            ? 'bg-[#BE0F4A] text-white font-semibold'
+                                            : 'text-white/60 hover:text-white hover:bg-white/10'
                                     }`}
-                            >
-                                <IconoHijo size={15} className="shrink-0" />
-                                <span>{hijo.nombre}</span>
-                            </Link>
-                        );
-                    })}
+                                >
+                                    <IconoHijo size={15} className="shrink-0" />
+                                    <span className="truncate">{hijo.nombre}</span>
+                                    {activo && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/90 animate-pulse" />}
+                                </Link>
+                            );
+                        })}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 }
 
-export default function Sidebar() {
+/**
+ * Sidebar de navegación. Controlado por el header (hamburguesa).
+ * - Escritorio (lg+): forma parte del flujo; al cerrar colapsa su ancho a 0.
+ * - Móvil: se desliza como drawer con backdrop.
+ *
+ * Identidad Ankawa: degradado oscuro de marca + acento rose en el activo y un
+ * pie discreto con la firma de la empresa (presencia sin saturar).
+ */
+export default function Sidebar({ open, onClose }) {
     const { auth } = usePage().props;
-    const [collapsed, setCollapsed] = useState(false);
 
-    const handleLogout = () => router.post(route('logout'));
+    // En móvil, cerrar el drawer al navegar; en escritorio se mantiene.
+    const onNavigate = () => {
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) onClose();
+    };
 
     return (
-        <aside className={`flex flex-col h-screen bg-white border-r border-gray-200 shadow-sm transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
+        <>
+            {/* Backdrop (solo móvil) */}
+            <div
+                onClick={onClose}
+                aria-hidden="true"
+                className={`absolute inset-0 bg-black/40 z-30 lg:hidden transition-opacity duration-300 ${
+                    open ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+            />
 
-            {/* ── SECCIÓN LOGO ── */}
-            <div className={`relative flex items-center border-b border-gray-100 ${collapsed ? 'justify-center px-3 py-4' : 'px-5 py-6 justify-center'}`}>
-                {!collapsed ? (
-                    <>
-                        {/* Logo centrado y más grande */}
-                        <img
-                            src="/logo.png"
-                            alt="Ankawa Internacional"
-                            className="h-18 w-auto object-contain transition-all"
-                        />
-                        {/* Botón absoluto para no romper el centrado */}
-                        <button
-                            onClick={() => setCollapsed(true)}
-                            className="absolute right-3 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#291136] transition-colors"
-                        >
-                            <Menu size={18} />
-                        </button>
-                    </>
-                ) : (
-                    /* Logo cuando está colapsado */
+            <aside
+                className={`absolute lg:relative inset-y-0 left-0 z-40 w-72 shrink-0 flex flex-col overflow-hidden transition-all duration-300 ease-out ${
+                    open ? 'translate-x-0 lg:w-72' : '-translate-x-full lg:translate-x-0 lg:w-0'
+                }`}
+                style={{ background: 'linear-gradient(180deg, #291136 0%, #4A153D 100%)' }}
+            >
+                {/* Navegación */}
+                <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-1 w-72">
+                    {auth.menu.map(item => (
+                        <SidebarItem key={item.slug} item={item} onNavigate={onNavigate} />
+                    ))}
+                </nav>
+
+                {/* Pie de marca — presencia discreta */}
+                <div className="shrink-0 px-5 py-4 border-t border-white/10 w-72">
                     <img
-                        src="/logo.png"
-                        alt="Ankawa"
-                        className="h-8 w-8 object-contain"
+                        src="/logo-white.png"
+                        alt="The Ankawa Global Group"
+                        className="h-7 w-auto object-contain opacity-90"
                     />
-                )}
-            </div>
-
-            {/* Botón para expandir cuando está colapsado */}
-            {collapsed && (
-                <button
-                    onClick={() => setCollapsed(false)}
-                    className="mx-auto mt-4 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-[#291136] transition-colors"
-                >
-                    <Menu size={18} />
-                </button>
-            )}
-
-            {/* ── MENÚ ── */}
-            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-                {auth.menu.map(item => (
-                    <SidebarItem key={item.slug} item={item} collapsed={collapsed} />
-                ))}
-            </nav>
-
-            {/* ── FOOTER ── */}
-            <div className="border-t border-gray-100 px-3 py-4">
-                {!collapsed && (
-                    <div className="flex items-center gap-3 px-3 mb-4">
-                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 bg-[#291136]">
-                            {auth.user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold text-[#291136] truncate">
-                                {auth.user.name}
-                            </p>
-                            <p className="text-xs text-gray-400 truncate">
-                                {auth.user.email}
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <button
-                    onClick={handleLogout}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors ${collapsed ? 'justify-center' : ''}`}
-                >
-                    <LogOut size={18} className="shrink-0" />
-                    {!collapsed && <span>Cerrar sesión</span>}
-                </button>
-            </div>
-        </aside>
+                    <p className="text-white/40 text-[10px] mt-2 leading-snug">
+                        The Ankawa Global Group SAC<br />
+                        Plataforma de Expediente Electrónico
+                    </p>
+                </div>
+            </aside>
+        </>
     );
 }
