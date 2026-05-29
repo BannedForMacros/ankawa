@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConfigHeader from '@/Components/ConfigHeader';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
 import ConfirmDialog from '@/Components/ConfirmDialog';
@@ -658,27 +659,23 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
 
     return (
         <AuthenticatedLayout>
+            <ConfigHeader
+                breadcrumb={[
+                    { label: 'Inicio', href: route('dashboard') },
+                    { label: 'Configuración' },
+                    { label: 'Tipos de Documento' },
+                ]}
+                title="Tipos de"
+                titleAccent="Documento"
+                description="Catálogo de documentos, servicios y permisos por tipo de actor."
+                actions={
+                    <button onClick={abrirCrear}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
+                        <Plus size={16} /> Nuevo Tipo
+                    </button>
+                }
+            />
             <div className="p-6 max-w-6xl mx-auto">
-
-                {/* Header */}
-                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
-                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                        <div className="flex items-start justify-between flex-wrap gap-4">
-                            <div>
-                                <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
-                                    Tipos de Documento
-                                </h1>
-                                <p className="text-gray-500 text-sm mt-1">
-                                    Catálogo de documentos, servicios y permisos por tipo de actor
-                                </p>
-                            </div>
-                            <button onClick={abrirCrear}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
-                                <Plus size={16} /> Nuevo Tipo
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Barra de filtros */}
                 <div className="flex flex-wrap items-center gap-3 mb-4">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConfigHeader from '@/Components/ConfigHeader';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
 import ConfirmDialog from '@/Components/ConfirmDialog';
@@ -245,26 +246,22 @@ export default function ModulosIndex({ modulos }) {
 
     return (
         <AuthenticatedLayout>
+            <ConfigHeader
+                breadcrumb={[
+                    { label: 'Inicio', href: route('dashboard') },
+                    { label: 'Configuración' },
+                    { label: 'Módulos' },
+                ]}
+                title="Módulos"
+                description="Estructura del menú y control de acceso por módulo."
+                actions={
+                    <button onClick={abrirCrear}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] shadow-lg transition-colors">
+                        <Plus size={16} /> Nuevo Módulo
+                    </button>
+                }
+            />
             <div className="p-6 max-w-6xl mx-auto">
-                {/* Header */}
-                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
-                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                        <div className="flex items-start justify-between flex-wrap gap-4">
-                            <div>
-                                <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
-                                    Módulos
-                                </h1>
-                                <p className="text-gray-500 text-sm mt-1">
-                                    Estructura del menú y control de acceso por módulo
-                                </p>
-                            </div>
-                            <button onClick={abrirCrear}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] shadow-lg transition-colors">
-                                <Plus size={16} /> Nuevo Módulo
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
                 <Table
                     columns={columns}

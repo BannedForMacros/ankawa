@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConfigHeader from '@/Components/ConfigHeader';
 import Table from '@/Components/Table';
 import Badge from '@/Components/Badge';
 import ConfirmDialog from '@/Components/ConfirmDialog'; // 1. Importación del diálogo
@@ -141,23 +142,22 @@ export default function Index({ roles }) {
 
     return (
         <AuthenticatedLayout>
+            <ConfigHeader
+                breadcrumb={[
+                    { label: 'Inicio', href: route('dashboard') },
+                    { label: 'Configuración' },
+                    { label: 'Roles' },
+                ]}
+                title="Roles"
+                description="Gestión de permisos y acceso al sistema."
+                actions={
+                    <PrimaryButton onClick={abrirCrear} className="gap-2 shadow-md">
+                        <Plus size={18} strokeWidth={2.5} />
+                        Nuevo Rol
+                    </PrimaryButton>
+                }
+            />
             <div className="p-6 max-w-6xl mx-auto">
-
-                {/* Header Principal */}
-                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
-                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                        <div className="flex items-start justify-between flex-wrap gap-4">
-                            <div>
-                                <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">Roles</h1>
-                                <p className="text-gray-500 text-sm mt-1">Gestión de permisos y acceso al sistema</p>
-                            </div>
-                            <PrimaryButton onClick={abrirCrear} className="gap-2 shadow-md">
-                                <Plus size={18} strokeWidth={2.5} />
-                                Nuevo Rol
-                            </PrimaryButton>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Tabla */}
                 <Table

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConfigHeader from '@/Components/ConfigHeader';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
 import { Receipt, Pencil, ToggleLeft, ToggleRight, Info } from 'lucide-react';
@@ -136,22 +137,17 @@ export default function TiposEventoCargoIndex({ tipos }) {
 
     return (
         <AuthenticatedLayout>
+            <ConfigHeader
+                breadcrumb={[
+                    { label: 'Inicio', href: route('dashboard') },
+                    { label: 'Configuración' },
+                    { label: 'Tipos de Cargo' },
+                ]}
+                title="Tipos de"
+                titleAccent="Cargo"
+                description="Define qué eventos del sistema emiten un cargo correlativo (CARGO-AAAA-NNNN)."
+            />
             <div className="p-6 max-w-6xl mx-auto">
-                {/* Header */}
-                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
-                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                        <div className="flex items-start justify-between flex-wrap gap-4">
-                            <div>
-                                <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
-                                    Tipos de Cargo
-                                </h1>
-                                <p className="text-gray-500 text-sm mt-1">
-                                    Define qué eventos del sistema emiten un cargo correlativo (CARGO-AAAA-NNNN).
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Aviso explicativo */}
                 <div className="mb-5 bg-[#291136]/[0.03] border border-[#291136]/10 rounded-2xl p-4 flex gap-3">

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConfigHeader from '@/Components/ConfigHeader';
 import Modal from '@/Components/Modal';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import CustomSelect from '@/Components/CustomSelect';
@@ -339,28 +340,24 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
 
     return (
         <AuthenticatedLayout>
+            <ConfigHeader
+                breadcrumb={[
+                    { label: 'Inicio', href: route('dashboard') },
+                    { label: 'Configuración' },
+                    { label: 'Tipos de Actor' },
+                ]}
+                title="Tipos de"
+                titleAccent="Actor"
+                description="Define los roles que pueden participar en los expedientes y en qué servicios aplican."
+                actions={
+                    <button
+                        onClick={() => { setEditando(null); setModalTipo(true); }}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
+                        <Plus size={16} /> Nuevo tipo de actor
+                    </button>
+                }
+            />
             <div className="p-6 max-w-6xl mx-auto">
-
-                {/* Header */}
-                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
-                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                        <div className="flex items-start justify-between flex-wrap gap-4">
-                            <div>
-                                <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
-                                    Tipos de Actor
-                                </h1>
-                                <p className="text-gray-500 text-sm mt-1">
-                                    Define los roles que pueden participar en los expedientes y en qué servicios aplican
-                                </p>
-                            </div>
-                            <button
-                                onClick={() => { setEditando(null); setModalTipo(true); }}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
-                                <Plus size={16} /> Nuevo tipo de actor
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Barra de filtros */}
                 <div className="flex flex-wrap items-center gap-3 mb-4">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ConfigHeader from '@/Components/ConfigHeader';
 import Badge from '@/Components/Badge';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -93,14 +94,16 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
 
     return (
         <AuthenticatedLayout>
+            <ConfigHeader
+                breadcrumb={[
+                    { label: 'Inicio', href: route('dashboard') },
+                    { label: 'Configuración' },
+                    { label: 'Etapas' },
+                ]}
+                title="Etapas"
+                description="Configura las etapas del flujo por servicio."
+            />
             <div className="p-6 max-w-6xl mx-auto">
-                {/* Header */}
-                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
-                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
-                        <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">Etapas</h1>
-                        <p className="text-gray-500 text-sm mt-1">Configura las etapas del flujo por servicio</p>
-                    </div>
-                </div>
 
                 {/* Selector de servicio */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
