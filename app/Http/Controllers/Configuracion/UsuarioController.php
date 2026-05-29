@@ -11,22 +11,11 @@ use Inertia\Inertia;
 
 class UsuarioController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $query = User::with('rol');
-
-        if ($request->filled('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name',  'ilike', '%' . $request->search . '%')
-                  ->orWhere('email', 'ilike', '%' . $request->search . '%');
-            });
-        }
-
-        $sortBy  = in_array($request->sort, ['id', 'name', 'email', 'activo']) ? $request->sort : 'id';
-        $sortDir = $request->dir === 'desc' ? 'desc' : 'asc';
-        $query->orderBy($sortBy, $sortDir);
-
-        $usuarios = $query->paginate(20)->withQueryString();
+        // Catálogo pequeño: se trae completo y el filtrado/búsqueda/orden/paginación
+        // ocurre en el navegador (Table clientSide).
+        $usuarios = User::with('rol')->orderBy('name')->get();
         $roles    = Rol::where('activo', 1)->orderBy('nombre')->get(['id', 'nombre']);
 
         return Inertia::render('Configuracion/Usuarios/Index', [

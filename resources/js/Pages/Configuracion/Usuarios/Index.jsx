@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
@@ -23,6 +23,33 @@ export default function Index({ usuarios, roles }) {
     const [usuarioAEliminar, setUsuarioAEliminar] = useState(null);
     const [deleting, setDeleting]                 = useState(false);
     const [confirmSave, setConfirmSave]           = useState(false);
+
+    // ── Filtros (client-side) ──
+    const [estado, setEstado] = useState('');
+    const [rolId,  setRolId]  = useState('');
+
+    const usuariosFiltrados = useMemo(() => {
+        const r = rolId ? Number(rolId) : null;
+        return usuarios.filter(u => {
+            if (estado !== '' && Number(u.activo) !== Number(estado)) return false;
+            if (r && u.rol_id !== r) return false;
+            return true;
+        });
+    }, [usuarios, estado, rolId]);
+
+    const filtros = (
+        <>
+            <div className="w-44">
+                <CustomSelect value={estado} onChange={setEstado}
+                    options={[{ id: 1, nombre: 'Activos' }, { id: 0, nombre: 'Inactivos' }]}
+                    placeholder="Todos los estados" />
+            </div>
+            <div className="w-48">
+                <CustomSelect value={rolId} onChange={setRolId}
+                    options={roles} placeholder="Todos los roles" />
+            </div>
+        </>
+    );
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name:                  '',
@@ -170,9 +197,11 @@ export default function Index({ usuarios, roles }) {
 
                 <Table
                     columns={columns}
-                    data={usuarios.data}
-                    meta={usuarios}
-                    routeName="configuracion.usuarios.index"
+                    data={usuariosFiltrados}
+                    clientSide
+                    perPage={15}
+                    searchKeys={['name', 'email']}
+                    filters={filtros}
                     searchPlaceholder="Buscar por nombre o correo..."
                 />
             </div>

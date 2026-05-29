@@ -78,6 +78,7 @@ export default function Table({
     clientSide = false,        // true: filtra/ordena/pagina en el navegador (datos pequeños, sin viajes a la BD)
     perPage = 15,
     searchKeys = ['nombre'],   // campos sobre los que busca en modo cliente
+    filters = null,            // nodo con los filtros (CustomSelect, etc.) — se muestran a la izquierda
 }) {
     const urlParams = new URLSearchParams(window.location.search);
     const [search, setSearch]   = useState(clientSide ? '' : (urlParams.get('search') ?? ''));
@@ -155,15 +156,21 @@ export default function Table({
 
     return (
         <div className="space-y-4">
-            <div className="relative max-w-sm">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={e => handleSearchChange(e.target.value)}
-                    placeholder={searchPlaceholder}
-                    className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all"
-                />
+            {/* Toolbar: filtros a la izquierda, búsqueda a la derecha */}
+            <div className="flex flex-wrap items-center gap-3">
+                {filters && (
+                    <div className="flex flex-wrap items-center gap-2.5">{filters}</div>
+                )}
+                <div className="relative w-full sm:w-72 sm:ml-auto">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={e => handleSearchChange(e.target.value)}
+                        placeholder={searchPlaceholder}
+                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all"
+                    />
+                </div>
             </div>
 
             <div className="rounded-xl shadow-sm border border-gray-200 bg-white">
