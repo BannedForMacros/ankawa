@@ -212,21 +212,19 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
             <div className="p-6 max-w-7xl mx-auto">
 
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
-                            style={{ backgroundColor: '#291136' }}>
-                            <Hash size={24} className="text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-extrabold text-[#291136] tracking-tight">Correlativos</h1>
-                            <p className="text-sm text-gray-400 font-medium">Numeración automática por tipo, servicio y año</p>
+                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
+                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
+                        <div className="flex items-start justify-between flex-wrap gap-4">
+                            <div>
+                                <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">Correlativos</h1>
+                                <p className="text-gray-500 text-sm mt-1">Numeración automática por tipo, servicio y año</p>
+                            </div>
+                            <PrimaryButton onClick={abrirCrear}>
+                                <Plus size={18} strokeWidth={2.5} />
+                                Nuevo Correlativo
+                            </PrimaryButton>
                         </div>
                     </div>
-                    <PrimaryButton onClick={abrirCrear}>
-                        <Plus size={18} strokeWidth={2.5} />
-                        Nuevo Correlativo
-                    </PrimaryButton>
                 </div>
 
                 <Table

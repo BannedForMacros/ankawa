@@ -95,15 +95,10 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
         <AuthenticatedLayout>
             <div className="p-6 max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-[#291136]/10 rounded-xl p-2.5">
-                            <GitBranch className="text-[#291136]" size={22} />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-[#291136]">Etapas</h1>
-                            <p className="text-sm text-gray-400">Configura las etapas del flujo por servicio</p>
-                        </div>
+                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
+                    <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
+                        <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">Etapas</h1>
+                        <p className="text-gray-500 text-sm mt-1">Configura las etapas del flujo por servicio</p>
                     </div>
                 </div>
 
