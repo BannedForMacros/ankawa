@@ -5,7 +5,7 @@ import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
-import { Receipt, Pencil, ToggleLeft, ToggleRight, Info, Search } from 'lucide-react';
+import { Receipt, Pencil, ToggleLeft, ToggleRight, Info, Search, Filter } from 'lucide-react';
 
 function ModalEditar({ show, onClose, tipo }) {
     const { data, setData, put, processing, errors, reset } = useForm({
@@ -181,6 +181,10 @@ export default function TiposEventoCargoIndex({ tipos }) {
                 {/* Toolbar: filtros a la izquierda, búsqueda a la derecha */}
                 <div className="flex flex-wrap items-center gap-3 mb-4">
                     <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#291136]/55">
+                            <Filter size={14} className="text-[#BE0F4A]" />
+                            Filtrar por:
+                        </span>
                         <div className="w-44">
                             <CustomSelect value={estado} onChange={setEstado}
                                 options={[{ id: 'activos', nombre: 'Activos' }, { id: 'inactivos', nombre: 'Inactivos' }]}

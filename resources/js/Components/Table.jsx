@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { 
-    ChevronUp, 
-    ChevronDown, 
-    ChevronsUpDown, 
-    Search, 
-    ChevronLeft, 
-    ChevronRight 
+import {
+    ChevronUp,
+    ChevronDown,
+    ChevronsUpDown,
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    Filter
 } from 'lucide-react';
 
 // ── Encabezado de columna con ordenamiento ──
@@ -159,7 +160,13 @@ export default function Table({
             {/* Toolbar: filtros a la izquierda, búsqueda a la derecha */}
             <div className="flex flex-wrap items-center gap-3">
                 {filters && (
-                    <div className="flex flex-wrap items-center gap-2.5">{filters}</div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#291136]/55">
+                            <Filter size={14} className="text-[#BE0F4A]" />
+                            Filtrar por:
+                        </span>
+                        {filters}
+                    </div>
                 )}
                 <div className="relative w-full sm:w-72 sm:ml-auto">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

@@ -9,7 +9,7 @@ import ServiceChips from '@/Components/ServiceChips';
 import toast from 'react-hot-toast';
 import {
     UserCheck, Plus, Pencil, Trash2, Settings,
-    Building2, Users, Search, X
+    Building2, Users, Search, X, Filter
 } from 'lucide-react';
 
 // ── Modal: Crear / Editar nombre del tipo de actor ────────────────────────────
@@ -355,6 +355,10 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                 {/* Toolbar: filtros a la izquierda, búsqueda a la derecha */}
                 <div className="flex flex-wrap items-center gap-3 mb-4">
                     <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#291136]/55">
+                            <Filter size={14} className="text-[#BE0F4A]" />
+                            Filtrar por:
+                        </span>
                         <div className="w-44">
                             <CustomSelect value={estado} onChange={setEstado}
                                 options={[{ id: 'activos', nombre: 'Activos' }, { id: 'inactivos', nombre: 'Inactivos' }]}
@@ -378,14 +382,6 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                     </div>
                 </div>
 
-                {/* Subtítulo de contexto cuando se filtra por servicio */}
-                {servicioFiltrado && (
-                    <div className="flex items-center gap-2 mb-4 px-4 py-2.5 rounded-xl bg-[#BE0F4A]/[0.06] border border-[#BE0F4A]/20 text-sm text-[#291136]">
-                        <Building2 size={15} className="text-[#BE0F4A] shrink-0" />
-                        <span>Mostrando solo los tipos de actor que participan en <strong className="font-bold">{servicioFiltrado.nombre}</strong></span>
-                    </div>
-                )}
-
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="overflow-x-auto">
@@ -394,6 +390,9 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                             <tr style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}>
                                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider rounded-tl-2xl">
                                     Nombre
+                                </th>
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
+                                    Servicios donde participa
                                 </th>
                                 <th className="px-5 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-px whitespace-nowrap">
                                     Estado
@@ -406,7 +405,7 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                         <tbody className="bg-white divide-y divide-gray-100">
                             {tiposFiltrados.length === 0 ? (
                                 <tr>
-                                    <td colSpan={3} className="px-5 py-14 text-center text-gray-400">
+                                    <td colSpan={4} className="px-5 py-14 text-center text-gray-400">
                                         <Users size={36} className="mx-auto mb-2 opacity-30" />
                                         <p className="font-medium">
                                             {hayFiltros
@@ -417,11 +416,14 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                                 </tr>
                             ) : tiposFiltrados.map(tipo => {
                                 const esInmutable = SLUGS_INMUTABLES.includes(tipo.slug);
+                                const servs = servicioFiltrado
+                                    ? (tipo.servicios ?? []).filter(s => s.id === servicioFiltrado.id)
+                                    : (tipo.servicios ?? []);
                                 return (
                                     <tr key={tipo.id} className="hover:bg-gray-50/60 transition-colors group">
 
-                                        {/* Nombre + chips de servicio */}
-                                        <td className="px-5 py-4 min-w-0">
+                                        {/* Nombre */}
+                                        <td className="px-5 py-4">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className={`font-bold ${tipo.activo ? 'text-[#291136]' : 'text-gray-400'}`}>
                                                     {tipo.nombre}
@@ -432,23 +434,20 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                                                     </span>
                                                 )}
                                             </div>
-
-                                            {/* Al filtrar por un servicio, los chips se ocultan (el subtítulo da el contexto) */}
-                                            {!servicioFiltrado && (
-                                                <div className="mt-1.5">
-                                                    {tipo.servicios?.length > 0 ? (
-                                                        <ServiceChips servicios={tipo.servicios} max={3} />
-                                                    ) : (
-                                                        esInmutable
-                                                            ? <span className="text-[10px] text-amber-600 italic">Aplica en todos los servicios</span>
-                                                            : <span className="text-[10px] text-gray-300 italic">Sin servicios configurados</span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            <p className="text-[10px] text-gray-400 mt-1.5">
+                                            <p className="text-[10px] text-gray-400 mt-1">
                                                 En uso: {tipo.actores_expediente_count} expediente(s)
                                             </p>
+                                        </td>
+
+                                        {/* Servicios donde participa */}
+                                        <td className="px-5 py-4 whitespace-nowrap align-middle">
+                                            {servs.length > 0 ? (
+                                                <ServiceChips servicios={servs} max={3} />
+                                            ) : (
+                                                esInmutable
+                                                    ? <span className="text-[10px] text-amber-600 italic">Aplica en todos los servicios</span>
+                                                    : <span className="text-[10px] text-gray-300 italic">Sin servicios configurados</span>
+                                            )}
                                         </td>
 
                                         {/* Estado */}
@@ -469,24 +468,22 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                                                 <button
                                                     onClick={() => { setGestionando(tipo); setModalServ(true); }}
                                                     title="Configurar servicios"
-                                                    className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#BE0F4A]/60 hover:bg-[#BE0F4A]/10 hover:text-[#BE0F4A] transition-colors">
+                                                    className="p-2 rounded-lg text-[#BE0F4A]/60 hover:bg-[#BE0F4A]/10 hover:text-[#BE0F4A] transition-colors">
                                                     <Settings size={15} />
                                                 </button>
                                                 <button
                                                     onClick={() => { setEditando(tipo); setModalTipo(true); }}
                                                     title="Editar nombre"
-                                                    className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#291136]/50 hover:bg-[#291136]/10 hover:text-[#291136] transition-colors">
+                                                    className="p-2 rounded-lg text-[#291136]/50 hover:bg-[#291136]/10 hover:text-[#291136] transition-colors">
                                                     <Pencil size={15} />
                                                 </button>
-                                                {!esInmutable && tipo.actores_expediente_count === 0 ? (
+                                                {!esInmutable && tipo.actores_expediente_count === 0 && (
                                                     <button
                                                         onClick={() => { setItemAEliminar(tipo); setConfirmOpen(true); }}
                                                         title="Desactivar"
-                                                        className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+                                                        className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
                                                         <Trash2 size={15} />
                                                     </button>
-                                                ) : (
-                                                    <span className="w-9 h-9" aria-hidden="true" />
                                                 )}
                                             </div>
                                         </td>

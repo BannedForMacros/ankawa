@@ -80,10 +80,6 @@ class TipoActorController extends Controller
             return back()->with('error', 'No se puede desactivar: hay expedientes con este tipo de actor asignado.');
         }
 
-        if ($tipoActor->transicionesQueLoDesignan()->where('actividad_transiciones.activo', 1)->exists()) {
-            return back()->with('error', 'No se puede desactivar: hay transiciones activas que designan este actor.');
-        }
-
         $tipoActor->update(['activo' => 0]);
 
         return back()->with('success', 'Tipo de Actor desactivado correctamente.');
