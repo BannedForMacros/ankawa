@@ -346,9 +346,9 @@ export default function TabActores({
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0">
-                                                {/* Acceso a Mesa de Partes — solo lectura, se otorga desde movimientos */}
+                                                {/* Mesa de Partes — ventanilla del expediente (ver + enviar). Solo lectura. */}
                                                 <span
-                                                    title="El acceso se otorga al crear un movimiento de Traslado/Notificación"
+                                                    title={`Mesa de Partes: ${actor.acceso_mesa_partes ? 'habilitada' : 'no habilitada'} — ve este expediente y puede enviar documentos. Cualquiera de los correos del actor (${(emailPrincipal ? 1 : 0) + emailsAdicionales.length}) puede entrar. Se otorga con un movimiento de Traslado.`}
                                                     className={`p-1.5 rounded-lg cursor-default ${
                                                         actor.acceso_mesa_partes
                                                             ? 'bg-emerald-100 text-emerald-600'
@@ -357,9 +357,9 @@ export default function TabActores({
                                                 >
                                                     <FileText size={14} />
                                                 </span>
-                                                {/* Acceso a Expediente Electrónico — solo lectura */}
+                                                {/* Expediente Electrónico — acceso con credenciales (contraseña). Solo lectura. */}
                                                 <span
-                                                    title="El acceso se otorga al crear un movimiento con credenciales de expediente electrónico"
+                                                    title={`Expediente Electrónico: ${actor.acceso_expediente_electronico ? 'con credenciales' : 'sin credenciales'} — acceso con contraseña. Se otorga al enviar credenciales en un movimiento.`}
                                                     className={`p-1.5 rounded-lg cursor-default ${
                                                         actor.acceso_expediente_electronico
                                                             ? 'bg-indigo-100 text-indigo-600'
@@ -479,8 +479,9 @@ export default function TabActores({
                     )}
                     {/* Nota informativa sobre acceso */}
                     <p className="text-[11px] text-gray-400 mt-3 px-1 leading-relaxed">
-                        <span className="font-semibold text-gray-500">ℹ Acceso al portal:</span>{' '}
-                        El acceso a Mesa de Partes y Expediente Electrónico se otorga automáticamente al crear un movimiento de Traslado/Notificación con la opción correspondiente. No se puede habilitar manualmente.
+                        <span className="font-semibold text-gray-500">ℹ Dos accesos distintos:</span>{' '}
+                        <strong className="text-emerald-700">Mesa de Partes</strong> es la ventanilla del expediente — la parte lo ve y puede enviar documentos (cualquiera de sus correos registrados puede entrar, útil para consorcios).{' '}
+                        <strong className="text-indigo-700">Expediente Electrónico</strong> es acceso con credenciales (contraseña). Ambos se otorgan al crear un movimiento de Traslado/Notificación con la opción correspondiente; no se habilitan manualmente.
                     </p>
                 </div>
             </div>

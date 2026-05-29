@@ -90,16 +90,43 @@ tiene `acceso_mesa_partes = 1`).
 
 ---
 
-## 6. LO QUE SIGUE (pendiente)
+## 5.3 HECHO — Forma 2 + modelo de correos clarificado (sesión 28-may-2026)
 
-### 6.1 Implementar la Forma 2 (cambio principal) ⬅️ próximo
-En `resources/js/Pages/Expedientes/Partials/TabSolicitud.jsx`:
-- `iniciarConforme()` **no** debe pre-armar los 3 movimientos. La admisión abre el editor **vacío**.
-- Agregar botón **"Agregar traslado de emplazamiento (recomendado)"** que inyecta el movimiento de
-  traslado pre-armado (notificación + `habilitar_mesa_partes` a la contraparte). Opcional, editable, quitable.
-- **DECISIÓN PENDIENTE — recordatorio al confirmar sin traslado:**
-  - **Aviso suave** (avisa pero deja admitir igual) → más control. *(Recomendado)*
-  - **Bloqueo duro** (no deja admitir sin un traslado a la contraparte).
+### Decisión de diseño: Mesa de Partes ≠ "acceso completo"
+Aclaración clave del usuario que corrige el modelo mental:
+- **Mesa de Partes** = la **ventanilla del expediente**. La parte **VE ese expediente** y puede
+  **ENVIAR documentos** a él. Login por OTP + DNI, **sin contraseña**, acotado a ese expediente.
+  **Multi-correo a propósito:** en un **consorcio**, **cualquiera** de los correos registrados del
+  actor puede entrar y enviar. **NO es un privilegio del sistema.**
+- **Expediente Electrónico** = acceso con **credenciales (contraseña)**. *Ese* sí es el "acceso" amplio.
+- **NO se restringe** la lógica multi-correo. `PortalController::actorIdsPorEmail()` sigue resolviendo
+  todos los correos del actor (principal + `expediente_actor_emails`) — es correcto. Solo se mejoró la
+  **claridad** de la UI para que no se confundan las dos puertas.
+
+### Cambios aplicados
+- **Forma 2 (`TabSolicitud.jsx`):** `iniciarConforme()` ya **no** pre-arma los 3 movimientos fijos —
+  abre el editor **vacío**. Nueva función `agregarTrasladoEmplazamiento()` inyecta el traslado
+  pre-armado (notificación + `habilitar_mesa_partes` a la contraparte); requiere emplazado **validado**.
+  Botón **"Agregar traslado de emplazamiento (recomendado)"** en el panel (solo si aún no hay traslado).
+- **Fix sumilla del traslado:** un movimiento = una sumilla, y se notificaba a ambas partes con el
+  texto "…al demandado… ha sido emplazado" → el solicitante recibía una cédula con texto ajeno.
+  El atajo ahora arma **DOS movimientos**: (1) notificación de **admisión** al solicitante
+  (`notificar_a=[solicitante]`), (2) **traslado** al emplazado (`notificar_a=[]`, recibe su cédula vía
+  el propio `habilitar_mesa_partes`). Cada uno con su sumilla correcta. Editables/quitables.
+- **Aviso suave** (decisión elegida, no bloqueo): al confirmar conforme **sin** un movimiento con
+  `habilitar_mesa_partes`, un `window.confirm` avisa pero **deja admitir**. Emplazar después es válido.
+- **Botón "Admitir a Trámite"** ya **no** se bloquea por validación del emplazado; la validación se
+  exige recién al **agregar el traslado**. Hint informativo (no bloqueante) si falta validar.
+- **Leyenda del checkbox `habilitar_mesa_partes` (`TabNuevoMovimiento.jsx`):** subtítulo permanente
+  *"Ventanilla del expediente: la parte verá ESTE expediente y podrá enviar documentos (cualquiera de
+  sus correos). No son credenciales de Expediente Electrónico."*
+- **`TabActores.jsx`:** tooltips de los dos indicadores reescritos (Mesa de Partes con conteo de
+  correos que pueden entrar; Exp. Electrónico = credenciales) + nota al pie "Dos accesos distintos".
+- **Build OK** (vite).
+
+---
+
+## 6. LO QUE SIGUE (pendiente)
 
 ### 6.2 Limpiar dato inconsistente en BD local
 Identificar y limpiar el/los actor(es) con `acceso_mesa_partes = 1` pero **sin validar / sin cuenta**

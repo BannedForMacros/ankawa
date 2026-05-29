@@ -25,6 +25,9 @@ class TipoDocumentoController extends Controller
                 'servicios' => fn($q) => $q->select('servicios.id', 'servicios.nombre'),
             ])
             ->when($request->search, fn($q, $s) => $q->where('nombre', 'ilike', "%{$s}%"))
+            ->when($request->estado === 'activos',   fn($q) => $q->where('activo', 1))
+            ->when($request->estado === 'inactivos', fn($q) => $q->where('activo', 0))
+            ->when($request->servicio_id, fn($q, $sid) => $q->whereHas('servicios', fn($s) => $s->where('servicios.id', $sid)))
             ->orderBy($sort, $dir)
             ->paginate(15)
             ->withQueryString();

@@ -7,18 +7,10 @@ import ConfirmDialog from '@/Components/ConfirmDialog';
 import toast from 'react-hot-toast';
 import {
     FileStack, Plus, Pencil, Trash2, Settings, Users,
-    Upload, Eye, Building2, Send
+    Upload, Eye, Building2, Send, ChevronDown, X
 } from 'lucide-react';
 
 // ── Chips ─────────────────────────────────────────────────────────────────────
-
-function SlugChip({ slug }) {
-    return (
-        <code className="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-md">
-            {slug}
-        </code>
-    );
-}
 
 function ServicioChip({ nombre, esParaSolicitud }) {
     return (
@@ -128,7 +120,6 @@ function ModalTipoDocumento({ show, onClose, editando }) {
                                 onChange={e => setData('nombre', e.target.value)}
                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]" />
                             {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
-                            <p className="text-[10px] text-gray-400 mt-1">Se generará un identificador (slug) automático.</p>
                         </div>
 
                         <div>
@@ -517,6 +508,36 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const [itemAEliminar, setItemAEliminar] = useState(null);
     const [deleting,      setDeleting]      = useState(false);
 
+    // ── Filtros (estado + servicio), server-side, preservados al buscar/ordenar/paginar ──
+    const urlParams = new URLSearchParams(window.location.search);
+    const [estado,     setEstado]     = useState(urlParams.get('estado')      ?? 'todos');
+    const [servicioId, setServicioId] = useState(urlParams.get('servicio_id') ?? '');
+
+    const aplicarFiltros = (overrides = {}) => {
+        const cur  = new URLSearchParams(window.location.search);
+        const next = {
+            search:      cur.get('search') || undefined,
+            sort:        cur.get('sort')   || undefined,
+            dir:         cur.get('dir')    || undefined,
+            estado:      estado === 'todos' ? undefined : estado,
+            servicio_id: servicioId || undefined,
+            ...overrides,
+        };
+        router.get(route('configuracion.tipos-documentos.index'), next, {
+            preserveState: true, preserveScroll: true, replace: true,
+        });
+    };
+
+    const cambiarEstado   = (val) => { setEstado(val);     aplicarFiltros({ estado: val === 'todos' ? undefined : val }); };
+    const cambiarServicio = (val) => { setServicioId(val); aplicarFiltros({ servicio_id: val || undefined }); };
+    const limpiarFiltros  = () => { setEstado('todos'); setServicioId(''); aplicarFiltros({ estado: undefined, servicio_id: undefined }); };
+
+    const hayFiltros = estado !== 'todos' || !!servicioId;
+    const routeParams = {
+        ...(estado !== 'todos' ? { estado } : {}),
+        ...(servicioId ? { servicio_id: servicioId } : {}),
+    };
+
     const abrirCrear   = () => { setEditando(null); setModalTipo(true); };
     const abrirEditar  = (t) => { setEditando(t); setModalTipo(true); };
     const abrirServ    = (t) => { setGestionando(t); setModalServ(true); };
@@ -545,7 +566,6 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                 <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-[#291136]">{row.nombre}</span>
-                        <SlugChip slug={row.slug} />
                         {!row.activo && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-400">
                                 Inactivo
@@ -678,11 +698,53 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                     </div>
                 </div>
 
+                {/* Barra de filtros */}
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                    {/* Estado */}
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+                        {[
+                            { key: 'todos',     label: 'Todos' },
+                            { key: 'activos',   label: 'Activos' },
+                            { key: 'inactivos', label: 'Inactivos' },
+                        ].map(opt => (
+                            <button key={opt.key} type="button" onClick={() => cambiarEstado(opt.key)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors ${
+                                    estado === opt.key
+                                        ? 'bg-[#291136] text-white'
+                                        : 'text-gray-500 hover:bg-gray-100'
+                                }`}>
+                                {estado === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse" />}
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Servicio */}
+                    <div className="relative">
+                        <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <select value={servicioId} onChange={e => cambiarServicio(e.target.value)}
+                            className="appearance-none pl-9 pr-9 py-2 text-sm font-semibold border border-gray-200 rounded-xl bg-white shadow-sm text-[#291136] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] transition-all">
+                            <option value="">Todos los servicios</option>
+                            {servicios.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                        </select>
+                        <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    </div>
+
+                    {/* Limpiar */}
+                    {hayFiltros && (
+                        <button type="button" onClick={limpiarFiltros}
+                            className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-[#BE0F4A] transition-colors">
+                            <X size={13} /> Limpiar filtros
+                        </button>
+                    )}
+                </div>
+
                 <Table
                     columns={columns}
                     data={tipos.data}
                     meta={tipos}
                     routeName="configuracion.tipos-documentos.index"
+                    routeParams={routeParams}
                     searchPlaceholder="Buscar tipo de documento..."
                 />
             </div>

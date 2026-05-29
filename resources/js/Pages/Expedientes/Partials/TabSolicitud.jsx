@@ -152,12 +152,15 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
         setErrores({});
     }
 
-    // Atajo opcional: inyecta el movimiento de traslado/emplazamiento pre-armado
-    // (notificación + habilitar Mesa de Partes a la contraparte). Editable y quitable.
-    // Mesa de Partes = la contraparte VE el expediente y puede ENVIAR documentos
-    // (cualquiera de sus correos registrados). NO son credenciales de Exp. Electrónico.
+    // Atajo opcional: arma el emplazamiento como DOS movimientos, cada uno con su propia
+    // sumilla (un solo movimiento no puede tener dos textos para dos destinatarios):
+    //   1) Notificación de ADMISIÓN al solicitante (su propia cédula).
+    //   2) TRASLADO al emplazado + habilitar Mesa de Partes (su propia cédula).
+    // Ambos editables y quitables. Mesa de Partes = la contraparte VE el expediente y puede
+    // ENVIAR documentos (cualquiera de sus correos). NO son credenciales de Exp. Electrónico.
     function agregarTrasladoEmplazamiento() {
-        const emplazado = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
+        const emplazado   = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugEmplazado);
+        const solicitante = expediente.actores?.find(a => a.activo && a.tipo_actor?.slug === slugSolicitante);
         if (!emplazado) {
             toast.error(`No se encontró al ${labelEmplazado.toLowerCase()} activo en el expediente.`);
             return;
@@ -166,19 +169,45 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
             toast.error(`Primero valide el correo del ${labelEmplazado.toLowerCase()} en "Partes del Proceso" para poder emplazarlo y habilitar Mesa de Partes.`);
             return;
         }
-        const ni = movimientos.length;
-        setMovimientos(prev => [...prev, {
-            ...movVacio(expediente, defaultNotificarIds),
+
+        const nuevos = [];
+
+        // 1) Notificación de admisión al solicitante (solo si ya tiene cuenta/acceso).
+        //    notificar_a = [solicitante]; sin habilitar Mesa de Partes (ya la tiene).
+        if (solicitante?.usuario?.id) {
+            nuevos.push({
+                ...movVacio(expediente, []),
+                tipo:                       'notificacion',
+                instruccion:                'Admisión a trámite: Se pone en su conocimiento que la solicitud ha sido admitida a trámite y se ha corrido traslado a la contraparte.',
+                tipo_actor_responsable_id:  String(solicitante.tipo_actor_id ?? ''),
+                usuario_responsable_id:     String(solicitante.usuario.id),
+                notificar_a:                [solicitante.id],
+            });
+        }
+
+        // 2) Traslado / emplazamiento al demandado: su propia sumilla + habilitar Mesa de Partes.
+        //    notificar_a = [] porque el emplazado recibe su cédula vía el propio habilitar
+        //    (el backend lo agrega a la notificación al concederle acceso en este mismo acto).
+        nuevos.push({
+            ...movVacio(expediente, []),
             tipo:                            'notificacion',
             instruccion:                     `Traslado de la solicitud al ${labelEmplazado.toLowerCase()}: Se le notifica que ha sido emplazado en el presente proceso. Se habilita Mesa de Partes para que pueda ver el expediente y presentar escritos.`,
             tipo_actor_responsable_id:       String(emplazado.tipo_actor_id ?? ''),
             usuario_responsable_id:          String(emplazado.usuario.id),
             habilitar_mesa_partes:           true,
             actores_mesa_partes_ids:         [emplazado.id],
+            notificar_a:                     [],
             enviar_credenciales_expediente:  false,
             actor_credenciales_exp_id:       '',
-        }]);
-        setArchivos(prev => ({ ...prev, [ni]: [] }));
+        });
+
+        const ni = movimientos.length;
+        setMovimientos(prev => [...prev, ...nuevos]);
+        setArchivos(prev => {
+            const next = { ...prev };
+            nuevos.forEach((_, k) => { next[ni + k] = []; });
+            return next;
+        });
     }
 
     function iniciarNoConforme() {

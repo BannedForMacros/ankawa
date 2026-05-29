@@ -810,21 +810,29 @@ export function MovimientoCard({
                     {/* Habilitar acceso a Mesa de Partes — solo notificacion/propia, actores sin acceso */}
                     {!esReq && actoresSinMesaPartes.length > 0 && (
                         <div className="border border-emerald-200/60 rounded-xl overflow-hidden">
-                            <label className="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50/60 cursor-pointer select-none">
+                            <label className="flex items-start gap-2.5 px-3.5 py-2.5 bg-emerald-50/60 cursor-pointer select-none">
                                 <input type="checkbox"
                                     checked={!!mov.habilitar_mesa_partes}
                                     onChange={e => {
                                         onChange('habilitar_mesa_partes', e.target.checked);
                                         if (!e.target.checked) onChange('actores_mesa_partes_ids', []);
                                     }}
-                                    className="w-4 h-4 accent-emerald-600 rounded"/>
-                                <Mail size={13} className="text-emerald-600 shrink-0"/>
-                                <span className="text-sm font-bold text-emerald-700">Habilitar acceso a Mesa de Partes</span>
+                                    className="w-4 h-4 accent-emerald-600 rounded mt-0.5"/>
+                                <Mail size={13} className="text-emerald-600 shrink-0 mt-1"/>
+                                <span className="flex-1 min-w-0">
+                                    <span className="block text-sm font-bold text-emerald-700">Habilitar acceso a Mesa de Partes</span>
+                                    <span className="block text-[11px] font-medium text-emerald-600/80 mt-0.5 leading-snug">
+                                        Ventanilla del expediente: la parte verá ESTE expediente y podrá enviar documentos
+                                        (cualquiera de sus correos registrados). No son credenciales de Expediente Electrónico.
+                                    </span>
+                                </span>
                             </label>
                             {mov.habilitar_mesa_partes && (
                                 <div className="px-3.5 py-3 bg-white border-t border-emerald-200/40 space-y-1.5">
                                     <p className="text-xs text-emerald-600 leading-relaxed mb-2">
-                                        Los actores seleccionados podrán ver este expediente en el portal, responder requerimientos y enviar documentos. Se notificará por email.
+                                        Los actores seleccionados verán este expediente en el portal y podrán responder
+                                        requerimientos y enviar documentos. Cualquiera de los correos del actor podrá entrar
+                                        (útil para consorcios). Se notificará por email.
                                     </p>
                                     {actoresSinMesaPartes.map(actor => {
                                         const sel = mov.actores_mesa_partes_ids.includes(actor.id);
