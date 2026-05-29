@@ -1,30 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Modal from '@/Components/Modal';
 import ConfirmDialog from '@/Components/ConfirmDialog';
+import CustomSelect from '@/Components/CustomSelect';
+import ServiceChips from '@/Components/ServiceChips';
 import toast from 'react-hot-toast';
 import {
     UserCheck, Plus, Pencil, Trash2, Settings,
-    Zap, Building2, Users
+    Building2, Users, Search, X
 } from 'lucide-react';
-
-// ── Chip de servicio en la tabla ──────────────────────────────────────────────
-
-function ServicioChip({ nombre, esAuto }) {
-    return (
-        <span
-            title={esAuto ? `${nombre} · se asigna automáticamente al crear el expediente` : nombre}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#291136]/80 bg-white border border-[#291136]/20 px-2.5 py-1 rounded-lg">
-            <span>{nombre}</span>
-            {esAuto && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600">
-                    <Zap size={10} className="shrink-0" /> Auto
-                </span>
-            )}
-        </span>
-    );
-}
 
 // ── Modal: Crear / Editar nombre del tipo de actor ────────────────────────────
 
@@ -315,6 +300,30 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
     const [itemAEliminar, setItemAEliminar] = useState(null);
     const [deleting,      setDeleting]      = useState(false);
 
+    // ── Filtros (búsqueda + estado + servicio) — 100% en el navegador ──
+    const [search,     setSearch]     = useState('');
+    const [estado,     setEstado]     = useState('todos');
+    const [servicioId, setServicioId] = useState('');
+
+    const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setServicioId(''); };
+    const hayFiltros     = !!search || estado !== 'todos' || !!servicioId;
+
+    const servicioFiltrado = servicioId
+        ? servicios.find(s => s.id === Number(servicioId))
+        : null;
+
+    const tiposFiltrados = useMemo(() => {
+        const sid = servicioId ? Number(servicioId) : null;
+        const q   = search.trim().toLowerCase();
+        return tipos.filter(t => {
+            if (estado === 'activos'   && !t.activo) return false;
+            if (estado === 'inactivos' &&  t.activo) return false;
+            if (sid && !(t.servicios ?? []).some(s => s.id === sid)) return false;
+            if (q && !t.nombre.toLowerCase().includes(q)) return false;
+            return true;
+        });
+    }, [tipos, search, estado, servicioId]);
+
     const handleDelete = () => {
         setDeleting(true);
         router.delete(route('configuracion.tipos-actor.destroy', itemAEliminar.id), {
@@ -330,10 +339,10 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
 
     return (
         <AuthenticatedLayout>
-            <div className="p-6">
+            <div className="p-6 max-w-6xl mx-auto">
 
                 {/* Header */}
-                <div className="bg-white border-b border-gray-200 -mx-6 -mt-6 mb-6">
+                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
                     <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
                         <div className="flex items-start justify-between flex-wrap gap-4">
                             <div>
@@ -353,6 +362,63 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                     </div>
                 </div>
 
+                {/* Barra de filtros */}
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                    {/* Búsqueda */}
+                    <div className="relative max-w-xs flex-1 min-w-[12rem]">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Buscar tipo de actor..."
+                            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all"
+                        />
+                    </div>
+
+                    {/* Estado */}
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+                        {[
+                            { key: 'todos',     label: 'Todos' },
+                            { key: 'activos',   label: 'Activos' },
+                            { key: 'inactivos', label: 'Inactivos' },
+                        ].map(opt => (
+                            <button key={opt.key} type="button" onClick={() => setEstado(opt.key)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors ${
+                                    estado === opt.key ? 'bg-[#BE0F4A] text-white' : 'text-gray-500 hover:bg-gray-100'
+                                }`}>
+                                {estado === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Servicio */}
+                    <div className="w-56">
+                        <CustomSelect
+                            value={servicioId}
+                            onChange={setServicioId}
+                            options={servicios}
+                            placeholder="Todos los servicios"
+                        />
+                    </div>
+
+                    {hayFiltros && (
+                        <button type="button" onClick={limpiarFiltros}
+                            className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-[#BE0F4A] transition-colors">
+                            <X size={13} /> Limpiar filtros
+                        </button>
+                    )}
+                </div>
+
+                {/* Subtítulo de contexto cuando se filtra por servicio */}
+                {servicioFiltrado && (
+                    <div className="flex items-center gap-2 mb-4 px-4 py-2.5 rounded-xl bg-[#BE0F4A]/[0.06] border border-[#BE0F4A]/20 text-sm text-[#291136]">
+                        <Building2 size={15} className="text-[#BE0F4A] shrink-0" />
+                        <span>Mostrando solo los tipos de actor que participan en <strong className="font-bold">{servicioFiltrado.nombre}</strong></span>
+                    </div>
+                )}
+
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                   <div className="overflow-x-auto">
@@ -361,9 +427,6 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                             <tr style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}>
                                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider rounded-tl-2xl">
                                     Nombre
-                                </th>
-                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                                    Servicios donde participa
                                 </th>
                                 <th className="px-5 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-px whitespace-nowrap">
                                     Estado
@@ -374,20 +437,24 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
-                            {tipos.length === 0 ? (
+                            {tiposFiltrados.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-5 py-14 text-center text-gray-400">
+                                    <td colSpan={3} className="px-5 py-14 text-center text-gray-400">
                                         <Users size={36} className="mx-auto mb-2 opacity-30" />
-                                        <p className="font-medium">No hay tipos de actor registrados.</p>
+                                        <p className="font-medium">
+                                            {hayFiltros
+                                                ? 'No se encontraron tipos de actor con esos filtros.'
+                                                : 'No hay tipos de actor registrados.'}
+                                        </p>
                                     </td>
                                 </tr>
-                            ) : tipos.map(tipo => {
+                            ) : tiposFiltrados.map(tipo => {
                                 const esInmutable = SLUGS_INMUTABLES.includes(tipo.slug);
                                 return (
                                     <tr key={tipo.id} className="hover:bg-gray-50/60 transition-colors group">
 
-                                        {/* Nombre */}
-                                        <td className="px-5 py-4">
+                                        {/* Nombre + chips de servicio */}
+                                        <td className="px-5 py-4 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className={`font-bold ${tipo.activo ? 'text-[#291136]' : 'text-gray-400'}`}>
                                                     {tipo.nombre}
@@ -398,28 +465,23 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-[10px] text-gray-400 mt-0.5">
+
+                                            {/* Al filtrar por un servicio, los chips se ocultan (el subtítulo da el contexto) */}
+                                            {!servicioFiltrado && (
+                                                <div className="mt-1.5">
+                                                    {tipo.servicios?.length > 0 ? (
+                                                        <ServiceChips servicios={tipo.servicios} max={3} />
+                                                    ) : (
+                                                        esInmutable
+                                                            ? <span className="text-[10px] text-amber-600 italic">Aplica en todos los servicios</span>
+                                                            : <span className="text-[10px] text-gray-300 italic">Sin servicios configurados</span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <p className="text-[10px] text-gray-400 mt-1.5">
                                                 En uso: {tipo.actores_expediente_count} expediente(s)
                                             </p>
-                                        </td>
-
-                                        {/* Servicios */}
-                                        <td className="px-5 py-4">
-                                            {tipo.servicios?.length > 0 ? (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {tipo.servicios.map(srv => (
-                                                        <ServicioChip
-                                                            key={srv.id}
-                                                            nombre={srv.nombre}
-                                                            esAuto={srv.pivot?.es_automatico}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                esInmutable
-                                                    ? <span className="text-[10px] text-amber-600 italic">Aplica en todos los servicios</span>
-                                                    : <span className="text-[10px] text-gray-300 italic">Sin servicios configurados</span>
-                                            )}
                                         </td>
 
                                         {/* Estado */}

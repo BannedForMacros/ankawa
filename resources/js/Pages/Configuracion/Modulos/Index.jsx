@@ -245,9 +245,9 @@ export default function ModulosIndex({ modulos }) {
 
     return (
         <AuthenticatedLayout>
-            <div className="p-6">
+            <div className="p-6 max-w-6xl mx-auto">
                 {/* Header */}
-                <div className="bg-white border-b border-gray-200 -mx-6 -mt-6 mb-6">
+                <div className="bg-white border border-gray-200 rounded-2xl mb-6 overflow-hidden">
                     <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
                         <div className="flex items-start justify-between flex-wrap gap-4">
                             <div>
