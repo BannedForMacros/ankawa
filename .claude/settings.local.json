@@ -52,7 +52,15 @@
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d documentos\")",
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='public' AND \\(column_name LIKE '%_tipo' OR column_name LIKE '%_type'\\) ORDER BY table_name, column_name;\")",
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, slug, nombre FROM tipos_actor_expediente ORDER BY id;\")",
-      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d expediente_actor_aceptaciones\")"
+      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d expediente_actor_aceptaciones\")",
+      "Read(//c/Program Files/Google/Chrome/Application/**)",
+      "Read(//c/Program Files \\(x86\\)/Microsoft/Edge/Application/**)",
+      "Bash(npx tailwindcss *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1100,600 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_preview\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_preview/index.html\")",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1100,420 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_preview\\\\shot2.png\" \"file:///C:/MacSoft/ankawa/_preview/index.html\")",
+      "Bash(PGPASSWORD=postgres /c/Program Files/PostgreSQL/17/bin/psql.exe *)",
+      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/TipoDocumentoController.php)"
     ]
   }
 }

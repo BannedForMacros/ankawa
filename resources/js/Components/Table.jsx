@@ -75,13 +75,19 @@ export default function Table({
     routeName,
     routeParams = {},
     searchPlaceholder = 'Buscar...',
+    clientSide = false,        // true: filtra/ordena/pagina en el navegador (datos pequeños, sin viajes a la BD)
+    perPage = 15,
+    searchKeys = ['nombre'],   // campos sobre los que busca en modo cliente
 }) {
     const urlParams = new URLSearchParams(window.location.search);
-    const [search, setSearch] = useState(urlParams.get('search') ?? '');
-    const [sortBy, setSortBy] = useState(urlParams.get('sort') ?? '');
-    const [sortDir, setSortDir] = useState(urlParams.get('dir') ?? 'asc');
+    const [search, setSearch]   = useState(clientSide ? '' : (urlParams.get('search') ?? ''));
+    const [sortBy, setSortBy]   = useState(clientSide ? '' : (urlParams.get('sort') ?? ''));
+    const [sortDir, setSortDir] = useState(clientSide ? 'asc' : (urlParams.get('dir') ?? 'asc'));
+    const [cliPage, setCliPage] = useState(1);
 
+    // Búsqueda server-side con debounce (solo en modo servidor)
     useEffect(() => {
+        if (clientSide) return;
         const timer = setTimeout(() => {
             if (search !== (urlParams.get('search') ?? '')) {
                 fetchData(1, search, sortBy, sortDir);
@@ -98,14 +104,54 @@ export default function Table({
         );
     };
 
+    // ── Modo cliente: filtrar / ordenar / paginar en el navegador (sin tocar la BD) ──
+    let rows     = data;
+    let pageMeta = meta;
+    if (clientSide) {
+        const q = search.trim().toLowerCase();
+        let lista = q
+            ? data.filter(row => searchKeys.some(k => String(row[k] ?? '').toLowerCase().includes(q)))
+            : data;
+        if (sortBy) {
+            lista = [...lista].sort((a, b) => {
+                const av = a[sortBy], bv = b[sortBy];
+                const cmp = (typeof av === 'number' && typeof bv === 'number')
+                    ? av - bv
+                    : String(av ?? '').localeCompare(String(bv ?? ''), 'es', { numeric: true });
+                return sortDir === 'asc' ? cmp : -cmp;
+            });
+        }
+        const total    = lista.length;
+        const lastPage = Math.max(1, Math.ceil(total / perPage));
+        const current  = Math.min(cliPage, lastPage);
+        const start    = (current - 1) * perPage;
+        rows = lista.slice(start, start + perPage);
+        pageMeta = {
+            current_page: current,
+            last_page:    lastPage,
+            from:         total === 0 ? 0 : start + 1,
+            to:           Math.min(start + perPage, total),
+            total,
+        };
+    }
+
     const handleSort = (column) => {
         const newDir = sortBy === column && sortDir === 'asc' ? 'desc' : 'asc';
         setSortBy(column);
         setSortDir(newDir);
-        fetchData(1, search, column, newDir);
+        if (clientSide) setCliPage(1);
+        else fetchData(1, search, column, newDir);
     };
 
-    const handlePageChange = (page) => fetchData(page, search, sortBy, sortDir);
+    const handlePageChange = (page) => {
+        if (clientSide) setCliPage(page);
+        else fetchData(page, search, sortBy, sortDir);
+    };
+
+    const handleSearchChange = (val) => {
+        setSearch(val);
+        if (clientSide) setCliPage(1);
+    };
 
     return (
         <div className="space-y-4">
@@ -114,7 +160,7 @@ export default function Table({
                 <input
                     type="text"
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => handleSearchChange(e.target.value)}
                     placeholder={searchPlaceholder}
                     className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all"
                 />
@@ -151,14 +197,14 @@ export default function Table({
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
-                            {data.length === 0 ? (
+                            {rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={columns.length} className="px-4 py-12 text-center text-gray-400 text-sm">
                                         No se encontraron registros
                                     </td>
                                 </tr>
                             ) : (
-                                data.map((row, i) => (
+                                rows.map((row, i) => (
                                     <tr key={row.id ?? i} className="hover:bg-gray-50/80 transition-colors">
                                         {columns.map(col => (
                                             <td key={col.key} className="px-4 py-3 text-[#291136]/80 leading-tight">
@@ -171,7 +217,7 @@ export default function Table({
                         </tbody>
                     </table>
                 </div>
-                <Pagination meta={meta} onPageChange={handlePageChange} />
+                <Pagination meta={pageMeta} onPageChange={handlePageChange} />
             </div>
         </div>
     );

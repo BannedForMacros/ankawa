@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
 export default function CustomSelect({ value, onChange, options, placeholder, error, disabled = false }) {
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);   // montado en el DOM
+    const [entered, setEntered] = useState(false); // estado animado (visible)
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
     const buttonRef = useRef(null);
     const menuRef = useRef(null);
+    const closeTimer = useRef(null);
 
     // Función para calcular la posición (Memorizada para evitar renders infinitos)
     const updatePosition = useCallback(() => {
@@ -21,11 +23,30 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
         }
     }, []);
 
+    const openMenu = useCallback(() => {
+        if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+        updatePosition();
+        setIsOpen(true);
+    }, [updatePosition]);
+
+    // Cierre suave: animar a oculto y desmontar al terminar la transición
+    const closeMenu = useCallback(() => {
+        setEntered(false);
+        closeTimer.current = setTimeout(() => { setIsOpen(false); closeTimer.current = null; }, 160);
+    }, []);
+
     const toggleMenu = () => {
         if (disabled) return;
-        if (!isOpen) updatePosition();
-        setIsOpen(!isOpen);
+        if (isOpen) closeMenu();
+        else openMenu();
     };
+
+    // Al montar el menú, disparar la animación de entrada en el siguiente frame
+    useEffect(() => {
+        if (!isOpen) return;
+        const raf = requestAnimationFrame(() => setEntered(true));
+        return () => cancelAnimationFrame(raf);
+    }, [isOpen]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -33,7 +54,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                 buttonRef.current && !buttonRef.current.contains(event.target) &&
                 menuRef.current && !menuRef.current.contains(event.target)
             ) {
-                setIsOpen(false);
+                closeMenu();
             }
         };
 
@@ -49,7 +70,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
             window.removeEventListener('scroll', updatePosition, true);
             window.removeEventListener('resize', updatePosition);
         };
-    }, [isOpen, updatePosition]);
+    }, [isOpen, updatePosition, closeMenu]);
 
     const selectedOption = options.find(opt => opt.id.toString() === value?.toString());
 
@@ -67,9 +88,9 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                     <span className={selectedOption ? 'text-[#291136]' : 'text-gray-400'}>
                         {selectedOption ? selectedOption.nombre : placeholder}
                     </span>
-                    <ChevronDown 
-                        size={16} 
-                        className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+                    <ChevronDown
+                        size={16}
+                        className={`text-gray-400 transition-transform duration-200 ${entered ? 'rotate-180' : ''}`}
                     />
                 </button>
             </div>
@@ -83,12 +104,14 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                         top: `${coords.top}px`,
                         left: `${coords.left}px`,
                         width: `${coords.width}px`,
-                        zIndex: 999999 
+                        zIndex: 999999
                     }}
-                    className="bg-white border border-gray-100 rounded-xl shadow-2xl max-h-60 overflow-auto py-1.5 focus:outline-none"
+                    className={`bg-white border border-gray-100 rounded-xl shadow-2xl max-h-60 overflow-auto py-1.5 focus:outline-none origin-top transition-all duration-150 ease-out ${
+                        entered ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-1'
+                    }`}
                 >
                     <li
-                        onClick={() => { onChange(''); setIsOpen(false); }}
+                        onClick={() => { onChange(''); closeMenu(); }}
                         className="px-4 py-2.5 text-sm text-gray-400 hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                         {placeholder}
@@ -96,7 +119,7 @@ export default function CustomSelect({ value, onChange, options, placeholder, er
                     {options.map((opt) => (
                         <li
                             key={opt.id}
-                            onClick={() => { onChange(opt.id); setIsOpen(false); }}
+                            onClick={() => { onChange(opt.id); closeMenu(); }}
                             className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${
                                 value?.toString() === opt.id.toString() 
                                     ? 'bg-[#BE0F4A]/10 text-[#BE0F4A] font-semibold' 

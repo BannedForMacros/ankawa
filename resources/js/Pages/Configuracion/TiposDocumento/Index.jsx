@@ -1,36 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
 import ConfirmDialog from '@/Components/ConfirmDialog';
+import CustomSelect from '@/Components/CustomSelect';
 import toast from 'react-hot-toast';
 import {
     FileStack, Plus, Pencil, Trash2, Settings, Users,
-    Upload, Eye, Building2, Send, ChevronDown, X
+    Upload, Eye, Building2, Send, X
 } from 'lucide-react';
 
 // ── Chips ─────────────────────────────────────────────────────────────────────
 
 function ServicioChip({ nombre, esParaSolicitud }) {
     return (
-        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border
-            ${esParaSolicitud
-                ? 'bg-[#BE0F4A]/10 text-[#BE0F4A] border-[#BE0F4A]/20'
-                : 'bg-[#291136]/5 text-[#291136]/70 border-[#291136]/10'}`}>
-            {esParaSolicitud && <Send size={8} className="shrink-0" />}
-            <Building2 size={9} className="shrink-0" />
-            {nombre}
+        <span
+            title={esParaSolicitud ? `${nombre} · aparece en el formulario de nueva solicitud` : nombre}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#291136]/80 bg-[#291136]/[0.06] px-2.5 py-1 rounded-md">
+            <Building2 size={12} className="text-[#291136]/40 shrink-0" />
+            <span>{nombre}</span>
+            {esParaSolicitud && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#BE0F4A]">
+                    <Send size={10} className="shrink-0" /> Solicitud
+                </span>
+            )}
         </span>
     );
 }
 
 function ActorChip({ nombre, puedeSubir, puedeVer }) {
+    const partes = [];
+    if (puedeVer)   partes.push('puede ver');
+    if (puedeSubir) partes.push('se le puede requerir');
+    // Tinte tenue segun la capacidad: requerible (rose) vs solo lectura (gris).
+    const tint = puedeSubir ? 'bg-[#BE0F4A]/[0.08] text-[#BE0F4A]' : 'bg-slate-100 text-slate-600';
     return (
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-            {puedeSubir && <Upload size={8} className="shrink-0" />}
-            {puedeVer   && <Eye    size={8} className="shrink-0" />}
-            {nombre}
+        <span
+            title={partes.length ? `${nombre} · ${partes.join(' · ')}` : nombre}
+            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md ${tint}`}>
+            <span className="inline-flex items-center gap-0.5 shrink-0">
+                {puedeVer   && <Eye    size={11} className={puedeSubir ? 'text-[#BE0F4A]/70' : 'text-slate-400'} />}
+                {puedeSubir && <Upload size={11} className="text-[#BE0F4A]" />}
+            </span>
+            <span>{nombre}</span>
         </span>
     );
 }
@@ -40,21 +53,17 @@ function ActorChip({ nombre, puedeSubir, puedeVer }) {
 function ModalTipoDocumento({ show, onClose, editando }) {
     const [confirming, setConfirming] = useState(false);
     const { data, setData, post, put, processing, errors, reset } = useForm({
-        nombre:              '',
-        descripcion:         '',
-        formatos_permitidos: 'pdf,doc,docx',
-        tamanio_maximo_mb:   10,
-        activo:              1,
+        nombre:      '',
+        descripcion: '',
+        activo:      1,
     });
 
     useEffect(() => {
         if (show) {
             setData({
-                nombre:              editando?.nombre              ?? '',
-                descripcion:         editando?.descripcion         ?? '',
-                formatos_permitidos: editando?.formatos_permitidos ?? 'pdf,doc,docx',
-                tamanio_maximo_mb:   editando?.tamanio_maximo_mb   ?? 10,
-                activo:              editando?.activo               ?? 1,
+                nombre:      editando?.nombre      ?? '',
+                descripcion: editando?.descripcion ?? '',
+                activo:      editando?.activo       ?? 1,
             });
         }
     }, [show, editando]);
@@ -131,29 +140,6 @@ function ModalTipoDocumento({ show, onClose, editando }) {
                                 value={data.descripcion}
                                 onChange={e => setData('descripcion', e.target.value)}
                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]" />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-[#291136] uppercase tracking-wide mb-2">
-                                    Formatos permitidos
-                                </label>
-                                <input type="text"
-                                    placeholder="pdf,doc,docx"
-                                    value={data.formatos_permitidos}
-                                    onChange={e => setData('formatos_permitidos', e.target.value)}
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]" />
-                                <p className="text-[10px] text-gray-400 mt-1">Separados por coma.</p>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-[#291136] uppercase tracking-wide mb-2">
-                                    Tamaño máx. (MB)
-                                </label>
-                                <input type="number" min={1} max={500}
-                                    value={data.tamanio_maximo_mb}
-                                    onChange={e => setData('tamanio_maximo_mb', Number(e.target.value))}
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]" />
-                            </div>
                         </div>
 
                         {editando && (
@@ -508,35 +494,25 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const [itemAEliminar, setItemAEliminar] = useState(null);
     const [deleting,      setDeleting]      = useState(false);
 
-    // ── Filtros (estado + servicio), server-side, preservados al buscar/ordenar/paginar ──
-    const urlParams = new URLSearchParams(window.location.search);
-    const [estado,     setEstado]     = useState(urlParams.get('estado')      ?? 'todos');
-    const [servicioId, setServicioId] = useState(urlParams.get('servicio_id') ?? '');
+    // ── Filtros (estado + servicio) — 100% en el navegador, sin viajes a la BD ──
+    const [estado,     setEstado]     = useState('todos');
+    const [servicioId, setServicioId] = useState('');
 
-    const aplicarFiltros = (overrides = {}) => {
-        const cur  = new URLSearchParams(window.location.search);
-        const next = {
-            search:      cur.get('search') || undefined,
-            sort:        cur.get('sort')   || undefined,
-            dir:         cur.get('dir')    || undefined,
-            estado:      estado === 'todos' ? undefined : estado,
-            servicio_id: servicioId || undefined,
-            ...overrides,
-        };
-        router.get(route('configuracion.tipos-documentos.index'), next, {
-            preserveState: true, preserveScroll: true, replace: true,
-        });
-    };
-
-    const cambiarEstado   = (val) => { setEstado(val);     aplicarFiltros({ estado: val === 'todos' ? undefined : val }); };
-    const cambiarServicio = (val) => { setServicioId(val); aplicarFiltros({ servicio_id: val || undefined }); };
-    const limpiarFiltros  = () => { setEstado('todos'); setServicioId(''); aplicarFiltros({ estado: undefined, servicio_id: undefined }); };
+    const cambiarEstado   = (val) => setEstado(val);
+    const cambiarServicio = (val) => setServicioId(val);
+    const limpiarFiltros  = () => { setEstado('todos'); setServicioId(''); };
 
     const hayFiltros = estado !== 'todos' || !!servicioId;
-    const routeParams = {
-        ...(estado !== 'todos' ? { estado } : {}),
-        ...(servicioId ? { servicio_id: servicioId } : {}),
-    };
+
+    const tiposFiltrados = useMemo(() => {
+        const sid = servicioId ? Number(servicioId) : null;
+        return tipos.filter(t => {
+            if (estado === 'activos'   && !t.activo) return false;
+            if (estado === 'inactivos' &&  t.activo) return false;
+            if (sid && !(t.servicios ?? []).some(s => s.id === sid)) return false;
+            return true;
+        });
+    }, [tipos, estado, servicioId]);
 
     const abrirCrear   = () => { setEditando(null); setModalTipo(true); };
     const abrirEditar  = (t) => { setEditando(t); setModalTipo(true); };
@@ -578,19 +554,6 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                     {row.descripcion && (
                         <p className="text-[11px] text-gray-400 truncate max-w-xs">{row.descripcion}</p>
                     )}
-                </div>
-            ),
-        },
-        {
-            key:      'formatos',
-            label:    'Formatos / Tamaño',
-            sortable: false,
-            render: (row) => (
-                <div className="flex flex-col gap-0.5">
-                    <code className="text-[10px] font-mono bg-gray-50 text-gray-500 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
-                        {row.formatos_permitidos}
-                    </code>
-                    <span className="text-[10px] text-gray-400">máx. {row.tamanio_maximo_mb} MB</span>
                 </div>
             ),
         },
@@ -703,7 +666,7 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                                 </p>
                             </div>
                             <button onClick={abrirCrear}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] shadow-lg transition-colors">
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
                                 <Plus size={16} /> Nuevo Tipo
                             </button>
                         </div>
@@ -722,24 +685,23 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                             <button key={opt.key} type="button" onClick={() => cambiarEstado(opt.key)}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors ${
                                     estado === opt.key
-                                        ? 'bg-[#291136] text-white'
+                                        ? 'bg-[#BE0F4A] text-white'
                                         : 'text-gray-500 hover:bg-gray-100'
                                 }`}>
-                                {estado === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse" />}
+                                {estado === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                                 {opt.label}
                             </button>
                         ))}
                     </div>
 
                     {/* Servicio */}
-                    <div className="relative">
-                        <Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                        <select value={servicioId} onChange={e => cambiarServicio(e.target.value)}
-                            className="appearance-none pl-9 pr-9 py-2 text-sm font-semibold border border-gray-200 rounded-xl bg-white shadow-sm text-[#291136] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] transition-all">
-                            <option value="">Todos los servicios</option>
-                            {servicios.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-                        </select>
-                        <ChevronDown size={15} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <div className="w-56">
+                        <CustomSelect
+                            value={servicioId}
+                            onChange={cambiarServicio}
+                            options={servicios}
+                            placeholder="Todos los servicios"
+                        />
                     </div>
 
                     {/* Limpiar */}
@@ -751,12 +713,20 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                     )}
                 </div>
 
+                {/* Leyenda de íconos */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[11px] text-gray-400">
+                    <span className="font-semibold text-gray-400 uppercase tracking-wide">Significado:</span>
+                    <span className="inline-flex items-center gap-1"><Send size={11} className="text-[#BE0F4A]" /> Aparece en nueva solicitud</span>
+                    <span className="inline-flex items-center gap-1"><Upload size={11} className="text-[#BE0F4A]" /> Actor al que se le puede requerir</span>
+                    <span className="inline-flex items-center gap-1"><Eye size={11} className="text-slate-400" /> Actor que solo puede verlo</span>
+                </div>
+
                 <Table
                     columns={columns}
-                    data={tipos.data}
-                    meta={tipos}
-                    routeName="configuracion.tipos-documentos.index"
-                    routeParams={routeParams}
+                    data={tiposFiltrados}
+                    clientSide
+                    perPage={15}
+                    searchKeys={['nombre', 'descripcion']}
                     searchPlaceholder="Buscar tipo de documento..."
                 />
             </div>

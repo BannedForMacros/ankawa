@@ -14,34 +14,26 @@ use Illuminate\Support\Str;
 
 class TipoDocumentoController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $sortable = ['nombre', 'tamanio_maximo_mb', 'activo'];
-        $sort     = in_array($request->sort, $sortable) ? $request->sort : 'nombre';
-        $dir      = $request->dir === 'desc' ? 'desc' : 'asc';
-
-        $tiposPage = TipoDocumento::withCount('documentos')
+        // Catálogo pequeño (~50 filas): se trae completo en UNA consulta y el
+        // filtrado/búsqueda/orden/paginación ocurre en el navegador (Table clientSide).
+        $tipos = TipoDocumento::withCount('documentos')
             ->with([
                 'servicios' => fn($q) => $q->select('servicios.id', 'servicios.nombre'),
             ])
-            ->when($request->search, fn($q, $s) => $q->where('nombre', 'ilike', "%{$s}%"))
-            ->when($request->estado === 'activos',   fn($q) => $q->where('activo', 1))
-            ->when($request->estado === 'inactivos', fn($q) => $q->where('activo', 0))
-            ->when($request->servicio_id, fn($q, $sid) => $q->whereHas('servicios', fn($s) => $s->where('servicios.id', $sid)))
-            ->orderBy($sort, $dir)
-            ->paginate(15)
-            ->withQueryString();
+            ->orderBy('nombre')
+            ->get();
 
         // Adjuntar pivots de actores a cada tipo_documento (raw, con servicio_id)
-        $tipoIds = collect($tiposPage->items())->pluck('id');
-        $pivots  = DB::table('tipo_actor_tipo_documento as tatd')
+        $pivots = DB::table('tipo_actor_tipo_documento as tatd')
             ->join('tipos_actor_expediente as ta', 'ta.id', '=', 'tatd.tipo_actor_id')
-            ->whereIn('tatd.tipo_documento_id', $tipoIds)
+            ->whereIn('tatd.tipo_documento_id', $tipos->pluck('id'))
             ->select('tatd.tipo_documento_id', 'tatd.servicio_id', 'tatd.tipo_actor_id', 'ta.nombre as actor_nombre', 'tatd.puede_ver', 'tatd.puede_subir')
             ->get()
             ->groupBy('tipo_documento_id');
 
-        $tiposPage->getCollection()->transform(function ($td) use ($pivots) {
+        $tipos->transform(function ($td) use ($pivots) {
             $td->actores_pivots = $pivots->get($td->id, collect())->values();
             return $td;
         });
@@ -59,7 +51,7 @@ class TipoDocumentoController extends Controller
             ->groupBy('servicio_id');
 
         return Inertia::render('Configuracion/TiposDocumento/Index', [
-            'tipos'               => $tiposPage,
+            'tipos'               => $tipos,
             'servicios'           => $servicios,
             'serviciosTiposActor' => $serviciosTiposActor,
         ]);
@@ -68,10 +60,8 @@ class TipoDocumentoController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nombre'              => 'required|string|max:150',
-            'descripcion'         => 'nullable|string',
-            'formatos_permitidos' => 'nullable|string|max:255',
-            'tamanio_maximo_mb'   => 'nullable|integer|min:1|max:500',
+            'nombre'      => 'required|string|max:150',
+            'descripcion' => 'nullable|string',
         ]);
 
         $slug = Str::slug($request->nombre, '_');
@@ -80,13 +70,14 @@ class TipoDocumentoController extends Controller
             return back()->withErrors(['nombre' => 'Ya existe un tipo de documento con un nombre similar.']);
         }
 
+        // Formato y tamaño se validan globalmente vía config/uploads.php (FileRules), no por tipo.
         TipoDocumento::create([
             'nombre'              => $request->nombre,
             'slug'                => $slug,
             'descripcion'         => $request->descripcion,
             'aplica_para'         => 'ambos',
-            'formatos_permitidos' => $request->formatos_permitidos ?? implode(',', config('uploads.allowed_mimes')),
-            'tamanio_maximo_mb'   => $request->tamanio_maximo_mb ?? config('uploads.max_size_mb'),
+            'formatos_permitidos' => implode(',', config('uploads.allowed_mimes')),
+            'tamanio_maximo_mb'   => config('uploads.max_size_mb'),
             'activo'              => 1,
         ]);
 
@@ -96,11 +87,9 @@ class TipoDocumentoController extends Controller
     public function update(Request $request, TipoDocumento $tipoDocumento)
     {
         $request->validate([
-            'nombre'              => 'required|string|max:150',
-            'descripcion'         => 'nullable|string',
-            'formatos_permitidos' => 'nullable|string|max:255',
-            'tamanio_maximo_mb'   => 'nullable|integer|min:1|max:500',
-            'activo'              => 'required|in:0,1',
+            'nombre'      => 'required|string|max:150',
+            'descripcion' => 'nullable|string',
+            'activo'      => 'required|in:0,1',
         ]);
 
         $slug = Str::slug($request->nombre, '_');
@@ -109,13 +98,12 @@ class TipoDocumentoController extends Controller
             return back()->withErrors(['nombre' => 'El nombre genera un identificador que ya está en uso.']);
         }
 
+        // Formato y tamaño no se editan por tipo: son globales (config/uploads.php).
         $tipoDocumento->update([
-            'nombre'              => $request->nombre,
-            'slug'                => $slug,
-            'descripcion'         => $request->descripcion,
-            'formatos_permitidos' => $request->formatos_permitidos,
-            'tamanio_maximo_mb'   => $request->tamanio_maximo_mb,
-            'activo'              => $request->activo,
+            'nombre'      => $request->nombre,
+            'slug'        => $slug,
+            'descripcion' => $request->descripcion,
+            'activo'      => $request->activo,
         ]);
 
         return back()->with('success', 'Tipo de Documento actualizado correctamente.');
