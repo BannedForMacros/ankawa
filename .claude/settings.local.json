@@ -60,7 +60,10 @@
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1100,600 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_preview\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_preview/index.html\")",
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1100,420 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_preview\\\\shot2.png\" \"file:///C:/MacSoft/ankawa/_preview/index.html\")",
       "Bash(PGPASSWORD=postgres /c/Program Files/PostgreSQL/17/bin/psql.exe *)",
-      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/TipoDocumentoController.php)"
+      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/TipoDocumentoController.php)",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=640,300 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_preview2\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_preview2/index.html\")",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=640,300 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_preview2\\\\shot2.png\" \"file:///C:/MacSoft/ankawa/_preview2/index.html\")",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1000,300 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_pa\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_pa/index.html\")"
     ]
   }
 }

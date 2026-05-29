@@ -17,8 +17,7 @@ function ServicioChip({ nombre, esParaSolicitud }) {
     return (
         <span
             title={esParaSolicitud ? `${nombre} · aparece en el formulario de nueva solicitud` : nombre}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#291136]/80 bg-[#291136]/[0.06] px-2.5 py-1 rounded-md">
-            <Building2 size={12} className="text-[#291136]/40 shrink-0" />
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#291136]/80 bg-white border border-[#291136]/20 px-2.5 py-1 rounded-lg">
             <span>{nombre}</span>
             {esParaSolicitud && (
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#BE0F4A]">
@@ -33,17 +32,25 @@ function ActorChip({ nombre, puedeSubir, puedeVer }) {
     const partes = [];
     if (puedeVer)   partes.push('puede ver');
     if (puedeSubir) partes.push('se le puede requerir');
-    // Tinte tenue segun la capacidad: requerible (rose) vs solo lectura (gris).
-    const tint = puedeSubir ? 'bg-[#BE0F4A]/[0.08] text-[#BE0F4A]' : 'bg-slate-100 text-slate-600';
     return (
         <span
             title={partes.length ? `${nombre} · ${partes.join(' · ')}` : nombre}
-            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-md ${tint}`}>
-            <span className="inline-flex items-center gap-0.5 shrink-0">
-                {puedeVer   && <Eye    size={11} className={puedeSubir ? 'text-[#BE0F4A]/70' : 'text-slate-400'} />}
-                {puedeSubir && <Upload size={11} className="text-[#BE0F4A]" />}
-            </span>
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 px-2.5 py-1 rounded-lg">
             <span>{nombre}</span>
+            {(puedeVer || puedeSubir) && (
+                <span className="inline-flex items-center gap-1 pl-1.5 border-l border-gray-200 shrink-0">
+                    {puedeVer && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-emerald-100 text-emerald-600">
+                            <Eye size={11} />
+                        </span>
+                    )}
+                    {puedeSubir && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-amber-100 text-amber-600">
+                            <Upload size={11} />
+                        </span>
+                    )}
+                </span>
+            )}
         </span>
     );
 }
@@ -717,8 +724,8 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[11px] text-gray-400">
                     <span className="font-semibold text-gray-400 uppercase tracking-wide">Significado:</span>
                     <span className="inline-flex items-center gap-1"><Send size={11} className="text-[#BE0F4A]" /> Aparece en nueva solicitud</span>
-                    <span className="inline-flex items-center gap-1"><Upload size={11} className="text-[#BE0F4A]" /> Actor al que se le puede requerir</span>
-                    <span className="inline-flex items-center gap-1"><Eye size={11} className="text-slate-400" /> Actor que solo puede verlo</span>
+                    <span className="inline-flex items-center gap-1"><Eye size={11} className="text-emerald-600" /> Actor que puede verlo</span>
+                    <span className="inline-flex items-center gap-1"><Upload size={11} className="text-amber-600" /> Actor al que se le puede requerir</span>
                 </div>
 
                 <Table

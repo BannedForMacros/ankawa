@@ -13,13 +13,15 @@ import {
 
 function ServicioChip({ nombre, esAuto }) {
     return (
-        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border
-            ${esAuto
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-[#291136]/5 text-[#291136]/70 border-[#291136]/10'
-            }`}>
-            {esAuto && <Zap size={9} className="shrink-0" />}
-            {nombre}
+        <span
+            title={esAuto ? `${nombre} · se asigna automáticamente al crear el expediente` : nombre}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#291136]/80 bg-white border border-[#291136]/20 px-2.5 py-1 rounded-lg">
+            <span>{nombre}</span>
+            {esAuto && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-emerald-600">
+                    <Zap size={10} className="shrink-0" /> Auto
+                </span>
+            )}
         </span>
     );
 }
@@ -344,7 +346,7 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                             </div>
                             <button
                                 onClick={() => { setEditando(null); setModalTipo(true); }}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] shadow-lg transition-colors">
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] shadow-lg transition-colors">
                                 <Plus size={16} /> Nuevo tipo de actor
                             </button>
                         </div>
@@ -353,19 +355,20 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
 
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
                         <thead>
                             <tr style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}>
-                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider rounded-tl-2xl w-1/4">
+                                <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider rounded-tl-2xl">
                                     Nombre
                                 </th>
                                 <th className="px-5 py-3.5 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                     Servicios donde participa
                                 </th>
-                                <th className="px-5 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-24">
+                                <th className="px-5 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-px whitespace-nowrap">
                                     Estado
                                 </th>
-                                <th className="px-5 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-28 rounded-tr-2xl">
+                                <th className="px-5 py-3.5 text-center text-xs font-semibold text-white uppercase tracking-wider w-px whitespace-nowrap rounded-tr-2xl">
                                     Acciones
                                 </th>
                             </tr>
@@ -420,38 +423,41 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                                         </td>
 
                                         {/* Estado */}
-                                        <td className="px-5 py-4 text-center">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border
+                                        <td className="px-5 py-4 text-center whitespace-nowrap">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border
                                                 ${tipo.activo
                                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                                     : 'bg-gray-100 text-gray-400 border-gray-200'
                                                 }`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${tipo.activo ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                                                 {tipo.activo ? 'Activo' : 'Inactivo'}
                                             </span>
                                         </td>
 
-                                        {/* Acciones */}
-                                        <td className="px-5 py-4">
+                                        {/* Acciones — slots fijos para que los iconos queden siempre alineados */}
+                                        <td className="px-5 py-4 whitespace-nowrap">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => { setGestionando(tipo); setModalServ(true); }}
                                                     title="Configurar servicios"
-                                                    className="p-2 rounded-lg text-[#BE0F4A]/60 hover:bg-[#BE0F4A]/10 hover:text-[#BE0F4A] transition-colors">
+                                                    className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#BE0F4A]/60 hover:bg-[#BE0F4A]/10 hover:text-[#BE0F4A] transition-colors">
                                                     <Settings size={15} />
                                                 </button>
                                                 <button
                                                     onClick={() => { setEditando(tipo); setModalTipo(true); }}
                                                     title="Editar nombre"
-                                                    className="p-2 rounded-lg text-[#291136]/50 hover:bg-[#291136]/10 hover:text-[#291136] transition-colors">
+                                                    className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-[#291136]/50 hover:bg-[#291136]/10 hover:text-[#291136] transition-colors">
                                                     <Pencil size={15} />
                                                 </button>
-                                                {!esInmutable && tipo.actores_expediente_count === 0 && (
+                                                {!esInmutable && tipo.actores_expediente_count === 0 ? (
                                                     <button
                                                         onClick={() => { setItemAEliminar(tipo); setConfirmOpen(true); }}
                                                         title="Desactivar"
-                                                        className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+                                                        className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
                                                         <Trash2 size={15} />
                                                     </button>
+                                                ) : (
+                                                    <span className="w-9 h-9" aria-hidden="true" />
                                                 )}
                                             </div>
                                         </td>
@@ -460,6 +466,7 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                             })}
                         </tbody>
                     </table>
+                  </div>
                 </div>
             </div>
 
