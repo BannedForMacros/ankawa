@@ -558,6 +558,9 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
         });
     };
 
+    // Al filtrar por un servicio, las columnas muestran solo lo de ESE servicio
+    const filtroServicioId = servicioId ? Number(servicioId) : null;
+
     const columns = [
         {
             key:   'nombre',
@@ -595,30 +598,39 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
             key:      'servicios',
             label:    'Servicios',
             sortable: false,
-            render: (row) => (
-                <div className="flex flex-wrap gap-1">
-                    {row.servicios?.length > 0
-                        ? row.servicios.map(srv => (
-                            <ServicioChip
-                                key={srv.id}
-                                nombre={srv.nombre}
-                                esParaSolicitud={srv.pivot?.es_para_solicitud}
-                            />
-                        ))
-                        : <span className="text-[10px] text-gray-300 italic">—</span>
-                    }
-                </div>
-            ),
+            render: (row) => {
+                const servs = filtroServicioId
+                    ? (row.servicios ?? []).filter(s => s.id === filtroServicioId)
+                    : (row.servicios ?? []);
+                return (
+                    <div className="flex flex-wrap gap-1">
+                        {servs.length > 0
+                            ? servs.map(srv => (
+                                <ServicioChip
+                                    key={srv.id}
+                                    nombre={srv.nombre}
+                                    esParaSolicitud={srv.pivot?.es_para_solicitud}
+                                />
+                            ))
+                            : <span className="text-[10px] text-gray-300 italic">—</span>
+                        }
+                    </div>
+                );
+            },
         },
         {
             key:      'actores',
             label:    'Actores',
             sortable: false,
             render: (row) => {
+                // Acotar al servicio filtrado para no mezclar actores de otros servicios
+                const pivots = filtroServicioId
+                    ? (row.actores_pivots ?? []).filter(p => Number(p.servicio_id) === filtroServicioId)
+                    : (row.actores_pivots ?? []);
                 // Actores únicos con al menos un permiso
                 const unicos = [];
                 const seen   = new Set();
-                (row.actores_pivots ?? []).forEach(p => {
+                pivots.forEach(p => {
                     if (!seen.has(p.tipo_actor_id)) {
                         seen.add(p.tipo_actor_id);
                         unicos.push(p);
