@@ -1,18 +1,26 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
+import CustomSelect from '@/Components/CustomSelect';
 import Badge from '@/Components/Badge';
 import ConfirmDialog from '@/Components/ConfirmDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
-import { Plus, GitBranch, Edit2, Trash2, Layers, ShieldAlert } from 'lucide-react';
+import { Plus, GitBranch, Edit2, Trash2, Layers, ShieldAlert, Search } from 'lucide-react';
 
 export default function Index({ servicios = [], servicioActual, etapas = [] }) {
     const { flash } = usePage().props;
     const [servicioId, setServicioId] = useState(servicioActual ?? '');
+
+    // ── Búsqueda de etapa (client-side, sobre las etapas del servicio cargado) ──
+    const [search, setSearch] = useState('');
+    const etapasFiltradas = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return q ? etapas.filter(e => `${e.nombre ?? ''} ${e.descripcion ?? ''}`.toLowerCase().includes(q)) : etapas;
+    }, [etapas, search]);
 
     // ── Modal Etapa ──
     const [showModalEtapa, setShowModalEtapa] = useState(false);
@@ -105,24 +113,30 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
             />
             <div className="p-6 max-w-6xl mx-auto">
 
-                {/* Selector de servicio */}
+                {/* Selector de servicio + búsqueda */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-                    <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <label className="text-sm font-bold text-[#291136]">Servicio:</label>
-                        <select
-                            value={servicioId}
-                            onChange={e => cambiarServicio(e.target.value)}
-                            className="text-sm border border-gray-200 rounded-lg px-3 py-2 min-w-[250px] focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"
-                        >
-                            <option value="">— Seleccionar servicio —</option>
-                            {servicios.map(s => (
-                                <option key={s.id} value={s.id}>{s.nombre}</option>
-                            ))}
-                        </select>
+                        <div className="w-64">
+                            <CustomSelect
+                                value={servicioId}
+                                onChange={cambiarServicio}
+                                options={servicios}
+                                placeholder="— Seleccionar servicio —"
+                            />
+                        </div>
                         {servicioId && (
-                            <PrimaryButton onClick={abrirCrearEtapa} className="ml-auto">
-                                <Plus size={14} className="mr-1.5" /> Nueva Etapa
-                            </PrimaryButton>
+                            <div className="flex items-center gap-3 flex-wrap sm:ml-auto">
+                                <div className="relative w-full sm:w-60">
+                                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                                        placeholder="Buscar etapa..."
+                                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all" />
+                                </div>
+                                <PrimaryButton onClick={abrirCrearEtapa}>
+                                    <Plus size={14} className="mr-1.5" /> Nueva Etapa
+                                </PrimaryButton>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -141,9 +155,14 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
                             <Plus size={14} className="mr-1.5" /> Crear primera etapa
                         </PrimaryButton>
                     </div>
+                ) : etapasFiltradas.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
+                        <GitBranch size={36} className="mx-auto mb-2 text-gray-200" />
+                        <p className="text-sm text-gray-400">No hay etapas que coincidan con la búsqueda.</p>
+                    </div>
                 ) : (
                     <div className="space-y-3">
-                        {etapas.map(etapa => (
+                        {etapasFiltradas.map(etapa => (
                             <div key={etapa.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                                 <div className="flex items-center gap-3 p-4">
                                     <div className="flex-1 min-w-0">

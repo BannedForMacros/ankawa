@@ -75,7 +75,8 @@
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,420 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_c\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_c/index.html\")",
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1280,400 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_c\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_c/index.html\")",
       "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/UsuarioController.php)",
-      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1100,300 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_u\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_u/index.html\")"
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1100,300 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_u\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_u/index.html\")",
+      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/__TRACKED_VAR__.php)"
     ]
   }
 }

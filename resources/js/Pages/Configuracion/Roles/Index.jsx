@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
+import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Badge from '@/Components/Badge';
 import ConfirmDialog from '@/Components/ConfirmDialog'; // 1. Importación del diálogo
@@ -14,6 +15,19 @@ import { Plus, ShieldCheck } from 'lucide-react';
 
 export default function Index({ roles }) {
     const { flash } = usePage().props;
+
+    // ── Filtro de estado (client-side) ──
+    const [estado, setEstado] = useState('');
+    const rolesFiltrados = useMemo(() => (
+        estado === '' ? roles : roles.filter(r => Number(r.activo) === Number(estado))
+    ), [roles, estado]);
+    const filtros = (
+        <div className="w-44">
+            <CustomSelect value={estado} onChange={setEstado}
+                options={[{ id: 1, nombre: 'Activos' }, { id: 0, nombre: 'Inactivos' }]}
+                placeholder="Todos los estados" />
+        </div>
+    );
 
     // Estados de Modales y Edición
     const [showModal, setShowModal] = useState(false);
@@ -157,9 +171,11 @@ export default function Index({ roles }) {
                 {/* Tabla */}
                 <Table
                     columns={columns}
-                    data={roles.data}
-                    meta={roles}
-                    routeName="configuracion.roles.index"
+                    data={rolesFiltrados}
+                    clientSide
+                    perPage={15}
+                    searchKeys={['nombre', 'descripcion']}
+                    filters={filtros}
                     searchPlaceholder="Buscar por nombre o descripción..."
                 />
             </div>

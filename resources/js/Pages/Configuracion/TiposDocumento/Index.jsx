@@ -503,14 +503,8 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const [deleting,      setDeleting]      = useState(false);
 
     // ── Filtros (estado + servicio) — 100% en el navegador, sin viajes a la BD ──
-    const [estado,     setEstado]     = useState('todos');
+    const [estado,     setEstado]     = useState('');
     const [servicioId, setServicioId] = useState('');
-
-    const cambiarEstado   = (val) => setEstado(val);
-    const cambiarServicio = (val) => setServicioId(val);
-    const limpiarFiltros  = () => { setEstado('todos'); setServicioId(''); };
-
-    const hayFiltros = estado !== 'todos' || !!servicioId;
 
     const tiposFiltrados = useMemo(() => {
         const sid = servicioId ? Number(servicioId) : null;
@@ -521,6 +515,20 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
             return true;
         });
     }, [tipos, estado, servicioId]);
+
+    const filtros = (
+        <>
+            <div className="w-44">
+                <CustomSelect value={estado} onChange={setEstado}
+                    options={[{ id: 'activos', nombre: 'Activos' }, { id: 'inactivos', nombre: 'Inactivos' }]}
+                    placeholder="Todos los estados" />
+            </div>
+            <div className="w-56">
+                <CustomSelect value={servicioId} onChange={setServicioId}
+                    options={servicios} placeholder="Todos los servicios" />
+            </div>
+        </>
+    );
 
     const abrirCrear   = () => { setEditando(null); setModalTipo(true); };
     const abrirEditar  = (t) => { setEditando(t); setModalTipo(true); };
@@ -672,46 +680,6 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
             />
             <div className="p-6 max-w-6xl mx-auto">
 
-                {/* Barra de filtros */}
-                <div className="flex flex-wrap items-center gap-3 mb-4">
-                    {/* Estado */}
-                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-                        {[
-                            { key: 'todos',     label: 'Todos' },
-                            { key: 'activos',   label: 'Activos' },
-                            { key: 'inactivos', label: 'Inactivos' },
-                        ].map(opt => (
-                            <button key={opt.key} type="button" onClick={() => cambiarEstado(opt.key)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors ${
-                                    estado === opt.key
-                                        ? 'bg-[#BE0F4A] text-white'
-                                        : 'text-gray-500 hover:bg-gray-100'
-                                }`}>
-                                {estado === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Servicio */}
-                    <div className="w-56">
-                        <CustomSelect
-                            value={servicioId}
-                            onChange={cambiarServicio}
-                            options={servicios}
-                            placeholder="Todos los servicios"
-                        />
-                    </div>
-
-                    {/* Limpiar */}
-                    {hayFiltros && (
-                        <button type="button" onClick={limpiarFiltros}
-                            className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-[#BE0F4A] transition-colors">
-                            <X size={13} /> Limpiar filtros
-                        </button>
-                    )}
-                </div>
-
                 {/* Leyenda de íconos */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[11px] text-gray-400">
                     <span className="font-semibold text-gray-400 uppercase tracking-wide">Significado:</span>
@@ -726,6 +694,7 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                     clientSide
                     perPage={15}
                     searchKeys={['nombre', 'descripcion']}
+                    filters={filtros}
                     searchPlaceholder="Buscar tipo de documento..."
                 />
             </div>

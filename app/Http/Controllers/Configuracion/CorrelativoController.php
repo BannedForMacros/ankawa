@@ -11,27 +11,13 @@ use Inertia\Inertia;
 
 class CorrelativoController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $query = Correlativo::with(['tipoCorrelativo', 'servicio']);
+        // Catálogo pequeño: se trae completo; filtrado/búsqueda/orden en el navegador.
+        $correlativos = Correlativo::with(['tipoCorrelativo', 'servicio'])
+            ->orderBy('id')
+            ->get();
 
-        if ($request->filled('search')) {
-            $busqueda = $request->search;
-            $query->where(function ($q) use ($busqueda) {
-                $q->whereHas('tipoCorrelativo', fn($q2) =>
-                    $q2->where('nombre', 'ilike', "%{$busqueda}%")
-                       ->orWhere('codigo', 'ilike', "%{$busqueda}%")
-                )
-                ->orWhere('codigo_servicio', 'ilike', "%{$busqueda}%")
-                ->orWhere('anio', 'ilike', "%{$busqueda}%");
-            });
-        }
-
-        $sortBy  = in_array($request->sort, ['id', 'anio', 'ultimo_numero', 'activo']) ? $request->sort : 'id';
-        $sortDir = $request->dir === 'desc' ? 'desc' : 'asc';
-        $query->orderBy($sortBy, $sortDir);
-
-        $correlativos     = $query->paginate(20)->withQueryString();
         // Enviamos también `prefijo`, `formato`, `aplica_sufijo_centro` y `activo` para que la
         // pantalla pueda renderizar el preview real y abrir el modal de edición de formato.
         $tiposCorrelativo = TipoCorrelativo::orderBy('id')

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
@@ -21,6 +21,19 @@ const opcionesEstado = [
 ];
 
 export default function Index({ servicios }) {
+
+    // ── Filtro de estado (client-side) ──
+    const [estado, setEstado] = useState('');
+    const serviciosFiltrados = useMemo(() => (
+        estado === '' ? servicios : servicios.filter(s => Number(s.activo) === Number(estado))
+    ), [servicios, estado]);
+    const filtros = (
+        <div className="w-44">
+            <CustomSelect value={estado} onChange={setEstado}
+                options={[{ id: 1, nombre: 'Activos' }, { id: 0, nombre: 'Inactivos' }]}
+                placeholder="Todos los estados" />
+        </div>
+    );
 
     const [showModal, setShowModal]               = useState(false);
     const [editando, setEditando]                 = useState(null);
@@ -152,9 +165,11 @@ export default function Index({ servicios }) {
 
                 <Table
                     columns={columns}
-                    data={servicios.data}
-                    meta={servicios}
-                    routeName="configuracion.servicios.index"
+                    data={serviciosFiltrados}
+                    clientSide
+                    perPage={15}
+                    searchKeys={['nombre', 'descripcion']}
+                    filters={filtros}
                     searchPlaceholder="Buscar por nombre o descripción..."
                 />
             </div>

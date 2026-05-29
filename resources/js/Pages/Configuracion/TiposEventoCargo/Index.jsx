@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
+import CustomSelect from '@/Components/CustomSelect';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
-import { Receipt, Pencil, ToggleLeft, ToggleRight, Info } from 'lucide-react';
+import { Receipt, Pencil, ToggleLeft, ToggleRight, Info, Search } from 'lucide-react';
 
 function ModalEditar({ show, onClose, tipo }) {
     const { data, setData, put, processing, errors, reset } = useForm({
@@ -119,6 +120,23 @@ export default function TiposEventoCargoIndex({ tipos }) {
     const [editando,  setEditando]  = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
 
+    // ── Filtros (client-side) ──
+    const [search, setSearch] = useState('');
+    const [estado, setEstado] = useState('');
+    const [genera, setGenera] = useState('');
+    const tiposFiltrados = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return tipos.filter(t => {
+            if (estado === 'activos'   && !t.activo) return false;
+            if (estado === 'inactivos' &&  t.activo) return false;
+            if (genera === 'si' && !t.genera_cargo) return false;
+            if (genera === 'no' &&  t.genera_cargo) return false;
+            if (q && !(`${t.nombre ?? ''} ${t.descripcion ?? ''}`.toLowerCase().includes(q))) return false;
+            return true;
+        });
+    }, [tipos, search, estado, genera]);
+    const hayFiltros = !!search || estado !== '' || genera !== '';
+
     const toggle = (tipo, campo) => {
         const nuevoValor = !tipo[campo];
         router.put(route('configuracion.tipos-evento-cargo.update', tipo.id), {
@@ -160,8 +178,31 @@ export default function TiposEventoCargoIndex({ tipos }) {
                     </div>
                 </div>
 
+                {/* Toolbar: filtros a la izquierda, búsqueda a la derecha */}
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="w-44">
+                            <CustomSelect value={estado} onChange={setEstado}
+                                options={[{ id: 'activos', nombre: 'Activos' }, { id: 'inactivos', nombre: 'Inactivos' }]}
+                                placeholder="Todos los estados" />
+                        </div>
+                        <div className="w-48">
+                            <CustomSelect value={genera} onChange={setGenera}
+                                options={[{ id: 'si', nombre: 'Emite cargo' }, { id: 'no', nombre: 'No emite cargo' }]}
+                                placeholder="Emisión de cargo" />
+                        </div>
+                    </div>
+                    <div className="relative w-full sm:w-72 sm:ml-auto">
+                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="Buscar tipo de evento..."
+                            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all" />
+                    </div>
+                </div>
+
                 {/* Tabla */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
                         <thead>
                             <tr style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 100%)' }}>
@@ -186,14 +227,18 @@ export default function TiposEventoCargoIndex({ tipos }) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
-                            {tipos.length === 0 ? (
+                            {tiposFiltrados.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-5 py-14 text-center text-gray-400">
                                         <Receipt size={36} className="mx-auto mb-2 opacity-30" />
-                                        <p className="font-medium">No hay tipos de evento de cargo registrados.</p>
+                                        <p className="font-medium">
+                                            {hayFiltros
+                                                ? 'No se encontraron tipos de evento con esos filtros.'
+                                                : 'No hay tipos de evento de cargo registrados.'}
+                                        </p>
                                     </td>
                                 </tr>
-                            ) : tipos.map(tipo => (
+                            ) : tiposFiltrados.map(tipo => (
                                 <tr key={tipo.id} className="hover:bg-gray-50/60 transition-colors">
                                     <td className="px-5 py-4">
                                         <span className={`font-bold ${tipo.activo ? 'text-[#291136]' : 'text-gray-400'}`}>
@@ -243,6 +288,7 @@ export default function TiposEventoCargoIndex({ tipos }) {
                             ))}
                         </tbody>
                     </table>
+                  </div>
                 </div>
             </div>
 

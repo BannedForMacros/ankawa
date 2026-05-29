@@ -9,13 +9,13 @@ use Inertia\Inertia;
 
 class ModuloController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
+        // Catálogo pequeño: se trae completo; filtrado/búsqueda/orden en el navegador.
         $modulos = Modulo::with('padre')
             ->orderBy('parent_id', 'asc')
             ->orderBy('orden', 'asc')
-            ->paginate(50)
-            ->withQueryString();
+            ->get();
 
         return Inertia::render('Configuracion/Modulos/Index', [
             'modulos' => $modulos,

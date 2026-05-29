@@ -9,22 +9,10 @@ use Inertia\Inertia;
 
 class RolController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $query = Rol::query();
-
-        if ($request->filled('search')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('nombre', 'ilike', '%' . $request->search . '%')
-                  ->orWhere('descripcion', 'ilike', '%' . $request->search . '%');
-            });
-        }
-
-        $sortBy  = in_array($request->sort, ['id', 'nombre', 'activo']) ? $request->sort : 'id';
-        $sortDir = $request->dir === 'desc' ? 'desc' : 'asc';
-        $query->orderBy($sortBy, $sortDir);
-
-        $roles = $query->paginate(20)->withQueryString();
+        // Catálogo pequeño: se trae completo; filtrado/búsqueda/orden en el navegador.
+        $roles = Rol::orderBy('nombre')->get();
 
         return Inertia::render('Configuracion/Roles/Index', [
             'roles' => $roles,

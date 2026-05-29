@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
@@ -54,6 +54,37 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         { id: '', nombre: '— Global (sin servicio) —' },
         ...servicios.map(s => ({ id: s.id, nombre: s.nombre })),
     ];
+
+    // ── Filtros (client-side): servicio + tipo ──
+    const [servicioFiltro, setServicioFiltro] = useState('');
+    const [tipoFiltro, setTipoFiltro]         = useState('');
+    const correlativosFiltrados = useMemo(() => {
+        const sid = servicioFiltro !== '' ? Number(servicioFiltro) : null;
+        const tid = tipoFiltro !== '' ? Number(tipoFiltro) : null;
+        return correlativos
+            .filter(c => {
+                if (sid !== null && c.servicio_id !== sid) return false;
+                if (tid !== null && c.tipo_correlativo_id !== tid) return false;
+                return true;
+            })
+            .map(c => ({
+                ...c,
+                _buscar: `${c.tipo_correlativo?.nombre ?? ''} ${c.servicio?.nombre ?? ''} ${c.codigo_servicio ?? ''} ${c.anio ?? ''}`,
+            }));
+    }, [correlativos, servicioFiltro, tipoFiltro]);
+    const filtros = (
+        <>
+            <div className="w-48">
+                <CustomSelect value={servicioFiltro} onChange={setServicioFiltro}
+                    options={servicios.map(s => ({ id: s.id, nombre: s.nombre }))}
+                    placeholder="Todos los servicios" />
+            </div>
+            <div className="w-48">
+                <CustomSelect value={tipoFiltro} onChange={setTipoFiltro}
+                    options={opcionesTipo} placeholder="Todos los tipos" />
+            </div>
+        </>
+    );
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         tipo_correlativo_id: '',
@@ -224,9 +255,11 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
 
                 <Table
                     columns={columns}
-                    data={correlativos.data}
-                    meta={correlativos}
-                    routeName="configuracion.correlativos.index"
+                    data={correlativosFiltrados}
+                    clientSide
+                    perPage={15}
+                    searchKeys={['_buscar']}
+                    filters={filtros}
                     searchPlaceholder="Buscar por tipo, servicio o código..."
                 />
             </div>

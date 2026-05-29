@@ -303,11 +303,10 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
 
     // ── Filtros (búsqueda + estado + servicio) — 100% en el navegador ──
     const [search,     setSearch]     = useState('');
-    const [estado,     setEstado]     = useState('todos');
+    const [estado,     setEstado]     = useState('');
     const [servicioId, setServicioId] = useState('');
 
-    const limpiarFiltros = () => { setSearch(''); setEstado('todos'); setServicioId(''); };
-    const hayFiltros     = !!search || estado !== 'todos' || !!servicioId;
+    const hayFiltros = !!search || estado !== '' || !!servicioId;
 
     const servicioFiltrado = servicioId
         ? servicios.find(s => s.id === Number(servicioId))
@@ -353,10 +352,21 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
             />
             <div className="p-6 max-w-6xl mx-auto">
 
-                {/* Barra de filtros */}
+                {/* Toolbar: filtros a la izquierda, búsqueda a la derecha */}
                 <div className="flex flex-wrap items-center gap-3 mb-4">
-                    {/* Búsqueda */}
-                    <div className="relative max-w-xs flex-1 min-w-[12rem]">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="w-44">
+                            <CustomSelect value={estado} onChange={setEstado}
+                                options={[{ id: 'activos', nombre: 'Activos' }, { id: 'inactivos', nombre: 'Inactivos' }]}
+                                placeholder="Todos los estados" />
+                        </div>
+                        <div className="w-56">
+                            <CustomSelect value={servicioId} onChange={setServicioId}
+                                options={servicios} placeholder="Todos los servicios" />
+                        </div>
+                    </div>
+
+                    <div className="relative w-full sm:w-72 sm:ml-auto">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
@@ -366,40 +376,6 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A] text-[#291136] bg-white shadow-sm transition-all"
                         />
                     </div>
-
-                    {/* Estado */}
-                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-                        {[
-                            { key: 'todos',     label: 'Todos' },
-                            { key: 'activos',   label: 'Activos' },
-                            { key: 'inactivos', label: 'Inactivos' },
-                        ].map(opt => (
-                            <button key={opt.key} type="button" onClick={() => setEstado(opt.key)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors ${
-                                    estado === opt.key ? 'bg-[#BE0F4A] text-white' : 'text-gray-500 hover:bg-gray-100'
-                                }`}>
-                                {estado === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Servicio */}
-                    <div className="w-56">
-                        <CustomSelect
-                            value={servicioId}
-                            onChange={setServicioId}
-                            options={servicios}
-                            placeholder="Todos los servicios"
-                        />
-                    </div>
-
-                    {hayFiltros && (
-                        <button type="button" onClick={limpiarFiltros}
-                            className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-[#BE0F4A] transition-colors">
-                            <X size={13} /> Limpiar filtros
-                        </button>
-                    )}
                 </div>
 
                 {/* Subtítulo de contexto cuando se filtra por servicio */}

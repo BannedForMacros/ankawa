@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
+import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
 import ConfirmDialog from '@/Components/ConfirmDialog';
@@ -160,7 +161,20 @@ export default function ModulosIndex({ modulos }) {
     const [aEliminar, setAEliminar]   = useState(null);
     const [deleting, setDeleting]     = useState(false);
 
-    const padres = (modulos?.data ?? []).filter(m => !m.parent_id);
+    const padres = (modulos ?? []).filter(m => !m.parent_id);
+
+    // ── Filtro de estado (client-side) ──
+    const [estado, setEstado] = useState('');
+    const modulosFiltrados = useMemo(() => (
+        estado === '' ? modulos : modulos.filter(m => Number(m.activo) === Number(estado))
+    ), [modulos, estado]);
+    const filtros = (
+        <div className="w-44">
+            <CustomSelect value={estado} onChange={setEstado}
+                options={[{ id: 1, nombre: 'Activos' }, { id: 0, nombre: 'Inactivos' }]}
+                placeholder="Todos los estados" />
+        </div>
+    );
 
     const abrirCrear = () => { setEditando(null); setModal(true); };
     const abrirEditar = (row) => { setEditando(row); setModal(true); };
@@ -260,9 +274,11 @@ export default function ModulosIndex({ modulos }) {
 
                 <Table
                     columns={columns}
-                    data={modulos.data}
-                    meta={modulos}
-                    routeName="configuracion.modulos.index"
+                    data={modulosFiltrados}
+                    clientSide
+                    perPage={15}
+                    searchKeys={['nombre', 'slug', 'ruta']}
+                    filters={filtros}
                     searchPlaceholder="Buscar módulo..."
                 />
             </div>
