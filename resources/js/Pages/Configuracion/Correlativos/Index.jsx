@@ -162,6 +162,23 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         else          post(route('configuracion.correlativos.store'), opts);
     };
 
+    const pedirReactivar = async (correlativo) => {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Correlativo',
+            mensaje: 'Volverá a usarse para generar nuevos números.',
+            detalle: {
+                label: 'Correlativo',
+                value: `${correlativo.tipo_correlativo?.nombre ?? ''} · ${correlativo.codigo_servicio ?? ''} ${correlativo.anio ?? ''}`.trim(),
+            },
+        });
+        if (!ok) return;
+        router.patch(route('configuracion.correlativos.reactivar', correlativo.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { if (page.props.flash?.success) toast.success(page.props.flash.success); },
+            onError: () => toast.error('Error al reactivar.'),
+        });
+    };
+
     const pedirConfirmacion = async (correlativo) => {
         const ok = await confirmarDesactivar({
             titulo: 'Desactivar Correlativo',
@@ -249,7 +266,8 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
             render: (row) => (
                 <ActionButtons
                     onEdit={() => abrirEditar(row)}
-                    onDelete={() => pedirConfirmacion(row)}
+                    onDelete={row.activo ? () => pedirConfirmacion(row) : undefined}
+                    onReactivar={!row.activo ? () => pedirReactivar(row) : undefined}
                 />
             ),
         },

@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Badge from '@/Components/Badge';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod, requeridos } from '@/lib/validar';
 
 const etapaSchema = requeridos({ nombre: 'El nombre de la etapa es obligatorio.' });
@@ -12,18 +12,23 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
-import { Plus, GitBranch, Edit2, Trash2, Layers, ShieldAlert, Search } from 'lucide-react';
+import { Plus, GitBranch, Edit2, Trash2, Layers, ShieldAlert, Search, RotateCcw } from 'lucide-react';
 
 export default function Index({ servicios = [], servicioActual, etapas = [] }) {
     const { flash } = usePage().props;
     const [servicioId, setServicioId] = useState(servicioActual ?? '');
 
-    // ── Búsqueda de etapa (client-side, sobre las etapas del servicio cargado) ──
+    // ── Búsqueda + estado (client-side, sobre las etapas del servicio cargado) ──
     const [search, setSearch] = useState('');
+    const [estado, setEstado] = useState(1); // por defecto solo activas
     const etapasFiltradas = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return q ? etapas.filter(e => `${e.nombre ?? ''} ${e.descripcion ?? ''}`.toLowerCase().includes(q)) : etapas;
-    }, [etapas, search]);
+        return etapas.filter(e => {
+            if (estado !== '' && Number(e.activo) !== Number(estado)) return false;
+            if (q && !`${e.nombre ?? ''} ${e.descripcion ?? ''}`.toLowerCase().includes(q)) return false;
+            return true;
+        });
+    }, [etapas, search, estado]);
 
     // ── Modal Etapa ──
     const [showModalEtapa, setShowModalEtapa] = useState(false);
@@ -114,6 +119,20 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
         });
     }
 
+    async function pedirReactivar(item) {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Etapa',
+            mensaje: 'La etapa volverá a estar disponible en el flujo.',
+            detalle: { label: 'Etapa', value: item.nombre },
+        });
+        if (!ok) return;
+        router.patch(route('configuracion.etapas.reactivar', item.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { toast.success(page.props.flash?.success ?? 'Reactivada.'); },
+            onError: () => toast.error('Error al reactivar.'),
+        });
+    }
+
     const bloqueadaConformidad = editandoEtapa
         ? yaExisteConformidad(editandoEtapa.id)
         : yaExisteConformidad();
@@ -145,7 +164,12 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
                         </div>
                         {servicioId && (
                             <div className="flex items-center gap-3 flex-wrap sm:ml-auto">
-                                <div className="relative w-full sm:w-60">
+                                <div className="w-40">
+                                    <CustomSelect value={estado} onChange={setEstado}
+                                        options={[{ id: 1, nombre: 'Activas' }, { id: 0, nombre: 'Inactivas' }]}
+                                        placeholder="Todas" />
+                                </div>
+                                <div className="relative w-full sm:w-56">
                                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                     <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                                         placeholder="Buscar etapa..."
@@ -204,9 +228,15 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
                                         <button onClick={() => abrirEditarEtapa(etapa)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Editar">
                                             <Edit2 size={14}/>
                                         </button>
-                                        <button onClick={() => pedirConfirmacion(etapa)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Desactivar">
-                                            <Trash2 size={14}/>
-                                        </button>
+                                        {etapa.activo ? (
+                                            <button onClick={() => pedirConfirmacion(etapa)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Desactivar">
+                                                <Trash2 size={14}/>
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => pedirReactivar(etapa)} className="p-1.5 rounded-lg text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Reactivar">
+                                                <RotateCcw size={14}/>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             </div>

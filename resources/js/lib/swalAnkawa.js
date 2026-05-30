@@ -35,7 +35,13 @@ export async function confirmar({ variant = 'warning', titulo, mensaje, detalles
     const v = VARIANTES[variant] ?? VARIANTES.warning;
     const html = `${mensaje ? `<p>${mensaje}</p>` : ''}${resumenHtml(detalles)}`;
 
+    // Si hay un modal (Headless UI Dialog, id="modal") abierto, renderizar el SweetAlert
+    // DENTRO de él para no pelear con su focus-trap (causa de que se reabriera al cancelar).
+    const modalAbierto = (typeof document !== 'undefined') ? document.getElementById('modal') : null;
+
     const res = await Swal.fire({
+        target: modalAbierto || 'body',
+        heightAuto: false,
         icon: v.icon,
         iconColor: v.color,
         title: titulo,
