@@ -100,6 +100,20 @@ export default function Index({ servicios }) {
         else          post(route('configuracion.servicios.store'), opts);
     };
 
+    const pedirReactivar = async (servicio) => {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Servicio',
+            mensaje: 'El servicio volverá a estar disponible en el sistema.',
+            detalle: { label: 'Servicio', value: servicio.nombre },
+        });
+        if (!ok) return;
+        router.patch(route('configuracion.servicios.reactivar', servicio.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { const msg = page.props.flash?.success; if (msg) toast.success(msg); },
+            onError: () => toast.error('Error al reactivar el servicio.'),
+        });
+    };
+
     const pedirConfirmacion = async (servicio) => {
         const ok = await confirmarDesactivar({
             titulo: 'Desactivar Servicio',

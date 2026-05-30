@@ -7,7 +7,7 @@ import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod, requeridos } from '@/lib/validar';
 
 const correlativoSchema = requeridos({
@@ -59,6 +59,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
     ];
 
     // ── Filtros (client-side): servicio + tipo ──
+    const [estado, setEstado]                 = useState(1); // por defecto solo activos
     const [servicioFiltro, setServicioFiltro] = useState('');
     const [tipoFiltro, setTipoFiltro]         = useState('');
     const correlativosFiltrados = useMemo(() => {
@@ -66,6 +67,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         const tid = tipoFiltro !== '' ? Number(tipoFiltro) : null;
         return correlativos
             .filter(c => {
+                if (estado !== '' && Number(c.activo) !== Number(estado)) return false;
                 if (sid !== null && c.servicio_id !== sid) return false;
                 if (tid !== null && c.tipo_correlativo_id !== tid) return false;
                 return true;
@@ -74,9 +76,14 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
                 ...c,
                 _buscar: `${c.tipo_correlativo?.nombre ?? ''} ${c.servicio?.nombre ?? ''} ${c.codigo_servicio ?? ''} ${c.anio ?? ''}`,
             }));
-    }, [correlativos, servicioFiltro, tipoFiltro]);
+    }, [correlativos, estado, servicioFiltro, tipoFiltro]);
     const filtros = (
         <>
+            <div className="w-44">
+                <CustomSelect value={estado} onChange={setEstado}
+                    options={[{ id: 1, nombre: 'Activos' }, { id: 0, nombre: 'Inactivos' }]}
+                    placeholder="Todos los estados" />
+            </div>
             <div className="w-48">
                 <CustomSelect value={servicioFiltro} onChange={setServicioFiltro}
                     options={servicios.map(s => ({ id: s.id, nombre: s.nombre }))}

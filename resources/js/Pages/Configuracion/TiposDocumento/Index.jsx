@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod, requeridos } from '@/lib/validar';
 
 const tipoDocSchema = requeridos({ nombre: 'El nombre es obligatorio.' });
@@ -12,7 +12,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import toast from 'react-hot-toast';
 import {
     FileStack, Plus, Pencil, Trash2, Settings, Users,
-    Upload, Eye, Building2, Send, X
+    Upload, Eye, Building2, Send, X, RotateCcw
 } from 'lucide-react';
 
 // ── Chips ─────────────────────────────────────────────────────────────────────
@@ -494,8 +494,8 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const [modalActores,  setModalActores]  = useState(false);
     const [editando,      setEditando]      = useState(null);
     const [gestionando,   setGestionando]   = useState(null);
-    // ── Filtros (estado + servicio) — 100% en el navegador, sin viajes a la BD ──
-    const [estado,     setEstado]     = useState('');
+    // ── Filtros (estado + servicio) — por defecto solo activos ──
+    const [estado,     setEstado]     = useState('activos');
     const [servicioId, setServicioId] = useState('');
 
     const tiposFiltrados = useMemo(() => {
@@ -526,6 +526,20 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const abrirEditar  = (t) => { setEditando(t); setModalTipo(true); };
     const abrirServ    = (t) => { setGestionando(t); setModalServ(true); };
     const abrirActores = (t) => { setGestionando(t); setModalActores(true); };
+
+    const pedirReactivar = async (row) => {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Tipo de Documento',
+            mensaje: 'Volverá a poder usarse en solicitudes y asignarse a servicios.',
+            detalle: { label: 'Tipo de documento', value: row.nombre },
+        });
+        if (!ok) return;
+        router.patch(route('configuracion.tipos-documentos.reactivar', row.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { if (page.props.flash?.success) toast.success(page.props.flash.success); },
+            onError: () => toast.error('Error al reactivar.'),
+        });
+    };
 
     const pedirDesactivar = async (row) => {
         const ok = await confirmarDesactivar({
@@ -653,6 +667,13 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                             title="Desactivar"
                             className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
                             <Trash2 size={15} />
+                        </button>
+                    )}
+                    {!row.activo && (
+                        <button onClick={() => pedirReactivar(row)}
+                            title="Reactivar"
+                            className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                            <RotateCcw size={15} />
                         </button>
                     )}
                 </div>

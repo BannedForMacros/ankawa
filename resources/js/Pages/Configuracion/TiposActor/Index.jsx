@@ -3,7 +3,7 @@ import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import Modal from '@/Components/Modal';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod, requeridos } from '@/lib/validar';
 
 const tipoActorSchema = requeridos({ nombre: 'El nombre es obligatorio.' });
@@ -12,7 +12,7 @@ import ServiceChips from '@/Components/ServiceChips';
 import toast from 'react-hot-toast';
 import {
     UserCheck, Plus, Pencil, Trash2, Settings,
-    Building2, Users, Search, X, Filter
+    Building2, Users, Search, X, Filter, RotateCcw
 } from 'lucide-react';
 
 // ── Modal: Crear / Editar nombre del tipo de actor ────────────────────────────
@@ -296,7 +296,7 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
 
     // ── Filtros (búsqueda + estado + servicio) — 100% en el navegador ──
     const [search,     setSearch]     = useState('');
-    const [estado,     setEstado]     = useState('');
+    const [estado,     setEstado]     = useState('activos');
     const [servicioId, setServicioId] = useState('');
 
     const hayFiltros = !!search || estado !== '' || !!servicioId;
@@ -316,6 +316,20 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
             return true;
         });
     }, [tipos, search, estado, servicioId]);
+
+    const pedirReactivar = async (tipo) => {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Tipo de Actor',
+            mensaje: 'Volverá a poder asignarse a nuevos expedientes.',
+            detalle: { label: 'Tipo de actor', value: tipo.nombre },
+        });
+        if (!ok) return;
+        router.patch(route('configuracion.tipos-actor.reactivar', tipo.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { if (page.props.flash?.success) toast.success(page.props.flash.success); },
+            onError: () => toast.error('Error al reactivar.'),
+        });
+    };
 
     const pedirDesactivar = async (tipo) => {
         const ok = await confirmarDesactivar({
@@ -475,12 +489,20 @@ export default function TiposActorIndex({ tipos, servicios, roles }) {
                                                     className="p-2 rounded-lg text-[#291136]/50 hover:bg-[#291136]/10 hover:text-[#291136] transition-colors">
                                                     <Pencil size={15} />
                                                 </button>
-                                                {!esInmutable && tipo.actores_expediente_count === 0 && (
+                                                {!esInmutable && tipo.activo && tipo.actores_expediente_count === 0 && (
                                                     <button
                                                         onClick={() => pedirDesactivar(tipo)}
                                                         title="Desactivar"
                                                         className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
                                                         <Trash2 size={15} />
+                                                    </button>
+                                                )}
+                                                {!esInmutable && !tipo.activo && (
+                                                    <button
+                                                        onClick={() => pedirReactivar(tipo)}
+                                                        title="Reactivar"
+                                                        className="p-2 rounded-lg text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                                                        <RotateCcw size={15} />
                                                     </button>
                                                 )}
                                             </div>

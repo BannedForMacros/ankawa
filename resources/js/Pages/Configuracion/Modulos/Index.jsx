@@ -160,7 +160,7 @@ export default function ModulosIndex({ modulos }) {
     const padres = (modulos ?? []).filter(m => !m.parent_id);
 
     // ── Filtro de estado (client-side) ──
-    const [estado, setEstado] = useState('');
+    const [estado, setEstado] = useState(1);
     const modulosFiltrados = useMemo(() => (
         estado === '' ? modulos : modulos.filter(m => Number(m.activo) === Number(estado))
     ), [modulos, estado]);
