@@ -7,7 +7,7 @@ import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod, requeridos } from '@/lib/validar';
 
 const servicioSchema = requeridos({ nombre: 'El nombre del servicio es obligatorio.' });
@@ -26,7 +26,7 @@ const opcionesEstado = [
 export default function Index({ servicios }) {
 
     // ── Filtro de estado (client-side) ──
-    const [estado, setEstado] = useState('');
+    const [estado, setEstado] = useState(1);
     const serviciosFiltrados = useMemo(() => (
         estado === '' ? servicios : servicios.filter(s => Number(s.activo) === Number(estado))
     ), [servicios, estado]);
@@ -139,7 +139,8 @@ export default function Index({ servicios }) {
             render: (row) => (
                 <ActionButtons
                     onEdit={() => abrirEditar(row)}
-                    onDelete={() => pedirConfirmacion(row)}
+                    onDelete={row.activo ? () => pedirConfirmacion(row) : undefined}
+                    onReactivar={!row.activo ? () => pedirReactivar(row) : undefined}
                 />
             ),
         },

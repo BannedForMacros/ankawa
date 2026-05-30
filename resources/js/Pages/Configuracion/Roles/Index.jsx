@@ -5,7 +5,7 @@ import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Badge from '@/Components/Badge';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod, requeridos } from '@/lib/validar';
 
 const rolSchema = requeridos({ nombre: 'El nombre del rol es obligatorio.' });
@@ -20,7 +20,7 @@ export default function Index({ roles }) {
     const { flash } = usePage().props;
 
     // ── Filtro de estado (client-side) ──
-    const [estado, setEstado] = useState('');
+    const [estado, setEstado] = useState(1);
     const rolesFiltrados = useMemo(() => (
         estado === '' ? roles : roles.filter(r => Number(r.activo) === Number(estado))
     ), [roles, estado]);
@@ -95,6 +95,20 @@ export default function Index({ roles }) {
         else          post(route('configuracion.roles.store'), opts);
     };
 
+    const pedirReactivar = async (rol) => {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Rol',
+            mensaje: 'El rol volverá a estar disponible para asignar a usuarios.',
+            detalle: { label: 'Rol', value: rol.nombre },
+        });
+        if (!ok) return;
+        router.patch(route('configuracion.roles.reactivar', rol.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { const msg = page.props.flash?.success; if (msg) toast.success(msg); },
+            onError: () => toast.error('Error al reactivar el rol.'),
+        });
+    };
+
     const pedirConfirmacion = async (rol) => {
         const ok = await confirmarDesactivar({
             titulo: 'Desactivar Rol',
@@ -134,7 +148,8 @@ export default function Index({ roles }) {
             render: (row) => (
                 <ActionButtons
                     onEdit={() => abrirEditar(row)}
-                    onDelete={() => pedirConfirmacion(row)} // 4. Cambio a confirmación
+                    onDelete={row.activo ? () => pedirConfirmacion(row) : undefined}
+                    onReactivar={!row.activo ? () => pedirReactivar(row) : undefined}
                 />
             ),
         },
