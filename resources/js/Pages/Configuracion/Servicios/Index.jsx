@@ -8,6 +8,9 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const servicioSchema = requeridos({ nombre: 'El nombre del servicio es obligatorio.' });
 import Badge from '@/Components/Badge';
 import Input from '@/Components/Input';
 import Textarea from '@/Components/Textarea';
@@ -38,7 +41,7 @@ export default function Index({ servicios }) {
     const [showModal, setShowModal]               = useState(false);
     const [editando, setEditando]                 = useState(null);
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, setError, clearErrors } = useForm({
         nombre:                    '',
         descripcion:               '',
         activo:                    1,
@@ -72,6 +75,7 @@ export default function Index({ servicios }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validarZod(servicioSchema, data, { setError, clearErrors })) return;
         const ok = await confirmar({
             variant: editando ? 'info' : 'warning',
             titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear servicio "${data.nombre}"?`,
@@ -168,7 +172,7 @@ export default function Index({ servicios }) {
 
             {/* Modal */}
             <Modal show={showModal} onClose={cerrarModal} maxWidth="md">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="p-7">
 
                         {/* Header modal */}

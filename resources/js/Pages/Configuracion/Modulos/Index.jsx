@@ -6,13 +6,16 @@ import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
 import { confirmar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const moduloSchema = requeridos({ nombre: 'El nombre es obligatorio.', slug: 'El slug es obligatorio.' });
 import toast from 'react-hot-toast';
 import { LayoutGrid, Plus, Pencil, Trash2 } from 'lucide-react';
 
 // ── Modal Crear / Editar ──────────────────────────────────────────────────────
 
 function ModalModulo({ show, onClose, editando, padres }) {
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, setError, clearErrors } = useForm({
         nombre:    '',
         slug:      '',
         icono:     '',
@@ -40,6 +43,7 @@ function ModalModulo({ show, onClose, editando, padres }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validarZod(moduloSchema, data, { setError, clearErrors })) return;
         const ok = await confirmar({
             variant: editando ? 'info' : 'warning',
             titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear módulo "${data.nombre}"?`,
@@ -86,7 +90,7 @@ function ModalModulo({ show, onClose, editando, padres }) {
 
     return (
         <Modal show={show} onClose={onClose} maxWidth="md">
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
                 <h2 className="text-lg font-black text-[#291136] uppercase tracking-tight">
                     {editando ? 'Editar Módulo' : 'Nuevo Módulo'}
                 </h2>

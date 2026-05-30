@@ -4,6 +4,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import Modal from '@/Components/Modal';
 import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const tipoActorSchema = requeridos({ nombre: 'El nombre es obligatorio.' });
 import CustomSelect from '@/Components/CustomSelect';
 import ServiceChips from '@/Components/ServiceChips';
 import toast from 'react-hot-toast';
@@ -15,7 +18,7 @@ import {
 // ── Modal: Crear / Editar nombre del tipo de actor ────────────────────────────
 
 function ModalTipoActor({ show, onClose, editando }) {
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, setError, clearErrors } = useForm({
         nombre: '',
         activo: 1,
     });
@@ -28,6 +31,7 @@ function ModalTipoActor({ show, onClose, editando }) {
 
     const submit = async (e) => {
         e.preventDefault();
+        if (!validarZod(tipoActorSchema, data, { setError, clearErrors })) return;
         const ok = await confirmar({
             variant: editando ? 'info' : 'warning',
             titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear tipo de actor "${data.nombre}"?`,
@@ -58,7 +62,7 @@ function ModalTipoActor({ show, onClose, editando }) {
 
     return (
         <Modal show={show} onClose={onClose} maxWidth="sm">
-            <form onSubmit={submit}>
+            <form onSubmit={submit} noValidate>
                 <div className="p-6">
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-10 h-10 rounded-xl bg-[#291136] flex items-center justify-center shrink-0">

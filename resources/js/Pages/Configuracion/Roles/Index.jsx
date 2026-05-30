@@ -6,6 +6,9 @@ import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Badge from '@/Components/Badge';
 import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const rolSchema = requeridos({ nombre: 'El nombre del rol es obligatorio.' });
 import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
@@ -33,7 +36,7 @@ export default function Index({ roles }) {
     const [showModal, setShowModal] = useState(false);
     const [editando, setEditando]   = useState(null);
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, setError, clearErrors } = useForm({
         nombre:      '',
         descripcion: '',
         activo:      1,
@@ -65,6 +68,7 @@ export default function Index({ roles }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validarZod(rolSchema, data, { setError, clearErrors })) return;
         const ok = await confirmar({
             variant: editando ? 'info' : 'warning',
             titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear rol "${data.nombre}"?`,
@@ -164,7 +168,7 @@ export default function Index({ roles }) {
 
             {/* Modal Crear / Editar */}
             <Modal show={showModal} onClose={cerrarModal} maxWidth="md">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="p-7">
                         <div className="flex items-center gap-4 mb-8">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center"

@@ -8,12 +8,45 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { validarZod } from '@/lib/validar';
+import { z } from 'zod';
 import Badge from '@/Components/Badge';
 import CustomSelect from '@/Components/CustomSelect';
 import PasswordInput from '@/Components/PasswordInput';
 import Input from '@/Components/Input';
 import toast from 'react-hot-toast';
 import { Plus, Users } from 'lucide-react';
+
+// Esquema de validación (cliente). El servidor sigue siendo la verdad.
+const usuarioSchema = (editando) => z.object({
+    name:                  z.string(),
+    email:                 z.string(),
+    rol_id:                z.any(),
+    password:              z.string().optional(),
+    password_confirmation: z.string().optional(),
+}).superRefine((d, ctx) => {
+    if (d.name.trim() === '')
+        ctx.addIssue({ code: 'custom', path: ['name'], message: 'El nombre es obligatorio.' });
+
+    if (d.email.trim() === '')
+        ctx.addIssue({ code: 'custom', path: ['email'], message: 'El correo es obligatorio.' });
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email))
+        ctx.addIssue({ code: 'custom', path: ['email'], message: 'Ingresa un correo válido.' });
+
+    if (d.rol_id === '' || d.rol_id == null)
+        ctx.addIssue({ code: 'custom', path: ['rol_id'], message: 'Selecciona un rol.' });
+
+    const pwd  = String(d.password ?? '');
+    const conf = String(d.password_confirmation ?? '');
+    if (!editando || pwd) {
+        if (!editando && pwd === '')
+            ctx.addIssue({ code: 'custom', path: ['password'], message: 'La contraseña es obligatoria.' });
+        else if (pwd.length < 8)
+            ctx.addIssue({ code: 'custom', path: ['password'], message: 'Debe tener al menos 8 caracteres.' });
+        if (pwd !== conf)
+            ctx.addIssue({ code: 'custom', path: ['password_confirmation'], message: 'Las contraseñas no coinciden.' });
+    }
+});
 
 export default function Index({ usuarios, roles }) {
 
@@ -47,7 +80,7 @@ export default function Index({ usuarios, roles }) {
         </>
     );
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, setError, clearErrors } = useForm({
         name:                  '',
         email:                 '',
         password:              '',
@@ -83,6 +116,7 @@ export default function Index({ usuarios, roles }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validarZod(usuarioSchema(editando), data, { setError, clearErrors })) return;
         const ok = await confirmar({
             variant: editando ? 'info' : 'warning',
             titulo:  editando ? `¿Guardar cambios en "${data.name}"?` : `¿Crear usuario "${data.name}"?`,
@@ -201,7 +235,7 @@ export default function Index({ usuarios, roles }) {
 
             {/* Modal */}
             <Modal show={showModal} onClose={cerrarModal} maxWidth="md">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="p-7">
 
                         {/* Header modal */}

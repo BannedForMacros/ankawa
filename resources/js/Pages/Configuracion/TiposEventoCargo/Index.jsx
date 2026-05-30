@@ -4,12 +4,15 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import { confirmar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const tipoEventoSchema = requeridos({ nombre: 'El nombre es obligatorio.' });
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
 import { Receipt, Pencil, ToggleLeft, ToggleRight, Info, Search, Filter } from 'lucide-react';
 
 function ModalEditar({ show, onClose, tipo }) {
-    const { data, setData, put, processing, errors, reset } = useForm({
+    const { data, setData, put, processing, errors, reset, setError, clearErrors } = useForm({
         nombre: '',
         descripcion: '',
         genera_cargo: true,
@@ -29,6 +32,7 @@ function ModalEditar({ show, onClose, tipo }) {
 
     const submit = async (e) => {
         e.preventDefault();
+        if (!validarZod(tipoEventoSchema, data, { setError, clearErrors })) return;
         const ok = await confirmar({
             variant: 'info',
             titulo: `¿Guardar cambios en "${data.nombre}"?`,
@@ -55,7 +59,7 @@ function ModalEditar({ show, onClose, tipo }) {
 
     return (
         <Modal show={show} onClose={onClose} maxWidth="md">
-            <form onSubmit={submit}>
+            <form onSubmit={submit} noValidate>
                 <div className="p-6">
                     <div className="flex items-center gap-3 mb-5">
                         <div className="w-10 h-10 rounded-xl bg-[#291136] flex items-center justify-center shrink-0">

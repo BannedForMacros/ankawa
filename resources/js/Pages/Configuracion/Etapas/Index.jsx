@@ -5,6 +5,9 @@ import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Badge from '@/Components/Badge';
 import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const etapaSchema = requeridos({ nombre: 'El nombre de la etapa es obligatorio.' });
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
@@ -65,6 +68,7 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
 
     async function submitEtapa(e) {
         e.preventDefault();
+        if (!validarZod(etapaSchema, formEtapa.data, { setError: formEtapa.setError, clearErrors: formEtapa.clearErrors })) return;
         const ok = await confirmar({
             variant: editandoEtapa ? 'info' : 'warning',
             titulo:  editandoEtapa ? `¿Guardar cambios en "${formEtapa.data.nombre}"?` : `¿Crear etapa "${formEtapa.data.nombre}"?`,
@@ -213,7 +217,7 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
 
             {/* ── Modal Etapa ── */}
             <Modal show={showModalEtapa} onClose={() => setShowModalEtapa(false)} maxWidth="md">
-                <form onSubmit={submitEtapa} className="p-6 space-y-4">
+                <form onSubmit={submitEtapa} noValidate className="p-6 space-y-4">
                     <h3 className="text-lg font-bold text-[#291136]">{editandoEtapa ? 'Editar Etapa' : 'Nueva Etapa'}</h3>
                     <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre *</label>

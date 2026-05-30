@@ -8,6 +8,12 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { validarZod, requeridos } from '@/lib/validar';
+
+const correlativoSchema = requeridos({
+    tipo_correlativo_id: 'Selecciona un tipo de correlativo.',
+    anio: 'El año es obligatorio.',
+});
 import Badge from '@/Components/Badge';
 import Input from '@/Components/Input';
 import CustomSelect from '@/Components/CustomSelect';
@@ -83,7 +89,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         </>
     );
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, setError, clearErrors } = useForm({
         tipo_correlativo_id: '',
         servicio_id:         '',
         codigo_servicio:     '',
@@ -119,6 +125,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validarZod(correlativoSchema, data, { setError, clearErrors })) return;
         const nombreTipo = tiposCorrelativo.find(t => t.id === Number(data.tipo_correlativo_id))?.nombre ?? '—';
         const ok = await confirmar({
             variant: editando ? 'info' : 'warning',
@@ -268,7 +275,7 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
 
             {/* Modal Crear / Editar */}
             <Modal show={showModal} onClose={cerrarModal} maxWidth="md">
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="p-7">
 
                         {/* Header modal */}
