@@ -5,14 +5,13 @@ import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
-import ConfirmDialog from '@/Components/ConfirmDialog';
+import { confirmar } from '@/lib/swalAnkawa';
 import toast from 'react-hot-toast';
 import { LayoutGrid, Plus, Pencil, Trash2 } from 'lucide-react';
 
 // ── Modal Crear / Editar ──────────────────────────────────────────────────────
 
 function ModalModulo({ show, onClose, editando, padres }) {
-    const [confirming, setConfirming] = useState(false);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:    '',
         slug:      '',
@@ -39,20 +38,31 @@ function ModalModulo({ show, onClose, editando, padres }) {
         }
     }, [show, editando]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setConfirming(true);
+        const ok = await confirmar({
+            variant: editando ? 'info' : 'warning',
+            titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear módulo "${data.nombre}"?`,
+            mensaje: editando
+                ? 'Se actualizará la configuración de este módulo del sistema.'
+                : 'Se registrará como un nuevo módulo de navegación del sistema.',
+            detalles: [
+                { label: 'Módulo', value: data.nombre },
+                data.slug ? { label: 'Slug', value: data.slug } : null,
+            ].filter(Boolean),
+            confirmText: editando ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (ok) doSave();
     };
 
     const doSave = () => {
         const opts = {
             onSuccess: (page) => {
-                setConfirming(false);
                 onClose();
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
                 if (page.props.flash?.error)   toast.error(page.props.flash.error);
             },
-            onError: () => { setConfirming(false); toast.error('Revisa los errores del formulario.'); },
+            onError: () => toast.error('Revisa los errores del formulario.'),
         };
         editando
             ? put(route('configuracion.modulos.update', editando.id), opts)
@@ -75,20 +85,6 @@ function ModalModulo({ show, onClose, editando, padres }) {
     );
 
     return (
-        <>
-        <ConfirmDialog
-            show={confirming}
-            title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear módulo "${data.nombre}"?`}
-            message={editando
-                ? 'Se actualizará la configuración de este módulo del sistema.'
-                : 'Se registrará como un nuevo módulo de navegación del sistema.'}
-            confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
-            processing={processing}
-            onConfirm={doSave}
-            onCancel={() => setConfirming(false)}
-            detalles={[{ label: 'Módulo', value: data.nombre }, data.slug && { label: 'Slug', value: data.slug }].filter(Boolean)}
-            variant={editando ? 'info' : 'warning'}
-        />
         <Modal show={show} onClose={onClose} maxWidth="md">
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <h2 className="text-lg font-black text-[#291136] uppercase tracking-tight">
@@ -148,7 +144,6 @@ function ModalModulo({ show, onClose, editando, padres }) {
                 </div>
             </form>
         </Modal>
-        </>
     );
 }
 
@@ -157,9 +152,6 @@ function ModalModulo({ show, onClose, editando, padres }) {
 export default function ModulosIndex({ modulos }) {
     const [modal, setModal]           = useState(false);
     const [editando, setEditando]     = useState(null);
-    const [confirmOpen, setConfirm]   = useState(false);
-    const [aEliminar, setAEliminar]   = useState(null);
-    const [deleting, setDeleting]     = useState(false);
 
     const padres = (modulos ?? []).filter(m => !m.parent_id);
 
@@ -179,15 +171,22 @@ export default function ModulosIndex({ modulos }) {
     const abrirCrear = () => { setEditando(null); setModal(true); };
     const abrirEditar = (row) => { setEditando(row); setModal(true); };
 
-    const handleDelete = () => {
-        setDeleting(true);
-        router.delete(route('configuracion.modulos.destroy', aEliminar.id), {
+    const pedirEliminar = async (row) => {
+        const ok = await confirmar({
+            variant: 'danger',
+            titulo: 'Eliminar módulo',
+            mensaje: 'Esta acción es permanente: se eliminará el módulo y sus permisos asociados. No se puede deshacer.',
+            detalles: [{ label: 'Módulo', value: row.nombre }],
+            confirmText: 'Sí, eliminar',
+        });
+        if (!ok) return;
+
+        router.delete(route('configuracion.modulos.destroy', row.id), {
             onSuccess: (page) => {
-                setConfirm(false); setAEliminar(null); setDeleting(false);
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
                 if (page.props.flash?.error)   toast.error(page.props.flash.error);
             },
-            onError: () => { setDeleting(false); toast.error('Error al eliminar.'); },
+            onError: () => toast.error('Error al eliminar.'),
         });
     };
 
@@ -249,7 +248,7 @@ export default function ModulosIndex({ modulos }) {
                         className="p-1.5 rounded-lg text-gray-400 hover:text-[#291136] hover:bg-gray-100 transition-colors">
                         <Pencil size={14} />
                     </button>
-                    <button onClick={() => { setAEliminar(row); setConfirm(true); }}
+                    <button onClick={() => pedirEliminar(row)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                         <Trash2 size={14} />
                     </button>
@@ -288,17 +287,6 @@ export default function ModulosIndex({ modulos }) {
                 onClose={() => setModal(false)}
                 editando={editando}
                 padres={padres}
-            />
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Eliminar Módulo"
-                message="Se eliminarán también todos los permisos asignados a este módulo. Esta acción no se puede deshacer."
-                confirmText="Sí, eliminar"
-                processing={deleting}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirm(false); setAEliminar(null); }}
-                detalles={[{ label: 'Módulo', value: aEliminar?.nombre }]}
-                variant="danger"
             />
         </AuthenticatedLayout>
     );

@@ -3,6 +3,7 @@ import { useForm, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
+import { confirmar } from '@/lib/swalAnkawa';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
 import { Receipt, Pencil, ToggleLeft, ToggleRight, Info, Search, Filter } from 'lucide-react';
@@ -26,8 +27,20 @@ function ModalEditar({ show, onClose, tipo }) {
         }
     }, [show, tipo?.id]);
 
-    const submit = (e) => {
+    const submit = async (e) => {
         e.preventDefault();
+        const ok = await confirmar({
+            variant: 'info',
+            titulo: `¿Guardar cambios en "${data.nombre}"?`,
+            mensaje: 'Se actualizará el nombre, la descripción y los ajustes de este tipo de evento.',
+            detalles: [
+                { label: 'Evento', value: data.nombre },
+                { label: 'Emite cargo', value: data.genera_cargo ? 'Sí' : 'No' },
+            ],
+            confirmText: 'Sí, guardar',
+        });
+        if (!ok) return;
+
         put(route('configuracion.tipos-evento-cargo.update', tipo.id), {
             preserveScroll: true,
             onSuccess: (page) => {

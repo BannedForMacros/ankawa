@@ -87,7 +87,11 @@
       "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/RolController.php)",
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1000,720 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_d\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_d/index.html\")",
       "Bash(echo \"C:\\\\\\\\MacSoft\\\\\\\\ankawa\\\\\\\\preview_dialog\\\\\\\\index.html\")",
-      "Bash(cmd.exe /c start \"\" \"C:\\\\MacSoft\\\\ankawa\\\\preview_dialog\\\\index.html\")"
+      "Bash(cmd.exe /c start \"\" \"C:\\\\MacSoft\\\\ankawa\\\\preview_dialog\\\\index.html\")",
+      "Bash(npm install *)",
+      "Bash(cmd.exe /c start \"\" \"C:\\\\MacSoft\\\\ankawa\\\\demo_swal\\\\index.html\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT count\\(*\\) total, count\\(*\\) FILTER \\(WHERE activo=1\\) activos, count\\(*\\) FILTER \\(WHERE activo=0\\) inactivos FROM tipo_documentos;\")",
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT count\\(*\\) FROM tipo_documentos td WHERE td.activo=1 AND NOT EXISTS \\(SELECT 1 FROM documentos d WHERE d.tipo_documento_id = td.id\\);\")"
     ]
   }
 }

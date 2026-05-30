@@ -5,7 +5,7 @@ import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Badge from '@/Components/Badge';
-import ConfirmDialog from '@/Components/ConfirmDialog'; // 1. Importación del diálogo
+import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
 import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
@@ -32,14 +32,6 @@ export default function Index({ roles }) {
     // Estados de Modales y Edición
     const [showModal, setShowModal] = useState(false);
     const [editando, setEditando]   = useState(null);
-
-    // 2. Estados para la eliminación confirmada
-    const [confirmOpen, setConfirmOpen]   = useState(false);
-    const [rolAEliminar, setRolAEliminar] = useState(null);
-    const [deleting, setDeleting]         = useState(false);
-
-    // Estado para confirmación de crear/editar
-    const [confirmSave, setConfirmSave] = useState(false);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:      '',
@@ -71,59 +63,49 @@ export default function Index({ roles }) {
         reset();
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setConfirmSave(true);
+        const ok = await confirmar({
+            variant: editando ? 'info' : 'warning',
+            titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear rol "${data.nombre}"?`,
+            mensaje: editando
+                ? 'Se actualizará la configuración de este rol. Los permisos asignados se mantendrán.'
+                : 'Se registrará como un nuevo rol disponible para asignar a usuarios.',
+            detalles: [{ label: 'Rol', value: data.nombre }],
+            confirmText: editando ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (ok) doSave();
     };
 
     const doSave = () => {
-        if (editando) {
-            put(route('configuracion.roles.update', editando.id), {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    setConfirmSave(false);
-                    cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
-                },
-                onError: () => { setConfirmSave(false); toast.error('Error al actualizar el rol.'); },
-            });
-        } else {
-            post(route('configuracion.roles.store'), {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    setConfirmSave(false);
-                    cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
-                },
-                onError: () => { setConfirmSave(false); toast.error('Error al crear el rol.'); },
-            });
-        }
-    };
-
-    // 3. Métodos de eliminación con confirmación estética
-    const pedirConfirmacion = (rol) => {
-        setRolAEliminar(rol);
-        setConfirmOpen(true);
-    };
-
-    const handleDelete = () => {
-        setDeleting(true);
-        router.delete(route('configuracion.roles.destroy', rolAEliminar.id), {
+        const opts = {
             preserveScroll: true,
             onSuccess: (page) => {
-                setConfirmOpen(false);
-                setRolAEliminar(null);
-                setDeleting(false);
-                // Leer el flash directamente de la respuesta
+                cerrarModal();
                 const msg = page.props.flash?.success;
                 if (msg) toast.success(msg);
             },
-            onError: () => {
-                setDeleting(false);
-                toast.error('Ocurrió un error al desactivar el rol.');
+            onError: () => toast.error(editando ? 'Error al actualizar el rol.' : 'Error al crear el rol.'),
+        };
+        if (editando) put(route('configuracion.roles.update', editando.id), opts);
+        else          post(route('configuracion.roles.store'), opts);
+    };
+
+    const pedirConfirmacion = async (rol) => {
+        const ok = await confirmarDesactivar({
+            titulo: 'Desactivar Rol',
+            mensaje: 'Los usuarios vinculados a este rol podrían perder acceso al sistema.',
+            detalle: { label: 'Rol', value: rol.nombre },
+        });
+        if (!ok) return;
+
+        router.delete(route('configuracion.roles.destroy', rol.id), {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const msg = page.props.flash?.success;
+                if (msg) toast.success(msg);
             },
+            onError: () => toast.error('Ocurrió un error al desactivar el rol.'),
         });
     };
 
@@ -248,32 +230,6 @@ export default function Index({ roles }) {
                 </form>
             </Modal>
 
-            {/* Confirmación crear/editar */}
-            <ConfirmDialog
-                show={confirmSave}
-                title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear rol "${data.nombre}"?`}
-                message={editando
-                    ? 'Se actualizará la configuración de este rol. Los permisos asignados se mantendrán.'
-                    : 'Se registrará como un nuevo rol disponible para asignar a usuarios.'}
-                confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
-                processing={processing}
-                onConfirm={doSave}
-                onCancel={() => setConfirmSave(false)}
-                detalles={[{ label: 'Rol', value: data.nombre }]}
-                variant={editando ? 'info' : 'warning'}
-            />
-            {/* Confirmación eliminar/desactivar */}
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Desactivar Rol"
-                message="Los usuarios vinculados a este rol podrían perder acceso al sistema."
-                confirmText="Sí, desactivar"
-                processing={deleting}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirmOpen(false); setRolAEliminar(null); }}
-                detalles={[{ label: 'Rol', value: rolAEliminar?.nombre }]}
-                variant="danger"
-            />
         </AuthenticatedLayout>
     );
 }

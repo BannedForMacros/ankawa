@@ -7,7 +7,7 @@ import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
-import ConfirmDialog from '@/Components/ConfirmDialog';
+import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
 import Badge from '@/Components/Badge';
 import CustomSelect from '@/Components/CustomSelect';
 import PasswordInput from '@/Components/PasswordInput';
@@ -19,10 +19,6 @@ export default function Index({ usuarios, roles }) {
 
     const [showModal, setShowModal]               = useState(false);
     const [editando, setEditando]                 = useState(null);
-    const [confirmOpen, setConfirmOpen]           = useState(false);
-    const [usuarioAEliminar, setUsuarioAEliminar] = useState(null);
-    const [deleting, setDeleting]                 = useState(false);
-    const [confirmSave, setConfirmSave]           = useState(false);
 
     // ── Filtros (client-side) ──
     const [estado, setEstado] = useState('');
@@ -85,55 +81,52 @@ export default function Index({ usuarios, roles }) {
         reset();
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setConfirmSave(true);
+        const ok = await confirmar({
+            variant: editando ? 'info' : 'warning',
+            titulo:  editando ? `¿Guardar cambios en "${data.name}"?` : `¿Crear usuario "${data.name}"?`,
+            mensaje: editando
+                ? 'Se actualizarán los datos del usuario. Si se ingresó una nueva contraseña, será reemplazada.'
+                : 'Se creará el usuario y se le asignará el rol seleccionado.',
+            detalles: [
+                { label: 'Usuario', value: data.name },
+                data.email ? { label: 'Correo', value: data.email } : null,
+            ].filter(Boolean),
+            confirmText: editando ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (ok) doSave();
     };
 
     const doSave = () => {
-        if (editando) {
-            put(route('configuracion.usuarios.update', editando.id), {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    setConfirmSave(false);
-                    cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
-                },
-                onError: () => { setConfirmSave(false); toast.error('Error al actualizar el usuario.'); },
-            });
-        } else {
-            post(route('configuracion.usuarios.store'), {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    setConfirmSave(false);
-                    cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
-                },
-                onError: () => { setConfirmSave(false); toast.error('Error al crear el usuario.'); },
-            });
-        }
-    };
-
-    const pedirConfirmacion = (usuario) => {
-        setUsuarioAEliminar(usuario);
-        setConfirmOpen(true);
-    };
-
-    const handleDelete = () => {
-        setDeleting(true);
-        router.delete(route('configuracion.usuarios.destroy', usuarioAEliminar.id), {
+        const opts = {
             preserveScroll: true,
             onSuccess: (page) => {
-                setConfirmOpen(false);
-                setUsuarioAEliminar(null);
-                setDeleting(false);
+                cerrarModal();
+                const msg = page.props.flash?.success;
+                if (msg) toast.success(msg);
+            },
+            onError: () => toast.error(editando ? 'Error al actualizar el usuario.' : 'Error al crear el usuario.'),
+        };
+        if (editando) put(route('configuracion.usuarios.update', editando.id), opts);
+        else          post(route('configuracion.usuarios.store'), opts);
+    };
+
+    const pedirConfirmacion = async (usuario) => {
+        const ok = await confirmarDesactivar({
+            titulo: 'Desactivar Usuario',
+            mensaje: 'El usuario no podrá ingresar al sistema. Puedes reactivarlo en cualquier momento.',
+            detalle: { label: 'Usuario', value: usuario.name },
+        });
+        if (!ok) return;
+
+        router.delete(route('configuracion.usuarios.destroy', usuario.id), {
+            preserveScroll: true,
+            onSuccess: (page) => {
                 const msg = page.props.flash?.success;
                 if (msg) toast.success(msg);
             },
             onError: () => {
-                setDeleting(false);
                 toast.error('Error al desactivar el usuario.');
             },
         });
@@ -309,35 +302,6 @@ export default function Index({ usuarios, roles }) {
                 </form>
             </Modal>
 
-            {/* Confirmación crear/editar */}
-            <ConfirmDialog
-                show={confirmSave}
-                title={editando ? `¿Guardar cambios en "${data.name}"?` : `¿Crear usuario "${data.name}"?`}
-                message={editando
-                    ? 'Se actualizarán los datos del usuario. Si se ingresó una nueva contraseña, será reemplazada.'
-                    : 'Se creará el usuario y se le asignará el rol seleccionado.'}
-                confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
-                processing={processing}
-                onConfirm={doSave}
-                onCancel={() => setConfirmSave(false)}
-                detalles={[
-                    { label: 'Usuario', value: data.name },
-                    data.email && { label: 'Correo', value: data.email },
-                ].filter(Boolean)}
-                variant={editando ? 'info' : 'warning'}
-            />
-            {/* Confirmación desactivar */}
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Desactivar Usuario"
-                message="El usuario no podrá ingresar al sistema. Puede reactivarlo en cualquier momento."
-                confirmText="Sí, desactivar"
-                processing={deleting}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirmOpen(false); setUsuarioAEliminar(null); }}
-                detalles={[{ label: 'Usuario', value: usuarioAEliminar?.name }]}
-                variant="danger"
-            />
         </AuthenticatedLayout>
     );
 }

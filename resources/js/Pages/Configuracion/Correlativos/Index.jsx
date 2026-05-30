@@ -7,7 +7,7 @@ import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
-import ConfirmDialog from '@/Components/ConfirmDialog';
+import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
 import Badge from '@/Components/Badge';
 import Input from '@/Components/Input';
 import CustomSelect from '@/Components/CustomSelect';
@@ -45,9 +45,6 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
 
     const [showModal, setShowModal]                       = useState(false);
     const [editando, setEditando]                         = useState(null);
-    const [confirmOpen, setConfirmOpen]                   = useState(false);
-    const [correlativoAEliminar, setCorrelativoAEliminar] = useState(null);
-    const [deleting, setDeleting]                         = useState(false);
 
     const opcionesTipo     = tiposCorrelativo.map(t => ({ id: t.id, nombre: t.nombre }));
     const opcionesServicio = [
@@ -120,49 +117,54 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
         reset();
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        const nombreTipo = tiposCorrelativo.find(t => t.id === Number(data.tipo_correlativo_id))?.nombre ?? '—';
+        const ok = await confirmar({
+            variant: editando ? 'info' : 'warning',
+            titulo:  editando ? '¿Guardar cambios en el correlativo?' : '¿Crear correlativo?',
+            mensaje: editando
+                ? 'Se actualizará la configuración de numeración de este correlativo.'
+                : 'Se registrará un nuevo correlativo para la numeración automática.',
+            detalles: [
+                { label: 'Tipo', value: nombreTipo },
+                { label: 'Año',  value: data.anio },
+            ],
+            confirmText: editando ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (!ok) return;
+
         const payload = { ...data, servicio_id: data.servicio_id || null };
-
-        if (editando) {
-            put(route('configuracion.correlativos.update', editando.id), {
-                data: payload,
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    cerrarModal();
-                    if (page.props.flash?.success) toast.success(page.props.flash.success);
-                },
-                onError: () => toast.error('Revise los campos requeridos.'),
-            });
-        } else {
-            post(route('configuracion.correlativos.store'), {
-                data: payload,
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    cerrarModal();
-                    if (page.props.flash?.success) toast.success(page.props.flash.success);
-                },
-                onError: () => toast.error('Revise los campos requeridos.'),
-            });
-        }
-    };
-
-    const pedirConfirmacion = (correlativo) => {
-        setCorrelativoAEliminar(correlativo);
-        setConfirmOpen(true);
-    };
-
-    const handleDelete = () => {
-        setDeleting(true);
-        router.delete(route('configuracion.correlativos.destroy', correlativoAEliminar.id), {
+        const opts = {
+            data: payload,
             preserveScroll: true,
             onSuccess: (page) => {
-                setConfirmOpen(false);
-                setCorrelativoAEliminar(null);
-                setDeleting(false);
+                cerrarModal();
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
             },
-            onError: () => { setDeleting(false); toast.error('Error al desactivar.'); },
+            onError: () => toast.error('Revise los campos requeridos.'),
+        };
+        if (editando) put(route('configuracion.correlativos.update', editando.id), opts);
+        else          post(route('configuracion.correlativos.store'), opts);
+    };
+
+    const pedirConfirmacion = async (correlativo) => {
+        const ok = await confirmarDesactivar({
+            titulo: 'Desactivar Correlativo',
+            mensaje: 'Dejará de usarse para generar nuevos números. Podrás reactivarlo cuando quieras.',
+            detalle: {
+                label: 'Correlativo',
+                value: `${correlativo.tipo_correlativo?.nombre ?? ''} · ${correlativo.codigo_servicio ?? ''} ${correlativo.anio ?? ''}`.trim(),
+            },
+        });
+        if (!ok) return;
+
+        router.delete(route('configuracion.correlativos.destroy', correlativo.id), {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                if (page.props.flash?.success) toast.success(page.props.flash.success);
+            },
+            onError: () => toast.error('Error al desactivar.'),
         });
     };
 
@@ -385,17 +387,6 @@ export default function Index({ correlativos, tiposCorrelativo = [], servicios =
                     </div>
                 </form>
             </Modal>
-
-            {/* Confirm Dialog */}
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Desactivar Correlativo"
-                message={`¿Desactivar el correlativo "${correlativoAEliminar?.tipo_correlativo?.nombre} — ${correlativoAEliminar?.codigo_servicio} ${correlativoAEliminar?.anio}"?`}
-                confirmText="Sí, desactivar"
-                processing={deleting}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirmOpen(false); setCorrelativoAEliminar(null); }}
-            />
         </AuthenticatedLayout>
     );
 }

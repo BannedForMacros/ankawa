@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import Badge from '@/Components/Badge';
-import ConfirmDialog from '@/Components/ConfirmDialog';
+import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
@@ -28,8 +28,6 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
     const formEtapa = useForm({ servicio_id: servicioId, nombre: '', descripcion: '', orden: '', activo: 1, requiere_conformidad: false });
 
     // ── Confirm ──
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [itemAEliminar, setItemAEliminar] = useState(null);
 
     // ── Cambiar servicio ──
     function cambiarServicio(id) {
@@ -65,8 +63,22 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
         setShowModalEtapa(true);
     }
 
-    function submitEtapa(e) {
+    async function submitEtapa(e) {
         e.preventDefault();
+        const ok = await confirmar({
+            variant: editandoEtapa ? 'info' : 'warning',
+            titulo:  editandoEtapa ? `¿Guardar cambios en "${formEtapa.data.nombre}"?` : `¿Crear etapa "${formEtapa.data.nombre}"?`,
+            mensaje: editandoEtapa
+                ? 'Se actualizará la configuración de esta etapa del flujo.'
+                : 'Se registrará una nueva etapa en el flujo de este servicio.',
+            detalles: [
+                { label: 'Etapa', value: formEtapa.data.nombre },
+                { label: 'Orden', value: formEtapa.data.orden },
+            ],
+            confirmText: editandoEtapa ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (!ok) return;
+
         if (editandoEtapa) {
             formEtapa.put(route('configuracion.etapas.update', editandoEtapa.id), {
                 preserveScroll: true,
@@ -82,16 +94,18 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
         }
     }
 
-    // ── ELIMINAR ──
-    function pedirConfirmacion(item) {
-        setItemAEliminar(item);
-        setConfirmOpen(true);
-    }
+    // ── DESACTIVAR ──
+    async function pedirConfirmacion(item) {
+        const ok = await confirmarDesactivar({
+            titulo: 'Desactivar Etapa',
+            mensaje: 'La etapa dejará de estar disponible en el flujo. Podrás reactivarla cuando quieras.',
+            detalle: { label: 'Etapa', value: item.nombre },
+        });
+        if (!ok) return;
 
-    function handleDelete() {
-        router.delete(route('configuracion.etapas.destroy', itemAEliminar.id), {
+        router.delete(route('configuracion.etapas.destroy', item.id), {
             preserveScroll: true,
-            onSuccess: (page) => { setConfirmOpen(false); toast.success(page.props.flash?.success ?? 'Desactivado.'); },
+            onSuccess: (page) => { toast.success(page.props.flash?.success ?? 'Desactivado.'); },
             onError: () => toast.error('Error al desactivar.'),
         });
     }
@@ -268,19 +282,6 @@ export default function Index({ servicios = [], servicioActual, etapas = [] }) {
                     </div>
                 </form>
             </Modal>
-
-            {/* ── Confirm Dialog ── */}
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Desactivar Etapa"
-                message="Puede reactivarla posteriormente desde esta misma pantalla."
-                confirmText="Sí, desactivar"
-                processing={false}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirmOpen(false); setItemAEliminar(null); }}
-                detalles={[{ label: 'Etapa', value: itemAEliminar?.nombre }]}
-                variant="danger"
-            />
         </AuthenticatedLayout>
     );
 }

@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import Table from '@/Components/Table';
 import Modal from '@/Components/Modal';
-import ConfirmDialog from '@/Components/ConfirmDialog';
+import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
 import CustomSelect from '@/Components/CustomSelect';
 import toast from 'react-hot-toast';
 import {
@@ -59,7 +59,6 @@ function ActorChip({ nombre, puedeSubir, puedeVer }) {
 // ── Modal: Crear / Editar ─────────────────────────────────────────────────────
 
 function ModalTipoDocumento({ show, onClose, editando }) {
-    const [confirming, setConfirming] = useState(false);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:      '',
         descripcion: '',
@@ -76,9 +75,18 @@ function ModalTipoDocumento({ show, onClose, editando }) {
         }
     }, [show, editando]);
 
-    const submit = (e) => {
+    const submit = async (e) => {
         e.preventDefault();
-        setConfirming(true);
+        const ok = await confirmar({
+            variant: editando ? 'info' : 'warning',
+            titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear tipo de documento "${data.nombre}"?`,
+            mensaje: editando
+                ? 'Se actualizará la configuración de este tipo de documento en todos los servicios y actores.'
+                : 'Se registrará como un nuevo tipo de documento disponible para configurar en servicios.',
+            detalles:    [{ label: 'Nombre', value: data.nombre }],
+            confirmText: editando ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (ok) doSave();
     };
 
     const doSave = () => {
@@ -90,30 +98,15 @@ function ModalTipoDocumento({ show, onClose, editando }) {
         method(routeName, {
             preserveScroll: true,
             onSuccess: (page) => {
-                setConfirming(false);
                 onClose();
                 reset();
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
             },
-            onError: () => { setConfirming(false); toast.error('Revise los campos e intente de nuevo.'); },
+            onError: () => toast.error('Revise los campos e intente de nuevo.'),
         });
     };
 
     return (
-        <>
-        <ConfirmDialog
-            show={confirming}
-            title={editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear tipo de documento "${data.nombre}"?`}
-            message={editando
-                ? 'Se actualizará la configuración de este tipo de documento en todos los servicios y actores.'
-                : 'Se registrará como un nuevo tipo de documento disponible para configurar en servicios.'}
-            confirmText={editando ? 'Sí, guardar' : 'Sí, crear'}
-            processing={processing}
-            onConfirm={doSave}
-            onCancel={() => setConfirming(false)}
-            detalles={[{ label: 'Nombre', value: data.nombre }]}
-            variant={editando ? 'info' : 'warning'}
-        />
         <Modal show={show} onClose={onClose} maxWidth="md">
             <form onSubmit={submit}>
                 <div className="p-6">
@@ -178,7 +171,6 @@ function ModalTipoDocumento({ show, onClose, editando }) {
                 </div>
             </form>
         </Modal>
-        </>
     );
 }
 
@@ -498,10 +490,6 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const [modalActores,  setModalActores]  = useState(false);
     const [editando,      setEditando]      = useState(null);
     const [gestionando,   setGestionando]   = useState(null);
-    const [confirmOpen,   setConfirmOpen]   = useState(false);
-    const [itemAEliminar, setItemAEliminar] = useState(null);
-    const [deleting,      setDeleting]      = useState(false);
-
     // ── Filtros (estado + servicio) — 100% en el navegador, sin viajes a la BD ──
     const [estado,     setEstado]     = useState('');
     const [servicioId, setServicioId] = useState('');
@@ -535,18 +523,21 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
     const abrirServ    = (t) => { setGestionando(t); setModalServ(true); };
     const abrirActores = (t) => { setGestionando(t); setModalActores(true); };
 
-    const handleDelete = () => {
-        setDeleting(true);
-        router.delete(route('configuracion.tipos-documentos.destroy', itemAEliminar.id), {
+    const pedirDesactivar = async (row) => {
+        const ok = await confirmarDesactivar({
+            titulo: 'Desactivar Tipo de Documento',
+            mensaje: 'No podrá usarse en nuevas solicitudes ni asignarse a servicios. Podrás reactivarlo cuando quieras.',
+            detalle: { label: 'Tipo de documento', value: row.nombre },
+        });
+        if (!ok) return;
+
+        router.delete(route('configuracion.tipos-documentos.destroy', row.id), {
             preserveScroll: true,
             onSuccess: (page) => {
-                setConfirmOpen(false);
-                setItemAEliminar(null);
-                setDeleting(false);
                 if (page.props.flash?.success) toast.success(page.props.flash.success);
                 if (page.props.flash?.error)   toast.error(page.props.flash.error);
             },
-            onError: () => { setDeleting(false); toast.error('Error al desactivar.'); },
+            onError: () => toast.error('Error al desactivar.'),
         });
     };
 
@@ -653,8 +644,8 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                         className="p-1.5 rounded-lg text-[#BE0F4A]/50 hover:bg-[#BE0F4A]/10 hover:text-[#BE0F4A] transition-colors">
                         <Pencil size={15} />
                     </button>
-                    {row.documentos_count === 0 && row.activo === 1 && (
-                        <button onClick={() => { setItemAEliminar(row); setConfirmOpen(true); }}
+                    {row.documentos_count === 0 && row.activo && (
+                        <button onClick={() => pedirDesactivar(row)}
                             title="Desactivar"
                             className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
                             <Trash2 size={15} />
@@ -716,17 +707,6 @@ export default function TiposDocumentoIndex({ tipos, servicios, serviciosTiposAc
                 tipoDoc={gestionando}
                 servicios={servicios}
                 serviciosTiposActor={serviciosTiposActor}
-            />
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Desactivar Tipo de Documento"
-                message="No podrá usarse en nuevas solicitudes ni asignarse a servicios."
-                confirmText="Sí, desactivar"
-                processing={deleting}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirmOpen(false); setItemAEliminar(null); }}
-                detalles={[{ label: 'Tipo de documento', value: itemAEliminar?.nombre }]}
-                variant="danger"
             />
         </AuthenticatedLayout>
     );

@@ -7,7 +7,7 @@ import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
-import ConfirmDialog from '@/Components/ConfirmDialog';
+import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
 import Badge from '@/Components/Badge';
 import Input from '@/Components/Input';
 import Textarea from '@/Components/Textarea';
@@ -37,9 +37,6 @@ export default function Index({ servicios }) {
 
     const [showModal, setShowModal]               = useState(false);
     const [editando, setEditando]                 = useState(null);
-    const [confirmOpen, setConfirmOpen]           = useState(false);
-    const [servicioAEliminar, setServicioAEliminar] = useState(null);
-    const [deleting, setDeleting]                 = useState(false);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         nombre:                    '',
@@ -73,52 +70,47 @@ export default function Index({ servicios }) {
         reset();
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (editando) {
-            put(route('configuracion.servicios.update', editando.id), {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
-                },
-                onError: () => toast.error('Error al actualizar el servicio.'),
-            });
-        } else {
-            post(route('configuracion.servicios.store'), {
-                preserveScroll: true,
-                onSuccess: (page) => {
-                    cerrarModal();
-                    const msg = page.props.flash?.success;
-                    if (msg) toast.success(msg);
-                },
-                onError: () => toast.error('Error al crear el servicio.'),
-            });
-        }
-    };
+        const ok = await confirmar({
+            variant: editando ? 'info' : 'warning',
+            titulo:  editando ? `¿Guardar cambios en "${data.nombre}"?` : `¿Crear servicio "${data.nombre}"?`,
+            mensaje: editando
+                ? 'Se actualizarán los datos de este servicio.'
+                : 'Se registrará como un nuevo servicio disponible en el sistema.',
+            detalles: [{ label: 'Servicio', value: data.nombre }],
+            confirmText: editando ? 'Sí, guardar' : 'Sí, crear',
+        });
+        if (!ok) return;
 
-    const pedirConfirmacion = (servicio) => {
-        setServicioAEliminar(servicio);
-        setConfirmOpen(true);
-    };
-
-    const handleDelete = () => {
-        setDeleting(true);
-        router.delete(route('configuracion.servicios.destroy', servicioAEliminar.id), {
+        const opts = {
             preserveScroll: true,
             onSuccess: (page) => {
-                setConfirmOpen(false);
-                setServicioAEliminar(null);
-                setDeleting(false);
+                cerrarModal();
                 const msg = page.props.flash?.success;
                 if (msg) toast.success(msg);
             },
-            onError: (errors) => {
-                setDeleting(false);
-                const msg = errors?.message ?? 'Error al desactivar el servicio.';
-                toast.error(msg);
+            onError: () => toast.error(editando ? 'Error al actualizar el servicio.' : 'Error al crear el servicio.'),
+        };
+        if (editando) put(route('configuracion.servicios.update', editando.id), opts);
+        else          post(route('configuracion.servicios.store'), opts);
+    };
+
+    const pedirConfirmacion = async (servicio) => {
+        const ok = await confirmarDesactivar({
+            titulo: 'Desactivar Servicio',
+            mensaje: 'No se podrá desactivar si tiene etapas configuradas. Podrás reactivarlo cuando quieras.',
+            detalle: { label: 'Servicio', value: servicio.nombre },
+        });
+        if (!ok) return;
+
+        router.delete(route('configuracion.servicios.destroy', servicio.id), {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const msg = page.props.flash?.success;
+                if (msg) toast.success(msg);
             },
+            onError: (errors) => toast.error(errors?.message ?? 'Error al desactivar el servicio.'),
         });
     };
 
@@ -261,16 +253,6 @@ export default function Index({ servicios }) {
                 </form>
             </Modal>
 
-            {/* Confirm Dialog */}
-            <ConfirmDialog
-                show={confirmOpen}
-                title="Desactivar Servicio"
-                message={`¿Desactivar el servicio "${servicioAEliminar?.nombre}"? Verificar que no tenga etapas configuradas.`}
-                confirmText="Sí, desactivar"
-                processing={deleting}
-                onConfirm={handleDelete}
-                onCancel={() => { setConfirmOpen(false); setServicioAEliminar(null); }}
-            />
         </AuthenticatedLayout>
     );
 }
