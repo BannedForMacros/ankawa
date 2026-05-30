@@ -63,11 +63,11 @@ class RolController extends Controller
     {
         // Verificar si tiene usuarios asignados activos
         if ($rol->usuarios()->where('activo', 1)->exists()) {
-            return back()->with('error', 'No se puede eliminar un rol que tiene usuarios activos asignados.');
+            return back()->with('error', 'No se puede desactivar un rol que tiene usuarios activos asignados.');
         }
 
         $rol->update(['activo' => 0]);
 
-        return back()->with('success', 'Rol eliminado correctamente.');
+        return back()->with('success', 'Rol desactivado correctamente.');
     }
 }

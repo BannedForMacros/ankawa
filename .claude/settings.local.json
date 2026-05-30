@@ -83,7 +83,11 @@
       "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1120,330 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_ta\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_ta/index.html\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename ILIKE '%transicion%';\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT table_name, column_name FROM information_schema.columns WHERE column_name ILIKE '%tipo_actor%' ORDER BY table_name;\")",
-      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/TipoActorController.php)"
+      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/TipoActorController.php)",
+      "Bash(/c/xampp/php/php -l app/Http/Controllers/Configuracion/RolController.php)",
+      "Bash(\"/c/Program Files \\(x86\\)/Microsoft/Edge/Application/msedge.exe\" --headless --disable-gpu --window-size=1000,720 --screenshot=\"C:\\\\MacSoft\\\\ankawa\\\\_d\\\\shot.png\" \"file:///C:/MacSoft/ankawa/_d/index.html\")",
+      "Bash(echo \"C:\\\\\\\\MacSoft\\\\\\\\ankawa\\\\\\\\preview_dialog\\\\\\\\index.html\")",
+      "Bash(cmd.exe /c start \"\" \"C:\\\\MacSoft\\\\ankawa\\\\preview_dialog\\\\index.html\")"
     ]
   }
 }
