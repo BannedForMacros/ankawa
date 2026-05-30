@@ -103,4 +103,10 @@ class EtapaController extends Controller
         $etapa->update(['activo' => 0]);
         return back()->with('success', 'Etapa desactivada.');
     }
+
+    public function reactivarEtapa(Etapa $etapa)
+    {
+        $etapa->update(['activo' => 1]);
+        return back()->with('success', 'Etapa reactivada.');
+    }
 }

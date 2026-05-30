@@ -129,4 +129,10 @@ class CorrelativoController extends Controller
         $correlativo->update(['activo' => false]);
         return back()->with('success', 'Correlativo desactivado correctamente.');
     }
+
+    public function reactivar(Correlativo $correlativo)
+    {
+        $correlativo->update(['activo' => true]);
+        return back()->with('success', 'Correlativo reactivado correctamente.');
+    }
 }

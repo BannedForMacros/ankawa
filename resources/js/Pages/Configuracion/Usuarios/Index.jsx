@@ -7,7 +7,7 @@ import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
-import { confirmar, confirmarDesactivar } from '@/lib/swalAnkawa';
+import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
 import { validarZod } from '@/lib/validar';
 import { z } from 'zod';
 import Badge from '@/Components/Badge';
@@ -53,8 +53,8 @@ export default function Index({ usuarios, roles }) {
     const [showModal, setShowModal]               = useState(false);
     const [editando, setEditando]                 = useState(null);
 
-    // ── Filtros (client-side) ──
-    const [estado, setEstado] = useState('');
+    // ── Filtros (client-side) — por defecto solo activos ──
+    const [estado, setEstado] = useState(1);
     const [rolId,  setRolId]  = useState('');
 
     const usuariosFiltrados = useMemo(() => {
@@ -146,6 +146,21 @@ export default function Index({ usuarios, roles }) {
         else          post(route('configuracion.usuarios.store'), opts);
     };
 
+    const pedirReactivar = async (usuario) => {
+        const ok = await confirmarReactivar({
+            titulo: 'Reactivar Usuario',
+            mensaje: 'El usuario volverá a poder ingresar al sistema.',
+            detalle: { label: 'Usuario', value: usuario.name },
+        });
+        if (!ok) return;
+
+        router.patch(route('configuracion.usuarios.reactivar', usuario.id), {}, {
+            preserveScroll: true,
+            onSuccess: (page) => { const msg = page.props.flash?.success; if (msg) toast.success(msg); },
+            onError: () => toast.error('Error al reactivar el usuario.'),
+        });
+    };
+
     const pedirConfirmacion = async (usuario) => {
         const ok = await confirmarDesactivar({
             titulo: 'Desactivar Usuario',
@@ -202,7 +217,8 @@ export default function Index({ usuarios, roles }) {
             render: (row) => (
                 <ActionButtons
                     onEdit={() => abrirEditar(row)}
-                    onDelete={() => pedirConfirmacion(row)}
+                    onDelete={row.activo ? () => pedirConfirmacion(row) : undefined}
+                    onReactivar={!row.activo ? () => pedirReactivar(row) : undefined}
                 />
             ),
         },

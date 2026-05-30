@@ -70,4 +70,11 @@ class RolController extends Controller
 
         return back()->with('success', 'Rol desactivado correctamente.');
     }
+
+    public function reactivar(Rol $rol)
+    {
+        $rol->update(['activo' => 1]);
+
+        return back()->with('success', 'Rol reactivado correctamente.');
+    }
 }

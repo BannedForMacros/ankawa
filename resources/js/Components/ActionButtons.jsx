@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2, RotateCcw } from 'lucide-react';
 
 export function ViewButton({ onClick, title = 'Ver detalle' }) {
     return (
@@ -36,12 +36,25 @@ export function DeleteButton({ onClick, title = 'Eliminar' }) {
     );
 }
 
-export function ActionButtons({ onView, onEdit, onDelete }) {
+export function ReactivarButton({ onClick, title = 'Reactivar' }) {
+    return (
+        <button
+            onClick={onClick}
+            title={title}
+            className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+        >
+            <RotateCcw size={16} />
+        </button>
+    );
+}
+
+export function ActionButtons({ onView, onEdit, onDelete, onReactivar }) {
     return (
         <div className="flex items-center gap-1">
             {onView  && <ViewButton   onClick={onView}   />}
             {onEdit  && <EditButton   onClick={onEdit}   />}
-            {onDelete && <DeleteButton onClick={onDelete} />}
+            {onDelete    && <DeleteButton    onClick={onDelete}    />}
+            {onReactivar && <ReactivarButton onClick={onReactivar} />}
         </div>
     );
 }

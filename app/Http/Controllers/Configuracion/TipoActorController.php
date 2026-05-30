@@ -85,6 +85,13 @@ class TipoActorController extends Controller
         return back()->with('success', 'Tipo de Actor desactivado correctamente.');
     }
 
+    public function reactivar(TipoActorExpediente $tipoActor)
+    {
+        $tipoActor->update(['activo' => 1]);
+
+        return back()->with('success', 'Tipo de Actor reactivado correctamente.');
+    }
+
     /**
      * Guarda la configuración de servicios para un tipo de actor.
      * Body: { servicios: [{ servicio_id, activo, es_automatico, rol_auto_slug, orden }] }

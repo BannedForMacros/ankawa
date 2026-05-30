@@ -163,34 +163,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/roles',       [RolController::class, 'store'])  ->name('configuracion.roles.store')  ->middleware('permiso:configuracion.roles,crear');
         Route::put('/roles/{rol}',  [RolController::class, 'update']) ->name('configuracion.roles.update') ->middleware('permiso:configuracion.roles,editar');
         Route::delete('/roles/{rol}',[RolController::class,'destroy'])->name('configuracion.roles.destroy')->middleware('permiso:configuracion.roles,eliminar');
+        Route::patch('/roles/{rol}/reactivar',[RolController::class,'reactivar'])->name('configuracion.roles.reactivar')->middleware('permiso:configuracion.roles,editar');
 
         // USUARIOS
         Route::get('/usuarios',             [UsuarioController::class, 'index'])  ->name('configuracion.usuarios.index')  ->middleware('permiso:configuracion.usuarios,ver');
         Route::post('/usuarios',            [UsuarioController::class, 'store'])  ->name('configuracion.usuarios.store')  ->middleware('permiso:configuracion.usuarios,crear');
         Route::put('/usuarios/{usuario}',   [UsuarioController::class, 'update']) ->name('configuracion.usuarios.update') ->middleware('permiso:configuracion.usuarios,editar');
         Route::delete('/usuarios/{usuario}',[UsuarioController::class, 'destroy'])->name('configuracion.usuarios.destroy')->middleware('permiso:configuracion.usuarios,eliminar');
+        Route::patch('/usuarios/{usuario}/reactivar',[UsuarioController::class, 'reactivar'])->name('configuracion.usuarios.reactivar')->middleware('permiso:configuracion.usuarios,editar');
 
         Route::get('/correlativos',                [CorrelativoController::class, 'index'])  ->name('configuracion.correlativos.index')  ->middleware('permiso:configuracion.correlativos,ver');
         Route::post('/correlativos',               [CorrelativoController::class, 'store'])  ->name('configuracion.correlativos.store')  ->middleware('permiso:configuracion.correlativos,crear');
         Route::put('/correlativos/{correlativo}',  [CorrelativoController::class, 'update']) ->name('configuracion.correlativos.update') ->middleware('permiso:configuracion.correlativos,editar');
         Route::delete('/correlativos/{correlativo}',[CorrelativoController::class,'destroy'])->name('configuracion.correlativos.destroy')->middleware('permiso:configuracion.correlativos,eliminar');
+        Route::patch('/correlativos/{correlativo}/reactivar',[CorrelativoController::class,'reactivar'])->name('configuracion.correlativos.reactivar')->middleware('permiso:configuracion.correlativos,editar');
 
         Route::get('/servicios',               [ServicioController::class, 'index'])  ->name('configuracion.servicios.index')  ->middleware('permiso:configuracion.servicios,ver');
         Route::post('/servicios',              [ServicioController::class, 'store'])  ->name('configuracion.servicios.store')  ->middleware('permiso:configuracion.servicios,crear');
         Route::put('/servicios/{servicio}',    [ServicioController::class, 'update']) ->name('configuracion.servicios.update') ->middleware('permiso:configuracion.servicios,editar');
         Route::delete('/servicios/{servicio}', [ServicioController::class, 'destroy'])->name('configuracion.servicios.destroy')->middleware('permiso:configuracion.servicios,eliminar');
+        Route::patch('/servicios/{servicio}/reactivar', [ServicioController::class, 'reactivar'])->name('configuracion.servicios.reactivar')->middleware('permiso:configuracion.servicios,editar');
 
         // Etapas
         Route::get('/etapas', [EtapaController::class, 'index'])->name('configuracion.etapas.index')->middleware('permiso:configuracion.etapas,ver');
         Route::post('/etapas', [EtapaController::class, 'storeEtapa'])->name('configuracion.etapas.store')->middleware('permiso:configuracion.etapas,crear');
         Route::put('/etapas/{etapa}', [EtapaController::class, 'updateEtapa'])->name('configuracion.etapas.update')->middleware('permiso:configuracion.etapas,editar');
         Route::delete('/etapas/{etapa}', [EtapaController::class, 'destroyEtapa'])->name('configuracion.etapas.destroy')->middleware('permiso:configuracion.etapas,eliminar');
+        Route::patch('/etapas/{etapa}/reactivar', [EtapaController::class, 'reactivarEtapa'])->name('configuracion.etapas.reactivar')->middleware('permiso:configuracion.etapas,editar');
 
         // Tipos de Actor
         Route::get('tipos-actor',                              [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');
         Route::post('tipos-actor',                             [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store');
         Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
         Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
+        Route::patch('tipos-actor/{tipoActor}/reactivar',      [TipoActorController::class, 'reactivar'])->name('configuracion.tipos-actor.reactivar');
         Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios');
 
         // Módulos
@@ -208,6 +214,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('tipos-documentos',                                   [TipoDocumentoController::class, 'store'])          ->name('configuracion.tipos-documentos.store')         ->middleware('permiso:configuracion.tipos-documentos,crear');
         Route::put('tipos-documentos/{tipoDocumento}',                    [TipoDocumentoController::class, 'update'])         ->name('configuracion.tipos-documentos.update')        ->middleware('permiso:configuracion.tipos-documentos,editar');
         Route::delete('tipos-documentos/{tipoDocumento}',                 [TipoDocumentoController::class, 'destroy'])        ->name('configuracion.tipos-documentos.destroy')       ->middleware('permiso:configuracion.tipos-documentos,eliminar');
+        Route::patch('tipos-documentos/{tipoDocumento}/reactivar',        [TipoDocumentoController::class, 'reactivar'])      ->name('configuracion.tipos-documentos.reactivar')     ->middleware('permiso:configuracion.tipos-documentos,editar');
         Route::post('tipos-documentos/{tipoDocumento}/servicios',         [TipoDocumentoController::class, 'syncServicios'])  ->name('configuracion.tipos-documentos.sync-servicios')->middleware('permiso:configuracion.tipos-documentos,editar');
         Route::post('tipos-documentos/{tipoDocumento}/actores',           [TipoDocumentoController::class, 'syncActores'])    ->name('configuracion.tipos-documentos.sync-actores')  ->middleware('permiso:configuracion.tipos-documentos,editar');
     });

@@ -76,4 +76,11 @@ class ServicioController extends Controller
 
         return back()->with('success', 'Servicio desactivado correctamente.');
     }
+
+    public function reactivar(Servicio $servicio)
+    {
+        $servicio->update(['activo' => 1]);
+
+        return back()->with('success', 'Servicio reactivado correctamente.');
+    }
 }

@@ -120,6 +120,13 @@ class TipoDocumentoController extends Controller
         return back()->with('success', 'Tipo de Documento desactivado correctamente.');
     }
 
+    public function reactivar(TipoDocumento $tipoDocumento)
+    {
+        $tipoDocumento->update(['activo' => 1]);
+
+        return back()->with('success', 'Tipo de Documento reactivado correctamente.');
+    }
+
     public function syncServicios(Request $request, TipoDocumento $tipoDocumento)
     {
         $request->validate([

@@ -98,4 +98,11 @@ class UsuarioController extends Controller
 
         return back()->with('success', 'Usuario desactivado correctamente.');
     }
+
+    public function reactivar(User $usuario)
+    {
+        $usuario->update(['activo' => 1]);
+
+        return back()->with('success', 'Usuario reactivado correctamente.');
+    }
 }

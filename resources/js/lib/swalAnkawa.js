@@ -68,3 +68,14 @@ export function confirmarDesactivar({ titulo, mensaje, detalle, detalles, confir
         confirmText,
     });
 }
+
+/** Atajo para "reactivar" (volver a activo). */
+export function confirmarReactivar({ titulo, mensaje, detalle, detalles, confirmText = 'Sí, reactivar' }) {
+    return confirmar({
+        variant: 'info',
+        titulo,
+        mensaje,
+        detalles: detalles ?? (detalle ? [detalle] : null),
+        confirmText,
+    });
+}
