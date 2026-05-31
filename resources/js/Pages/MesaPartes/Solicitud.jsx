@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
+import AnkawaToaster from '@/Components/AnkawaToaster';
 import ArbitrajeForm           from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 import ArbitrajeEmergenciaForm from '@/Pages/MesaPartes/Formularios/ArbitrajeEmergenciaForm';
 import JPRDForm                from '@/Pages/MesaPartes/Formularios/JPRDForm';
@@ -19,7 +19,7 @@ export default function Solicitud({ servicio, portalEmail, portalUser, hcaptchaS
     return (
         <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Montserrat, sans-serif' }}>
             <Head title={`${servicio.nombre} — Mesa de Partes`} />
-            <Toaster position="top-center" toastOptions={{ duration: 5000 }} />
+            <AnkawaToaster position="top-center" duration={5000} />
 
             {/* Header */}
             <div className="bg-white border-b border-gray-200">

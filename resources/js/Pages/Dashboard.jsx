@@ -1,123 +1,243 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import {
-    Inbox, Scale, Clock, CheckCircle, ChevronRight,
-    CalendarX, TrendingUp, FileText
+    Scale, Inbox, Clock, CalendarX, FolderOpen, FileSearch,
+    AlertTriangle, UserX, Gavel, Send, CheckSquare, ChevronRight,
+    Layers, Users, BarChart3, FileStack, Briefcase, ShieldCheck,
 } from 'lucide-react';
+import PageHeader from '@/Components/PageHeader';
+import KPIGrid from '@/Components/KPIGrid';
+import KPICard from '@/Components/KPICard';
+import BarrasHorizontales from '@/Components/BarrasHorizontales';
+import ColumnasMensuales from '@/Components/ColumnasMensuales';
 
-export default function Dashboard({ stats = {} }) {
-    const statCards = [
-        {
-            label:  'Expedientes Activos',
-            value:  stats.expedientes_activos ?? 0,
-            Icon:   Scale,
-            color:  'bg-[#291136]/5 text-[#291136]',
-            accent: 'border-[#291136]/20',
-            href:   route('expedientes.index'),
-        },
-        {
-            label:  'Mis Pendientes',
-            value:  stats.mis_pendientes ?? 0,
-            Icon:   Inbox,
-            color:  stats.mis_pendientes > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-400',
-            accent: stats.mis_pendientes > 0 ? 'border-blue-200' : 'border-gray-100',
-            href:   route('expedientes.index'),
-        },
-        {
-            label:  'Por Vencer (3 días)',
-            value:  stats.por_vencer ?? 0,
-            Icon:   Clock,
-            color:  stats.por_vencer > 0 ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-400',
-            accent: stats.por_vencer > 0 ? 'border-amber-200' : 'border-gray-100',
-        },
-        {
-            label:  'Solicitudes Pendientes',
-            value:  stats.solicitudes_pendientes ?? 0,
-            Icon:   FileText,
-            color:  stats.solicitudes_pendientes > 0 ? 'bg-purple-50 text-purple-700' : 'bg-gray-50 text-gray-400',
-            accent: stats.solicitudes_pendientes > 0 ? 'border-purple-200' : 'border-gray-100',
-            href:   stats.solicitudes_pendientes > 0 ? route('mesa-partes.bandeja') : null,
-        },
-    ];
+/* ── Helpers ──────────────────────────────────────────────────────────── */
+
+function urgencia(dias) {
+    if (dias === null || dias === undefined) {
+        return { label: '—', cls: 'text-ankawa-deep/40 bg-ankawa-deep/5 border-ankawa-deep/10' };
+    }
+    if (dias < 0)  return { label: `Vencido ${Math.abs(dias)}d`, cls: 'text-red-700 bg-red-50 border-red-200' };
+    if (dias === 0) return { label: 'Hoy', cls: 'text-ankawa-rose bg-ankawa-rose/10 border-ankawa-rose/25' };
+    if (dias <= 2) return { label: `${dias}d`, cls: 'text-amber-700 bg-amber-50 border-amber-200' };
+    return { label: `${dias}d`, cls: 'text-ankawa-deep/60 bg-ankawa-deep/[0.06] border-ankawa-deep/10' };
+}
+
+/* ── Bloques presentacionales ─────────────────────────────────────────── */
+
+function Panel({ title, icon, children, action }) {
+    return (
+        <section className="bg-white rounded-xl border border-ankawa-deep/[0.08] p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="flex items-center gap-2 font-semibold text-ankawa-deep">
+                    {icon}
+                    <span>{title}</span>
+                </h3>
+                {action}
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function ListaVencimientos({ items, emptyLabel = 'Nada por aquí — todo al día.' }) {
+    if (!items || items.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center py-8 text-ankawa-deep/40">
+                <CheckSquare size={28} strokeWidth={1.5} className="mb-2" />
+                <p className="text-sm">{emptyLabel}</p>
+            </div>
+        );
+    }
+    return (
+        <ul className="divide-y divide-ankawa-deep/[0.06]">
+            {items.map((m) => {
+                const u = urgencia(m.dias_restantes);
+                return (
+                    <li key={m.id}>
+                        <Link
+                            href={`/expedientes/${m.expediente_id}`}
+                            className="flex items-center gap-3 py-3 group hover:bg-ankawa-deep/[0.015] -mx-2 px-2 rounded-lg transition-colors"
+                        >
+                            <div className="min-w-0 flex-1">
+                                <p className="font-mono text-xs text-ankawa-rose mb-0.5">{m.expediente ?? '—'}</p>
+                                <p className="text-sm text-ankawa-deep/80 truncate">{m.instruccion || 'Movimiento'}</p>
+                            </div>
+                            <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold border ${u.cls}`}>
+                                {u.label}
+                            </span>
+                            <ChevronRight size={15} className="shrink-0 text-ankawa-deep/20 group-hover:text-ankawa-rose transition-colors" />
+                        </Link>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
+function ListaExpedientes({ items, emptyLabel }) {
+    if (!items || items.length === 0) {
+        return <p className="text-sm text-ankawa-deep/40 py-6 text-center">{emptyLabel}</p>;
+    }
+    return (
+        <ul className="divide-y divide-ankawa-deep/[0.06]">
+            {items.map((e) => (
+                <li key={e.id}>
+                    <Link
+                        href={`/expedientes/${e.id}`}
+                        className="flex items-center gap-3 py-3 group hover:bg-ankawa-deep/[0.015] -mx-2 px-2 rounded-lg transition-colors"
+                    >
+                        <div className="min-w-0 flex-1">
+                            <p className="font-mono text-xs text-ankawa-rose mb-0.5">{e.numero ?? '—'}</p>
+                            <p className="text-sm text-ankawa-deep/70 truncate">
+                                {e.servicio}{e.etapa ? ` · ${e.etapa}` : ''}
+                            </p>
+                        </div>
+                        <ChevronRight size={15} className="shrink-0 text-ankawa-deep/20 group-hover:text-ankawa-rose transition-colors" />
+                    </Link>
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+/* ── Página ───────────────────────────────────────────────────────────── */
+
+export default function Dashboard({ perfil = {}, personal = {}, global = null, gestor = null, arbitral = null }) {
+    const nombre = perfil?.nombre ?? '';
+    const primerNombre = nombre.split(' ')[0] || nombre;
 
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-[#291136]">
-                    Panel de Control
-                </h2>
-            }
-        >
+        <AuthenticatedLayout>
             <Head title="Panel de Control" />
 
-            <div className="py-8">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+            <PageHeader
+                breadcrumb={[{ label: 'Inicio' }]}
+                title="Hola,"
+                titleAccent={primerNombre}
+                description={`${perfil?.rol_nombre ?? ''}${perfil?.puede_ver_todos ? ' · visión institucional' : ''}`}
+            />
 
-                    {/* ── Stats Cards ── */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {statCards.map(({ label, value, Icon, color, accent, href }) => {
-                            const Card = (
-                                <div className={`bg-white rounded-2xl border p-5 flex items-center gap-4 shadow-sm ${accent} ${href ? 'hover:shadow-md transition-shadow cursor-pointer' : ''}`}>
-                                    <div className={`p-3 rounded-xl shrink-0 ${color}`}>
-                                        <Icon size={22}/>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <div className="text-2xl font-black text-[#291136]">{value}</div>
-                                        <div className="text-xs text-gray-400 font-medium leading-tight">{label}</div>
-                                    </div>
-                                </div>
-                            );
-                            return href ? (
-                                <Link key={label} href={href}>{Card}</Link>
-                            ) : (
-                                <div key={label}>{Card}</div>
-                            );
-                        })}
-                    </div>
+            <div className="max-w-7xl mx-auto px-6 sm:px-10 py-8 space-y-10">
 
-                    {/* ── Accesos Rápidos ── */}
-                    <div>
-                        <h3 className="text-lg font-bold text-[#291136] mb-4">Accesos Rápidos</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <Link href={route('expedientes.index')}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-5 flex items-center gap-4 group">
-                                <div className="p-3 rounded-xl bg-[#291136]/5 text-[#291136]">
-                                    <Scale size={22}/>
-                                </div>
-                                <div className="flex-1">
-                                    <div className="font-bold text-[#291136]">Expedientes</div>
-                                    <div className="text-xs text-gray-400">Ver todos los expedientes</div>
-                                </div>
-                                <ChevronRight size={16} className="text-gray-300 group-hover:text-[#BE0F4A] transition-colors"/>
-                            </Link>
+                {/* ── Resumen personal (siempre) ── */}
+                <div>
+                    <KPIGrid>
+                        <KPICard label="Mis expedientes" value={personal.mis_expedientes ?? 0}
+                            accentColor="deep" icon={<Scale size={18} strokeWidth={1.8} />} />
+                        <KPICard label="Pendientes a mi cargo" value={personal.mis_pendientes ?? 0}
+                            accentColor="rose" icon={<Inbox size={18} strokeWidth={1.8} />} />
+                        <KPICard label="Por vencer · 3 días" value={personal.por_vencer ?? 0}
+                            accentColor="crimson" icon={<Clock size={18} strokeWidth={1.8} />} />
+                        <KPICard label="Vencidos" value={personal.vencidos ?? 0}
+                            accentColor="muted" icon={<CalendarX size={18} strokeWidth={1.8} />} />
+                    </KPIGrid>
 
-                            <Link href={route('expedientes.index')}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-5 flex items-center gap-4 group">
-                                <div className="p-3 rounded-xl bg-blue-50 text-blue-700">
-                                    <Inbox size={22}/>
-                                </div>
-                                <div className="flex-1">
-                                    <div className="font-bold text-[#291136]">Mis Expedientes</div>
-                                    <div className="text-xs text-gray-400">Donde soy actor</div>
-                                </div>
-                                <ChevronRight size={16} className="text-gray-300 group-hover:text-[#BE0F4A] transition-colors"/>
-                            </Link>
+                    {(personal.por_vencer_lista?.length > 0) && (
+                        <Panel title="Próximos vencimientos a tu cargo" icon={<Clock size={18} className="text-ankawa-rose" />}>
+                            <ListaVencimientos items={personal.por_vencer_lista} />
+                        </Panel>
+                    )}
+                </div>
 
-                            <Link href={route('mesa-partes.bandeja')}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-[#291136]/20 transition-all p-5 flex items-center gap-4 group">
-                                <div className="p-3 rounded-xl bg-purple-50 text-purple-700">
-                                    <FileText size={22}/>
-                                </div>
-                                <div className="flex-1">
-                                    <div className="font-bold text-[#291136]">Mesa de Partes</div>
-                                    <div className="text-xs text-gray-400">Solicitudes recibidas</div>
-                                </div>
-                                <ChevronRight size={16} className="text-gray-300 group-hover:text-[#BE0F4A] transition-colors"/>
-                            </Link>
+                {/* ── Bloque GLOBAL (dirección / secretarías con visión institucional) ── */}
+                {global && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-ankawa-deep/50 font-mono text-xs uppercase tracking-widest">
+                            <ShieldCheck size={14} /> Visión institucional
+                        </div>
+
+                        <KPIGrid>
+                            <KPICard label="Expedientes activos" value={global.expedientes_activos ?? 0}
+                                accentColor="deep" icon={<FolderOpen size={18} strokeWidth={1.8} />} />
+                            <KPICard label="Solicitudes por revisar" value={global.admision?.por_revisar ?? 0}
+                                accentColor="rose" icon={<FileSearch size={18} strokeWidth={1.8} />} />
+                            <KPICard label="Vencidos · institución" value={global.vencidos ?? 0}
+                                accentColor="muted" icon={<AlertTriangle size={18} strokeWidth={1.8} />} />
+                            <KPICard label="Sin gestor asignado" value={global.admision?.sin_gestor ?? 0}
+                                accentColor="crimson" icon={<UserX size={18} strokeWidth={1.8} />} />
+                        </KPIGrid>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <Panel title="Expedientes activos por servicio" icon={<Layers size={18} className="text-ankawa-rose" />}>
+                                <BarrasHorizontales data={global.por_servicio} color="rose" emptyLabel="Sin expedientes activos" />
+                            </Panel>
+                            <Panel title="Carga por gestor" icon={<Users size={18} className="text-ankawa-rose" />}>
+                                <BarrasHorizontales data={global.carga_gestores} color="deep" emptyLabel="Sin casos asignados" />
+                            </Panel>
+                            <Panel title="Cargos emitidos · últimos 6 meses" icon={<BarChart3 size={18} className="text-ankawa-rose" />}>
+                                <ColumnasMensuales data={global.cargos_mes} />
+                            </Panel>
+                            <Panel
+                                title="Vencimientos más próximos"
+                                icon={<Clock size={18} className="text-ankawa-rose" />}
+                                action={<Link href="/expedientes" className="text-xs font-semibold text-ankawa-rose hover:text-ankawa-rose-hover">Ver todos</Link>}
+                            >
+                                <ListaVencimientos items={global.urgentes} emptyLabel="Sin plazos pendientes." />
+                            </Panel>
+                            <div className="lg:col-span-2">
+                                <Panel
+                                    title="Expedientes recientes"
+                                    icon={<FileStack size={18} className="text-ankawa-rose" />}
+                                    action={<Link href="/expedientes" className="text-xs font-semibold text-ankawa-rose hover:text-ankawa-rose-hover">Ir a expedientes</Link>}
+                                >
+                                    <ListaExpedientes items={global.recientes} emptyLabel="Aún no hay expedientes." />
+                                </Panel>
+                            </div>
                         </div>
                     </div>
+                )}
 
-                </div>
+                {/* ── Bloque GESTOR (secretario arbitral / gestor JPRD con casos a cargo) ── */}
+                {gestor && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-ankawa-deep/50 font-mono text-xs uppercase tracking-widest">
+                            <Briefcase size={14} /> Mis casos como gestor
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:col-span-1">
+                                <KPICard label="Casos a mi cargo" value={gestor.mis_casos ?? 0}
+                                    accentColor="deep" icon={<Briefcase size={18} strokeWidth={1.8} />} />
+                                <KPICard label="Envíos por aceptar" value={gestor.envios_por_aceptar ?? 0}
+                                    accentColor="rose" icon={<Send size={18} strokeWidth={1.8} />} />
+                            </div>
+                            <div className="lg:col-span-2">
+                                <Panel title="Requerimientos por vencer en mis casos" icon={<Clock size={18} className="text-ankawa-rose" />}>
+                                    <ListaVencimientos items={gestor.por_vencer_lista} />
+                                </Panel>
+                            </div>
+                        </div>
+
+                        <Panel title="Mis casos por etapa" icon={<Layers size={18} className="text-ankawa-rose" />}>
+                            <BarrasHorizontales data={gestor.por_etapa} color="deep" emptyLabel="Sin casos activos." />
+                        </Panel>
+                    </div>
+                )}
+
+                {/* ── Bloque ARBITRAL (árbitro / adjudicador designado) ── */}
+                {arbitral && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-ankawa-deep/50 font-mono text-xs uppercase tracking-widest">
+                            <Gavel size={14} /> Casos para resolver
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <KPICard label="Casos designados" value={arbitral.mis_casos ?? 0}
+                                accentColor="deep" icon={<Gavel size={18} strokeWidth={1.8} />} />
+                            <div className="lg:col-span-2">
+                                <Panel title="Esperan mi conformidad / laudo" icon={<CheckSquare size={18} className="text-ankawa-rose" />}>
+                                    <ListaExpedientes items={arbitral.conformidad_pendiente} emptyLabel="Ningún caso requiere tu conformidad ahora." />
+                                </Panel>
+                            </div>
+                        </div>
+
+                        <Panel title="Plazos a mi cargo" icon={<Clock size={18} className="text-ankawa-rose" />}>
+                            <ListaVencimientos items={arbitral.plazos} />
+                        </Panel>
+                    </div>
+                )}
+
             </div>
         </AuthenticatedLayout>
     );

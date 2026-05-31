@@ -11,3 +11,9 @@
 .animate-fade-in-up {
     animation: fade-in-up 0.3s ease-out both;
 }
+
+/* Barra de progreso de los toasts (alude al tiempo restante antes de cerrarse) */
+@keyframes ankawa-toast-shrink {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}

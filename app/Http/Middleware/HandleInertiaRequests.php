@@ -23,6 +23,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user'     => $request->user(),
+                'rol'      => $request->user()?->rol?->slug,
                 'permisos' => $request->user() ? $this->getPermisosUsuario($request->user()) : [],
                 'menu'     => $request->user() ? $this->getMenuUsuario($request->user()) : [],
             ],

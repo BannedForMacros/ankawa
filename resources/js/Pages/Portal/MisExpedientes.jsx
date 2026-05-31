@@ -3,7 +3,8 @@ import { Head, usePage } from '@inertiajs/react';
 import { Bell, Clock, CheckCircle, AlertCircle, LogOut, FileText, X, Paperclip } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
+import AnkawaToaster from '@/Components/AnkawaToaster';
 
 const BADGE_ESTADO = {
     activo:     'bg-emerald-100 text-emerald-700',
@@ -249,7 +250,7 @@ export default function MisExpedientes({ expedientes: expedientesIniciales, port
     return (
         <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Montserrat, sans-serif' }}>
             <Head title="Mis Expedientes — Ankawa" />
-            <Toaster position="top-right" />
+            <AnkawaToaster position="top-right" />
 
             {/* Header */}
             <div className="bg-white border-b border-gray-200">

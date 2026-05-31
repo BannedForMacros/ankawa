@@ -3,7 +3,8 @@ import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { Bell, CheckCircle, FileText, PlusCircle, AlertCircle, ArrowRight, Send } from 'lucide-react';
 import { LogOut } from 'lucide-react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
+import AnkawaToaster from '@/Components/AnkawaToaster';
 
 import ModalServicios         from './Partials/ModalServicios';
 import ModalTomaConocimiento  from './Partials/ModalTomaConocimiento';
@@ -40,7 +41,7 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
     return (
         <div className="min-h-screen bg-[#F8F9FA]" style={{ fontFamily: 'Montserrat, sans-serif' }}>
             <Head title="Mesa de Partes — Ankawa" />
-            <Toaster position="top-right" />
+            <AnkawaToaster position="top-right" />
 
             {/* Animación: La tarjeta se levanta y vuelve a caer */}
             <style>{`
