@@ -4,9 +4,25 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ConfigHeader from '@/Components/ConfigHeader';
 import CustomSelect from '@/Components/CustomSelect';
 import { confirmar } from '@/lib/swalAnkawa';
-import { validarZod, requeridos } from '@/lib/validar';
+import { validarZod } from '@/lib/validar';
+import { z } from 'zod';
 
-const tipoEventoSchema = requeridos({ nombre: 'El nombre es obligatorio.' });
+// Esquema de validación (cliente). El servidor sigue siendo la verdad.
+// Refleja TipoEventoCargoController: nombre required|string|max:150,
+// descripcion nullable|string|max:1000.
+const tipoEventoSchema = z.object({
+    nombre:      z.any(),
+    descripcion: z.any(),
+}).superRefine((d, ctx) => {
+    const nombre = String(d.nombre ?? '').trim();
+    if (nombre === '')
+        ctx.addIssue({ code: 'custom', path: ['nombre'], message: 'El nombre es obligatorio.' });
+    else if (nombre.length > 150)
+        ctx.addIssue({ code: 'custom', path: ['nombre'], message: 'No debe exceder los 150 caracteres.' });
+
+    if (String(d.descripcion ?? '').length > 1000)
+        ctx.addIssue({ code: 'custom', path: ['descripcion'], message: 'No debe exceder los 1000 caracteres.' });
+});
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
 import { Receipt, Pencil, ToggleLeft, ToggleRight, Info, Search, Filter } from 'lucide-react';
@@ -154,8 +170,28 @@ export default function TiposEventoCargoIndex({ tipos }) {
     }, [tipos, search, estado, genera]);
     const hayFiltros = !!search || estado !== '' || genera !== '';
 
-    const toggle = (tipo, campo) => {
+    const toggle = async (tipo, campo) => {
         const nuevoValor = !tipo[campo];
+        const accion = campo === 'genera_cargo'
+            ? (nuevoValor ? 'activará la emisión de cargo' : 'desactivará la emisión de cargo')
+            : (nuevoValor ? 'activará este tipo de evento' : 'desactivará este tipo de evento');
+        const ok = await confirmar({
+            variant: 'info',
+            titulo: `¿Cambiar "${tipo.nombre}"?`,
+            mensaje: `Se ${accion}.`,
+            detalles: [
+                { label: 'Evento', value: tipo.nombre },
+                {
+                    label: campo === 'genera_cargo' ? 'Emite cargo' : 'Estado',
+                    value: campo === 'genera_cargo'
+                        ? (nuevoValor ? 'Sí' : 'No')
+                        : (nuevoValor ? 'Activo' : 'Inactivo'),
+                },
+            ],
+            confirmText: 'Sí, guardar',
+        });
+        if (!ok) return;
+
         router.put(route('configuracion.tipos-evento-cargo.update', tipo.id), {
             nombre:       tipo.nombre,
             descripcion:  tipo.descripcion ?? '',
@@ -176,9 +212,9 @@ export default function TiposEventoCargoIndex({ tipos }) {
                 breadcrumb={[
                     { label: 'Inicio', href: route('dashboard') },
                     { label: 'Configuración' },
-                    { label: 'Tipos de Cargo' },
+                    { label: 'Tipos de Evento de Cargo' },
                 ]}
-                title="Tipos de"
+                title="Tipos de Evento de"
                 titleAccent="Cargo"
                 description="Define qué eventos del sistema emiten un cargo correlativo (CARGO-AAAA-NNNN)."
             />

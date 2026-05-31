@@ -8,9 +8,34 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
-import { validarZod, requeridos } from '@/lib/validar';
+import { validarZod } from '@/lib/validar';
+import { z } from 'zod';
 
-const servicioSchema = requeridos({ nombre: 'El nombre del servicio es obligatorio.' });
+// Esquema de validación (cliente). El servidor sigue siendo la verdad.
+// Refleja ServicioController: nombre required|string|max:255,
+// descripcion nullable|string, plazo_*_dias nullable|integer|min:1|max:365.
+const servicioSchema = z.object({
+    nombre:                    z.any(),
+    descripcion:               z.any(),
+    plazo_subsanacion_dias:    z.any(),
+    plazo_apersonamiento_dias: z.any(),
+}).superRefine((d, ctx) => {
+    const nombre = String(d.nombre ?? '').trim();
+    if (nombre === '')
+        ctx.addIssue({ code: 'custom', path: ['nombre'], message: 'El nombre del servicio es obligatorio.' });
+    else if (nombre.length > 255)
+        ctx.addIssue({ code: 'custom', path: ['nombre'], message: 'No debe exceder los 255 caracteres.' });
+
+    for (const campo of ['plazo_subsanacion_dias', 'plazo_apersonamiento_dias']) {
+        const raw = d[campo];
+        if (raw === '' || raw == null) continue; // nullable
+        const n = Number(raw);
+        if (!Number.isInteger(n))
+            ctx.addIssue({ code: 'custom', path: [campo], message: 'Debe ser un número entero.' });
+        else if (n < 1 || n > 365)
+            ctx.addIssue({ code: 'custom', path: [campo], message: 'Debe estar entre 1 y 365 días.' });
+    }
+});
 import Badge from '@/Components/Badge';
 import Input from '@/Components/Input';
 import Textarea from '@/Components/Textarea';

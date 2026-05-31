@@ -41,6 +41,11 @@ function ModalModulo({ show, onClose, editando, padres }) {
         }
     }, [show, editando]);
 
+    // Al editar, un módulo no puede ser su propio padre (referencia circular).
+    const padresDisponibles = editando
+        ? padres.filter(p => p.id !== editando.id)
+        : padres;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validarZod(moduloSchema, data, { setError, clearErrors })) return;
@@ -114,7 +119,7 @@ function ModalModulo({ show, onClose, editando, padres }) {
                             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30 focus:border-[#BE0F4A]"
                         >
                             <option value="">— Raíz —</option>
-                            {padres.map(p => (
+                            {padresDisponibles.map(p => (
                                 <option key={p.id} value={p.id}>{p.nombre}</option>
                             ))}
                         </select>

@@ -6,15 +6,36 @@ import CustomSelect from '@/Components/CustomSelect';
 import Table from '@/Components/Table';
 import Badge from '@/Components/Badge';
 import { confirmar, confirmarDesactivar, confirmarReactivar } from '@/lib/swalAnkawa';
-import { validarZod, requeridos } from '@/lib/validar';
+import { validarZod } from '@/lib/validar';
+import { z } from 'zod';
 
-const rolSchema = requeridos({ nombre: 'El nombre del rol es obligatorio.' });
+// Esquema de validación (cliente). El servidor sigue siendo la verdad.
+// Refleja las reglas de RolController@store/@update: nombre required|string|max:255,
+// descripcion nullable|string. La unicidad de 'nombre' la verifica el backend y
+// llega vía errors de Inertia.
+const rolSchema = z.object({
+    nombre:      z.any(),
+    descripcion: z.any(),
+}).superRefine((d, ctx) => {
+    const nombre = String(d.nombre ?? '').trim();
+    if (nombre === '')
+        ctx.addIssue({ code: 'custom', path: ['nombre'], message: 'El nombre del rol es obligatorio.' });
+    else if (nombre.length > 255)
+        ctx.addIssue({ code: 'custom', path: ['nombre'], message: 'El nombre no puede superar los 255 caracteres.' });
+});
 import { ActionButtons } from '@/Components/ActionButtons';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
+import Input from '@/Components/Input';
+import Textarea from '@/Components/Textarea';
 import toast from 'react-hot-toast';
 import { Plus, ShieldCheck, KeyRound, Lock } from 'lucide-react';
+
+const opcionesEstado = [
+    { id: 1, nombre: '✅ Activo'   },
+    { id: 0, nombre: '❌ Inactivo' },
+];
 
 const SLUG_ADMIN = 'administrador_ti';
 const PERM_VACIO = { ver: false, crear: false, editar: false, eliminar: false };
@@ -357,45 +378,36 @@ export default function Index({ roles, modulos = [], permisos = {} }) {
                             </h2>
                         </div>
 
-                        <div className="mb-5">
-                            <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
-                                Nombre del Rol <span className="text-[#BE0F4A]">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={data.nombre}
-                                onChange={e => setData('nombre', e.target.value)}
-                                className={`w-full px-4 py-2.5 text-sm border rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136]
-                                    ${errors.nombre ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-                            />
-                            {errors.nombre && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.nombre}</p>}
-                        </div>
+                        <Input
+                            label="Nombre del Rol"
+                            required
+                            type="text"
+                            value={data.nombre}
+                            onChange={e => setData('nombre', e.target.value)}
+                            placeholder="Ej: Secretario Arbitral, Mesa de Partes..."
+                            error={errors.nombre}
+                        />
 
-                        <div className="mb-5">
-                            <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
-                                Descripción
-                            </label>
-                            <textarea
-                                value={data.descripcion}
-                                onChange={e => setData('descripcion', e.target.value)}
-                                rows={3}
-                                className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136] resize-none"
-                            />
-                        </div>
+                        <Textarea
+                            label="Descripción"
+                            value={data.descripcion}
+                            onChange={e => setData('descripcion', e.target.value)}
+                            placeholder="Describe brevemente la función de este rol..."
+                            rows={3}
+                            error={errors.descripcion}
+                        />
 
                         {editando && (
                             <div className="mb-2">
                                 <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
                                     Estado del Registro
                                 </label>
-                                <select
+                                <CustomSelect
                                     value={data.activo}
-                                    onChange={e => setData('activo', parseInt(e.target.value))}
-                                    className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all text-[#291136] cursor-pointer"
-                                >
-                                    <option value={1}>✅ Activo</option>
-                                    <option value={0}>❌ Inactivo</option>
-                                </select>
+                                    onChange={(val) => setData('activo', val)}
+                                    options={opcionesEstado}
+                                    placeholder={null}
+                                />
                             </div>
                         )}
                     </div>
