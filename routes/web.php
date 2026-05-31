@@ -164,6 +164,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/roles/{rol}',  [RolController::class, 'update']) ->name('configuracion.roles.update') ->middleware('permiso:configuracion.roles,editar');
         Route::delete('/roles/{rol}',[RolController::class,'destroy'])->name('configuracion.roles.destroy')->middleware('permiso:configuracion.roles,eliminar');
         Route::patch('/roles/{rol}/reactivar',[RolController::class,'reactivar'])->name('configuracion.roles.reactivar')->middleware('permiso:configuracion.roles,editar');
+        Route::post('/roles/{rol}/permisos',[RolController::class,'syncPermisos'])->name('configuracion.roles.permisos')->middleware('permiso:configuracion.roles,editar');
 
         // USUARIOS
         Route::get('/usuarios',             [UsuarioController::class, 'index'])  ->name('configuracion.usuarios.index')  ->middleware('permiso:configuracion.usuarios,ver');
