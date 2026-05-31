@@ -14,9 +14,18 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import Modal from '@/Components/Modal';
 import toast from 'react-hot-toast';
-import { Plus, ShieldCheck } from 'lucide-react';
+import { Plus, ShieldCheck, KeyRound, Lock } from 'lucide-react';
 
-export default function Index({ roles }) {
+const SLUG_ADMIN = 'administrador_ti';
+const PERM_VACIO = { ver: false, crear: false, editar: false, eliminar: false };
+const ACCIONES = [
+    { key: 'ver',      label: 'Ver' },
+    { key: 'crear',    label: 'Crear' },
+    { key: 'editar',   label: 'Editar' },
+    { key: 'eliminar', label: 'Eliminar' },
+];
+
+export default function Index({ roles, modulos = [], permisos = {} }) {
     const { flash } = usePage().props;
 
     // ── Filtro de estado (client-side) ──
@@ -31,6 +40,15 @@ export default function Index({ roles }) {
                 placeholder="Todos los estados" />
         </div>
     );
+
+    // Árbol de módulos (padre → hijos) para la matriz
+    const modulosTree = useMemo(() => {
+        const padres = modulos.filter(m => !m.parent_id);
+        return padres.map(p => ({
+            ...p,
+            hijos: modulos.filter(c => c.parent_id === p.id),
+        }));
+    }, [modulos]);
 
     // Estados de Modales y Edición
     const [showModal, setShowModal] = useState(false);
@@ -127,6 +145,129 @@ export default function Index({ roles }) {
         });
     };
 
+    // ── Matriz de permisos ──
+    const [showPermisos, setShowPermisos] = useState(false);
+    const [rolPermisos, setRolPermisos]   = useState(null);
+    const [permState, setPermState]       = useState({});
+    const [savingPerms, setSavingPerms]   = useState(false);
+
+    const abrirPermisos = (rol) => {
+        const previos = permisos[rol.id] ?? {};
+        const inicial = {};
+        modulos.forEach(m => {
+            inicial[m.id] = { ...PERM_VACIO, ...(previos[m.id] ?? {}) };
+        });
+        setPermState(inicial);
+        setRolPermisos(rol);
+        setShowPermisos(true);
+    };
+
+    const cerrarPermisos = () => {
+        setShowPermisos(false);
+        setRolPermisos(null);
+        setPermState({});
+    };
+
+    // 'ver' es la puerta: sin ver no hay acción. Activar otra acción implica ver;
+    // quitar ver limpia toda la fila.
+    const togglePermiso = (moduloId, accion, value) => {
+        setPermState(prev => {
+            const cur = prev[moduloId] ?? PERM_VACIO;
+            let next = { ...cur, [accion]: value };
+            if (accion === 'ver' && !value) next = { ...PERM_VACIO };
+            if (accion !== 'ver' && value)  next.ver = true;
+            return { ...prev, [moduloId]: next };
+        });
+    };
+
+    const toggleFila = (moduloId, value) => {
+        setPermState(prev => ({
+            ...prev,
+            [moduloId]: value
+                ? { ver: true, crear: true, editar: true, eliminar: true }
+                : { ...PERM_VACIO },
+        }));
+    };
+
+    const filaCompleta = (p) => p && p.ver && p.crear && p.editar && p.eliminar;
+
+    const marcarTodo = (value) => {
+        setPermState(() => {
+            const next = {};
+            modulos.forEach(m => {
+                next[m.id] = value
+                    ? { ver: true, crear: true, editar: true, eliminar: true }
+                    : { ...PERM_VACIO };
+            });
+            return next;
+        });
+    };
+
+    const guardarPermisos = async () => {
+        const ok = await confirmar({
+            variant: 'info',
+            titulo: `¿Guardar permisos de "${rolPermisos.nombre}"?`,
+            mensaje: 'Se actualizará qué puede ver y hacer este rol en cada módulo del sistema.',
+            detalles: [{ label: 'Rol', value: rolPermisos.nombre }],
+            confirmText: 'Sí, guardar',
+        });
+        if (!ok) return;
+
+        const payload = modulos.map(m => ({
+            modulo_id: m.id,
+            ...(permState[m.id] ?? PERM_VACIO),
+        }));
+
+        setSavingPerms(true);
+        router.post(route('configuracion.roles.permisos', rolPermisos.id), { permisos: payload }, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const ok2 = page.props.flash?.success;
+                const err = page.props.flash?.error;
+                if (err) toast.error(err);
+                else {
+                    if (ok2) toast.success(ok2);
+                    cerrarPermisos();
+                }
+            },
+            onError: () => toast.error('Error al guardar los permisos.'),
+            onFinish: () => setSavingPerms(false),
+        });
+    };
+
+    const FilaPermiso = ({ modulo, esHijo }) => {
+        const p = permState[modulo.id] ?? PERM_VACIO;
+        return (
+            <tr className="border-b border-gray-100 last:border-0 hover:bg-gray-50/60">
+                <td className={`py-2.5 pr-3 ${esHijo ? 'pl-8' : 'pl-3'}`}>
+                    <span className={`text-sm ${esHijo ? 'text-gray-700' : 'font-semibold text-[#291136]'}`}>
+                        {modulo.nombre}
+                    </span>
+                    <span className="block text-[11px] text-gray-400">{modulo.slug}</span>
+                </td>
+                {ACCIONES.map(a => (
+                    <td key={a.key} className="py-2.5 px-2 text-center">
+                        <input
+                            type="checkbox"
+                            checked={!!p[a.key]}
+                            onChange={e => togglePermiso(modulo.id, a.key, e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 accent-[#BE0F4A] cursor-pointer"
+                        />
+                    </td>
+                ))}
+                <td className="py-2.5 px-2 text-center">
+                    <input
+                        type="checkbox"
+                        title="Marcar/limpiar toda la fila"
+                        checked={filaCompleta(p)}
+                        onChange={e => toggleFila(modulo.id, e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 accent-[#291136] cursor-pointer"
+                    />
+                </td>
+            </tr>
+        );
+    };
+
     const columns = [
         { key: 'nombre', label: 'Nombre',      sortable: true  },
         { key: 'descripcion', label: 'Descripción', sortable: false },
@@ -135,9 +276,9 @@ export default function Index({ roles }) {
             label: 'Estado',
             sortable: true,
             render: (row) => (
-                <Badge 
-                    status={row.activo ? 'activo' : 'inactivo'} 
-                    text={row.activo ? 'Activo' : 'Inactivo'} 
+                <Badge
+                    status={row.activo ? 'activo' : 'inactivo'}
+                    text={row.activo ? 'Activo' : 'Inactivo'}
                 />
             ),
         },
@@ -146,11 +287,32 @@ export default function Index({ roles }) {
             label: 'Acciones',
             sortable: false,
             render: (row) => (
-                <ActionButtons
-                    onEdit={() => abrirEditar(row)}
-                    onDelete={row.activo ? () => pedirConfirmacion(row) : undefined}
-                    onReactivar={!row.activo ? () => pedirReactivar(row) : undefined}
-                />
+                <div className="flex items-center gap-1">
+                    {row.slug === SLUG_ADMIN ? (
+                        <button
+                            type="button"
+                            disabled
+                            title="Administrador TI conserva acceso total (no editable)"
+                            className="p-1.5 rounded-lg text-gray-300 cursor-not-allowed"
+                        >
+                            <Lock size={16} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => abrirPermisos(row)}
+                            title="Permisos del rol"
+                            className="p-1.5 rounded-lg text-[#291136]/60 hover:bg-[#291136]/10 hover:text-[#291136] transition-colors"
+                        >
+                            <KeyRound size={16} />
+                        </button>
+                    )}
+                    <ActionButtons
+                        onEdit={() => abrirEditar(row)}
+                        onDelete={row.activo ? () => pedirConfirmacion(row) : undefined}
+                        onReactivar={!row.activo ? () => pedirReactivar(row) : undefined}
+                    />
+                </div>
             ),
         },
     ];
@@ -249,6 +411,85 @@ export default function Index({ roles }) {
                 </form>
             </Modal>
 
+            {/* Modal Matriz de Permisos */}
+            <Modal show={showPermisos} onClose={cerrarPermisos} maxWidth="2xl">
+                <div className="p-7">
+                    <div className="flex items-start justify-between gap-4 mb-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#291136]">
+                                <KeyRound size={20} className="text-white" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-[#291136]">Permisos del Rol</h2>
+                                <p className="text-sm text-gray-500">{rolPermisos?.nombre}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => marcarTodo(true)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#BE0F4A]/10 text-[#BE0F4A] hover:bg-[#BE0F4A]/20 transition-colors">
+                                Marcar todo
+                            </button>
+                            <button type="button" onClick={() => marcarTodo(false)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <p className="text-xs text-gray-500 mb-3">
+                        <span className="font-semibold text-[#291136]">Ver</span> habilita el acceso al módulo en el menú.
+                        Activar Crear, Editar o Eliminar implica Ver automáticamente.
+                    </p>
+
+                    <div className="border border-gray-200 rounded-xl overflow-hidden max-h-[55vh] overflow-y-auto">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 sticky top-0 z-10">
+                                <tr className="border-b border-gray-200">
+                                    <th className="py-2.5 pl-3 pr-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Módulo</th>
+                                    {ACCIONES.map(a => (
+                                        <th key={a.key} className="py-2.5 px-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-16">{a.label}</th>
+                                    ))}
+                                    <th className="py-2.5 px-2 text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wide w-16">Todo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {modulosTree.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="py-8 text-center text-sm text-gray-400">
+                                            No hay módulos activos para configurar.
+                                        </td>
+                                    </tr>
+                                )}
+                                {modulosTree.map(padre => (
+                                    <FilaGrupo key={padre.id} padre={padre} FilaPermiso={FilaPermiso} />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 px-7 py-5 bg-gray-50/80 border-t border-gray-100 rounded-b-2xl">
+                    <SecondaryButton type="button" onClick={cerrarPermisos} disabled={savingPerms}>
+                        Cancelar
+                    </SecondaryButton>
+                    <PrimaryButton type="button" onClick={guardarPermisos} disabled={savingPerms}>
+                        {savingPerms ? 'Guardando...' : 'Guardar Permisos'}
+                    </PrimaryButton>
+                </div>
+            </Modal>
+
         </AuthenticatedLayout>
+    );
+}
+
+// Render del módulo padre + sus hijos como filas de la matriz.
+function FilaGrupo({ padre, FilaPermiso }) {
+    return (
+        <>
+            <FilaPermiso modulo={padre} esHijo={false} />
+            {padre.hijos.map(hijo => (
+                <FilaPermiso key={hijo.id} modulo={hijo} esHijo={true} />
+            ))}
+        </>
     );
 }
