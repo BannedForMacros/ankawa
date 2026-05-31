@@ -192,12 +192,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/etapas/{etapa}/reactivar', [EtapaController::class, 'reactivarEtapa'])->name('configuracion.etapas.reactivar')->middleware('permiso:configuracion.etapas,editar');
 
         // Tipos de Actor
-        Route::get('tipos-actor',                              [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index');
-        Route::post('tipos-actor',                             [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store');
-        Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update');
-        Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy');
-        Route::patch('tipos-actor/{tipoActor}/reactivar',      [TipoActorController::class, 'reactivar'])->name('configuracion.tipos-actor.reactivar');
-        Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios');
+        Route::get('tipos-actor',                              [TipoActorController::class, 'index'])->name('configuracion.tipos-actor.index')->middleware('permiso:configuracion.tipos-actor,ver');
+        Route::post('tipos-actor',                             [TipoActorController::class, 'store'])->name('configuracion.tipos-actor.store')->middleware('permiso:configuracion.tipos-actor,crear');
+        Route::put('tipos-actor/{tipoActor}',                  [TipoActorController::class, 'update'])->name('configuracion.tipos-actor.update')->middleware('permiso:configuracion.tipos-actor,editar');
+        Route::delete('tipos-actor/{tipoActor}',               [TipoActorController::class, 'destroy'])->name('configuracion.tipos-actor.destroy')->middleware('permiso:configuracion.tipos-actor,eliminar');
+        Route::patch('tipos-actor/{tipoActor}/reactivar',      [TipoActorController::class, 'reactivar'])->name('configuracion.tipos-actor.reactivar')->middleware('permiso:configuracion.tipos-actor,editar');
+        Route::post('tipos-actor/{tipoActor}/servicios',        [TipoActorController::class, 'syncServicios'])->name('configuracion.tipos-actor.sync-servicios')->middleware('permiso:configuracion.tipos-actor,editar');
 
         // Módulos
         Route::get('modulos',              [ModuloController::class, 'index'])  ->name('configuracion.modulos.index')  ->middleware('permiso:configuracion.modulos,ver');
