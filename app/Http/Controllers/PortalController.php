@@ -44,6 +44,33 @@ class PortalController extends Controller
             ->values();
     }
 
+    /**
+     * Descarga autorizada de un documento desde el portal externo (sesión OTP).
+     *
+     * Los archivos viven en el disco PRIVADO `documentos`. Aquí se valida que el
+     * email de la sesión sea dueño de algún actor del expediente del documento
+     * (o el solicitante de la solicitud) antes de servirlo. Reemplaza las URLs
+     * públicas directas que exponían evidencia legal sin autorización.
+     */
+    public function descargarDocumento(Request $request, $id)
+    {
+        $email = (string) session('portal_email');
+        abort_unless($email, 403, 'Sesión de portal no válida.');
+
+        $documento = \App\Support\DocumentoAcceso::resolver($id);
+        abort_unless($documento, 404, 'El documento solicitado no existe.');
+
+        $actorIds = $this->actorIdsPorEmail($email)->all();
+
+        abort_unless(
+            \App\Support\DocumentoAcceso::portalPuedeVer($documento, $actorIds, $email),
+            403,
+            'No tiene acceso a este documento.'
+        );
+
+        return \App\Support\DocumentoAcceso::servir($documento);
+    }
+
     private function expedientesDashboard(string $email): array
     {
         $actorIds = $this->actorIdsPorEmail($email);
@@ -120,7 +147,7 @@ class PortalController extends Controller
                                 'id'              => $d->id,
                                 'nombre_original' => $d->nombre_original,
                                 'peso_bytes'      => $d->peso_bytes,
-                                'url'             => Storage::disk('public')->url($d->ruta_archivo),
+                                'url'             => route('mesa-partes.documentos.descargar', $d->id),
                             ])->values()->toArray(),
                             // Tipos de documento que el actor logueado todavía debe presentar.
                             'responsables_pendientes' => $responsablesPendientes->map(fn($r) => [
@@ -149,7 +176,7 @@ class PortalController extends Controller
                                             'id'              => $d->id,
                                             'nombre_original' => $d->nombre_original,
                                             'peso_bytes'      => $d->peso_bytes,
-                                            'url'             => Storage::disk('public')->url($d->ruta_archivo),
+                                            'url'             => route('mesa-partes.documentos.descargar', $d->id),
                                         ])->values()->toArray()
                                     : [],
                             ])->values()->toArray(),
@@ -471,17 +498,12 @@ class PortalController extends Controller
 
                     foreach ($files as $archivo) {
                         if (!$archivo) continue;
-                        $ruta = $archivo->store($carpeta, 'public');
+                        $ruta = $archivo->store($carpeta, 'documentos');
                         if (!$ruta) {
                             throw new \RuntimeException('No se pudo guardar uno de los archivos.');
                         }
                         $rutasArchivosSubidos[] = $ruta;
-                        $archivosGuardadosPorTipo[$tipoId][] = [
-                            'nombre_original' => $archivo->getClientOriginalName(),
-                            'peso_bytes'      => $archivo->getSize(),
-                            'ruta'            => $ruta,
-                        ];
-                        MovimientoDocumento::create([
+                        $docCreado = MovimientoDocumento::create([
                             'movimiento_id'     => $movimiento->id,
                             'tipo_documento_id' => $tipoId,
                             'subido_por'        => $usuarioIdActor,
@@ -490,6 +512,12 @@ class PortalController extends Controller
                             'peso_bytes'        => $archivo->getSize(),
                             'momento'           => 'respuesta',
                         ]);
+                        $archivosGuardadosPorTipo[$tipoId][] = [
+                            'id'              => $docCreado->id,
+                            'nombre_original' => $archivo->getClientOriginalName(),
+                            'peso_bytes'      => $archivo->getSize(),
+                            'ruta'            => $ruta,
+                        ];
                     }
                     $tiposEntregadosHoy[] = $tipoId;
                 }
@@ -513,7 +541,7 @@ class PortalController extends Controller
                 if (!empty($archivosLegacy)) {
                     foreach ($archivosLegacy as $archivo) {
                         if (!$archivo) continue;
-                        $ruta = $archivo->store($carpeta, 'public');
+                        $ruta = $archivo->store($carpeta, 'documentos');
                         if (!$ruta) {
                             throw new \RuntimeException('No se pudo guardar uno de los archivos.');
                         }
@@ -599,7 +627,7 @@ class PortalController extends Controller
                                     'archivos' => collect($archivos)->map(fn($a) => [
                                         'nombre_original' => $a['nombre_original'],
                                         'peso_bytes'      => $a['peso_bytes'],
-                                        'url'             => Storage::disk('public')->url($a['ruta']),
+                                        'url'             => route('mesa-partes.documentos.descargar', $a['id']),
                                     ])->values()->all(),
                                 ];
                             })
@@ -637,8 +665,8 @@ class PortalController extends Controller
             });
         } catch (\Throwable $e) {
             foreach ($rutasArchivosSubidos as $ruta) {
-                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($ruta)) {
-                    \Illuminate\Support\Facades\Storage::disk('public')->delete($ruta);
+                if (\Illuminate\Support\Facades\Storage::disk('documentos')->exists($ruta)) {
+                    \Illuminate\Support\Facades\Storage::disk('documentos')->delete($ruta);
                 }
             }
             report($e);
@@ -749,7 +777,7 @@ class PortalController extends Controller
 
             $carpeta = "expedientes/{$expediente->id}/movimientos/{$movimiento->id}";
             foreach ($request->file('documentos') as $archivo) {
-                $ruta = $archivo->store($carpeta, 'public');
+                $ruta = $archivo->store($carpeta, 'documentos');
                 MovimientoDocumento::create([
                     'movimiento_id'     => $movimiento->id,
                     'tipo_documento_id' => $request->tipo_documento_id,

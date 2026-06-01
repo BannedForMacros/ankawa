@@ -92,6 +92,10 @@ Route::middleware('portal.auth')->group(function () {
     Route::get('/mesa-partes/expedientes/{expediente}/tipos-documento-envio', [PortalController::class, 'tiposDocumentoEnvio'])->name('mesa-partes.tipos-documento-envio');
     Route::post('/mesa-partes/expedientes/{expediente}/envios', [PortalController::class, 'enviarDocumento'])->name('mesa-partes.envios.store');
 
+    // Descarga autorizada de documentos del expediente (disco privado, sesión OTP)
+    Route::get('/mesa-partes/documentos/{documento}/descargar', [PortalController::class, 'descargarDocumento'])
+        ->name('mesa-partes.documentos.descargar');
+
     // Autorización de canales privados del portal (WebSocket / Reverb)
     Route::post('/mesa-partes/broadcasting/auth', \App\Http\Controllers\PortalBroadcastAuthController::class)
         ->name('portal.broadcasting.auth');

@@ -2,39 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Documento;
-use App\Models\MovimientoDocumento;
-use Illuminate\Http\Request;
+use App\Support\DocumentoAcceso;
 
 class DocumentoController extends Controller
 {
+    /**
+     * Descarga autorizada de un documento de expediente (staff / solicitante autenticado).
+     *
+     * Los archivos viven en el disco PRIVADO `documentos`; aquí se valida que el
+     * usuario tenga derecho a ver el documento (alcance global, participación en
+     * el expediente o ser el propio solicitante) antes de servirlo.
+     */
     public function descargar($id)
     {
-        // Los archivos del expediente viven en dos tablas distintas:
-        //   - `documentos` (polimórfico) → adjuntos de la Solicitud.
-        //   - `movimiento_documentos` → adjuntos creados/respondidos en cada movimiento.
-        // El frontend usa una sola ruta para ambos, así que aquí buscamos en las dos.
-        $documento = Documento::find($id) ?? MovimientoDocumento::find($id);
+        $documento = DocumentoAcceso::resolver($id);
+        abort_unless($documento, 404, 'El documento solicitado no existe.');
 
-        if (!$documento) {
-            abort(404, 'El documento solicitado no existe.');
-        }
+        abort_unless(
+            DocumentoAcceso::usuarioPuedeVer($documento, auth()->user()),
+            403,
+            'No tiene acceso a este documento.'
+        );
 
-        $path = storage_path('app/public/' . $documento->ruta_archivo);
-
-        if (!file_exists($path)) {
-            abort(404, 'El documento solicitado no existe en el servidor.');
-        }
-
-        $mimeType = mime_content_type($path);
-
-        if ($mimeType === 'application/pdf') {
-            return response()->file($path, [
-                'Content-Type'        => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $documento->nombre_original . '"',
-            ]);
-        }
-
-        return response()->download($path, $documento->nombre_original);
+        return DocumentoAcceso::servir($documento);
     }
 }

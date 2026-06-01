@@ -103,7 +103,7 @@ class EnvioExternoController extends Controller
 
                 $archivo = $request->file('archivo');
                 $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
-                $rutaArchivoSubido = $archivo->store($carpeta, 'public');
+                $rutaArchivoSubido = $archivo->store($carpeta, 'documentos');
 
                 if (!$rutaArchivoSubido) {
                     throw new \RuntimeException('No se pudo almacenar el archivo de sustento.');
@@ -133,8 +133,8 @@ class EnvioExternoController extends Controller
                 ]);
             });
         } catch (\Throwable $e) {
-            if ($rutaArchivoSubido && Storage::disk('public')->exists($rutaArchivoSubido)) {
-                Storage::disk('public')->delete($rutaArchivoSubido);
+            if ($rutaArchivoSubido && Storage::disk('documentos')->exists($rutaArchivoSubido)) {
+                Storage::disk('documentos')->delete($rutaArchivoSubido);
             }
 
             report($e);
@@ -203,7 +203,7 @@ class EnvioExternoController extends Controller
             'id'              => $d->id,
             'nombre_original' => $d->nombre_original,
             'peso_bytes'      => $d->peso_bytes,
-            'url'             => Storage::disk('public')->url($d->ruta_archivo),
+            'url'             => route('documentos.descargar', $d->id),
         ];
 
         $docsRemitente = $m->documentos->where('momento', '!=', 'rechazo')->values();

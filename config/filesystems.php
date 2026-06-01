@@ -47,6 +47,18 @@ return [
             'report' => false,
         ],
 
+        // Documentos de expedientes (evidencia legal): disco PRIVADO. No se
+        // expone por URL directa ni por el symlink public/storage — solo se
+        // sirve por endpoints autorizados (DocumentoController para staff,
+        // PortalController::descargarDocumento para partes externas con sesión OTP).
+        'documentos' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/documentos'),
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
