@@ -380,6 +380,8 @@ class PortalController extends Controller
             'portalUser'           => $portalUser,
             'portalEmail'          => $email,
             'pendientesAceptacion' => $pendientesAceptacion,
+            // IDs de actor del portal para suscribirse a sus canales en vivo (Reverb)
+            'avisoActorIds'        => $actorIds->values(),
         ]);
     }
 

@@ -1,6 +1,7 @@
 import { Link, usePage, router } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, LogOut, Menu, User, Bell, Search } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, User, Search } from 'lucide-react';
+import BellNotificaciones from '@/Components/BellNotificaciones';
 
 export default function Navbar({ sidebarOpen = false, onToggleSidebar = () => {} }) {
     const { auth } = usePage().props;
