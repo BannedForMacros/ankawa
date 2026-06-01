@@ -11,6 +11,7 @@ import ModalTomaConocimiento  from './Partials/ModalTomaConocimiento';
 import ModalResponder         from './Partials/ModalResponder';
 import ModalEnviarDocumento   from './Partials/ModalEnviarDocumento';
 import PlazoUrgente           from './Partials/PlazoUrgente';
+import usePortalAvisos        from '@/hooks/usePortalAvisos';
 
 const BADGE_ESTADO = {
     activo:     'bg-emerald-100 text-emerald-800 border border-emerald-200',
@@ -18,10 +19,13 @@ const BADGE_ESTADO = {
     concluido:  'bg-gray-100 text-gray-700 border border-gray-200',
 };
 
-export default function Dashboard({ expedientes, servicios, portalUser, portalEmail, pendientesAceptacion = [] }) {
+export default function Dashboard({ expedientes, servicios, portalUser, portalEmail, pendientesAceptacion = [], avisoActorIds = [] }) {
     const [modalMov,       setModalMov]       = useState(null);
     const [modalServicios, setModalServicios] = useState(false);
     const [modalEnvioExp,  setModalEnvioExp]  = useState(null);
+
+    // Avisos en vivo (Reverb): nuevo requerimiento/cédula → toast + recarga de bandeja.
+    usePortalAvisos(avisoActorIds);
 
     function onRespondido() {
         router.reload({ only: ['expedientes'] });

@@ -63,16 +63,7 @@ export default function Navbar({ sidebarOpen = false, onToggleSidebar = () => {}
                 >
                     <Search size={20} />
                 </button>
-                <button
-                    type="button"
-                    title="Notificaciones"
-                    aria-label="Notificaciones"
-                    className="relative w-10 h-10 inline-flex items-center justify-center rounded-lg text-[#291136]/70 hover:bg-gray-100 hover:text-[#291136] transition-colors focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/30"
-                >
-                    <Bell size={20} />
-                    {/* Indicador de no leídas (placeholder hasta conectar el backend) */}
-                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#BE0F4A] ring-2 ring-white" />
-                </button>
+                <BellNotificaciones />
             </div>
 
             {/* Divisor */}
