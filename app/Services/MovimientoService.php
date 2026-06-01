@@ -36,7 +36,7 @@ class MovimientoService
         array $notificarActorIds = [],
         string $estadoInicial = ExpedienteMovimiento::ESTADO_PENDIENTE
     ): ExpedienteMovimiento {
-        return DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds, $estadoInicial) {
+        $movimiento = DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds, $estadoInicial) {
 
             $tipoDias    = $datos['tipo_dias'] ?? 'calendario';
             $fechaLimite = null;
@@ -177,6 +177,30 @@ class MovimientoService
 
             return $movimiento;
         });
+
+        // ── Avisos in-app / tiempo real a las partes afectadas (post-commit) ──
+        // Las partes requeridas (responsables) + destinatarios de cédula reciben
+        // un aviso en vivo en su portal; los actores con cuenta staff, en su campana.
+        try {
+            $avisoActorIds = MovimientoResponsable::where('movimiento_id', $movimiento->id)
+                ->pluck('expediente_actor_id')
+                ->merge($notificarActorIds)
+                ->unique()->values()->all();
+
+            if (!empty($avisoActorIds)) {
+                app(\App\Services\AvisoService::class)->avisarMovimientoAActores($movimiento, $avisoActorIds, [
+                    'titulo'        => 'Nuevo movimiento · ' . $expediente->numero_expediente,
+                    'mensaje'       => \Illuminate\Support\Str::limit($movimiento->instruccion, 100),
+                    'url'           => '/mesa-partes/inicio',
+                    'tipo'          => $movimiento->tipo,
+                    'expediente_id' => $expediente->id,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Aviso de movimiento falló: ' . $e->getMessage());
+        }
+
+        return $movimiento;
     }
 
     /**

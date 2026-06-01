@@ -417,6 +417,19 @@ class SolicitudArbitrajeController extends Controller
                 'numero_cargo' => $solicitud->numero_cargo,
             ], $solicitud);
 
+            // Aviso (campana) a Secretaría General: nueva solicitud por revisar.
+            try {
+                app(\App\Services\AvisoService::class)->avisarRol('secretaria_general', [
+                    'titulo'        => 'Nueva solicitud · ' . $expediente->numero_expediente,
+                    'mensaje'       => 'Ingresó una solicitud de arbitraje pendiente de revisión.',
+                    'url'           => '/expedientes/' . $expediente->id,
+                    'tipo'          => 'solicitud',
+                    'expediente_id' => $expediente->id,
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Aviso de solicitud falló: ' . $e->getMessage());
+            }
+
             return redirect()->route('mesa-partes.confirmacion', $solicitud->numero_cargo);
 
         } catch (\Exception $e) {

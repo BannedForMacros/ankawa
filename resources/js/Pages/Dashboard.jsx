@@ -8,8 +8,9 @@ import {
 import PageHeader from '@/Components/PageHeader';
 import KPIGrid from '@/Components/KPIGrid';
 import KPICard from '@/Components/KPICard';
-import BarrasHorizontales from '@/Components/BarrasHorizontales';
-import ColumnasMensuales from '@/Components/ColumnasMensuales';
+import BarrasChart from '@/Components/charts/BarrasChart';
+import ColumnasChart from '@/Components/charts/ColumnasChart';
+import DonutChart from '@/Components/charts/DonutChart';
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -160,13 +161,13 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <Panel title="Expedientes activos por servicio" icon={<Layers size={18} className="text-ankawa-rose" />}>
-                                <BarrasHorizontales data={global.por_servicio} color="rose" emptyLabel="Sin expedientes activos" />
+                                <DonutChart data={global.por_servicio} emptyLabel="Sin expedientes activos" />
                             </Panel>
                             <Panel title="Carga por gestor" icon={<Users size={18} className="text-ankawa-rose" />}>
-                                <BarrasHorizontales data={global.carga_gestores} color="deep" emptyLabel="Sin casos asignados" />
+                                <BarrasChart data={global.carga_gestores} color="deep" emptyLabel="Sin casos asignados" />
                             </Panel>
                             <Panel title="Cargos emitidos · últimos 6 meses" icon={<BarChart3 size={18} className="text-ankawa-rose" />}>
-                                <ColumnasMensuales data={global.cargos_mes} />
+                                <ColumnasChart data={global.cargos_mes} />
                             </Panel>
                             <Panel
                                 title="Vencimientos más próximos"
@@ -210,7 +211,7 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
                         </div>
 
                         <Panel title="Mis casos por etapa" icon={<Layers size={18} className="text-ankawa-rose" />}>
-                            <BarrasHorizontales data={gestor.por_etapa} color="deep" emptyLabel="Sin casos activos." />
+                            <BarrasChart data={gestor.por_etapa} color="deep" emptyLabel="Sin casos activos." />
                         </Panel>
                     </div>
                 )}

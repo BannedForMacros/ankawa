@@ -22,10 +22,11 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user'     => $request->user(),
-                'rol'      => $request->user()?->rol?->slug,
-                'permisos' => $request->user() ? $this->getPermisosUsuario($request->user()) : [],
-                'menu'     => $request->user() ? $this->getMenuUsuario($request->user()) : [],
+                'user'          => $request->user(),
+                'rol'           => $request->user()?->rol?->slug,
+                'permisos'      => $request->user() ? $this->getPermisosUsuario($request->user()) : [],
+                'menu'          => $request->user() ? $this->getMenuUsuario($request->user()) : [],
+                'notificaciones' => $request->user() ? $this->getNotificaciones($request->user()) : null,
             ],
             'flash' => [
                 'success' => session('success'),
@@ -34,6 +35,22 @@ class HandleInertiaRequests extends Middleware
             'upload_accept'  => FileRules::acceptAttr(),
             'upload_max_mb'  => config('uploads.max_size_mb'),
             'upload_mimes'   => config('uploads.allowed_mimes'), // ['pdf','png','jpg','jpeg']
+        ];
+    }
+
+    /**
+     * Estado inicial de la campana de notificaciones (no leídas + recientes).
+     * El resto llega en vivo por Reverb y on-demand por NotificacionController.
+     */
+    private function getNotificaciones($user): array
+    {
+        return [
+            'no_leidas' => $user->unreadNotifications()->count(),
+            'recientes' => $user->notifications()->latest()->limit(15)->get()->map(fn ($n) => array_merge([
+                'id'         => $n->id,
+                'leida'      => $n->read_at !== null,
+                'created_at' => $n->created_at?->toIso8601String(),
+            ], $n->data))->all(),
         ];
     }
 

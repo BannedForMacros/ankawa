@@ -91,6 +91,10 @@ Route::middleware('portal.auth')->group(function () {
     // Envíos espontáneos del externo al expediente
     Route::get('/mesa-partes/expedientes/{expediente}/tipos-documento-envio', [PortalController::class, 'tiposDocumentoEnvio'])->name('mesa-partes.tipos-documento-envio');
     Route::post('/mesa-partes/expedientes/{expediente}/envios', [PortalController::class, 'enviarDocumento'])->name('mesa-partes.envios.store');
+
+    // Autorización de canales privados del portal (WebSocket / Reverb)
+    Route::post('/mesa-partes/broadcasting/auth', \App\Http\Controllers\PortalBroadcastAuthController::class)
+        ->name('portal.broadcasting.auth');
 });
 
 
@@ -100,6 +104,11 @@ Route::middleware('portal.auth')->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // ── Notificaciones (campana, staff interno) ──
+    Route::get('/notificaciones', [\App\Http\Controllers\NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::post('/notificaciones/{id}/leida', [\App\Http\Controllers\NotificacionController::class, 'marcarLeida'])->name('notificaciones.leida');
+    Route::post('/notificaciones/leer-todas', [\App\Http\Controllers\NotificacionController::class, 'marcarTodasLeidas'])->name('notificaciones.leerTodas');
 
     // ── Perfil de Usuario ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

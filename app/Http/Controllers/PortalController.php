@@ -646,6 +646,23 @@ class PortalController extends Controller
             ], 500);
         }
 
+        // Aviso (campana) al/los gestor(es) del expediente: una parte respondió.
+        try {
+            $expedienteResp = $movimiento->expediente;
+            $gestorUserIds = \App\Models\ExpedienteActor::where('expediente_id', $expedienteResp->id)
+                ->where('es_gestor', true)->where('activo', 1)
+                ->whereNotNull('usuario_id')->pluck('usuario_id')->all();
+            app(\App\Services\AvisoService::class)->avisarUsuarios($gestorUserIds, [
+                'titulo'        => 'Respuesta recibida · ' . $expedienteResp->numero_expediente,
+                'mensaje'       => 'Una parte respondió un requerimiento.',
+                'url'           => '/expedientes/' . $expedienteResp->id,
+                'tipo'          => 'respuesta',
+                'expediente_id' => $expedienteResp->id,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Aviso de respuesta falló: ' . $e->getMessage());
+        }
+
         return response()->json(['ok' => true, 'mensaje' => 'Respuesta registrada correctamente.']);
     }
 
