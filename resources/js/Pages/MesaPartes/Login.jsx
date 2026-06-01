@@ -135,7 +135,9 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
                 codigo: codigoStr,
             });
             if (data.ok) {
-                window.location.href = route('mesa-partes.inicio');
+                // Si el usuario llegó al login intentando abrir un recurso concreto
+                // (p. ej. un documento desde el correo), lo devolvemos ahí; si no, al inicio.
+                window.location.href = data.redirect ?? route('mesa-partes.inicio');
             } else {
                 setError(data.mensaje ?? 'Código incorrecto o expirado.');
             }

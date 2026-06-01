@@ -357,7 +357,14 @@ class PortalController extends Controller
         AuditoriaPortal::registrar('otp_validado', $request, ['email' => $email]);
         AuditoriaPortal::registrar('sesion_iniciada', $request, ['email' => $email]);
 
-        return response()->json(['ok' => true]);
+        // Devolver al recurso que el usuario intentaba abrir antes del login (p. ej. un
+        // documento desde el correo). Solo se honra si es una URL interna del portal.
+        $intended = session()->pull('portal_intended');
+        $redirect = ($intended && str_starts_with($intended, url('/mesa-partes')))
+            ? $intended
+            : route('mesa-partes.inicio');
+
+        return response()->json(['ok' => true, 'redirect' => $redirect]);
     }
 
     // ── Dashboard unificado (expedientes + datos para nueva solicitud) ─────────

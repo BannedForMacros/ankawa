@@ -132,11 +132,13 @@
             </p>
             @foreach($docsRequerimiento as $doc)
                 <div style="margin-bottom: 8px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fafafa;">
-                    <span style="color: #291136; font-size: 13px; font-weight: bold;">
+                    <a href="{{ route('mesa-partes.documentos.descargar', $doc->id) }}"
+                       target="_blank"
+                       style="color: #BE0F4A; text-decoration: none; font-size: 13px; font-weight: bold;">
                         &#128206; {{ $doc->nombre_original }}
-                    </span>
+                    </a>
                     <span style="display: block; font-size: 11px; color: #888888; margin-top: 2px;">
-                        Disponible en el Portal de Mesa de Partes (ingrese con su correo para descargarlo)
+                        Click para abrirlo. Si no tiene sesión, ingrese con su correo (Mesa de Partes) y se abrirá automáticamente.
                     </span>
                 </div>
             @endforeach

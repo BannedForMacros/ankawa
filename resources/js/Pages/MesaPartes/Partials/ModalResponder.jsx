@@ -30,8 +30,10 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
     const [confirmEnvio,    setConfirmEnvio]    = useState(false);
     const [confirmParcial,  setConfirmParcial]  = useState(null); // { tiposVacios: [{nombre, fecha_limite}] }
     const [procesando,      setProcesando]      = useState(false);
-    // Secciones de contexto colapsables (default cerradas — la acción primaria es subir docs)
-    const [openDocsReq,      setOpenDocsReq]      = useState(false);
+    // Documentos del requerimiento: ABIERTOS por defecto — la parte SIEMPRE debe ver
+    // los archivos que adjuntó quien creó el requerimiento (Mesa de Partes: nada oculto).
+    const [openDocsReq,      setOpenDocsReq]      = useState(true);
+    // El historial de "ya entregado" sí arranca colapsado (es secundario).
     const [openYaEntregados, setOpenYaEntregados] = useState(false);
     const [mostrarLoader,   setMostrarLoader]   = useState(false);
     const [previewFile,     setPreviewFile]     = useState(null);
@@ -364,29 +366,29 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                 Información de contexto
                             </p>
 
-                            {/* Collapsible: documentos del requerimiento */}
+                            {/* Documentos del requerimiento — recuadro destacado (rojo de marca) y abierto por defecto */}
                             {Array.isArray(mov.documentos) && mov.documentos.length > 0 && (
-                                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                                <div className="border-2 border-[#BE0F4A] rounded-xl overflow-hidden bg-[#fff5f8]">
                                     <button
                                         type="button"
                                         onClick={() => setOpenDocsReq(o => !o)}
-                                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[#BE0F4A]/5 transition-colors"
                                     >
                                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <FileText size={14} className="text-[#BE0F4A] shrink-0"/>
-                                            <span className="text-xs font-bold text-[#291136] uppercase tracking-wide truncate">
+                                            <FileText size={15} className="text-[#BE0F4A] shrink-0"/>
+                                            <span className="text-xs font-bold text-[#BE0F4A] uppercase tracking-wide truncate">
                                                 Documentos del requerimiento
                                             </span>
-                                            <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold shrink-0">
+                                            <span className="px-1.5 py-0.5 rounded-full bg-[#BE0F4A] text-white text-[10px] font-bold shrink-0">
                                                 {mov.documentos.length}
                                             </span>
                                         </div>
-                                        {openDocsReq ? <ChevronUp size={14} className="text-gray-400 shrink-0"/> : <ChevronDown size={14} className="text-gray-400 shrink-0"/>}
+                                        {openDocsReq ? <ChevronUp size={14} className="text-[#BE0F4A] shrink-0"/> : <ChevronDown size={14} className="text-[#BE0F4A] shrink-0"/>}
                                     </button>
                                     {openDocsReq && (
-                                        <div className="px-3 pb-3 border-t border-gray-100 pt-2">
-                                            <p className="text-[11px] text-gray-500 mb-2">
-                                                Archivos adjuntados por quien creó el requerimiento.
+                                        <div className="px-3 pb-3 border-t border-[#BE0F4A]/20 pt-2">
+                                            <p className="text-[11px] text-[#291136] font-medium mb-2">
+                                                📎 Archivos adjuntados por quien creó el requerimiento. Revísalos antes de responder.
                                             </p>
                                             <div className="space-y-1.5">
                                                 {mov.documentos.map(doc => (
