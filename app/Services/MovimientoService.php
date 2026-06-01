@@ -454,7 +454,7 @@ class MovimientoService
 
             // Guardar el documento de sustento del gestor (momento='cancelacion').
             $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
-            $ruta = $archivo->store($carpeta, 'public');
+            $ruta = $archivo->store($carpeta, 'documentos');
             if (!$ruta) {
                 throw new \RuntimeException('No se pudo guardar el documento de sustento de la cancelación.');
             }
@@ -506,7 +506,7 @@ class MovimientoService
 
         foreach ($archivos as $archivo) {
             if ($archivo instanceof UploadedFile) {
-                $ruta = $archivo->store($carpeta, 'public');
+                $ruta = $archivo->store($carpeta, 'documentos');
                 MovimientoDocumento::create([
                     'movimiento_id'     => $movimiento->id,
                     'tipo_documento_id' => $tipoDocumentoId,

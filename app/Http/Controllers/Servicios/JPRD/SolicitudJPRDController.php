@@ -281,7 +281,7 @@ class SolicitudJPRDController extends Controller
 
             foreach ($tiposDoc as $tipoDoc => $archivos) {
                 foreach ($archivos as $archivo) {
-                    $ruta = $archivo->store($carpeta, 'public');
+                    $ruta = $archivo->store($carpeta, 'documentos');
                     Documento::create([
                         'modelo_tipo'     => SolicitudJPRD::class,
                         'modelo_id'       => $solicitud->id,

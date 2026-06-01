@@ -22,7 +22,17 @@ Leyenda de severidad: 🚨 CRÍTICO · 🟠 ALTO · 🟡 MEDIO · 🔵 BAJO
 
 ## 🚨 CRÍTICOS (bloqueantes para producción)
 
-### [ ] C-1 · Documentos legales accesibles sin autorización
+### [x] C-1 · Documentos legales accesibles sin autorización — RESUELTO (2026-06-01)
+**Implementado:** disco privado `documentos` (`storage/app/private/documentos`); descargas solo por
+endpoints autorizados (`DocumentoController::descargar` para staff, `PortalController::descargarDocumento`
+para portal OTP); autorización centralizada en `app/Support/DocumentoAcceso.php`; todos los `store`/`url`
+migrados de `'public'` a disco privado/ruta firmada; email `movimiento-notificacion.blade.php` ya no expone
+URL directa. 95 archivos existentes migrados en dev.
+> ⚠️ **En producción**, tras desplegar: mover los archivos existentes de `storage/app/public/{expedientes,movimientos,solicitudes}`
+> a `storage/app/private/documentos/` y correr `php artisan config:clear`. Considerar limpiar registros huérfanos
+> de `documentos`/`movimiento_documentos` cuyo archivo ya no exista (desincronización detectada en dev).
+
+<details><summary>Detalle original del hallazgo</summary>
 **Doble problema, mismo origen:**
 - Adjuntos guardados en disco **público** (`->store(..., 'public')`) y servidos por URL
   directa `/storage/...` sin pasar por Laravel ni sesión.
@@ -38,6 +48,7 @@ incluso de forma anónima si se filtra/adivina la URL pública.
 un endpoint autorizado con `response()->file()`, reutilizando la verificación de
 `ExpedienteController::show` (gestor o pertenencia activa en `expediente_actores`;
 para externos, `actorIdsPorEmail`). Reemplazar todos los `Storage::disk('public')->url()`.
+</details>
 
 ---
 

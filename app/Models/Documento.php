@@ -68,6 +68,7 @@ class Documento extends Model
     private static function resolverPathAbsoluto(string $rutaRelativa): ?string
     {
         $candidatos = [
+            storage_path('app/private/documentos/' . ltrim($rutaRelativa, '/')),
             storage_path('app/public/' . ltrim($rutaRelativa, '/')),
             storage_path('app/private/' . ltrim($rutaRelativa, '/')),
             storage_path('app/' . ltrim($rutaRelativa, '/')),
