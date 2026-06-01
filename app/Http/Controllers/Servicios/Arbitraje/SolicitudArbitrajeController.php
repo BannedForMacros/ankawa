@@ -349,7 +349,7 @@ class SolicitudArbitrajeController extends Controller
 
             if ($request->hasFile('documentos_controversia')) {
                 foreach ($request->file('documentos_controversia') as $archivo) {
-                    $ruta = $archivo->store($carpeta, 'public');
+                    $ruta = $archivo->store($carpeta, 'documentos');
                     Documento::create([
                         'modelo_tipo'     => SolicitudArbitraje::class,
                         'modelo_id'       => $solicitud->id,
@@ -364,7 +364,7 @@ class SolicitudArbitrajeController extends Controller
 
             if ($request->hasFile('documentos_anexos')) {
                 foreach ($request->file('documentos_anexos') as $archivo) {
-                    $ruta = $archivo->store($carpeta, 'public');
+                    $ruta = $archivo->store($carpeta, 'documentos');
                     Documento::create([
                         'modelo_tipo'     => SolicitudArbitraje::class,
                         'modelo_id'       => $solicitud->id,
@@ -393,7 +393,7 @@ class SolicitudArbitrajeController extends Controller
             foreach ($gruposDoc as $campo => $tipoDoc) {
                 if ($request->hasFile($campo)) {
                     foreach ($request->file($campo) as $archivo) {
-                        $ruta = $archivo->store($carpeta, 'public');
+                        $ruta = $archivo->store($carpeta, 'documentos');
                         Documento::create([
                             'modelo_tipo'     => SolicitudArbitraje::class,
                             'modelo_id'       => $solicitud->id,

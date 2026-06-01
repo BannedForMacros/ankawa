@@ -447,7 +447,7 @@ class MesaPartesController extends Controller
 
             if ($request->hasFile('documentos')) {
                 foreach ($request->file('documentos') as $archivo) {
-                    $ruta = $archivo->store('solicitudes/' . $solicitud->id . '/subsanaciones', 'public');
+                    $ruta = $archivo->store('solicitudes/' . $solicitud->id . '/subsanaciones', 'documentos');
 
                     Documento::create([
                         'modelo_tipo'     => SolicitudArbitraje::class,
