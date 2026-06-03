@@ -125,6 +125,14 @@ MAIL_FROM_ADDRESS=...
 MAIL_FROM_NAME="The Ankawa Global Group"
 ```
 
+> **Proveedor de correo (decisión pendiente de implementar).** Hoy se usa Gmail SMTP
+> (`smtp.gmail.com`): lento y sin forma de saber si un correo se entregó. La dirección
+> acordada es migrar a **Amazon SES** (sin marca de agua, trazabilidad de entrega/rebote
+> vía SNS, ~$0.10/1K, driver nativo de Laravel — solo cambia `MAIL_MAILER=ses` + claves AWS,
+> sin tocar Mailables). Requiere verificar dominio (DKIM/SPF/DMARC) y salir del sandbox de SES.
+> Además se planea **encolar** los correos (`ShouldQueue` + `afterCommit`) para sacarlos de
+> la petición. Ver detalle en `Auditoria.md` (hilo de correo / A-5, A-7).
+
 ---
 
 ## 4. Qué hace el `queue:work` en este proyecto (estado actual)

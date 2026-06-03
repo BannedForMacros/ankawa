@@ -20,6 +20,24 @@ Leyenda de severidad: 🚨 CRÍTICO · 🟠 ALTO · 🟡 MEDIO · 🔵 BAJO
 
 ---
 
+## 📌 Estado de la remediación (para retomar rápido) — act. 2026-06-01
+
+**Resuelto:**
+- ✅ **C-1** Seguridad documental — disco privado `documentos` + descargas autorizadas (staff y portal OTP) + `app/Support/DocumentoAcceso.php`. Enlaces del email de requerimiento ahora autorizados (login-si-hace-falta + retorno al PDF). En `ModalResponder.jsx` los documentos del requerimiento salen desplegados y destacados.
+- ✅ **C-4** Email del cargo movido fuera de la transacción en `SolicitudArbitrajeController::store`.
+
+**Próximo en el plan acordado:** **A-7** (encolar emails: `ShouldQueue` + `afterCommit` — saca el SMTP de la petición; también arregla la lentitud) y **A-8** (reset de contraseña antes del envío).
+
+**Hilo de correo / fiabilidad ("nunca me llegó"):**
+- Con SMTP plano NO se puede saber si un correo se **entregó** (solo "enviado/fallido"). Para entregado/rebotó se necesita un proveedor con webhooks.
+- **Decisión:** proveedor = **Amazon SES** (sin marca de agua —Brevo gratis mete footer—, trazabilidad vía SNS, ~$0.10/1K = centavos, driver nativo Laravel). NO configurado aún.
+- El **portal es la verdad legal**; el correo es solo aviso (dejarlo en el reglamento).
+- Pasos: usuario crea cuenta AWS + verifica dominio (DKIM/SPF/DMARC) + sale del sandbox → luego implementar endpoint Laravel que recibe eventos SNS y actualiza `movimiento_notificaciones` (= panel de estado real, hallazgo **A-5**). Quedó ofrecido un `SES-setup.md`.
+
+**⚠️ Pendiente al desplegar (de C-1):** mover `storage/app/public/{expedientes,movimientos,solicitudes}` → `storage/app/private/documentos/` + `php artisan config:clear`; cambios JSX requieren `npm run build`.
+
+---
+
 ## 🚨 CRÍTICOS (bloqueantes para producción)
 
 ### [x] C-1 · Documentos legales accesibles sin autorización — RESUELTO (2026-06-01)
@@ -78,7 +96,12 @@ Añadir `withoutOverlapping()` y un healthcheck del job.
 
 ---
 
-### [ ] C-4 · Pérdida de solicitudes por email dentro de la transacción
+### [x] C-4 · Pérdida de solicitudes por email dentro de la transacción — RESUELTO (2026-06-01)
+**Implementado:** el `Mail::send` del cargo se movió DESPUÉS del `DB::commit()` en
+`SolicitudArbitrajeController::store`, en su propio try/catch que solo loguea. Un fallo de
+SMTP ya no revierte la solicitud. (Reintento automático del correo = pendiente en A-5.)
+
+<details><summary>Detalle original del hallazgo</summary>
 `SolicitudArbitrajeController.php:411-414` — `Mail::send()` (síncrono) corre **antes**
 del `DB::commit()`; el `catch` de línea 435 hace `rollBack()`.
 
@@ -88,6 +111,7 @@ mantiene locks de correlativos durante toda la latencia SMTP.
 
 **Fix:** mover el `Mail::send` **después** del `DB::commit()`, en su propio try/catch
 que solo loguee. El patrón de `PortalController::responder` (`:639`) es el modelo a replicar.
+</details>
 
 ---
 

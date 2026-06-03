@@ -407,15 +407,23 @@ class SolicitudArbitrajeController extends Controller
                 }
             }
 
-            // ── 7. Enviar correo de cargo ───────────────────────────────────
-            Mail::to($solicitud->email_demandante, $solicitud->nombre_demandante)
-                ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $expediente));
-
             DB::commit();
 
             AuditoriaPortal::registrar('cargo_generado', $request, [
                 'numero_cargo' => $solicitud->numero_cargo,
             ], $solicitud);
+
+            // ── 7. Correo de cargo: FUERA de la transacción ─────────────────
+            // Un fallo de SMTP NO debe revertir una solicitud ya registrada: el
+            // cargo correlativo, el expediente, los actores y los documentos ya
+            // existen. Solo se loguea el fallo del envío (el cargo se ve igual en
+            // Mesa de Partes / Mis Solicitudes y puede reenviarse).
+            try {
+                Mail::to($solicitud->email_demandante, $solicitud->nombre_demandante)
+                    ->send(new CargoSolicitudMail($solicitud, $passwordRaw, $expediente));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Envío de cargo de solicitud falló (' . $solicitud->numero_cargo . '): ' . $e->getMessage());
+            }
 
             // Aviso (campana) a Secretaría General: nueva solicitud por revisar.
             try {
