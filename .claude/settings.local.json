@@ -91,7 +91,16 @@
       "Bash(npm install *)",
       "Bash(cmd.exe /c start \"\" \"C:\\\\MacSoft\\\\ankawa\\\\demo_swal\\\\index.html\")",
       "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT count\\(*\\) total, count\\(*\\) FILTER \\(WHERE activo=1\\) activos, count\\(*\\) FILTER \\(WHERE activo=0\\) inactivos FROM tipo_documentos;\")",
-      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT count\\(*\\) FROM tipo_documentos td WHERE td.activo=1 AND NOT EXISTS \\(SELECT 1 FROM documentos d WHERE d.tipo_documento_id = td.id\\);\")"
+      "Bash(PGPASSWORD=postgres \"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -t -c \"SELECT count\\(*\\) FROM tipo_documentos td WHERE td.activo=1 AND NOT EXISTS \\(SELECT 1 FROM documentos d WHERE d.tipo_documento_id = td.id\\);\")",
+      "Bash(xargs echo \"lineas con REVERB:\")",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(/c/Program Files/PostgreSQL/17/bin/psql.exe *)",
+      "Bash(\"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, parent_id, nombre, slug, ruta, icono, orden FROM modules WHERE parent_id = 1 OR id = 1 ORDER BY orden;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, nombre, slug FROM roles ORDER BY id;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/17/bin/psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d rol_modulo_permiso\")",
+      "PowerShell($env:PGPASSWORD='postgres'; $psql='C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe'; & $psql -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, parent_id, nombre, slug, ruta, icono, orden FROM modules WHERE parent_id = 1 OR id = 1 ORDER BY orden;\"; Write-Output \"=== ROLES ===\"; & $psql -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, nombre, slug FROM roles ORDER BY id;\")",
+      "PowerShell($env:PGPASSWORD='postgres'; $psql='C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe'; & $psql -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d modules\"; & $psql -U postgres -h 127.0.0.1 -d ankawa -c \"\\\\d rol_modulo_permiso\")"
     ]
   }
 }
