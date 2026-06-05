@@ -33,6 +33,7 @@ use App\Http\Controllers\Configuracion\TipoActorController;
 use App\Http\Controllers\Configuracion\TipoDocumentoController;
 use App\Http\Controllers\Configuracion\TipoEventoCargoController;
 use App\Http\Controllers\Configuracion\ModuloController;
+use App\Http\Controllers\Configuracion\EstadoSistemaController;
 
 
 
@@ -231,6 +232,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('tipos-documentos/{tipoDocumento}/reactivar',        [TipoDocumentoController::class, 'reactivar'])      ->name('configuracion.tipos-documentos.reactivar')     ->middleware('permiso:configuracion.tipos-documentos,editar');
         Route::post('tipos-documentos/{tipoDocumento}/servicios',         [TipoDocumentoController::class, 'syncServicios'])  ->name('configuracion.tipos-documentos.sync-servicios')->middleware('permiso:configuracion.tipos-documentos,editar');
         Route::post('tipos-documentos/{tipoDocumento}/actores',           [TipoDocumentoController::class, 'syncActores'])    ->name('configuracion.tipos-documentos.sync-actores')  ->middleware('permiso:configuracion.tipos-documentos,editar');
+
+        // Estado del Sistema (monitor de servicios: cron, worker, Reverb, broadcasting)
+        Route::get('estado-sistema',       [EstadoSistemaController::class, 'index'])->name('configuracion.estado-sistema.index')->middleware('permiso:configuracion.estado-sistema,ver');
+        Route::get('estado-sistema/check', [EstadoSistemaController::class, 'check'])->name('configuracion.estado-sistema.check')->middleware('permiso:configuracion.estado-sistema,ver');
     });
 
     // ── Auditoría del Portal Público (acceso interno) ──
