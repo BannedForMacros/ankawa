@@ -31,6 +31,17 @@ class ExpedienteActor extends Model
         'acceso_expediente_electronico' => 'boolean',
     ];
 
+    /**
+     * El portal compara emails contra la sesión OTP (siempre en minúsculas) y
+     * PostgreSQL es case-sensitive — normalizar al guardar evita que un actor
+     * registrado como Juan@Empresa.com pierda acceso a la mesa de partes.
+     */
+    public function setEmailExternoAttribute($value): void
+    {
+        $email = is_string($value) ? strtolower(trim($value)) : $value;
+        $this->attributes['email_externo'] = ($email === '') ? null : $email;
+    }
+
     public function expediente(): BelongsTo
     {
         return $this->belongsTo(Expediente::class, 'expediente_id');

@@ -21,6 +21,15 @@ class ExpedienteActorEmail extends Model
         'activo' => 'boolean',
     ];
 
+    /**
+     * Se guarda en minúsculas porque el portal compara contra la sesión OTP
+     * (lowercased) y PostgreSQL es case-sensitive.
+     */
+    public function setEmailAttribute($value): void
+    {
+        $this->attributes['email'] = is_string($value) ? strtolower(trim($value)) : $value;
+    }
+
     public function actor(): BelongsTo
     {
         return $this->belongsTo(ExpedienteActor::class, 'expediente_actor_id');

@@ -36,8 +36,12 @@ class PortalController extends Controller
 
     private function actorIdsPorEmail(string $email)
     {
+        // email_externo y expediente_actor_emails.email ya se guardan en minúsculas
+        // (mutators de los modelos); users.email puede tener mayúsculas históricas.
+        $email = strtolower(trim($email));
+
         return ExpedienteActor::where('email_externo', $email)
-            ->orWhereHas('usuario', fn($q) => $q->where('email', $email))
+            ->orWhereHas('usuario', fn($q) => $q->whereRaw('LOWER(email) = ?', [$email]))
             ->pluck('id')
             ->merge(ExpedienteActorEmail::where('email', $email)->pluck('expediente_actor_id'))
             ->unique()
@@ -470,9 +474,9 @@ class PortalController extends Controller
             ], 422);
         }
 
-        $actorDelEmail = ExpedienteActor::where('email_externo', $email)
-            ->orWhereHas('usuario', fn($q) => $q->where('email', $email))
-            ->orWhereHas('emailsAdicionales', fn($q) => $q->where('email', $email))
+        $actorDelEmail = ExpedienteActor::where('email_externo', strtolower(trim($email)))
+            ->orWhereHas('usuario', fn($q) => $q->whereRaw('LOWER(email) = ?', [strtolower(trim($email))]))
+            ->orWhereHas('emailsAdicionales', fn($q) => $q->where('email', strtolower(trim($email))))
             ->first();
         $usuarioIdActor = $actorDelEmail?->usuario_id;
 
