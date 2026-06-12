@@ -496,7 +496,7 @@ class PortalController extends Controller
         if ($archivosPorTipo->flatten()->isEmpty() && empty($archivosLegacy)) {
             return response()->json([
                 'ok'      => false,
-                'mensaje' => 'Debes adjuntar al menos un documento de los requeridos.',
+                'mensaje' => 'Adjunte al menos un documento de los requeridos.',
             ], 422);
         }
 
@@ -837,8 +837,8 @@ class PortalController extends Controller
             'documentos'        => ['required', 'array', 'min:1'],
             'documentos.*'      => FileRules::accept(),
         ], [
-            'documentos.required' => 'Debes adjuntar al menos un documento.',
-            'documentos.min'      => 'Debes adjuntar al menos un documento.',
+            'documentos.required' => 'Adjunte al menos un documento.',
+            'documentos.min'      => 'Adjunte al menos un documento.',
         ]);
 
         $tipoValido = $expediente->servicio

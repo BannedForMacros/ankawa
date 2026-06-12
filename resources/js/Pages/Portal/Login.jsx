@@ -10,6 +10,8 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
     const [codigo, setCodigo] = useState(['', '', '', '', '', '']);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
+    const [aviso, setAviso] = useState('');
+    const [reenvioEn, setReenvioEn] = useState(0); // segundos para habilitar "Reenviar código"
     const inputsRef = useRef([]);
     const captchaRef = useRef(null);
     const [captchaWidgetId, setCaptchaWidgetId] = useState(null);
@@ -48,15 +50,22 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
         return () => clearInterval(intervalo);
     }, [hcaptchaSiteKey, step, captchaWidgetId]);
 
+    // Cuenta regresiva para habilitar el reenvío del código
+    useEffect(() => {
+        if (step !== 'otp' || reenvioEn <= 0) return;
+        const t = setTimeout(() => setReenvioEn(s => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [step, reenvioEn]);
+
     async function enviarCodigo(e) {
         e.preventDefault();
         if (!email.trim() || !numeroDoc.trim()) return;
         if (!digito.trim()) {
-            setError('Ingresa el dígito verificador del DNI.');
+            setError('Ingrese el dígito verificador del DNI.');
             return;
         }
         if (hcaptchaSiteKey && !captchaToken) {
-            setError('Completa la verificación de seguridad.');
+            setError('Complete la verificación de seguridad.');
             return;
         }
 
@@ -77,6 +86,8 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
 
             if (data.ok) {
                 setStep('otp');
+                setReenvioEn(60);
+                setAviso('');
             } else {
                 setError(data.mensaje ?? 'No se pudo iniciar sesión.');
                 if (window.hcaptcha && captchaWidgetId !== null) {
@@ -85,7 +96,39 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                 }
             }
         } catch (err) {
-            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intenta nuevamente.');
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intente nuevamente.');
+        } finally {
+            setCargando(false);
+        }
+    }
+
+    // Reenviar el código. El captcha es de un solo uso: si el servidor lo rechaza,
+    // se devuelve al usuario al paso de identidad para completarlo de nuevo.
+    async function reenviarCodigo() {
+        if (cargando || reenvioEn > 0) return;
+        setCargando(true); setError(''); setAviso('');
+        try {
+            const { data } = await window.axios.post(route('portal.enviar-codigo'), {
+                email: email.trim(),
+                tipo_doc: 'dni',
+                numero_doc: numeroDoc.trim(),
+                digito_verificador: digito.trim().toUpperCase(),
+                captcha_token: captchaToken,
+            });
+            if (data.ok) {
+                setCodigo(['', '', '', '', '', '']);
+                setReenvioEn(60);
+                setAviso('Le enviamos un código nuevo. El anterior quedó anulado.');
+            } else {
+                volverAIdentidad();
+                setError('Por seguridad, complete nuevamente la verificación para reenviar el código.');
+                if (window.hcaptcha && captchaWidgetId !== null) {
+                    window.hcaptcha.reset(captchaWidgetId);
+                    setCaptchaToken('');
+                }
+            }
+        } catch (err) {
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intente nuevamente.');
         } finally {
             setCargando(false);
         }
@@ -138,7 +181,7 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                 setError(data.mensaje ?? 'Código incorrecto o expirado.');
             }
         } catch (err) {
-            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intenta nuevamente.');
+            setError(err.response?.data?.mensaje ?? 'Error de conexión. Intente nuevamente.');
         } finally {
             setCargando(false);
         }
@@ -148,6 +191,7 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
         setStep('identidad');
         setCodigo(['', '', '', '', '', '']);
         setError('');
+        setAviso('');
     }
 
     return (
@@ -184,7 +228,7 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                                 </div>
                                 <h1 className="text-xl font-black text-[#291136]">Portal Externo</h1>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    Verifica tu identidad para acceder.
+                                    Verifique su identidad para acceder.
                                 </p>
                             </div>
 
@@ -199,7 +243,7 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                                         required
                                         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A]"
                                     />
-                                    <p className="text-[11px] text-gray-400 mt-1">No se aceptan correos temporales o desechables.</p>
+                                    <p className="text-xs text-gray-500 mt-1">No se aceptan correos temporales o desechables.</p>
                                 </div>
 
                                 <div>
@@ -227,8 +271,9 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                                             maxLength={1}
                                             className="w-16 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#BE0F4A]"
                                         />
-                                        <p className="text-[11px] text-gray-500 leading-tight">
-                                            Carácter (número o letra) impreso al lado/debajo del número de DNI en tu documento físico.
+                                        <p className="text-xs text-gray-600 leading-snug">
+                                            Es el número o letra pequeño que aparece junto a su número de DNI
+                                            en el documento físico.
                                         </p>
                                     </div>
                                 </div>
@@ -266,6 +311,10 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                                     Enviamos un código a<br />
                                     <span className="font-semibold text-[#291136]">{email}</span>
                                 </p>
+                                <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                                    El código llega en 1 o 2 minutos y vence a los 15.
+                                    Revise también su carpeta de spam (correo no deseado).
+                                </p>
                             </div>
                             <form onSubmit={verificarCodigo} className="space-y-4">
                                 <div className="flex gap-2 justify-center">
@@ -290,12 +339,28 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
                                         <p className="text-xs text-red-600">{error}</p>
                                     </div>
                                 )}
+                                {aviso && (
+                                    <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                                        <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                                        <p className="text-xs text-emerald-700">{aviso}</p>
+                                    </div>
+                                )}
                                 <button
                                     type="submit"
                                     disabled={cargando || codigo.join('').length < 6}
                                     className="w-full flex items-center justify-center gap-2 py-3 bg-[#BE0F4A] text-white rounded-xl font-bold text-sm hover:bg-[#9c0a3b] disabled:opacity-60 transition-colors"
                                 >
                                     {cargando ? 'Verificando…' : <><CheckCircle2 size={16} /><span>Ingresar</span></>}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={reenviarCodigo}
+                                    disabled={cargando || reenvioEn > 0}
+                                    className="w-full text-xs font-semibold text-[#BE0F4A] hover:text-[#9c0a3b] disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    {reenvioEn > 0
+                                        ? `¿No le llegó? Podrá reenviarlo en ${reenvioEn} s`
+                                        : '¿No le llegó? Reenviar código'}
                                 </button>
                                 <button
                                     type="button"

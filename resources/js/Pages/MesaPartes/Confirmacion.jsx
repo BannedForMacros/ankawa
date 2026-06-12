@@ -1,7 +1,20 @@
+import { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { CheckCircle2, FileText, ArrowRight, Home } from 'lucide-react';
+import { CheckCircle2, FileText, ArrowRight, Home, Copy, Check } from 'lucide-react';
 
 export default function Confirmacion({ numeroCargo }) {
+    const [copiado, setCopiado] = useState(false);
+
+    async function copiarNumero() {
+        try {
+            await navigator.clipboard.writeText(numeroCargo);
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 2500);
+        } catch {
+            // Clipboard no disponible (http o navegador antiguo): el número queda visible para copiarlo a mano.
+        }
+    }
+
     return (
         <>
             <Head title="Solicitud Enviada" />
@@ -25,18 +38,36 @@ export default function Confirmacion({ numeroCargo }) {
                     <div className="p-8">
 
                         {/* Número de cargo */}
-                        <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 rounded-2xl p-5 mb-6">
-                            <div className="w-12 h-12 rounded-xl bg-[#BE0F4A]/10 flex items-center justify-center shrink-0">
-                                <FileText size={22} className="text-[#BE0F4A]" />
+                        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 mb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-xl bg-[#BE0F4A]/10 flex items-center justify-center shrink-0">
+                                    <FileText size={22} className="text-[#BE0F4A]" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-0.5">
+                                        Número de Cargo
+                                    </p>
+                                    <p className="text-xl font-extrabold text-[#291136] tracking-wider">
+                                        {numeroCargo}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={copiarNumero}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors shrink-0 ${
+                                        copiado
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                            : 'bg-white border-gray-200 text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A]'
+                                    }`}
+                                >
+                                    {copiado ? <Check size={14} /> : <Copy size={14} />}
+                                    {copiado ? 'Copiado' : 'Copiar'}
+                                </button>
                             </div>
-                            <div>
-                                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-0.5">
-                                    Número de Cargo
-                                </p>
-                                <p className="text-xl font-extrabold text-[#291136] tracking-wider">
-                                    {numeroCargo}
-                                </p>
-                            </div>
+                            <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+                                Este es su comprobante de recepción. <strong>Guárdelo</strong>: lo necesitará
+                                para consultar el estado de su solicitud.
+                            </p>
                         </div>
 
                         <ul className="text-sm text-gray-600 space-y-3 mb-8">

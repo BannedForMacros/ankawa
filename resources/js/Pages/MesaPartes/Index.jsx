@@ -19,8 +19,39 @@ function FormularioPorServicio({ servicio }) {
     return <Comp servicio={servicio} />;
 }
 
-// ── Requisitos antes del formulario ──
+// ── Requisitos antes del formulario (por servicio: no exigir lo que no aplica) ──
+const REQUISITOS_BASE = [
+    'Documento de identidad vigente (DNI, CE o RUC según corresponda)',
+    'Poder de representación (solo si actúa en nombre de otra persona o empresa)',
+];
+
+const REQUISITOS_POR_SLUG = {
+    'arbitraje': [
+        ...REQUISITOS_BASE,
+        'Convenio arbitral o cláusula arbitral del contrato',
+        'Documentos que sustenten la controversia',
+        'Comprobante de pago de derechos de presentación',
+    ],
+    'arbitraje-emergencia': [
+        ...REQUISITOS_BASE,
+        'Convenio arbitral o cláusula arbitral del contrato',
+        'Documentos que sustenten la controversia y la urgencia de la medida',
+        'Comprobante de pago de derechos de presentación',
+    ],
+    'jprd': [
+        ...REQUISITOS_BASE,
+        'Contrato de obra',
+        'Solicitud de conformación de la Junta de Prevención y Resolución de Disputas',
+    ],
+    'otros': [
+        'Documento de identidad vigente (DNI, CE o RUC según corresponda)',
+        'El documento o archivo que desea enviar al centro',
+    ],
+};
+
 function Requisitos({ servicio, onContinue }) {
+    const requisitos = REQUISITOS_POR_SLUG[servicio.slug] ?? REQUISITOS_BASE;
+
     return (
         <div>
             <div className="mb-6">
@@ -36,13 +67,7 @@ function Requisitos({ servicio, onContinue }) {
                     Requisitos para presentar su solicitud
                 </h3>
                 <ul className="space-y-3">
-                    {[
-                        'Documento de identidad vigente (DNI, CE o RUC según corresponda)',
-                        'Convenio arbitral o clausula arbitral del contrato',
-                        'Documentos que sustenten la controversia',
-                        'Poder de representacion (si actua como representante legal)',
-                        'Comprobante de pago de derechos de presentacion',
-                    ].map((req, i) => (
+                    {requisitos.map((req, i) => (
                         <li key={i} className="flex items-start gap-3 text-sm text-amber-800">
                             <ChevronRight size={15} className="text-amber-500 shrink-0 mt-0.5" />
                             {req}
@@ -52,15 +77,16 @@ function Requisitos({ servicio, onContinue }) {
             </div>
 
             <div className="bg-[#291136]/5 rounded-xl p-4 mb-6 text-sm text-[#291136]/70 leading-relaxed">
-                Al continuar, usted declara haber leido y comprendido los requisitos.
-                Recibira un correo con el cargo de presentacion y credenciales de acceso.
+                Al continuar, usted declara haber leído y comprendido los requisitos.
+                Al finalizar recibirá por correo su <strong>cargo de presentación</strong> —
+                la constancia de que recibimos su solicitud, con el número que usará para hacer seguimiento.
             </div>
 
             <button
                 onClick={onContinue}
                 className="w-full flex items-center justify-center gap-2 bg-[#BE0F4A] hover:bg-[#BC1D35] text-white font-bold py-3.5 px-6 rounded-xl transition-colors shadow-lg"
             >
-                He leido los requisitos, continuar
+                He leído los requisitos, continuar
                 <ChevronRight size={18} />
             </button>
         </div>
@@ -128,7 +154,7 @@ export default function Index({ servicios }) {
                         {/* Header */}
                         <div className="mb-12 text-center">
                             <span className="inline-block py-1 px-3 rounded-full bg-[#BE0F4A]/10 text-[#BE0F4A] text-sm font-semibold mb-4 border border-[#BE0F4A]/20">
-                                Tramites Digitales
+                                Trámites Digitales
                             </span>
                             <h1 className="text-4xl md:text-5xl font-bold text-[#291136] mb-4"
                                 style={{ fontFamily: 'Montserrat, sans-serif' }}>
@@ -137,7 +163,7 @@ export default function Index({ servicios }) {
                             <div className="w-24 h-1 bg-gradient-to-r from-[#BE0F4A] to-[#BC1D35] mx-auto mb-6 rounded-full"></div>
                             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
                                 Gestione sus expedientes y presente solicitudes de forma
-                                <span className="font-semibold text-[#BE0F4A]"> segura, rapida y 100% digital</span>.
+                                <span className="font-semibold text-[#BE0F4A]"> segura, rápida y 100% digital</span>.
                             </p>
                         </div>
 
@@ -191,7 +217,7 @@ export default function Index({ servicios }) {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400">
                                         <Clock size={40} className="mb-4 opacity-30" />
-                                        <h3 className="text-xl font-bold text-[#291136] mb-2">Proximamente</h3>
+                                        <h3 className="text-xl font-bold text-[#291136] mb-2">Próximamente</h3>
                                         <p className="max-w-md text-sm">
                                             Estamos configurando los servicios disponibles. Vuelva pronto.
                                         </p>
@@ -203,9 +229,9 @@ export default function Index({ servicios }) {
                         {/* Info cards */}
                         <div className="mt-12 grid md:grid-cols-3 gap-6">
                             {[
-                                { icon: <Shield size={22} />,      title: 'Seguridad Garantizada', desc: 'Encriptacion de nivel bancario para proteger toda su documentacion sensible.'        },
-                                { icon: <CheckCircle size={22} />, title: 'Proceso Simplificado',  desc: 'Interfaz intuitiva guiada paso a paso para completar tramites sin errores.'          },
-                                { icon: <Zap size={22} />,         title: 'Respuesta Inmediata',   desc: 'Notificaciones automaticas en tiempo real sobre el estado de su expediente.'         },
+                                { icon: <Shield size={22} />,      title: 'Seguridad Garantizada', desc: 'Encriptación de nivel bancario para proteger toda su documentación sensible.'        },
+                                { icon: <CheckCircle size={22} />, title: 'Proceso Simplificado',  desc: 'Interfaz intuitiva guiada paso a paso para completar trámites sin errores.'          },
+                                { icon: <Zap size={22} />,         title: 'Respuesta Inmediata',   desc: 'Notificaciones automáticas en tiempo real sobre el estado de su expediente.'         },
                             ].map((c, i) => (
                                 <div key={i}
                                     className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-transparent hover:border-[#BE0F4A]/20 group">

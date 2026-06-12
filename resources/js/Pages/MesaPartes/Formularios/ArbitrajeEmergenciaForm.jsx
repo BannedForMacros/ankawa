@@ -432,6 +432,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
             <BloquePersona
                 icono={User} titulo="Sus Datos (Demandante)"
+                descripcion="El demandante es usted: quien presenta la solicitud."
                 campos={{
                     tipo_persona:            data.tipo_persona,
                     tipo_documento:          data.tipo_documento,
@@ -513,6 +514,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             {/* Bloque Demandado */}
             <BloquePersona
                 icono={Users} titulo="Datos del Demandado"
+                descripcion="El demandado es la persona o empresa contra la que presenta su solicitud."
                 campos={{
                     tipo_persona:            data.tipo_persona_demandado,
                     tipo_documento:          data.tipo_documento_demandado,

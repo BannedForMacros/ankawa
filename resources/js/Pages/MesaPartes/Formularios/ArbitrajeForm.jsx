@@ -39,14 +39,19 @@ export function docDefaultPorPersona(tipo) {
 }
 
 /* ─── Sección visual ─── */
-export function Seccion({ icono: Icono, titulo, children }) {
+export function Seccion({ icono: Icono, titulo, descripcion, children }) {
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
             <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
                 <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
                     <Icono size={16} className="text-[#BE0F4A]" />
                 </div>
-                <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">{titulo}</h2>
+                <div>
+                    <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">{titulo}</h2>
+                    {descripcion && (
+                        <p className="text-xs text-gray-500 mt-0.5">{descripcion}</p>
+                    )}
+                </div>
             </div>
             <div className="p-6">{children}</div>
         </div>
@@ -504,7 +509,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
 
 /* ─── Bloque de Persona (demandante o demandado) ─── */
 export function BloquePersona({
-    titulo, icono: Icono, campos, setCampos, errors, bloquearTipoPersona,
+    titulo, descripcion, icono: Icono, campos, setCampos, errors, bloquearTipoPersona,
     conRepresentante, esDemandante, portalEmail,
     subtipoJuridico, onSubtipoChange,
     docVigenciaPoder, onDocVigenciaPoderChange,
@@ -592,7 +597,7 @@ export function BloquePersona({
     const domicilioLocked = esNaturalBloqueado || (esLocked && tipoDoc === 'ruc');
 
     return (
-        <Seccion icono={Icono} titulo={titulo}>
+        <Seccion icono={Icono} titulo={titulo} descripcion={descripcion}>
             <div className="space-y-4">
 
                 {/* Tipo persona */}
@@ -1239,6 +1244,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             ) : null}
             <BloquePersona
                 icono={User} titulo="Sus Datos (Demandante)"
+                descripcion="El demandante es usted: quien presenta la solicitud."
                 campos={{
                     tipo_persona:            data.tipo_persona,
                     tipo_documento:          data.tipo_documento,
@@ -1321,6 +1327,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             {/* Bloque Demandado */}
             <BloquePersona
                 icono={Users} titulo="Datos del Demandado"
+                descripcion="El demandado es la persona o empresa contra la que presenta su solicitud."
                 campos={{
                     tipo_persona:            data.tipo_persona_demandado,
                     tipo_documento:          data.tipo_documento_demandado,
@@ -1381,22 +1388,26 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             {/* Controversia */}
             <Seccion icono={Scale} titulo="Materia de la Controversia">
                 <Textarea id="pretensiones" label="Pretensiones" required
+                    hint="¿Qué le pide al tribunal arbitral? Describa cada reclamo con sus palabras."
                     value={data.pretensiones} onChange={e => setData('pretensiones', e.target.value)}
-                    placeholder="Indique qué solicita al tribunal arbitral..." rows={4}
+                    placeholder="Ej.: Que se ordene el pago de las valorizaciones pendientes..." rows={4}
                     error={errors.pretensiones || missingFields.pretensiones} />
                 <Textarea id="monto_controversias" label="Monto de la(s) Controversia(s)" required
+                    hint="¿Cuánto dinero está en disputa en total? Si hay varios reclamos, descríbalos por separado."
                     value={data.monto_controversias} onChange={e => setData('monto_controversias', e.target.value)}
-                    placeholder="Describa el monto de la(s) controversia(s)..." rows={3}
+                    placeholder="Ej.: S/ 80,000 por valorizaciones + S/ 20,000 por penalidades..." rows={3}
                     error={errors.monto_controversias || missingFields.monto_controversias} />
                 <Input label="Suma de Monto de Pretensiones Determinadas (Monto en soles)" required
+                    hint="Sume solo los reclamos que tienen un monto exacto en soles."
                     type="number" min="0" step="0.01"
                     value={data.suma_monto_pretensiones_determinadas}
                     onChange={e => setData('suma_monto_pretensiones_determinadas', e.target.value)}
                     placeholder="Ej: 50000.00"
                     error={errors.suma_monto_pretensiones_determinadas || missingFields.suma_monto_pretensiones_determinadas} />
                 <Textarea id="pretensiones_indeterminadas" label="Pretensiones Indeterminadas (Que no se puedan cuantificar)" required
+                    hint="Reclamos sin monto exacto, por ejemplo: que se cumpla el contrato. Si no tiene ninguno, escriba «Ninguna»."
                     value={data.pretensiones_indeterminadas} onChange={e => setData('pretensiones_indeterminadas', e.target.value)}
-                    placeholder="Detalle las pretensiones que no se pueden cuantificar..." rows={3}
+                    placeholder="Ej.: Que se declare resuelto el contrato... (o escriba «Ninguna»)" rows={3}
                     error={errors.pretensiones_indeterminadas || missingFields.pretensiones_indeterminadas} />
                 <div className="mt-4">
                     <MultiArchivoInput
