@@ -112,7 +112,8 @@
       "PowerShell(Remove-Item *)",
       "PowerShell(git check-ignore *)",
       "PowerShell(php -l app\\\\Http\\\\Controllers\\\\PortalController.php; php -l app\\\\Http\\\\Controllers\\\\Servicios\\\\Otros\\\\SolicitudOtrosController.php; php -l app\\\\Support\\\\DocumentoAcceso.php; php -l app\\\\Http\\\\Controllers\\\\MesaPartesController.php)",
-      "PowerShell(php artisan route:list --name=mesa-partes 2>$null | Select-Object -First 5; php artisan route:list --name=otros; Get-ChildItem tests\\\\Feature -ErrorAction SilentlyContinue | Select-Object Name)"
+      "PowerShell(php artisan route:list --name=mesa-partes 2>$null | Select-Object -First 5; php artisan route:list --name=otros; Get-ChildItem tests\\\\Feature -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\PortalController.php; php -l app\\\\Http\\\\Controllers\\\\MesaPartesController.php; php -l app\\\\Http\\\\Controllers\\\\ConsultaDocumentoController.php; php -l app\\\\Providers\\\\AppServiceProvider.php; php artisan route:list --name=consulta)"
     ]
   }
 }

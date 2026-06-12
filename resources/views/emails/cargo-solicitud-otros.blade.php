@@ -32,9 +32,9 @@
             </p>
 
             <div class="cargo-box">
-                <p style="color:#666; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:1px;">Numero de Cargo</p>
+                <p style="color:#666; font-size:12px; margin:0 0 6px; text-transform:uppercase; letter-spacing:1px;">Número de Cargo</p>
                 <div class="cargo-num">{{ $cargo->numero_cargo }}</div>
-                <p style="color:#999; font-size:12px; margin:8px 0 0;">Guarde este numero como constancia de su envio</p>
+                <p style="color:#999; font-size:12px; margin:8px 0 0;">Guarde este número: es su constancia y lo necesitará para hacer seguimiento</p>
             </div>
 
             <div style="margin: 24px 0;">
@@ -51,7 +51,7 @@
                     <span class="dato-valor">{{ $solicitud->nombre_remitente }}</span>
                 </div>
                 <div class="dato" style="border:none;">
-                    <span class="dato-label">Fecha de envio</span>
+                    <span class="dato-label">Fecha de envío</span>
                     <span class="dato-valor">{{ $solicitud->created_at->format('d/m/Y H:i') }}</span>
                 </div>
             </div>

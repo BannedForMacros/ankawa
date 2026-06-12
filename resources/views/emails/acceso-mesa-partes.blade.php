@@ -14,7 +14,7 @@
     @endif
 
     <tr>
-        <td class="field-label">Sumilla</td>
+        <td class="field-label">Participa como</td>
         <td class="field-value">{{ $actor->tipoActor?->nombre ?? '—' }}</td>
     </tr>
     <tr style="border-bottom: none;">

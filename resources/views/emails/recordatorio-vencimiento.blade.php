@@ -16,7 +16,7 @@
     @endif
 
     <tr>
-        <td class="field-label">Requerimiento</td>
+        <td class="field-label">Sumilla</td>
         <td class="field-value">{{ $movimiento->instruccion }}</td>
     </tr>
 

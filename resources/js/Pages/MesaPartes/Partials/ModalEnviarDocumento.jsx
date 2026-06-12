@@ -62,15 +62,15 @@ export default function ModalEnviarDocumento({ expediente, onClose, onEnviado })
     function handleSubmit(e) {
         e.preventDefault();
         if (!tipoDocumentoId) {
-            toast.error('Selecciona el tipo de documento.');
+            toast.error('Seleccione el tipo de documento.');
             return;
         }
         if (!descripcion.trim()) {
-            toast.error('Describe brevemente qué estás enviando.');
+            toast.error('Describa brevemente qué está enviando.');
             return;
         }
         if (archivos.length === 0) {
-            toast.error('Debes adjuntar al menos un documento.');
+            toast.error('Adjunte al menos un documento para poder enviarlo.');
             return;
         }
         setConfirm(true);
@@ -124,7 +124,7 @@ export default function ModalEnviarDocumento({ expediente, onClose, onEnviado })
             <ConfirmModal
                 open={confirm}
                 titulo="Confirmar envío de documento"
-                resumen="Tu envío se registrará y quedará pendiente de aceptación por el responsable del expediente. Solo aparecerá en el historial cuando sea aceptado."
+                resumen="Su documento se enviará para revisión. Le avisaremos por correo cuando el responsable del expediente lo acepte."
                 detalles={[
                     { label: 'Expediente',        value: expediente.numero_expediente },
                     { label: 'Tipo de documento', value: tipoSeleccionado?.nombre ?? '—' },
@@ -174,7 +174,7 @@ export default function ModalEnviarDocumento({ expediente, onClose, onEnviado })
                                         onChange={e => setTipoDocumentoId(e.target.value)}
                                         className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#BE0F4A] bg-white"
                                     >
-                                        <option value="">— Selecciona un tipo —</option>
+                                        <option value="">— Seleccione un tipo —</option>
                                         {tiposDocumento.map(t => (
                                             <option key={t.id} value={t.id}>{t.nombre}</option>
                                         ))}
@@ -192,7 +192,7 @@ export default function ModalEnviarDocumento({ expediente, onClose, onEnviado })
                                     onChange={e => setDescripcion(e.target.value)}
                                     rows={4}
                                     maxLength={2000}
-                                    placeholder="Indica brevemente en qué consiste el documento que envías..."
+                                    placeholder="Indique brevemente en qué consiste el documento que envía..."
                                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A] resize-none"
                                 />
                                 <p className="text-xs text-gray-400 mt-1 text-right">{descripcion.length}/2000</p>

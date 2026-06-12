@@ -10,13 +10,10 @@ use App\Models\SolicitudOtros;
 use App\Models\SolicitudSubsanacion;
 use App\Models\Documento;
 use App\Models\User;
-use App\Models\VerificationCode;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Mail\CodigoVerificacionMail;
 use Inertia\Inertia;
 
 class MesaPartesController extends Controller
@@ -58,76 +55,6 @@ class MesaPartesController extends Controller
             'portalUser'      => $portalUser,
             'hcaptchaSiteKey' => config('services.hcaptcha.site_key'),
         ]);
-    }
-
-    // ── Enviar OTP al email del demandante ──
-    public function enviarCodigo(Request $request)
-    {
-        $request->validate([
-            'email'     => 'required|email',
-            'nombre'    => 'required|string',
-            'documento' => 'required|string', // <-- AHORA RECIBIMOS EL DNI/RUC
-            'servicio'  => 'required|string',
-        ]);
-
-        // 1. VALIDACIÓN ESTRICTA: ¿El correo o el documento ya existen?
-        $userExists = \App\Models\User::where('email', $request->email)
-            ->orWhere('numero_documento', $request->documento)
-            ->exists();
-
-        if ($userExists) {
-            // Retornamos un error 409 (Conflicto) para que React lo atrape
-            return response()->json([
-                'ok'      => false,
-                'mensaje' => 'Este correo electrónico o número de documento ya se encuentra registrado. Por favor, inicie sesión en su cuenta.'
-            ], 409);
-        }
-
-        // 2. Si no existe, enviamos el código OTP normal
-        VerificationCode::where('email', $request->email)
-            ->where('usado', false)
-            ->update(['usado' => true]);
-
-        $codigo = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        VerificationCode::create([
-            'email'      => $request->email,
-            'codigo'     => $codigo,
-            'expires_at' => now()->addMinutes(15),
-            'usado'      => false,
-        ]);
-
-        Mail::to($request->email)->send(
-            new CodigoVerificacionMail($request->nombre, $codigo, $request->servicio)
-        );
-
-        return response()->json(['ok' => true]);
-    }
-
-    // ── Verificar OTP ──
-    public function verificarCodigo(Request $request)
-    {
-        $request->validate([
-            'email'  => 'required|email',
-            'codigo' => 'required|string|size:6',
-        ]);
-
-        $registro = VerificationCode::where('email', $request->email)
-            ->where('codigo', $request->codigo)
-            ->where('usado', false)
-            ->latest()
-            ->first();
-
-        if (!$registro || !$registro->esValido()) {
-            return response()->json([
-                'ok'      => false,
-                'mensaje' => 'El codigo es invalido o ha expirado.',
-            ], 422);
-        }
-
-        $registro->update(['usado' => true]);
-
-        return response()->json(['ok' => true]);
     }
 
     // ── Pantalla final de Confirmación ──

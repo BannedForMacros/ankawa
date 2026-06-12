@@ -2,7 +2,7 @@
 
 @section('fields')
     <tr>
-        <td class="field-label" style="padding-right: 16px;">Número de Registro</td>
+        <td class="field-label" style="padding-right: 16px;">Número de Cargo</td>
         <td class="field-value" style="font-family: monospace; font-weight: bold; font-size: 13px; color: #222222;">{{ $solicitud->numero_cargo }}</td>
     </tr>
     <tr>
@@ -10,7 +10,7 @@
         <td class="field-value">{{ $expediente?->numero_expediente ?? 'Pendiente de asignación' }}</td>
     </tr>
     <tr>
-        <td class="field-label">Sumilla</td>
+        <td class="field-label">Servicio</td>
         <td class="field-value">{{ $solicitud->servicio->nombre }}</td>
     </tr>
     <tr>

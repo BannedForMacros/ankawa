@@ -98,7 +98,7 @@ export default function ModalTomaConocimiento({ pendientes }) {
                     </button>
 
                     <p className="text-[10px] text-center text-gray-400">
-                        Se registra tu IP y dispositivo como constancia en el historial del expediente.
+                        Se registra su IP y dispositivo como constancia en el historial del expediente.
                     </p>
                 </div>
             </div>

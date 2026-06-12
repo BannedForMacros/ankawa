@@ -308,6 +308,14 @@ class PortalController extends Controller
             Mail::to($email)->send(new CodigoVerificacionMail('', $codigo, 'Ankawa — Acceso al portal'));
         } catch (\Exception $e) {
             \Log::warning("Error enviando OTP a {$email}: " . $e->getMessage());
+            // No dejar vivo un código que nunca llegó, ni decirle "enviado" al usuario:
+            // se quedaría esperando un correo inexistente y quemando su rate limit.
+            VerificationCode::where('email', $email)->where('usado', false)->update(['usado' => true]);
+            AuditoriaPortal::registrar('otp_envio_fallido', $request, ['email' => $email]);
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'No pudimos enviar el correo con el código. Intenta de nuevo en unos minutos.',
+            ], 503);
         }
 
         AuditoriaPortal::registrar('otp_solicitado', $request, ['email' => $email]);
@@ -331,12 +339,26 @@ class PortalController extends Controller
             ->first();
 
         if (!$registro || !$registro->esValido()) {
-            // Sumar 1 al último código vigente del email para tener intentos por usuario
-            VerificationCode::where('email', $email)
+            // Sumar 1 al último código vigente del email; al 5.º fallo el código se
+            // invalida (anti fuerza bruta: 6 dígitos no deben ser adivinables a intentos).
+            $vigente = VerificationCode::where('email', $email)
                 ->where('usado', false)
                 ->latest()
-                ->limit(1)
-                ->update(['intentos_fallidos' => DB::raw('intentos_fallidos + 1')]);
+                ->first();
+
+            if ($vigente) {
+                $vigente->increment('intentos_fallidos');
+
+                if ($vigente->intentos_fallidos >= 5) {
+                    $vigente->update(['usado' => true]);
+                    AuditoriaPortal::registrar('otp_bloqueado_por_intentos', $request, ['email' => $email]);
+                    return response()->json([
+                        'ok'      => false,
+                        'mensaje' => 'Demasiados intentos fallidos. Por seguridad, solicita un código nuevo.',
+                    ], 422);
+                }
+            }
+
             AuditoriaPortal::registrar('otp_fallido', $request, ['email' => $email]);
             return response()->json(['ok' => false, 'mensaje' => 'Código inválido o expirado.'], 422);
         }
@@ -351,6 +373,10 @@ class PortalController extends Controller
         $usuarioVinculado = $registro->numero_documento
             ? User::where('numero_documento', $registro->numero_documento)->first()
             : User::where('email', $email)->first();
+
+        // Nuevo ID de sesión antes de marcarla como autenticada (anti fijación de sesión).
+        // regenerate() migra los datos existentes, incluido portal_intended.
+        $request->session()->regenerate();
 
         session([
             'portal_email'   => $email,

@@ -18,6 +18,16 @@ class ConsultaDocumentoController extends Controller
             return response()->json(['error' => 'Parámetros inválidos'], 422);
         }
 
+        // Formato correcto antes de tocar la API externa (de pago) o insertar
+        // en validacion_documentos: DNI = 8 dígitos, RUC = 11 dígitos.
+        $formatoValido = $tipo === 'dni'
+            ? preg_match('/^\d{8}$/', $numero)
+            : preg_match('/^\d{11}$/', $numero);
+
+        if (!$formatoValido) {
+            return response()->json(['error' => 'Parámetros inválidos'], 422);
+        }
+
         $consulta = $tipo === 'dni'
             ? DecolectaClient::consultarDni($numero)
             : DecolectaClient::consultarRuc($numero);

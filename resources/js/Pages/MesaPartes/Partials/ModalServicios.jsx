@@ -49,7 +49,7 @@ export default function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                 Nueva solicitud
                             </h2>
                             <p className="text-sm text-gray-500 mt-1.5">
-                                Selecciona el tipo de trámite que deseas presentar
+                                Seleccione el tipo de solicitud que desea presentar
                             </p>
                         </div>
                         <button
@@ -133,7 +133,7 @@ export default function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                             className="text-[11px] font-bold uppercase tracking-widest transition-colors"
                                             style={{ color: meta.acento }}
                                         >
-                                            Iniciar trámite
+                                            Iniciar solicitud
                                         </span>
                                         <span
                                             className="text-xs font-bold opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"

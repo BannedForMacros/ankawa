@@ -15,7 +15,7 @@
 
     @if($numeroCargo)
     <tr>
-        <td class="field-label">N° Cargo</td>
+        <td class="field-label">Número de Cargo</td>
         <td class="field-value">{{ $numeroCargo }}</td>
     </tr>
     @endif

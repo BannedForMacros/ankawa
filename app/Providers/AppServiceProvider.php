@@ -53,9 +53,15 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
-        // Validador de DNI/RUC público vía Decolecta.
+        // Validador de DNI/RUC público vía Decolecta. Debe seguir siendo público
+        // (autocompleta los formularios anónimos), pero devuelve nombres de RENIEC:
+        // el tope diario impide cosechar identidades en masa (antes: 20/min sin
+        // tope = ~28k consultas/día por IP). Un formulario legítimo usa 3-6 lookups.
         RateLimiter::for('consulta-documento', function (Request $request) {
-            return Limit::perMinute(20)->by($request->ip());
+            return [
+                Limit::perMinute(8)->by($request->ip()),
+                Limit::perDay(100)->by($request->ip()),
+            ];
         });
 
         // Submit del formulario público (anti-spam).

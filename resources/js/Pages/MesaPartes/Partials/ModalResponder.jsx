@@ -76,13 +76,13 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
     function handleSubmit(e) {
         e.preventDefault();
         if (!respuesta.trim()) {
-            toast.error('Ingresa tu respuesta antes de continuar.');
+            toast.error('Escriba su respuesta antes de continuar.');
             return;
         }
 
         if (esLegacy) {
             if (archivosLegacy.length === 0) {
-                toast.error('Adjunta al menos un archivo.');
+                toast.error('Adjunte al menos un archivo para poder enviar su respuesta.');
                 return;
             }
             setConfirmEnvio(true);
@@ -95,7 +95,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
         const tiposVaciosRequeridos = responsablesPendientes.filter(r => !r.es_opcional && (archivosPorTipo[r.tipo_documento_id] ?? []).length === 0);
 
         if (tiposConArchivos.length === 0) {
-            toast.error('Debes adjuntar al menos un documento.');
+            toast.error('Adjunte al menos un documento para poder enviar su respuesta.');
             return;
         }
 
@@ -137,7 +137,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
             setMostrarLoader(false);
             setProcesando(false);
             if (data.ok) {
-                toast.success('Respuesta enviada correctamente. Recibirás un cargo en tu correo.');
+                toast.success('Respuesta enviada correctamente. Recibirá su cargo (constancia) por correo.');
                 onClose();
                 onRespondido();
             } else {
@@ -157,7 +157,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
         <ConfirmModal
             open={confirmEnvio}
             titulo="Confirmar envío de respuesta"
-            resumen="Se registrará tu respuesta en el expediente y se generará UN cargo de recepción que llegará a tu correo, sin importar cuántos documentos incluya."
+            resumen="Su respuesta quedará registrada en el expediente. Recibirá en su correo un único cargo (su constancia de recepción) con el detalle de todo lo entregado."
             detalles={(() => {
                 const dets = [{ label: 'Expediente', value: expediente }];
                 if (esLegacy && mov.tipo_documento_requerido) {
@@ -183,7 +183,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
         <ConfirmModal
             open={!!confirmParcial}
             titulo="¿Entregar solo parte de los documentos?"
-            resumen="Los siguientes documentos NO se entregarán hoy y su plazo seguirá corriendo. Recibirás un solo cargo que cubre únicamente los documentos que sí estás entregando ahora."
+            resumen="Los siguientes documentos NO se entregarán hoy y su plazo seguirá corriendo. Recibirá un solo cargo que cubre únicamente los documentos que sí está entregando ahora."
             detalles={(confirmParcial?.tiposVacios ?? []).map(t => ({
                 label: t.tipo_documento_nombre,
                 value: t.fecha_limite ? `Sigue pendiente — vence ${t.fecha_limite}` : 'Sigue pendiente',
@@ -220,7 +220,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                             <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0"/>
                             <p className="text-xs text-amber-800 font-semibold">
                                 Documento solicitado: <span className="text-[#BE0F4A]">{mov.tipo_documento_requerido}</span>
-                                <span className="block font-normal text-amber-700 mt-0.5">Asegúrate de adjuntarlo en tu respuesta.</span>
+                                <span className="block font-normal text-amber-700 mt-0.5">Asegúrese de adjuntarlo en su respuesta.</span>
                             </p>
                         </div>
                     )}
@@ -228,7 +228,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                     {/* ── 3. ACCIÓN PRIMARIA: subir documentos (primero, lo más importante) + escribir respuesta (después) ── */}
                     <form id="form-respuesta" onSubmit={handleSubmit} className="space-y-4">
                         <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest -mb-1 flex items-center gap-1.5">
-                            <Upload size={11}/> Tu entrega
+                            <Upload size={11}/> Su entrega
                         </p>
                         {/* ── Flujo NUEVO: una sección por tipo de documento pendiente ── */}
                         {!esLegacy && (
@@ -237,7 +237,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                     Documentos a presentar
                                 </label>
                                 <p className="text-xs text-gray-500 -mt-2">
-                                    Adjunta cada tipo en su propia sección. Los marcados como <strong>opcionales</strong> podés saltearlos. Si no entregás un tipo <strong>requerido</strong>, su plazo seguirá corriendo.
+                                    Adjunte cada documento en su propia sección. Los marcados como <strong>opcionales</strong> puede omitirlos. Si no entrega un documento <strong>requerido</strong>, su plazo seguirá corriendo.
                                 </p>
                                 {responsablesPendientes.map(r => {
                                     const files = archivosPorTipo[r.tipo_documento_id] ?? [];
@@ -269,12 +269,12 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                                     {r.fecha_limite && (
                                                         <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1">
                                                             <Clock size={10}/> Vence: <span className="font-bold text-[#BE0F4A]">{r.fecha_limite}</span>
-                                                            <span className="ml-1">({r.dias_plazo} días {r.tipo_dias === 'habiles' ? 'hábiles' : 'cal.'})</span>
+                                                            <span className="ml-1">({r.dias_plazo} días {r.tipo_dias === 'habiles' ? 'hábiles' : 'calendario'})</span>
                                                         </p>
                                                     )}
                                                     {esOpcional && (
                                                         <p className="text-[11px] text-gray-500 italic mt-0.5">
-                                                            Solo adjunta si corresponde — no es obligatorio presentarlo.
+                                                            Adjúntelo solo si corresponde — no es obligatorio presentarlo.
                                                         </p>
                                                     )}
                                                 </div>
@@ -353,7 +353,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
                                 Mensaje de respuesta *
                             </label>
                             <textarea value={respuesta} onChange={e => setRespuesta(e.target.value)}
-                                rows={4} placeholder="Describe brevemente lo que estás entregando o cualquier aclaración..."
+                                rows={4} placeholder="Describa brevemente lo que está entregando o cualquier aclaración..."
                                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#BE0F4A] resize-none" />
                         </div>
                     </form>
