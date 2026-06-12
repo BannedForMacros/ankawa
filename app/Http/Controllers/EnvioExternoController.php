@@ -8,6 +8,7 @@ use App\Models\ExpedienteHistorial;
 use App\Models\ExpedienteMovimiento;
 use App\Models\MovimientoDocumento;
 use App\Models\TipoDocumento;
+use App\Services\GestorExpedienteService;
 use App\Support\FileRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,8 +18,14 @@ use Illuminate\Validation\Rule;
 
 class EnvioExternoController extends Controller
 {
+    public function __construct(
+        private GestorExpedienteService $gestorService,
+    ) {}
+
     public function index(Expediente $expediente)
     {
+        $this->autorizarVista($expediente);
+
         $pendientes = ExpedienteMovimiento::enviosPendientes($expediente->id)
             ->with([
                 'documentos' => fn($q) => $q->where('activo', true),
@@ -51,6 +58,9 @@ class EnvioExternoController extends Controller
 
     public function aceptar(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
     {
+        abort_unless($this->gestorService->esGestor($expediente, (int) Auth::id()), 403,
+            'Solo el Gestor del expediente puede aceptar envíos.');
+
         $this->guard($expediente, $movimiento);
 
         DB::transaction(function () use ($expediente, $movimiento) {
@@ -77,6 +87,9 @@ class EnvioExternoController extends Controller
 
     public function rechazar(Request $request, Expediente $expediente, ExpedienteMovimiento $movimiento)
     {
+        abort_unless($this->gestorService->esGestor($expediente, (int) Auth::id()), 403,
+            'Solo el Gestor del expediente puede rechazar envíos.');
+
         $this->guard($expediente, $movimiento);
 
         $tiposPermitidosIds = collect($this->tiposDocumentoPermitidos($expediente))->pluck('id')->all();
@@ -176,6 +189,27 @@ class EnvioExternoController extends Controller
             ->get(['id', 'nombre'])
             ->map(fn($t) => ['id' => $t->id, 'nombre' => $t->nombre])
             ->all();
+    }
+
+    /**
+     * Mismo criterio de acceso que ExpedienteController::show — admins con
+     * puede_ver_todos_expedientes, o actor activo con acceso al expediente electrónico.
+     */
+    private function autorizarVista(Expediente $expediente): void
+    {
+        $user = Auth::user();
+
+        if ($user->rol?->puede_ver_todos_expedientes) {
+            return;
+        }
+
+        $tieneAcceso = ExpedienteActor::where('expediente_id', $expediente->id)
+            ->where('usuario_id', $user->id)
+            ->where('activo', 1)
+            ->where('acceso_expediente_electronico', 1)
+            ->exists();
+
+        abort_unless($tieneAcceso, 403, 'No tiene acceso a este expediente.');
     }
 
     private function guard(Expediente $expediente, ExpedienteMovimiento $movimiento): void

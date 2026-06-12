@@ -798,7 +798,7 @@ class PortalController extends Controller
 
             ExpedienteHistorial::create([
                 'expediente_id' => $expediente->id,
-                'usuario_id'    => $usuarioIdActor ?? 0,
+                'usuario_id'    => $usuarioIdActor,
                 'tipo_evento'   => 'envio_externo_recibido',
                 'descripcion'   => "Envío espontáneo recibido desde portal ({$email}).",
                 'datos_extra'   => [
@@ -845,7 +845,7 @@ class PortalController extends Controller
 
         ExpedienteHistorial::create([
             'expediente_id' => $expediente->id,
-            'usuario_id'    => $actor->usuario_id ?? 0,
+            'usuario_id'    => $actor->usuario_id,
             'tipo_evento'   => 'toma_conocimiento',
             'descripcion'   => "Actor tomó conocimiento del expediente desde el portal ({$email}).",
             'datos_extra'   => [
