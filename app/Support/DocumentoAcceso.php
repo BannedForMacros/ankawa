@@ -113,8 +113,12 @@ class DocumentoAcceso
     {
         $expediente = self::expediente($doc);
         if ($expediente) {
+            // Mismos flags que el dashboard y enviarDocumento: un actor desactivado
+            // o con acceso revocado por el gestor no debe seguir descargando evidencia.
             $algunoParticipa = ExpedienteActor::where('expediente_id', $expediente->id)
                 ->whereIn('id', $actorIds)
+                ->where('activo', 1)
+                ->where('acceso_mesa_partes', 1)
                 ->exists();
             if ($algunoParticipa) {
                 return true;

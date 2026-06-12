@@ -10,6 +10,7 @@ use App\Mail\CargoSolicitudOtrosMail;
 use App\Support\AuditoriaPortal;
 use App\Support\CaptchaValidator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 class SolicitudOtrosController extends Controller
@@ -27,6 +28,7 @@ class SolicitudOtrosController extends Controller
             'nombre_remitente'       => 'required|string|max:255',
             'email_remitente'        => 'required|email|max:255',
             'descripcion'            => 'nullable|string|max:2000',
+            'observacion'            => 'nullable|string|max:2000',
             'acepta_reglamento_card' => 'nullable|in:0,1',
             'captcha_token'          => 'nullable|string',
         ]);
@@ -40,37 +42,51 @@ class SolicitudOtrosController extends Controller
             'tipo'        => 'otros',
         ]);
 
-        $solicitud = SolicitudOtros::create([
-            'servicio_id'            => $request->servicio_id,
-            'tipo_documento_id'      => $request->tipo_documento_id,
-            'tipo_persona'           => $request->tipo_persona,
-            'tipo_doc_identidad'     => $request->tipo_doc_identidad,
-            'numero_doc_identidad'   => $request->numero_doc_identidad,
-            'nombre_remitente'       => $request->nombre_remitente,
-            'email_remitente'        => $request->email_remitente,
-            'descripcion'            => $request->descripcion,
-            'observacion'            => $request->observacion,
-            'acepta_reglamento_card' => $request->boolean('acepta_reglamento_card'),
-        ]);
+        // Solicitud + cargo en una sola transacción: sin número de cargo la solicitud
+        // queda huérfana (sin seguimiento posible) y cada reintento crearía otra.
+        try {
+            [$solicitud, $cargo] = DB::transaction(function () use ($request) {
+                $solicitud = SolicitudOtros::create([
+                    'servicio_id'            => $request->servicio_id,
+                    'tipo_documento_id'      => $request->tipo_documento_id,
+                    'tipo_persona'           => $request->tipo_persona,
+                    'tipo_doc_identidad'     => $request->tipo_doc_identidad,
+                    'numero_doc_identidad'   => $request->numero_doc_identidad,
+                    'nombre_remitente'       => $request->nombre_remitente,
+                    'email_remitente'        => $request->email_remitente,
+                    'descripcion'            => $request->descripcion,
+                    'observacion'            => $request->observacion,
+                    'acepta_reglamento_card' => $request->boolean('acepta_reglamento_card'),
+                ]);
 
-        $cargo = Cargo::crear('solicitud', $solicitud, null, null, $request);
+                $cargo = Cargo::crear('solicitud', $solicitud, null, null, $request);
 
-        if (!$cargo) {
-            // El tipo de evento 'solicitud' está desactivado en Configuración → Tipos de Cargo.
-            // Sin cargo no hay número de seguimiento que mostrar al ciudadano: rechazamos el ingreso.
+                if (!$cargo) {
+                    // El tipo de evento 'solicitud' está desactivado en Configuración → Tipos de Cargo.
+                    // Sin cargo no hay número de seguimiento que mostrar al ciudadano: se revierte el ingreso.
+                    throw new \RuntimeException('cargo_no_disponible');
+                }
+
+                $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
+
+                return [$solicitud, $cargo];
+            });
+        } catch (\Throwable $e) {
+            if (!($e instanceof \RuntimeException && $e->getMessage() === 'cargo_no_disponible')) {
+                report($e);
+            }
             return back()->with('error',
                 'No es posible registrar la solicitud en este momento. Contacte con el centro.');
         }
-
-        $solicitud->update(['numero_cargo' => $cargo->numero_cargo]);
 
         AuditoriaPortal::registrar('cargo_generado', $request, [
             'numero_cargo' => $cargo->numero_cargo,
         ], $solicitud);
 
         try {
+            // QUEUE_CONNECTION=database sin worker: el cargo debe salir con send(), no queue().
             Mail::to($request->email_remitente)
-                ->queue(new CargoSolicitudOtrosMail($cargo, $solicitud));
+                ->send(new CargoSolicitudOtrosMail($cargo, $solicitud));
         } catch (\Exception $e) {
             \Log::warning("Error enviando cargo otros #{$solicitud->id}: " . $e->getMessage());
         }

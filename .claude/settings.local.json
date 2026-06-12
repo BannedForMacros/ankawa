@@ -106,7 +106,13 @@
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, expediente_id, usuario_id, email_externo, acceso_mesa_partes, activo FROM expediente_actores WHERE usuario_id IS NULL AND acceso_mesa_partes = true;\")",
       "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT id, expediente_id, usuario_id, email_externo, acceso_mesa_partes, activo FROM expediente_actores WHERE usuario_id IS NULL AND acceso_mesa_partes = 1;\")",
       "PowerShell(php -l app\\\\Http\\\\Controllers\\\\EnvioExternoController.php; php -l app\\\\Http\\\\Controllers\\\\PortalController.php; php -l app\\\\Models\\\\ExpedienteActor.php; php -l app\\\\Models\\\\ExpedienteActorEmail.php)",
-      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT column_name, data_type FROM information_schema.columns WHERE \\(table_name='expediente_actores' AND column_name IN \\('acceso_expediente_electronico','activo','usuario_id'\\)\\) OR \\(table_name='roles' AND column_name='puede_ver_todos_expedientes'\\);\")"
+      "PowerShell($env:PGPASSWORD='postgres'; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -U postgres -h 127.0.0.1 -d ankawa -c \"SELECT column_name, data_type FROM information_schema.columns WHERE \\(table_name='expediente_actores' AND column_name IN \\('acceso_expediente_electronico','activo','usuario_id'\\)\\) OR \\(table_name='roles' AND column_name='puede_ver_todos_expedientes'\\);\")",
+      "PowerShell(php artisan tinker --execute=\"$a = new \\\\App\\\\Models\\\\ExpedienteActor\\(\\); $a->email_externo = '  Juan@Empresa.COM '; echo 'mutator: [' . $a->email_externo . ']' . PHP_EOL; $e = new \\\\App\\\\Models\\\\ExpedienteActorEmail\\(\\); $e->email = 'OTRO@Mail.Com'; echo 'mutator2: [' . $e->email . ']' . PHP_EOL; echo 'historial nullable: ' . \\(\\\\Illuminate\\\\Support\\\\Facades\\\\DB::selectOne\\(\\\\\"SELECT is_nullable FROM information_schema.columns WHERE table_name='expediente_historial' AND column_name='usuario_id'\\\\\"\\)->is_nullable\\);\")",
+      "PowerShell(php storage\\\\app\\\\_verify_fixes.php)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(git check-ignore *)",
+      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\PortalController.php; php -l app\\\\Http\\\\Controllers\\\\Servicios\\\\Otros\\\\SolicitudOtrosController.php; php -l app\\\\Support\\\\DocumentoAcceso.php; php -l app\\\\Http\\\\Controllers\\\\MesaPartesController.php)",
+      "PowerShell(php artisan route:list --name=mesa-partes 2>$null | Select-Object -First 5; php artisan route:list --name=otros; Get-ChildItem tests\\\\Feature -ErrorAction SilentlyContinue | Select-Object Name)"
     ]
   }
 }

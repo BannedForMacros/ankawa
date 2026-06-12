@@ -474,22 +474,59 @@ class PortalController extends Controller
             ], 422);
         }
 
-        $actorDelEmail = ExpedienteActor::where('email_externo', strtolower(trim($email)))
-            ->orWhereHas('usuario', fn($q) => $q->whereRaw('LOWER(email) = ?', [strtolower(trim($email))]))
-            ->orWhereHas('emailsAdicionales', fn($q) => $q->where('email', strtolower(trim($email))))
+        // El actor debe ser de ESTE expediente: el mismo email puede participar en varios
+        // (consorcios) y tomar un actor ajeno rompe los traslados automáticos y la trazabilidad.
+        $emailNorm = strtolower(trim((string) $email));
+        $actorDelEmail = ExpedienteActor::where('expediente_id', $movimiento->expediente_id)
+            ->where(function ($q) use ($emailNorm) {
+                $q->where('email_externo', $emailNorm)
+                  ->orWhereHas('usuario', fn($uq) => $uq->whereRaw('LOWER(email) = ?', [$emailNorm]))
+                  ->orWhereHas('emailsAdicionales', fn($eq) => $eq->where('email', $emailNorm));
+            })
             ->first();
         $usuarioIdActor = $actorDelEmail?->usuario_id;
 
         $rutasArchivosSubidos = [];
         // [tipo_id => [{nombre_original, peso_bytes, ruta}, ...]] — para reconstruir docsEntregados con URL después de la TX.
         $archivosGuardadosPorTipo = [];
+        $yaProcesado = false;
+        // El correo del cargo se envía DESPUÉS del commit — capturar lo necesario aquí.
+        $cargoEmitido       = null;
+        $docsEntregadosMail = [];
+        $docsPendientesMail = [];
 
         try {
             DB::transaction(function () use (
-                $request, $movimiento, $email, $usuarioIdActor, $actorDelEmail,
+                $request, $movimiento, $email, $usuarioIdActor, $actorDelEmail, $actorIds,
                 $responsablesPendientes, $archivosPorTipo, $archivosLegacy,
-                &$rutasArchivosSubidos, &$archivosGuardadosPorTipo
+                &$rutasArchivosSubidos, &$archivosGuardadosPorTipo,
+                &$yaProcesado, &$cargoEmitido, &$docsEntregadosMail, &$docsPendientesMail
             ) {
+                // ── Candado contra doble submit: relee el movimiento con lock (un request
+                //    concurrente espera aquí) y recalcula las filas pendientes ya bloqueadas.
+                ExpedienteMovimiento::whereKey($movimiento->id)->lockForUpdate()->first();
+                $movimiento->refresh();
+                if ($movimiento->estado !== 'pendiente') {
+                    $yaProcesado = true;
+                    return;
+                }
+
+                $responsablesPendientes = MovimientoResponsable::where('movimiento_id', $movimiento->id)
+                    ->whereIn('expediente_actor_id', $actorIds)
+                    ->where('estado', 'pendiente')
+                    ->lockForUpdate()
+                    ->get();
+
+                $archivosPorTipo = $archivosPorTipo->filter(
+                    fn($files, $tipoId) => $responsablesPendientes->contains('tipo_documento_id', (int) $tipoId)
+                );
+
+                if ($archivosPorTipo->flatten()->isEmpty() && empty($archivosLegacy)) {
+                    // Otro request concurrente ya registró esta entrega.
+                    $yaProcesado = true;
+                    return;
+                }
+
                 $carpeta = "expedientes/{$movimiento->expediente_id}/movimientos/{$movimiento->id}";
 
                 // ── Flujo nuevo: por cada (tipo_documento_id => files) marcar fila + guardar docs ──
@@ -664,13 +701,12 @@ class PortalController extends Controller
                                 ->all()
                             : [];
 
-                        try {
-                            Mail::to($email)->send(new CargoRespuestaMail(
-                                $cargo, $movimiento, $docsEntregados, $docsPendientes
-                            ));
-                        } catch (\Exception $e) {
-                            \Log::warning("Error enviando cargo portal a {$email}: " . $e->getMessage());
-                        }
+                        // El correo se envía después del commit: Cargo::crear tomó lockForUpdate
+                        // sobre el correlativo global y un SMTP lento bloquearía la emisión de
+                        // cargos de todo el sistema (mismo criterio que SolicitudArbitrajeController).
+                        $cargoEmitido       = $cargo;
+                        $docsEntregadosMail = $docsEntregados;
+                        $docsPendientesMail = $docsPendientes;
                     }
                 }
             });
@@ -685,6 +721,23 @@ class PortalController extends Controller
                 'ok'      => false,
                 'mensaje' => 'No se pudo registrar la respuesta. La operación fue revertida.',
             ], 500);
+        }
+
+        if ($yaProcesado) {
+            return response()->json([
+                'ok'      => false,
+                'mensaje' => 'Esta entrega ya fue registrada. Actualice la página para ver el estado actual.',
+            ], 422);
+        }
+
+        if ($cargoEmitido) {
+            try {
+                Mail::to($email)->send(new CargoRespuestaMail(
+                    $cargoEmitido, $movimiento, $docsEntregadosMail, $docsPendientesMail
+                ));
+            } catch (\Exception $e) {
+                \Log::warning("Error enviando cargo portal a {$email}: " . $e->getMessage());
+            }
         }
 
         // Aviso (campana) al/los gestor(es) del expediente: una parte respondió.

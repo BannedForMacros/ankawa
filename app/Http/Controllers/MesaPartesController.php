@@ -429,25 +429,34 @@ class MesaPartesController extends Controller
             'documentos.*' => FileRules::accept(),
         ]);
 
+        $subsanacion = SolicitudSubsanacion::where('solicitud_id', $solicitud->id)
+            ->where('estado', 'pendiente')
+            ->where('activo', true)
+            ->first();
+
+        // Sin subsanación pendiente no hay nada que responder — y permitirlo
+        // dejaría reactivar a 'pendiente' una solicitud rechazada.
+        if (!$subsanacion) {
+            return back()->withErrors([
+                'general' => 'Esta solicitud no tiene ninguna subsanación pendiente de respuesta.',
+            ]);
+        }
+
+        $rutasSubidas = [];
+
         DB::beginTransaction();
         try {
-            $subsanacion = SolicitudSubsanacion::where('solicitud_id', $solicitud->id)
-                ->where('estado', 'pendiente')
-                ->where('activo', true)
-                ->first();
-
-            if ($subsanacion) {
-                $subsanacion->update([
-                    'estado'            => 'subsanado',
-                    'subsanado_por'     => Auth::id(),
-                    'fecha_subsanacion' => now(),
-                    'respuesta'         => $request->respuesta,
-                ]);
-            }
+            $subsanacion->update([
+                'estado'            => 'subsanado',
+                'subsanado_por'     => Auth::id(),
+                'fecha_subsanacion' => now(),
+                'respuesta'         => $request->respuesta,
+            ]);
 
             if ($request->hasFile('documentos')) {
                 foreach ($request->file('documentos') as $archivo) {
                     $ruta = $archivo->store('solicitudes/' . $solicitud->id . '/subsanaciones', 'documentos');
+                    $rutasSubidas[] = $ruta;
 
                     Documento::create([
                         'modelo_tipo'     => SolicitudArbitraje::class,
@@ -468,6 +477,12 @@ class MesaPartesController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            // El rollback no borra los archivos ya escritos en disco — limpiarlos.
+            foreach ($rutasSubidas as $ruta) {
+                if (Storage::disk('documentos')->exists($ruta)) {
+                    Storage::disk('documentos')->delete($ruta);
+                }
+            }
             \Log::error('Error subsanar: ' . $e->getMessage());
             return back()->withErrors(['general' => 'Error al enviar la subsanación.']);
         }
