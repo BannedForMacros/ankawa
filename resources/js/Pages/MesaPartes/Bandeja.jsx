@@ -11,11 +11,12 @@ import Modal from '@/Components/Modal';
 
 // ── Badge de Estado ──
 function EstadoBadge({ estado }) {
+    // Misma paleta de soporte que MisSolicitudes: amber/emerald, no yellow/green genéricos
     const map = {
-        pendiente:   { color: 'bg-yellow-100 text-yellow-800', label: 'Pendiente'   },
-        subsanacion: { color: 'bg-orange-100 text-orange-800', label: 'Subsanación' },
-        rechazada:   { color: 'bg-red-100 text-red-800',       label: 'Rechazada'   },
-        admitida:    { color: 'bg-green-100 text-green-800',   label: 'Admitida'    },
+        pendiente:   { color: 'bg-amber-100 text-amber-700',     label: 'Pendiente'   },
+        subsanacion: { color: 'bg-orange-100 text-orange-700',   label: 'Subsanación' },
+        rechazada:   { color: 'bg-red-100 text-red-700',         label: 'Rechazada'   },
+        admitida:    { color: 'bg-emerald-100 text-emerald-700', label: 'Admitida'    },
     };
     const s = map[estado] ?? { color: 'bg-gray-100 text-gray-500', label: estado };
     return (
@@ -193,7 +194,7 @@ export default function Bandeja({ solicitudes, filtroActual, contadores }) {
                     {s.estado === 'pendiente' && (
                         <>
                             <button onClick={() => abrirModal('admitir', s)} title="Admitir solicitud"
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors">
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
                                 <CheckCircle2 size={16} />
                             </button>
                             <button onClick={() => abrirModal('observar', s, { plazo_dias: 3 })} title="Solicitar subsanación"
@@ -218,14 +219,28 @@ export default function Bandeja({ solicitudes, filtroActual, contadores }) {
             <div className="py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-                    {/* Cabecera Principal */}
-                    <div className="mb-8">
-                        <h1 className="text-3xl font-bold text-[#291136]" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            Bandeja de Solicitudes
-                        </h1>
-                        <p className="text-gray-500 mt-1 text-sm">
-                            Solicitudes pendientes de revisión y admisión
-                        </p>
+                    {/* Cabecera Principal — patrón canónico de página de lista */}
+                    <div className="bg-white border-b border-gray-200 rounded-t-2xl mb-6 shadow-sm">
+                        <div className="px-6 py-6 border-l-4 border-[#BE0F4A]">
+                            <div className="flex items-start justify-between flex-wrap gap-4">
+                                <div>
+                                    <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase">
+                                        Bandeja de Solicitudes
+                                    </h1>
+                                    <p className="text-gray-500 text-sm mt-1">
+                                        Solicitudes pendientes de revisión y admisión
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 flex-wrap">
+                                    <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-[#291136]/10 text-[#291136]">
+                                        Pendientes: {contadores.pendiente}
+                                    </span>
+                                    <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-amber-100 text-amber-700">
+                                        Subsanación: {contadores.subsanacion}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Contenedor Principal */}
@@ -236,8 +251,11 @@ export default function Bandeja({ solicitudes, filtroActual, contadores }) {
                             <Filter size={14} className="text-gray-400 shrink-0" />
                             {filtros.map(f => (
                                 <button key={f.key} onClick={() => cambiarFiltro(f.key)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all
                                         ${filtroActual === f.key ? 'bg-[#291136] text-white shadow-md' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                                    {filtroActual === f.key && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse" />
+                                    )}
                                     {f.label}
                                     <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold
                                         ${filtroActual === f.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>
@@ -247,12 +265,18 @@ export default function Bandeja({ solicitudes, filtroActual, contadores }) {
                             ))}
                         </div>
 
-                        {/* Tu Componente Table */}
+                        {/* Modo cliente: el modo servidor enviaba page/search/sort que bandeja()
+                            no soporta y además perdía el `filtro` activo al escribir en el buscador. */}
                         <div className="p-4">
-                            <Table 
-                                columns={columnas} 
-                                data={solicitudes} 
-                                routeName="mesa-partes.bandeja" 
+                            <Table
+                                columns={columnas}
+                                data={solicitudes}
+                                clientSide
+                                perPage={15}
+                                searchKeys={[
+                                    'numero_cargo', 'nombre_demandante', 'documento_demandante',
+                                    'email_demandante', 'nombre_demandado', 'servicio',
+                                ]}
                                 searchPlaceholder="Buscar por número o demandante..."
                             />
                         </div>
@@ -280,7 +304,7 @@ export default function Bandeja({ solicitudes, filtroActual, contadores }) {
                 <div className="p-6">
                     <h2 className="text-lg font-bold text-[#291136] mb-4">Admitir Solicitud</h2>
                     <div className="space-y-4">
-                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800 leading-relaxed">
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800 leading-relaxed">
                             Se generará automáticamente el <strong>número de expediente</strong> y se notificará
                             por correo al demandante.
                         </div>
@@ -300,7 +324,7 @@ export default function Bandeja({ solicitudes, filtroActual, contadores }) {
                                 Cancelar
                             </button>
                             <button onClick={() => enviar(route('expedientes.admitir', seleccionada?.id), form)} disabled={procesando}
-                                className="px-5 py-2 rounded-xl text-sm font-semibold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                                className="px-5 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
                                 {procesando ? 'Procesando...' : 'Admitir a Trámite'}
                             </button>
                         </div>

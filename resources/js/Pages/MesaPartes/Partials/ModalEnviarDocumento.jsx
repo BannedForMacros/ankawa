@@ -4,6 +4,7 @@ import { X, Paperclip, FileText, Send, AlertCircle } from 'lucide-react';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
 import toast from 'react-hot-toast';
+import { filtrarArchivosValidos } from '@/utils/archivos';
 
 export default function ModalEnviarDocumento({ expediente, onClose, onEnviado }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
@@ -42,9 +43,8 @@ export default function ModalEnviarDocumento({ expediente, onClose, onEnviado })
     }, [expediente.id]);
 
     function agregarArchivos(e) {
-        const nuevos = Array.from(e.target.files).filter(
-            n => !archivos.some(a => a.name === n.name && a.size === n.size)
-        );
+        const nuevos = filtrarArchivosValidos(e.target.files, { mimes: upload_mimes, maxMb: upload_max_mb })
+            .filter(n => !archivos.some(a => a.name === n.name && a.size === n.size));
         setArchivos(prev => [...prev, ...nuevos]);
         e.target.value = '';
     }
@@ -141,7 +141,7 @@ export default function ModalEnviarDocumento({ expediente, onClose, onEnviado })
                     {/* Header */}
                     <div className="bg-gradient-to-r from-[#291136] to-[#4A153D] px-6 py-4 flex items-center justify-between shrink-0">
                         <div>
-                            <p className="text-white/60 text-xs">Expediente {expediente.numero_expediente}</p>
+                            <p className="text-white/80 text-xs">Expediente {expediente.numero_expediente}</p>
                             <h2 className="text-white font-bold">Enviar documento al expediente</h2>
                         </div>
                         <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">

@@ -1,3 +1,5 @@
+// Variaciones del gradiente de marca (#291136 → #4A153D → #BE0F4A) con los mismos
+// acentos por servicio que usa MisSolicitudes (SERVICIO_META) — todo dentro de paleta.
 const SERVICIO_META_BY_SLUG = {
     arbitraje: {
         gradiente: 'from-[#291136] via-[#4A153D] to-[#BE0F4A]',
@@ -5,21 +7,21 @@ const SERVICIO_META_BY_SLUG = {
         etiqueta:  'Resolución',
     },
     jprd: {
-        gradiente: 'from-[#1e3a5f] via-[#1d4ed8] to-[#3b82f6]',
-        acento:    '#3b82f6',
+        gradiente: 'from-[#291136] via-[#3D1A52] to-[#4A153D]',
+        acento:    '#291136',
         etiqueta:  'Prevención',
     },
     otros: {
-        gradiente: 'from-[#1f2937] via-[#374151] to-[#6b7280]',
-        acento:    '#6b7280',
+        gradiente: 'from-[#3D1A52] via-[#4A153D] to-[#9C0A3B]',
+        acento:    '#4A153D',
         etiqueta:  'Comunicación',
     },
 };
 
 const SERVICIO_META_BY_ID = {
     3: {
-        gradiente: 'from-[#7c1d1d] via-[#b91c1c] to-[#ef4444]',
-        acento:    '#ef4444',
+        gradiente: 'from-[#4A153D] via-[#9C0A3B] to-[#BC1D35]',
+        acento:    '#BC1D35',
         etiqueta:  'Urgente',
     },
 };

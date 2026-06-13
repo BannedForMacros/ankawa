@@ -19,7 +19,8 @@ export default function PlazoUrgente({ mov }) {
         config = { bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700', icon: Clock,
             msg: `Quedan ${dias}${sufijo} — vence el ${mov.fecha_limite}` };
     } else {
-        config = { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: Clock,
+        // Plazo holgado: tinte de marca (azul no pertenece a la paleta Ankawa)
+        config = { bg: 'bg-[#291136]/5 border-[#291136]/15', text: 'text-[#291136]/70', icon: Clock,
             msg: `Quedan ${dias}${sufijo} — vence el ${mov.fecha_limite}` };
     }
 

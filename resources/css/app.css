@@ -1,8 +1,11 @@
+/* Los @import deben ir antes de cualquier otra regla (el build de Vite lo advertía).
+   Montserrat incluye 800/900: sin ellos, todo font-black era negrita sintética del navegador. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&display=swap');
 
 @keyframes fade-in-up {
     from { opacity: 0; transform: translateY(10px); }

@@ -10,6 +10,7 @@ import AnkawaLoader from '@/Components/AnkawaLoader';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
+import { filtrarArchivosValidos } from '@/utils/archivos';
 
 /* ─── Utilitario de extensión ─── */
 const ICONOS_EXT = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️' };
@@ -229,9 +230,8 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
     }
 
     function agregarArchivos(e) {
-        const nuevos = Array.from(e.target.files).filter(
-            n => !archivos.some(a => a.name === n.name && a.size === n.size)
-        );
+        const nuevos = filtrarArchivosValidos(e.target.files, { mimes: upload_mimes, maxMb: upload_max_mb })
+            .filter(n => !archivos.some(a => a.name === n.name && a.size === n.size));
         setArchivos(prev => [...prev, ...nuevos]);
         e.target.value = '';
     }

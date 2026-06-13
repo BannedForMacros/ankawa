@@ -101,12 +101,15 @@ function ServiceTabs({ servicios, activeTab, onChange }) {
                 <button
                     key={servicio.id}
                     onClick={() => onChange(servicio.id)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
+                    className={`px-5 py-2.5 rounded-full text-sm font-semibold flex items-center gap-1.5 transition-all duration-200
                         ${activeTab === servicio.id
-                            ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/30'
+                            ? 'bg-[#291136] text-white shadow-md'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-[#291136]'
                         }`}
                 >
+                    {activeTab === servicio.id && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse" />
+                    )}
                     {servicio.nombre}
                 </button>
             ))}
@@ -156,8 +159,7 @@ export default function Index({ servicios }) {
                             <span className="inline-block py-1 px-3 rounded-full bg-[#BE0F4A]/10 text-[#BE0F4A] text-sm font-semibold mb-4 border border-[#BE0F4A]/20">
                                 Trámites Digitales
                             </span>
-                            <h1 className="text-4xl md:text-5xl font-bold text-[#291136] mb-4"
-                                style={{ fontFamily: 'Montserrat, sans-serif' }}>
+                            <h1 className="text-4xl md:text-5xl font-black text-[#291136] tracking-tight mb-4">
                                 Mesa de Partes Virtual
                             </h1>
                             <div className="w-24 h-1 bg-gradient-to-r from-[#BE0F4A] to-[#BC1D35] mx-auto mb-6 rounded-full"></div>

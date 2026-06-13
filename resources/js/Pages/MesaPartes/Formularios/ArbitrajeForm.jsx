@@ -11,6 +11,7 @@ import AnkawaLoader from '@/Components/AnkawaLoader';
 import Checkbox from '@/Components/Checkbox';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
+import { filtrarArchivosValidos } from '@/utils/archivos';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -67,9 +68,8 @@ export function MultiArchivoInput({ label, value = [], onChange, accept }) {
     const [previewFile, setPreviewFile] = useState(null);
 
     function agregar(e) {
-        const nuevos = Array.from(e.target.files).filter(
-            n => !value.some(a => a.name === n.name && a.size === n.size)
-        );
+        const nuevos = filtrarArchivosValidos(e.target.files, { mimes: upload_mimes, maxMb: upload_max_mb })
+            .filter(n => !value.some(a => a.name === n.name && a.size === n.size));
         onChange([...value, ...nuevos]);
         e.target.value = '';
     }
@@ -300,6 +300,11 @@ export function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSo
     );
 }
 
+/* Clave estable para las filas de consorcio: con key={idx}, al eliminar una fila React
+   reutiliza la instancia y el candado "Verificado vía SUNAT" se pega a la empresa equivocada. */
+export const nuevaEmpresaConsorcio = () => ({ ruc: '', nombre: '', _key: crypto.randomUUID() });
+export const empresasPayload = (empresas) => empresas.map(({ _key, ...e }) => e);
+
 /* ─── Fila de empresa en consorcio ─── */
 function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
     const [cargando, setCargando]   = useState(false);
@@ -337,8 +342,8 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
     }
 
     return (
-        <div className="grid grid-cols-5 gap-2 items-end">
-            <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+            <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">RUC</label>
                 <div className="relative">
                     <input type="text" value={empresa.ruc} onChange={e => onRucChange(e.target.value)}
@@ -353,7 +358,7 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
                     </div>
                 </div>
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Razón Social</label>
                 <input type="text" value={empresa.nombre} onChange={e => onUpdate({ nombre: e.target.value })}
                     disabled={bloqueado}
@@ -377,7 +382,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
     const timerRepRef = useRef();
 
     function agregarEmpresa() {
-        onEmpresasChange([...empresas, { ruc: '', nombre: '' }]);
+        onEmpresasChange([...empresas, nuevaEmpresaConsorcio()]);
     }
 
     function actualizarEmpresa(idx, cambios) {
@@ -443,7 +448,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
                 )}
                 <div className="space-y-2">
                     {empresas.map((emp, idx) => (
-                        <FilaEmpresaConsorcio key={idx} empresa={emp}
+                        <FilaEmpresaConsorcio key={emp._key ?? idx} empresa={emp}
                             onUpdate={cambios => actualizarEmpresa(idx, cambios)}
                             onRemove={() => eliminarEmpresa(idx)} />
                     ))}
@@ -455,7 +460,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
                 <p className="text-xs font-bold text-[#291136] uppercase tracking-wide opacity-70 mb-3">
                     Representante del Consorcio <span className="text-[#BE0F4A]">*</span>
                 </p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">DNI <span className="text-[#BE0F4A]">*</span></label>
                         <div className="relative">
@@ -712,9 +717,9 @@ export function BloquePersona({
 
                 {/* Empresa → Vigencia de Poder */}
                 {tipoPersona === 'juridica' && subtipoJuridico === 'empresa' && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-blue-800 font-semibold">
-                            <Building2 size={15} className="shrink-0"/>
+                    <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-[#291136] font-semibold">
+                            <Building2 size={15} className="shrink-0 text-[#BE0F4A]"/>
                             {esDemandante
                                 ? <>Documento requerido: <span className="font-bold">Vigencia de Poder</span></>
                                 : <>Documento del demandado: <span className="font-bold">Vigencia de Poder (opcional)</span></>}
@@ -724,7 +729,7 @@ export function BloquePersona({
                             value={docVigenciaPoder}
                             onChange={onDocVigenciaPoderChange} />
                         {!esDemandante && (
-                            <p className="text-xs text-blue-700/70">Adjunte solo si cuenta con el documento del demandado.</p>
+                            <p className="text-xs text-[#291136]/60">Adjunte solo si cuenta con el documento del demandado.</p>
                         )}
                     </div>
                 )}
@@ -750,9 +755,9 @@ export function BloquePersona({
 
                 {/* Entidad pública → Resolución de facultades */}
                 {tipoPersona === 'juridica' && subtipoJuridico === 'entidad_publica' && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-blue-800 font-semibold">
-                            <Building2 size={15} className="shrink-0"/>
+                    <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-[#291136] font-semibold">
+                            <Building2 size={15} className="shrink-0 text-[#BE0F4A]"/>
                             {esDemandante
                                 ? <>Documento requerido: <span className="font-bold">Resolución de facultades del funcionario a cargo</span></>
                                 : <>Documento del demandado: <span className="font-bold">Resolución de facultades (opcional)</span></>}
@@ -762,7 +767,7 @@ export function BloquePersona({
                             value={docResolucionFacultades}
                             onChange={onDocResolucionFacultadesChange} />
                         {!esDemandante && (
-                            <p className="text-xs text-blue-700/70">Adjunte solo si cuenta con el documento del demandado.</p>
+                            <p className="text-xs text-[#291136]/60">Adjunte solo si cuenta con el documento del demandado.</p>
                         )}
                     </div>
                 )}
@@ -828,7 +833,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
     const [docContratoConsorcioDado,    setDocContratoConsorcioDado]    = useState([]);
     const [docResolucionFacultadesDado, setDocResolucionFacultadesDado] = useState([]);
 
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData } = useForm({
         servicio_id:                   servicio.id,
         // Demandante
         tipo_persona:                  tipoPersInicial,
@@ -876,6 +881,12 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         // Adjuntos
         documentos_anexos:             [],
     });
+
+    // El envío usa router.post con FormData manual, que NO alimenta el `errors`/`processing`
+    // de useForm: los errores 422 del backend llegan como prop de página (usePage) y el
+    // estado de envío se controla aquí para deshabilitar el botón y evitar doble submit.
+    const errors = usePage().props.errors ?? {};
+    const [enviando, setEnviando] = useState(false);
 
     const setCamposDem = useCallback((cambios) => setData(d => ({
         ...d,
@@ -1066,7 +1077,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
     }, [data, subtipoJuridicoDem, subtipoJuridicoDado, empresasConsorcioDem, empresasConsorcioDado, repConsorcioDem, repConsorcioDado, emailsDem]);
 
     const enviarFormulario = () => {
+        if (enviando) return;
         setConfirm(false);
+        setEnviando(true);
         loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
 
         const fd = new FormData();
@@ -1102,7 +1115,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         fd.append('subtipo_juridico_demandado',  subtipoJuridicoDado);
 
         // Consorcio demandante
-        fd.append('empresas_consorcio_demandante', JSON.stringify(empresasConsorcioDem));
+        fd.append('empresas_consorcio_demandante', JSON.stringify(empresasPayload(empresasConsorcioDem)));
         if (subtipoJuridicoDem === 'consorcio') {
             fd.set('nombre_representante',    repConsorcioDem.nombre ?? '');
             fd.set('documento_representante', repConsorcioDem.dni ?? '');
@@ -1114,7 +1127,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         }
 
         // Consorcio demandado
-        fd.append('empresas_consorcio_demandado',            JSON.stringify(empresasConsorcioDado));
+        fd.append('empresas_consorcio_demandado',            JSON.stringify(empresasPayload(empresasConsorcioDado)));
         fd.append('nombre_representante_demandado',
             subtipoJuridicoDado === 'consorcio' ? (repConsorcioDado.nombre ?? '') : (data.nombre_representante_dem ?? ''));
         fd.append('documento_representante_demandado',
@@ -1138,13 +1151,14 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         router.post(route('solicitud.arbitraje.store'), fd, {
             forceFormData: true,
             onFinish: () => {
+                setEnviando(false);
                 clearTimeout(loaderTimer.current);
                 setMostrarLoader(false);
             },
             onError: (errs) => {
                 clearTimeout(loaderTimer.current);
                 setMostrarLoader(false);
-                toast.error(Object.values(errs)[0] || 'Revise los campos', { position: 'top-center' });
+                toast.error(Object.values(errs)[0] || 'Revise los campos marcados en rojo', { position: 'top-center' });
             },
         });
     };
@@ -1158,7 +1172,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             resumen={`Se enviará la solicitud de arbitraje del servicio "${servicio.nombre}" a nombre de ${data.nombre_demandante || (empresasConsorcioDem[0]?.nombre ? 'Consorcio: ' + empresasConsorcioDem[0].nombre : '—')}. Se generará un cargo y se enviarán credenciales de acceso al correo registrado.`}
             onConfirm={enviarFormulario}
             onCancel={() => setConfirm(false)}
-            confirmando={processing}
+            confirmando={enviando}
         />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
@@ -1218,8 +1232,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
 
             {/* Bloque Demandante */}
             {demandanteBloqueado ? (
-                <div className="flex items-center justify-between gap-3 mb-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-green-700">
+                <div className="flex items-center justify-between gap-3 mb-3 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
                     </div>
                     <button
@@ -1232,7 +1246,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                             setEmpresasConsorcioDem([]);
                             setRepConsorcioDem({ dni: '', nombre: '' });
                         }}
-                        className="text-xs font-semibold text-green-600 hover:text-red-600 underline underline-offset-2 transition-colors shrink-0"
+                        className="text-xs font-semibold text-emerald-600 hover:text-red-600 underline underline-offset-2 transition-colors shrink-0"
                     >
                         Cambiar persona
                     </button>
@@ -1486,7 +1500,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 </div>
                 {data.tiene_medida_cautelar && (
                     <div className="mt-4">
-                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3 text-sm text-blue-800">
+                        <div className="bg-[#291136]/5 border border-[#291136]/15 rounded-xl p-3 mb-3 text-sm text-[#291136]">
                             Puede adjuntar uno o más archivos que acrediten la medida cautelar ejecutada (resolución judicial, laudo de emergencia, etc.).
                         </div>
                         <MultiArchivoInput
@@ -1520,9 +1534,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
 
             {/* Adjuntos */}
             <Seccion icono={Paperclip} titulo="Documentos Adjuntos (Anexos)">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
-                    <p className="text-sm text-blue-800 font-semibold mb-1">Recomendación</p>
-                    <p className="text-sm text-blue-700">
+                <div className="bg-[#291136]/5 border border-[#291136]/15 rounded-xl p-4 mb-5">
+                    <p className="text-sm text-[#291136] font-semibold mb-1">Recomendación</p>
+                    <p className="text-sm text-[#291136]/75">
                         Antes de adjuntar, <strong>renombre cada archivo</strong> con el tipo de documento que representa
                         (ej: <em>DNI_representante.pdf</em>, <em>Poder_notarial.pdf</em>, <em>Contrato_principal.pdf</em>).
                         Esto facilita la revisión del expediente.
@@ -1553,10 +1567,10 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             <div className="flex justify-end">
                 <PrimaryButton
                     type="submit"
-                    disabled={processing || (hcaptchaSiteKey && !captchaToken)}
+                    disabled={enviando || (hcaptchaSiteKey && !captchaToken)}
                     className="px-8 py-3 text-base shadow-lg"
                 >
-                    {processing ? 'Enviando solicitud...' : 'Enviar Solicitud'}
+                    {enviando ? 'Enviando solicitud...' : 'Enviar Solicitud'}
                 </PrimaryButton>
             </div>
         </form>

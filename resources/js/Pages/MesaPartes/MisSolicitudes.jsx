@@ -11,6 +11,7 @@ import {
     Receipt, BookOpen, Search, Calendar, Layers, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { filtrarArchivosValidos } from '@/utils/archivos';
 
 /* ──────────────────────────────────────────────────────────────────
    Mapeos / utilidades
@@ -785,7 +786,8 @@ function FormSubsanacion({ solicitud }) {
                                 onDrop={e => {
                                     e.preventDefault();
                                     setDragOver(false);
-                                    setArchivosNuevos(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
+                                    setArchivosNuevos(prev => [...prev,
+                                        ...filtrarArchivosValidos(e.dataTransfer.files, { mimes: upload_mimes, maxMb: upload_max_mb })]);
                                 }}
                                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                                 onDragLeave={() => setDragOver(false)}
@@ -794,7 +796,8 @@ function FormSubsanacion({ solicitud }) {
                                     ${dragOver ? 'border-[#BE0F4A] bg-[#BE0F4A]/5' : 'border-gray-200 hover:border-[#BE0F4A]/40'}`}>
                                 <input id={`upload-edit-${solicitud.pk}`} type="file" multiple
                                     accept={upload_accept} className="hidden"
-                                    onChange={e => setArchivosNuevos(prev => [...prev, ...Array.from(e.target.files)])} />
+                                    onChange={e => setArchivosNuevos(prev => [...prev,
+                                        ...filtrarArchivosValidos(e.target.files, { mimes: upload_mimes, maxMb: upload_max_mb })])} />
                                 <Upload size={18} className="mx-auto mb-2 text-gray-400" />
                                 <p className="text-xs text-gray-500">
                                     Arrastra o <span className="text-[#BE0F4A] font-semibold">selecciona archivos</span>
@@ -820,7 +823,7 @@ function FormSubsanacion({ solicitud }) {
                 )}
 
                 <button onClick={handleSubmit} disabled={procesando}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#BC1D35] disabled:opacity-50 transition-colors">
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] disabled:opacity-50 transition-colors">
                     {procesando ? 'Guardando...' : 'Guardar cambios'}
                     {!procesando && <ArrowRight size={16} />}
                 </button>
@@ -997,12 +1000,13 @@ export default function MisSolicitudes({ solicitudes }) {
         rechazada:   solicitudes.filter(s => s.estado === 'rechazada').length,
     }), [solicitudes]);
 
+    // Pill activo canónico: fondo deep + punto rose (el color semántico vive en el contador)
     const filtros = [
-        { key: 'todas',       label: 'Todas',          color: 'bg-[#291136] text-white'        },
-        { key: 'subsanacion', label: 'Por subsanar',   color: 'bg-orange-500 text-white'       },
-        { key: 'pendiente',   label: 'En revisión',    color: 'bg-amber-500 text-white'        },
-        { key: 'admitida',    label: 'Admitidas',      color: 'bg-emerald-500 text-white'      },
-        { key: 'rechazada',   label: 'No admitidas',   color: 'bg-red-500 text-white'          },
+        { key: 'todas',       label: 'Todas'        },
+        { key: 'subsanacion', label: 'Por subsanar' },
+        { key: 'pendiente',   label: 'En revisión'  },
+        { key: 'admitida',    label: 'Admitidas'    },
+        { key: 'rechazada',   label: 'No admitidas' },
     ];
 
     return (
@@ -1047,9 +1051,9 @@ export default function MisSolicitudes({ solicitudes }) {
                                     <button key={f.key} onClick={() => setFiltro(f.key)}
                                         className={`px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all border
                                             ${activo
-                                                ? `${f.color} border-transparent shadow-sm`
+                                                ? 'bg-[#291136] text-white border-transparent shadow-sm'
                                                 : 'bg-white text-[#291136]/70 border-[#291136]/15 hover:bg-[#291136]/[0.04] hover:border-[#291136]/25'}`}>
-                                        {activo && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                                        {activo && <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse" />}
                                         {f.label}
                                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activo ? 'bg-white/20' : 'bg-[#291136]/[0.06] text-[#291136]/70'}`}>
                                             {cnt}
@@ -1072,7 +1076,7 @@ export default function MisSolicitudes({ solicitudes }) {
                                 <>
                                     <p className="text-sm mt-1 mb-6 text-[#291136]/55">Presenta tu primera solicitud desde la Mesa de Partes Virtual.</p>
                                     <Link href={route('mesa-partes.index')}
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#BC1D35] transition-colors">
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] transition-colors">
                                         Ir a Mesa de Partes
                                         <ArrowRight size={15} />
                                     </Link>

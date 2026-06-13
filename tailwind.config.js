@@ -23,7 +23,9 @@ export default {
                 'ankawa-muted':      '#B23241',
             },
             fontFamily: {
-                sans:  ['Figtree', ...defaultTheme.fontFamily.sans],
+                // Montserrat es la fuente de marca (Manual de Identidad) — antes el default
+                // era Figtree y Montserrat solo llegaba por estilos inline en algunas páginas.
+                sans:  ['Montserrat', ...defaultTheme.fontFamily.sans],
                 serif: ['Fraunces', 'Source Serif 4', 'Georgia', ...defaultTheme.fontFamily.serif],
             },
             keyframes: {

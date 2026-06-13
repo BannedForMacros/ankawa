@@ -23,6 +23,7 @@ import {
     RucBuscador,
     LONG_DOC,
     docDefaultPorPersona,
+    empresasPayload,
 } from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 
 export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalUser, hcaptchaSiteKey }) {
@@ -67,7 +68,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
     const [docContratoConsorcioDado,    setDocContratoConsorcioDado]    = useState([]);
     const [docResolucionFacultadesDado, setDocResolucionFacultadesDado] = useState([]);
 
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData } = useForm({
         servicio_id:                   servicio.id,
         // Demandante
         tipo_persona:                  tipoPersInicial,
@@ -102,6 +103,12 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         // Declaración
         acepta_reglamento_card:        false,
     });
+
+    // El envío usa router.post con FormData manual, que NO alimenta el `errors`/`processing`
+    // de useForm: los errores 422 del backend llegan como prop de página (usePage) y el
+    // estado de envío se controla aquí para deshabilitar el botón y evitar doble submit.
+    const errors = usePage().props.errors ?? {};
+    const [enviando, setEnviando] = useState(false);
 
     const setCamposDem = useCallback((cambios) => setData(d => ({
         ...d,
@@ -262,7 +269,9 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
     }, [data, subtipoJuridicoDem, subtipoJuridicoDado, empresasConsorcioDem, empresasConsorcioDado, repConsorcioDem, repConsorcioDado, emailsDem]);
 
     const enviarFormulario = () => {
+        if (enviando) return;
         setConfirm(false);
+        setEnviando(true);
         loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
 
         const fd = new FormData();
@@ -294,7 +303,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         fd.append('subtipo_juridico_demandante', subtipoJuridicoDem);
         fd.append('subtipo_juridico_demandado',  subtipoJuridicoDado);
 
-        fd.append('empresas_consorcio_demandante', JSON.stringify(empresasConsorcioDem));
+        fd.append('empresas_consorcio_demandante', JSON.stringify(empresasPayload(empresasConsorcioDem)));
         if (subtipoJuridicoDem === 'consorcio') {
             fd.set('nombre_representante',    repConsorcioDem.nombre ?? '');
             fd.set('documento_representante', repConsorcioDem.dni ?? '');
@@ -304,7 +313,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             }
         }
 
-        fd.append('empresas_consorcio_demandado',            JSON.stringify(empresasConsorcioDado));
+        fd.append('empresas_consorcio_demandado',            JSON.stringify(empresasPayload(empresasConsorcioDado)));
         fd.append('nombre_representante_demandado',
             subtipoJuridicoDado === 'consorcio' ? (repConsorcioDado.nombre ?? '') : (data.nombre_representante_dem ?? ''));
         fd.append('documento_representante_demandado',
@@ -327,13 +336,14 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         router.post(route('solicitud.arbitraje.store'), fd, {
             forceFormData: true,
             onFinish: () => {
+                setEnviando(false);
                 clearTimeout(loaderTimer.current);
                 setMostrarLoader(false);
             },
             onError: (errs) => {
                 clearTimeout(loaderTimer.current);
                 setMostrarLoader(false);
-                toast.error(Object.values(errs)[0] || 'Revise los campos', { position: 'top-center' });
+                toast.error(Object.values(errs)[0] || 'Revise los campos marcados en rojo', { position: 'top-center' });
             },
         });
     };
@@ -347,7 +357,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             resumen={`Se enviará la solicitud de arbitraje de emergencia del servicio "${servicio.nombre}" a nombre de ${data.nombre_demandante || (empresasConsorcioDem[0]?.nombre ? 'Consorcio: ' + empresasConsorcioDem[0].nombre : '—')}. Se generará un cargo y se enviarán credenciales de acceso al correo registrado.`}
             onConfirm={enviarFormulario}
             onCancel={() => setConfirm(false)}
-            confirmando={processing}
+            confirmando={enviando}
         />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
@@ -405,8 +415,8 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
             {/* Bloque Demandante */}
             {demandanteBloqueado ? (
-                <div className="flex items-center justify-between gap-3 mb-3 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-green-700">
+                <div className="flex items-center justify-between gap-3 mb-3 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
                         <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
                     </div>
                     <button
@@ -419,7 +429,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                             setEmpresasConsorcioDem([]);
                             setRepConsorcioDem({ dni: '', nombre: '' });
                         }}
-                        className="text-xs font-semibold text-green-600 hover:text-red-600 underline underline-offset-2 transition-colors shrink-0"
+                        className="text-xs font-semibold text-emerald-600 hover:text-red-600 underline underline-offset-2 transition-colors shrink-0"
                     >
                         Cambiar persona
                     </button>
@@ -623,9 +633,9 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
             {/* Adjuntos */}
             <Seccion icono={Paperclip} titulo="Documentos Adjuntos (Anexos)">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
-                    <p className="text-sm text-blue-800 font-semibold mb-1">Recomendación</p>
-                    <p className="text-sm text-blue-700">
+                <div className="bg-[#291136]/5 border border-[#291136]/15 rounded-xl p-4 mb-5">
+                    <p className="text-sm text-[#291136] font-semibold mb-1">Recomendación</p>
+                    <p className="text-sm text-[#291136]/75">
                         Antes de adjuntar, <strong>renombre cada archivo</strong> con el tipo de documento que representa
                         (ej: <em>DNI_representante.pdf</em>, <em>Poder_notarial.pdf</em>, <em>Contrato_principal.pdf</em>).
                         Esto facilita la revisión del expediente.
@@ -656,10 +666,10 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             <div className="flex justify-end">
                 <PrimaryButton
                     type="submit"
-                    disabled={processing || (hcaptchaSiteKey && !captchaToken)}
+                    disabled={enviando || (hcaptchaSiteKey && !captchaToken)}
                     className="px-8 py-3 text-base shadow-lg"
                 >
-                    {processing ? 'Enviando solicitud...' : 'Enviar Solicitud'}
+                    {enviando ? 'Enviando solicitud...' : 'Enviar Solicitud'}
                 </PrimaryButton>
             </div>
         </form>

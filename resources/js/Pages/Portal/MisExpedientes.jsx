@@ -12,6 +12,8 @@ const BADGE_ESTADO = {
     concluido:  'bg-gray-100 text-gray-600',
 };
 
+const LABEL_ESTADO = { activo: 'Activo', suspendido: 'Suspendido', concluido: 'Concluido' };
+
 /* ─── Modal de respuesta ─── */
 function ModalResponder({ mov, expediente, onClose, onRespondido }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
@@ -114,7 +116,7 @@ function ModalResponder({ mov, expediente, onClose, onRespondido }) {
                 {/* Header */}
                 <div className="bg-gradient-to-r from-[#291136] to-[#4A153D] px-6 py-4 flex items-center justify-between shrink-0">
                     <div>
-                        <p className="text-white/60 text-xs">Expediente {expediente}</p>
+                        <p className="text-white/80 text-xs">Expediente {expediente}</p>
                         <h2 className="text-white font-bold">Responder Requerimiento</h2>
                     </div>
                     <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
@@ -248,7 +250,7 @@ export default function MisExpedientes({ expedientes: expedientesIniciales, port
     const pendientes = expedientes.filter(e => e.tiene_pendiente).length;
 
     return (
-        <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+        <div className="min-h-screen bg-gray-50">
             <Head title="Mis Expedientes — Ankawa" />
             <AnkawaToaster position="top-right" />
 
@@ -312,7 +314,7 @@ export default function MisExpedientes({ expedientes: expedientesIniciales, port
                                         )}
                                     </div>
                                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${BADGE_ESTADO[exp.estado] ?? 'bg-gray-100 text-gray-500'}`}>
-                                        {exp.estado}
+                                        {LABEL_ESTADO[exp.estado] ?? exp.estado}
                                     </span>
                                 </div>
 

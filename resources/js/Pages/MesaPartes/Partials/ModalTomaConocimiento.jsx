@@ -7,6 +7,8 @@ const BADGE_ESTADO = {
     concluido:  'bg-gray-100 text-gray-600',
 };
 
+const LABEL_ESTADO = { activo: 'Activo', suspendido: 'Suspendido', concluido: 'Concluido' };
+
 export default function ModalTomaConocimiento({ pendientes }) {
     const [lista,      setLista]      = useState(pendientes);
     const [checked,    setChecked]    = useState(false);
@@ -50,7 +52,7 @@ export default function ModalTomaConocimiento({ pendientes }) {
                                 <span className="text-[10px] font-semibold text-white/60">{actual} / {total}</span>
                             )}
                             <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${BADGE_ESTADO[exp.estado] ?? 'bg-white/20 text-white'}`}>
-                                {exp.estado}
+                                {LABEL_ESTADO[exp.estado] ?? exp.estado}
                             </span>
                         </div>
                     </div>

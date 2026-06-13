@@ -5,6 +5,7 @@ import AnkawaLoader from '@/Components/AnkawaLoader';
 import ConfirmModal from '@/Components/ConfirmModal';
 import PlazoUrgente from './PlazoUrgente';
 import toast from 'react-hot-toast';
+import { filtrarArchivosValidos } from '@/utils/archivos';
 
 function formatBytes(bytes) {
     if (!bytes) return '—';
@@ -47,7 +48,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
     }
 
     function agregarArchivosTipo(tipoId, fileList) {
-        const nuevos = Array.from(fileList);
+        const nuevos = filtrarArchivosValidos(fileList, { mimes: upload_mimes, maxMb: upload_max_mb });
         setArchivosPorTipo(prev => {
             const actuales = prev[tipoId] ?? [];
             const sinDup = nuevos.filter(n => !actuales.some(a => a.name === n.name && a.size === n.size));
@@ -63,9 +64,8 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
     }
 
     function agregarArchivosLegacy(fileList) {
-        const nuevos = Array.from(fileList).filter(
-            n => !archivosLegacy.some(a => a.name === n.name && a.size === n.size)
-        );
+        const nuevos = filtrarArchivosValidos(fileList, { mimes: upload_mimes, maxMb: upload_max_mb })
+            .filter(n => !archivosLegacy.some(a => a.name === n.name && a.size === n.size));
         setArchivosLegacy(prev => [...prev, ...nuevos]);
     }
 
@@ -197,7 +197,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
                 <div className="bg-gradient-to-r from-[#291136] to-[#4A153D] px-6 py-4 flex items-center justify-between shrink-0">
                     <div>
-                        <p className="text-white/60 text-xs">Expediente {expediente}</p>
+                        <p className="text-white/80 text-xs">Expediente {expediente}</p>
                         <h2 className="text-white font-bold">Responder Requerimiento</h2>
                     </div>
                     <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
@@ -368,7 +368,7 @@ export default function ModalResponder({ mov, expediente, onClose, onRespondido 
 
                             {/* Documentos del requerimiento — recuadro destacado (rojo de marca) y abierto por defecto */}
                             {Array.isArray(mov.documentos) && mov.documentos.length > 0 && (
-                                <div className="border-2 border-[#BE0F4A] rounded-xl overflow-hidden bg-[#fff5f8]">
+                                <div className="border-2 border-[#BE0F4A] rounded-xl overflow-hidden bg-[#BE0F4A]/5">
                                     <button
                                         type="button"
                                         onClick={() => setOpenDocsReq(o => !o)}

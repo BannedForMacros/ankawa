@@ -22,12 +22,15 @@ export default function Confirmacion({ numeroCargo }) {
             <div className="min-h-screen bg-gradient-to-br from-[#291136] to-[#4A153D] flex items-center justify-center p-6">
                 <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden">
 
-                    {/* Header verde */}
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-8 py-10 text-center">
-                        <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <CheckCircle2 size={44} className="text-white" />
+                    {/* Header con gradiente de marca; el check emerald queda como acento de éxito */}
+                    <div
+                        className="px-8 py-10 text-center"
+                        style={{ background: 'linear-gradient(135deg, #291136 0%, #4A153D 50%, #BE0F4A 100%)' }}
+                    >
+                        <div className="w-20 h-20 bg-white/15 border border-white/25 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle2 size={44} className="text-emerald-300" />
                         </div>
-                        <h1 className="text-2xl font-extrabold text-white mb-1">
+                        <h1 className="text-3xl font-black text-white tracking-tight mb-1">
                             ¡Solicitud Enviada!
                         </h1>
                         <p className="text-white/80 text-sm">
@@ -72,15 +75,15 @@ export default function Confirmacion({ numeroCargo }) {
 
                         <ul className="text-sm text-gray-600 space-y-3 mb-8">
                             <li className="flex items-start gap-2">
-                                <CheckCircle2 size={15} className="text-green-500 shrink-0 mt-0.5" />
+                                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
                                 Se ha enviado un correo con su acuse de recibo y credenciales de acceso.
                             </li>
                             <li className="flex items-start gap-2">
-                                <CheckCircle2 size={15} className="text-green-500 shrink-0 mt-0.5" />
+                                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
                                 La Secretaría General revisará su solicitud en un plazo de 5 días hábiles.
                             </li>
                             <li className="flex items-start gap-2">
-                                <CheckCircle2 size={15} className="text-green-500 shrink-0 mt-0.5" />
+                                <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
                                 Puede hacer seguimiento desde <strong>Mis Solicitudes</strong> en cualquier momento.
                             </li>
                         </ul>
@@ -88,7 +91,7 @@ export default function Confirmacion({ numeroCargo }) {
                         <div className="flex flex-col sm:flex-row gap-3">
                             <Link
                                 href={route('mesa-partes.mis-solicitudes')}
-                                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#4A153D] transition-colors"
+                                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold bg-[#291136] text-white hover:bg-[#3D1A52] transition-colors"
                             >
                                 Ver Mis Solicitudes
                                 <ArrowRight size={16} />

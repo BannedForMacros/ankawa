@@ -12,6 +12,7 @@ import CustomSelect from '@/Components/CustomSelect';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
+import { filtrarArchivosValidos } from '@/utils/archivos';
 
 /* ─── Constantes ─── */
 const SUBTIPOS_JURIDICA = [
@@ -282,8 +283,8 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
     }
 
     return (
-        <div className="grid grid-cols-5 gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
-            <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
+            <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">RUC</label>
                 <div className="relative">
                     <input type="text" value={empresa.ruc} onChange={e => handleRuc(e.target.value)}
@@ -300,7 +301,7 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
                 </div>
                 {bloqueado && <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={9}/> SUNAT</p>}
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">Razón Social</label>
                 <input type="text" value={empresa.nombre}
                     onChange={e => onUpdate({ ...empresa, nombre: e.target.value })}
@@ -321,8 +322,12 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
 }
 
 /* ─── Contenedor de empresas del consorcio ─── */
+// _key: clave estable de React — con key={i}, al eliminar una fila se reutiliza la
+// instancia y el candado SUNAT queda pegado a la empresa equivocada. Se quita del payload.
+const sinKeyUI = (empresas) => (empresas ?? []).map(({ _key, ...e }) => e);
+
 function EmpresasConsorcio({ empresas, onChange, error }) {
-    function agregar() { onChange([...empresas, { ruc: '', nombre: '' }]); }
+    function agregar() { onChange([...empresas, { ruc: '', nombre: '', _key: crypto.randomUUID() }]); }
 
     return (
         <div className="space-y-2">
@@ -343,9 +348,9 @@ function EmpresasConsorcio({ empresas, onChange, error }) {
             )}
             {empresas.map((emp, i) => (
                 <FilaEmpresaConsorcio
-                    key={i}
+                    key={emp._key ?? i}
                     empresa={emp}
-                    onUpdate={nuevaEmp => onChange(empresas.map((e, j) => j === i ? nuevaEmp : e))}
+                    onUpdate={nuevaEmp => onChange(empresas.map((e, j) => j === i ? { ...e, ...nuevaEmp } : e))}
                     onRemove={() => onChange(empresas.filter((_, j) => j !== i))}
                 />
             ))}
@@ -495,9 +500,8 @@ function SeccionDoc({ icono: Icono, titulo, descripcion, archivos, onChange, req
     const inputRef = useRef();
 
     function agregar(e) {
-        const nuevos = Array.from(e.target.files).filter(
-            n => !archivos.some(a => a.name === n.name && a.size === n.size)
-        );
+        const nuevos = filtrarArchivosValidos(e.target.files, { mimes: upload_mimes, maxMb: upload_max_mb })
+            .filter(n => !archivos.some(a => a.name === n.name && a.size === n.size));
         onChange([...archivos, ...nuevos]);
         e.target.value = '';
     }
@@ -707,7 +711,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
         fd.append('subtipo_entidad',                entidad.subtipo ?? '');
         fd.append('representante_entidad_dni',      entidad.representante?.dni ?? '');
         fd.append('representante_entidad_nombre',   entidad.representante?.nombre ?? '');
-        fd.append('empresas_entidad',               JSON.stringify(entidad.empresas ?? []));
+        fd.append('empresas_entidad',               JSON.stringify(sinKeyUI(entidad.empresas)));
         fd.append('emails_entidad',                 JSON.stringify(emailsEntFinal));
 
         // Contratista
@@ -722,7 +726,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
         fd.append('subtipo_contratista',              contratista.subtipo ?? '');
         fd.append('representante_contratista_dni',    contratista.representante?.dni ?? '');
         fd.append('representante_contratista_nombre', contratista.representante?.nombre ?? '');
-        fd.append('empresas_contratista',             JSON.stringify(contratista.empresas ?? []));
+        fd.append('empresas_contratista',             JSON.stringify(sinKeyUI(contratista.empresas)));
         fd.append('emails_contratista',               JSON.stringify(emailsConFinal));
 
         fd.append('acepta_reglamento_card', aceptaReglamento ? '1' : '0');

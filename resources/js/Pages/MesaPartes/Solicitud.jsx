@@ -17,7 +17,7 @@ export default function Solicitud({ servicio, portalEmail, portalUser, hcaptchaS
     const Form = FORMS[servicio.slug] ?? OtrosForm;
 
     return (
-        <div className="min-h-screen bg-gray-50" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+        <div className="min-h-screen bg-gray-50">
             <Head title={`${servicio.nombre} — Mesa de Partes`} />
             <AnkawaToaster position="top-center" duration={5000} />
 

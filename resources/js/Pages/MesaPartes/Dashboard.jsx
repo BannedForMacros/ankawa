@@ -13,11 +13,14 @@ import ModalEnviarDocumento   from './Partials/ModalEnviarDocumento';
 import PlazoUrgente           from './Partials/PlazoUrgente';
 import usePortalAvisos        from '@/hooks/usePortalAvisos';
 
+// Spec del manual: emerald-100/700, amber-100/700, gray-100/600, rounded-full
 const BADGE_ESTADO = {
-    activo:     'bg-emerald-100 text-emerald-800 border border-emerald-200',
-    suspendido: 'bg-amber-100 text-amber-800 border border-amber-200',
-    concluido:  'bg-gray-100 text-gray-700 border border-gray-200',
+    activo:     'bg-emerald-100 text-emerald-700',
+    suspendido: 'bg-amber-100 text-amber-700',
+    concluido:  'bg-gray-100 text-gray-600',
 };
+
+const LABEL_ESTADO = { activo: 'Activo', suspendido: 'Suspendido', concluido: 'Concluido' };
 
 export default function Dashboard({ expedientes, servicios, portalUser, portalEmail, pendientesAceptacion = [], avisoActorIds = [] }) {
     const [modalMov,       setModalMov]       = useState(null);
@@ -43,7 +46,7 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
     const totalMovPendientes = (expedientes ?? []).reduce((s, e) => s + (e.movimientos_pendientes?.length ?? 0), 0);
 
     return (
-        <div className="min-h-screen bg-[#F8F9FA]" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+        <div className="min-h-screen bg-gray-50">
             <Head title="Mesa de Partes — Ankawa" />
             <AnkawaToaster position="top-right" />
 
@@ -162,8 +165,8 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
                                                 <span className="font-black text-[#291136] text-xl tracking-tight">
                                                     {exp.numero_expediente}
                                                 </span>
-                                                <span className={`text-xs font-bold px-3 py-1 rounded-md ${BADGE_ESTADO[exp.estado] ?? 'bg-gray-100 text-gray-500'}`}>
-                                                    {exp.estado}
+                                                <span className={`text-xs font-bold px-3 py-1 rounded-full ${BADGE_ESTADO[exp.estado] ?? 'bg-gray-100 text-gray-500'}`}>
+                                                    {LABEL_ESTADO[exp.estado] ?? exp.estado}
                                                 </span>
                                             </div>
                                             <p className="text-sm text-gray-600 font-semibold">{exp.servicio}</p>

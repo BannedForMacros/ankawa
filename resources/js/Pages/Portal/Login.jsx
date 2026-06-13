@@ -195,8 +195,7 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col p-4"
-             style={{ fontFamily: 'Montserrat, sans-serif' }}>
+        <div className="min-h-screen bg-gray-50 flex flex-col p-4">
             <Head title="Portal Externo — Ankawa" />
 
             {/* Header con botón Volver al inicio */}
