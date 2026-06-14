@@ -12,7 +12,6 @@ import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
 import { filtrarArchivosValidos } from '@/utils/archivos';
-import { consultarDocumento } from '@/utils/consultaDocumento';
 import useDocumentoLookup from '@/hooks/useDocumentoLookup';
 
 /* ─── Constantes ─── */
@@ -111,29 +110,12 @@ const CampoDni = (props) => <CampoDocLookup tipo="dni" {...props} />;
 /* ─── Representante legal (DNI lookup) ─── */
 // onResuelto(dni, nombre) — callback único para evitar stale closure
 function BloqueRepresentante({ dni, nombre, onResuelto, label = 'Representante Legal' }) {
-    const [cargando, setCargando]   = useState(false);
-    const [bloqueado, setBloqueado] = useState(false);
-    const timerRef = useRef();
-
-    function handleDni(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 8);
-        if (bloqueado && clean !== dni) { setBloqueado(false); onResuelto(clean, ''); return; }
-        onResuelto(clean, null); // null = no cambiar nombre todavía
-        clearTimeout(timerRef.current);
-        if (clean.length === 8) timerRef.current = setTimeout(() => buscar(clean), 500);
-    }
-
-    async function buscar(d) {
-        setCargando(true);
-        try {
-            const data = await consultarDocumento('dni', d);
-            onResuelto(d, data.nombre ?? '');
-            setBloqueado(true);
-        } catch {
-            toast('DNI no encontrado. Complete el nombre manualmente.', { icon: 'ℹ️', duration: 3000 });
-            setBloqueado(false);
-        } finally { setCargando(false); }
-    }
+    const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
+        tipo: 'dni',
+        longitud: 8,
+        onResuelto,
+        mensajeNoEncontrado: 'DNI no encontrado. Complete el nombre manualmente.',
+    });
 
     return (
         <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
@@ -142,7 +124,7 @@ function BloqueRepresentante({ dni, nombre, onResuelto, label = 'Representante L
                     DNI del {label} <span className="text-[#BE0F4A]">*</span>
                 </label>
                 <div className="relative">
-                    <input type="text" value={dni} onChange={e => handleDni(e.target.value)}
+                    <input type="text" value={dni} onChange={e => onChange(e.target.value)}
                         maxLength={8} placeholder="12345678"
                         className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 ${
                             bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
@@ -150,7 +132,7 @@ function BloqueRepresentante({ dni, nombre, onResuelto, label = 'Representante L
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                         {cargando && <Loader2 size={13} className="animate-spin text-gray-400"/>}
                         {!cargando && bloqueado && (
-                            <button type="button" onClick={() => { setBloqueado(false); onResuelto('', ''); }}>
+                            <button type="button" onClick={limpiar}>
                                 <X size={13} className="text-gray-400 hover:text-red-500"/>
                             </button>
                         )}
@@ -173,43 +155,14 @@ function BloqueRepresentante({ dni, nombre, onResuelto, label = 'Representante L
 
 /* ─── Fila individual de empresa en consorcio (estado propio → sin stale closure) ─── */
 function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
-    const [cargando,  setCargando]  = useState(false);
-    const [bloqueado, setBloqueado] = useState(false);
-    const timerRef = useRef();
-
-    function handleRuc(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 11);
-        if (bloqueado && clean !== empresa.ruc) {
-            setBloqueado(false);
-            onUpdate({ ruc: clean, nombre: '' });
-            return;
-        }
-        onUpdate({ ...empresa, ruc: clean });
-        clearTimeout(timerRef.current);
-        if (clean.length === 11) {
-            timerRef.current = setTimeout(() => buscar(clean), 500);
-        }
-    }
-
-    async function buscar(ruc) {
-        setCargando(true);
-        try {
-            const data = await consultarDocumento('ruc', ruc);
-            // onUpdate recibe el objeto completo → no depende de empresa del closure
-            onUpdate({ ruc, nombre: data.nombre ?? '' });
-            setBloqueado(true);
-        } catch {
-            toast('RUC no encontrado. Complete manualmente.', { icon: 'ℹ️', duration: 2500 });
-            setBloqueado(false);
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    function limpiar() {
-        setBloqueado(false);
-        onUpdate({ ruc: '', nombre: '' });
-    }
+    // onUpdate ya hace merge en el padre, así que basta enviar los campos que cambian.
+    // nom === null = el usuario está tipeando → no tocar la razón social todavía.
+    const { cargando, bloqueado, onChange: handleRuc, limpiar } = useDocumentoLookup({
+        tipo: 'ruc',
+        longitud: 11,
+        onResuelto: (doc, nom) => onUpdate(nom === null ? { ruc: doc } : { ruc: doc, nombre: nom }),
+        mensajeNoEncontrado: 'RUC no encontrado. Complete manualmente.',
+    });
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end bg-gray-50 p-3 rounded-xl border border-gray-200">
