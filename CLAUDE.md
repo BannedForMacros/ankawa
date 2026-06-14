@@ -4,7 +4,7 @@
 - Laravel 12 + Inertia.js + React (JSX) + TypeScript + PostgreSQL
 - Tailwind CSS (clases utilitarias, sin CSS custom salvo variables)
 - Lucide React para iconos
-- Fuente: Montserrat (importada vía Google Fonts en el layout principal)
+- Fuente: **Montserrat** es la fuente `sans` por defecto en `tailwind.config.js` (toda la app la hereda). Se carga con pesos `400;500;600;700;800;900` en `app.blade.php` y `app.css` — los `800/900` son obligatorios porque `font-black` (900) los necesita reales, no sintéticos. **No usar `style={{ fontFamily: 'Montserrat' }}` inline** — ya viene del default.
 
 ## Reglas críticas de base de datos
 - NUNCA ejecutar `php artisan migrate` directamente
@@ -169,13 +169,16 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 ## Reglas generales de desarrollo
 
 - Cambios quirúrgicos: modificar solo lo necesario, no refactorizar código que funciona
-- No usar `alert()` — usar toast o feedback inline
+- No usar `alert()` — usar toast o feedback inline (cumplido en MesaPartes: react-hot-toast + `ConfirmModal`)
 - No usar estilos inline salvo gradientes complejos (`style={{ background: '...' }}`)
-- Usar `cn()` de `clsx` para clases condicionales
-- Formularios: `react-hook-form` + validación Zod
-- Tablas con más de 10 registros: paginación obligatoria
-- Mobile-first: el hero se apila verticalmente en pantallas pequeñas (`flex-wrap gap-4`)
+- Usar `cn()` de `clsx` para clases condicionales (objetivo; los formularios MesaPartes legacy aún usan template strings)
+- Formularios: `react-hook-form` + validación Zod (objetivo; los 4 formularios de MesaPartes aún validan a mano — migración pendiente)
+- Tablas con más de 10 registros: paginación obligatoria. El componente `Table` (`resources/js/Components/Table.jsx`) soporta `clientSide` (filtra/ordena/pagina en navegador, para datasets chicos) y modo servidor. **Si el controller no soporta `search/sort/page`, usar `clientSide` + `searchKeys`** (ver `Bandeja.jsx`)
+- **Validación de archivos en cliente**: antes de aceptar un upload, filtrar con `filtrarArchivosValidos(files, { mimes: upload_mimes, maxMb: upload_max_mb })` de `resources/js/utils/archivos.js` — rechaza por extensión/tamaño con toast antes de enviar. `upload_mimes`/`upload_max_mb`/`upload_accept` llegan por props de Inertia
+- Mobile-first: el hero se apila verticalmente en pantallas pequeñas (`flex-wrap gap-4`). Grids de inputs siempre con breakpoint (`grid-cols-1 sm:grid-cols-N`), nunca `grid-cols-N` fijo
 - No crear archivos de migración — toda estructura de BD se verifica directamente con psql
+- **Listas mutables con estado local por fila** (ej. filas de consorcio con candado SUNAT): usar clave estable (`_key: crypto.randomUUID()`), NUNCA `key={index}` — y quitar `_key` del payload antes de enviar al backend
+- **Inertia `useForm` vs `router.post`**: si el envío usa `router.post` con `FormData` manual, `useForm` NO llena `errors`/`processing`. Leer errores con `usePage().props.errors` y manejar un estado `enviando` propio para deshabilitar el botón (evita doble submit) — ver `ArbitrajeForm.jsx`
 
 ---
 
@@ -184,11 +187,13 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 - `resources/js/Pages/Expedientes/Index.jsx` — lista de expedientes
 - `resources/js/Pages/Expedientes/Show.jsx` — detalle con tabs
 - `app/Http/Controllers/ExpedienteController.php` — controlador principal
+- `resources/js/utils/archivos.js` — `filtrarArchivosValidos()` (validación de uploads en cliente)
+- `app/Http/Controllers/PortalController.php` — flujo del portal externo (OTP, responder, enviar doc)
 - `.env` — credenciales de base de datos para psql
 
 ---
 
-## Estado actual del sistema (marzo 2026)
+## Estado actual del sistema (actualizado junio 2026)
 
 ### Motor de Expedientes
 - **Doc arquitectónico canónico**: ver [`docs/movimientos.md`](docs/movimientos.md) — toda la lógica de movimientos, primitivas (multi-tipo de doc, opcionales, auto-traslado, cancelación), estados, endpoints, SQL.
@@ -199,8 +204,8 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 - Payload de creación: `requerimientos: [{ tipo_documento_id, responsables: [{ actor_ids, dias_plazo, tipo_dias, es_opcional }], traslado_auto?: {...} }]`
 
 ### Sistema de Cargos
-- Tabla `cargos` con secuencia PostgreSQL `cargo_seq` → formato `CARGO-2026-0001`
-- Modelo `app/Models/Cargo.php` — método estático `Cargo::crear($tipo, $cargable, $userId)`
+- El correlativo se genera vía tabla `correlativos` + `lockForUpdate` (NO la vieja `cargo_seq`) → formato `CARGO-GEN-2026-001`
+- Modelo `app/Models/Cargo.php` — método estático `Cargo::crear($tipo, $cargable, $userId)`; puede retornar `null` si el tipo de evento está desactivado en Configuración → Tipos de Cargo (los callers deben manejarlo)
 - `genera_cargo` (boolean) en `expediente_movimientos`; default `true` para `requerimiento`, `false` para los demás
 - El cargo de respuesta se emite en `PortalController::responder()` (única vía de respuesta — Mesa de Partes) si `$movimiento->genera_cargo === true`
 - **Las respuestas a requerimientos solo se hacen desde Mesa de Partes** — el flujo de respuesta en Expediente Electrónico fue removido (los actores responden vía portal externo con OTP)
@@ -233,7 +238,40 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 ### Emails
 - Templates en `resources/views/emails/` — todos usan `@include('emails.partials.logo')`
 - Logo embebido como base64 en `resources/views/emails/partials/logo.blade.php` — **nunca usar `asset()` o `url()` para imágenes en emails**
-- `QUEUE_CONNECTION=database` — usar `Mail::send()` no `Mail::queue()`
+- `QUEUE_CONNECTION=database` — usar `Mail::send()` no `Mail::queue()` (verificado en todo el flujo, incl. servicio "Otros")
+- **Mail fuera de transacciones**: `Cargo::crear` toma `lockForUpdate` sobre el correlativo global; enviar el mail DENTRO de la `DB::transaction` bloquea la emisión de cargos de todo el sistema si el SMTP es lento. Capturar el cargo dentro de la TX y enviar el mail DESPUÉS del commit (patrón en `PortalController::responder()` y `SolicitudArbitrajeController`)
+- **Etiqueta canónica "Sumilla"** para `movimiento->instruccion` en todos los blade. NO usar "Sumilla" para otros campos (servicio, tipo de actor → usar "Servicio" / "Participa como")
+- **"Número de Cargo"** es la etiqueta única del identificador `CARGO-GEN-...` en todos los emails y pantallas (antes había "Número de Registro" / "N° Cargo" mezclados). La cédula de notificación se etiqueta "Cédula de Notificación", no "Número de Registro"
+
+---
+
+## Mesa de Partes / Portal externo — reglas de endurecimiento (junio 2026)
+
+Auditoría de seguridad, lógica, contenido y marca aplicada al flujo público. Reglas a respetar:
+
+### Seguridad y lógica de backend
+- **Ventanilla multi-correo**: un actor puede tener varios correos (consorcios). `email_externo` y `expediente_actor_emails.email` se guardan **en minúsculas** (mutators en los modelos `ExpedienteActor` / `ExpedienteActorEmail`). La sesión OTP también compara en minúsculas; contra `users.email` (que puede tener mayúsculas históricas) usar `whereRaw('LOWER(email) = ?')`. NO restringir `actorIdsPorEmail`
+- **Actor externo puro** (`usuario_id IS NULL` con `acceso_mesa_partes=1`): al escribir en `expediente_historial`, pasar `usuario_id => $actor->usuario_id` (puede ser `null` — la columna lo permite). NUNCA `?? 0` (viola FK a `users`)
+- **Autorización de envíos externos** (`EnvioExternoController`): `aceptar`/`rechazar` exigen ser Gestor (`GestorExpedienteService::esGestor`); `index` exige acceso al expediente electrónico. El `guard()` solo valida coherencia, no permisos
+- **`PortalController::responder()`**: buscar el actor del email filtrando por `expediente_id` del movimiento (el mismo correo puede estar en varios expedientes); usar `lockForUpdate` dentro de la TX para evitar doble cargo por doble submit; responde `422` si la entrega ya fue procesada
+- **`DocumentoAcceso::portalPuedeVer()`**: exige `activo=1` Y `acceso_mesa_partes=1` (un actor revocado no debe descargar evidencia)
+- **OTP** (`PortalController::enviarCodigo`/`verificarCodigo`): invalidar el código al 5.º intento fallido; `session()->regenerate()` al validar (anti fijación); si falla el envío del correo, invalidar el código y responder 503 (no decir "ok"). El throttle vive en `AppServiceProvider` (`portal-otp-enviar`/`-verificar`)
+- **`/consulta-documento`** (público): valida formato (DNI 8 díg., RUC 11) antes de llamar a la API externa; rate limit `8/min` + `100/día` por IP
+- **Servicio "Otros"** y flujos que crean registro + cargo: envolver en `DB::transaction` (sin cargo, la solicitud queda huérfana)
+- Código muerto eliminado: `MesaPartesController::enviarCodigo/verificarCodigo` (versión insegura del OTP) — las rutas apuntan solo a `PortalController`
+
+### Contenido y UX (público: "que cualquiera lo entienda, de 5 a 70 años")
+- **Tratamiento "usted"** uniforme en todo el flujo público (no tú, jamás voseo)
+- Sin jerga sin explicar: "cargo" = constancia de recepción; glosar demandante/demandado en los formularios; el número de cargo es **copiable** en `Confirmacion.jsx`
+- **Requisitos por servicio** en la portada (`Index.jsx`, `REQUISITOS_POR_SLUG`) — no exigir "convenio arbitral" a JPRD u Otros
+- **Reenviar código OTP**: ambos logins tienen botón con cuenta regresiva de 60 s + aviso de spam/vencimiento. El captcha es de un solo uso: si el server lo rechaza al reenviar, volver al paso de identidad
+- Terminología consistente: "solicitud" (no "trámite"); "documento" (lo que el centro pide) vs "archivo" (el PDF que se sube)
+- Cuidar tildes y ortografía en textos públicos y emails
+
+### Marca (cumplimiento estricto de paleta)
+- **Cards de selección de servicio** (`ModalServicios`) y todo gradiente: variaciones del gradiente canónico `#291136 → #4A153D → #BE0F4A`. Prohibido azul/rojo/gris genéricos
+- Estados de éxito/verificación: `emerald` (no `green`); plazos/avisos neutros: tinte de marca `bg-[#291136]/5` (no `blue`)
+- Badges de estado de expediente: spec del manual (`emerald/amber/gray-100/700`, `rounded-full`) con etiqueta capitalizada ("Activo", no "activo" crudo)
 
 ### psql
 ```bash
