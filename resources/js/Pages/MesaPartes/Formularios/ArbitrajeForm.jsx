@@ -12,6 +12,7 @@ import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import { consultarDocumento } from '@/utils/consultaDocumento';
+import useDocumentoLookup from '@/hooks/useDocumentoLookup';
 import FilePreviewModal from '@/Components/FilePreviewModal';
 import {
     User, Users, Scale, FileText, Paperclip,
@@ -107,43 +108,13 @@ export function MultiArchivoInput({ label, value = [], onChange, accept }) {
 
 /* ─── Buscador de DNI para representante ─── */
 function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true }) {
-    const [cargando, setCargando]   = useState(false);
-    const [bloqueado, setBloqueado] = useState(false);
-    const timerRef = useRef();
-
-    async function onChangeDni(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 8);
-        if (bloqueado && clean !== dniValue) {
-            setBloqueado(false);
-            onNombreChange('');
-        }
-        onDniChange(clean);
-        clearTimeout(timerRef.current);
-        if (clean.length === 8) {
-            timerRef.current = setTimeout(() => buscar(clean), 500);
-        }
-    }
-
-    async function buscar(dni) {
-        setCargando(true);
-        try {
-            const data = await consultarDocumento('dni', dni);
-            onNombreChange(data.nombre ?? '');
-            setBloqueado(true);
-        } catch {
-            toast('DNI no encontrado. Complete el nombre manualmente.', { icon: 'ℹ️', duration: 3000 });
-            onNombreChange('');
-            setBloqueado(false);
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    function limpiar() {
-        setBloqueado(false);
-        onDniChange('');
-        onNombreChange('');
-    }
+    const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
+        tipo: 'dni',
+        longitud: 8,
+        onResuelto: (doc, nom) => { onDniChange(doc); if (nom !== null) onNombreChange(nom); },
+        mensajeNoEncontrado: 'DNI no encontrado. Complete el nombre manualmente.',
+        limpiarNombreEnFallo: true,
+    });
 
     return (
         <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
@@ -153,7 +124,7 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
                 </label>
                 <div className="relative">
                     <input type="text" value={dniValue}
-                        onChange={e => onChangeDni(e.target.value)}
+                        onChange={e => onChange(e.target.value)}
                         maxLength={8} placeholder="12345678"
                         className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 transition-colors ${
                             dniValue.length === 8 && bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
@@ -186,43 +157,14 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
 
 /* ─── Buscador de RUC con razón social (API SUNAT) ─── */
 export function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSocialChange, label = 'Empresa', required = false }) {
-    const [cargando, setCargando]   = useState(false);
-    const [bloqueado, setBloqueado] = useState(!!razonSocialValue);
-    const timerRef = useRef();
-
-    async function onChangeRuc(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 11);
-        if (bloqueado && clean !== rucValue) {
-            setBloqueado(false);
-            onRazonSocialChange('');
-        }
-        onRucChange(clean);
-        clearTimeout(timerRef.current);
-        if (clean.length === 11) {
-            timerRef.current = setTimeout(() => buscar(clean), 500);
-        }
-    }
-
-    async function buscar(ruc) {
-        setCargando(true);
-        try {
-            const data = await consultarDocumento('ruc', ruc);
-            onRazonSocialChange(data.nombre ?? '');
-            setBloqueado(true);
-        } catch {
-            toast('RUC no encontrado. Complete la razón social manualmente.', { icon: 'ℹ️', duration: 3000 });
-            onRazonSocialChange('');
-            setBloqueado(false);
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    function limpiar() {
-        setBloqueado(false);
-        onRucChange('');
-        onRazonSocialChange('');
-    }
+    const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
+        tipo: 'ruc',
+        longitud: 11,
+        onResuelto: (doc, nom) => { onRucChange(doc); if (nom !== null) onRazonSocialChange(nom); },
+        mensajeNoEncontrado: 'RUC no encontrado. Complete la razón social manualmente.',
+        limpiarNombreEnFallo: true,
+        bloqueadoInicial: !!razonSocialValue,
+    });
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
@@ -232,7 +174,7 @@ export function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSo
                 </label>
                 <div className="relative">
                     <input type="text" value={rucValue}
-                        onChange={e => onChangeRuc(e.target.value)}
+                        onChange={e => onChange(e.target.value)}
                         maxLength={11} placeholder="20xxxxxxxxx"
                         className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 transition-colors ${
                             rucValue.length === 11 && bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
@@ -270,46 +212,21 @@ export const empresasPayload = (empresas) => empresas.map(({ _key, ...e }) => e)
 
 /* ─── Fila de empresa en consorcio ─── */
 function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
-    const [cargando, setCargando]   = useState(false);
-    const [bloqueado, setBloqueado] = useState(!!empresa.nombre);
-    const timerRef = useRef();
-
-    async function onRucChange(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 11);
-        if (bloqueado && clean !== empresa.ruc) { setBloqueado(false); onUpdate({ ruc: clean, nombre: '' }); return; }
-        onUpdate({ ruc: clean, nombre: bloqueado ? empresa.nombre : empresa.nombre });
-        clearTimeout(timerRef.current);
-        if (clean.length === 11) {
-            timerRef.current = setTimeout(() => buscarRuc(clean), 500);
-        }
-    }
-
-    async function buscarRuc(ruc) {
-        setCargando(true);
-        try {
-            const data = await consultarDocumento('ruc', ruc);
-            onUpdate({ ruc, nombre: data.nombre ?? '' });
-            setBloqueado(true);
-        } catch {
-            toast('RUC no encontrado. Complete el nombre manualmente.', { icon: 'ℹ️', duration: 3000 });
-            onUpdate({ ruc, nombre: '' });
-            setBloqueado(false);
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    function limpiar() {
-        setBloqueado(false);
-        onUpdate({ ruc: '', nombre: '' });
-    }
+    const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
+        tipo: 'ruc',
+        longitud: 11,
+        onResuelto: (doc, nom) => onUpdate(nom === null ? { ruc: doc } : { ruc: doc, nombre: nom }),
+        mensajeNoEncontrado: 'RUC no encontrado. Complete el nombre manualmente.',
+        limpiarNombreEnFallo: true,
+        bloqueadoInicial: !!empresa.nombre,
+    });
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
             <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">RUC</label>
                 <div className="relative">
-                    <input type="text" value={empresa.ruc} onChange={e => onRucChange(e.target.value)}
+                    <input type="text" value={empresa.ruc} onChange={e => onChange(e.target.value)}
                         maxLength={11} placeholder="20xxxxxxxxx"
                         className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-8 ${
                             empresa.ruc.length === 11 && bloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'

@@ -116,7 +116,8 @@
       "PowerShell(php -l app\\\\Http\\\\Controllers\\\\PortalController.php; php -l app\\\\Http\\\\Controllers\\\\MesaPartesController.php; php -l app\\\\Http\\\\Controllers\\\\ConsultaDocumentoController.php; php -l app\\\\Providers\\\\AppServiceProvider.php; php artisan route:list --name=consulta)",
       "PowerShell(npm run *)",
       "PowerShell(\\(Get-Content resources\\\\js\\\\Pages\\\\MesaPartes\\\\Formularios\\\\OtrosForm.jsx -TotalCount 14\\) -join \"`n\"; \"---JPRD---\"; \\(Get-Content resources\\\\js\\\\Pages\\\\MesaPartes\\\\Formularios\\\\JPRDForm.jsx -TotalCount 16\\) -join \"`n\")",
-      "PowerShell(\\(Get-Content resources\\\\js\\\\Pages\\\\MesaPartes\\\\MisSolicitudes.jsx -TotalCount 15\\) -join \"`n\")"
+      "PowerShell(\\(Get-Content resources\\\\js\\\\Pages\\\\MesaPartes\\\\MisSolicitudes.jsx -TotalCount 15\\) -join \"`n\")",
+      "Bash(command -v fnm asdf volta)"
     ]
   }
 }

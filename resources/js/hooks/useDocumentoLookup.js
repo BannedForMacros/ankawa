@@ -13,18 +13,22 @@ import { consultarDocumento } from '@/utils/consultaDocumento';
  * - Al tipear: limpia no-dígitos, recorta a `longitud`, desbloquea, y si alcanza
  *   la longitud exacta dispara la consulta tras 500 ms (debounce).
  * - Éxito: fija el nombre y bloquea el campo.
- * - Fallo: muestra un toast informativo y NO borra lo que el usuario haya escrito.
+ * - Fallo: muestra un toast informativo. Por defecto NO borra lo que el usuario
+ *   haya escrito (comportamiento JPRD). Con `limpiarNombreEnFallo: true` además
+ *   limpia el nombre en el fallo (comportamiento de los lookups de Arbitraje).
  *
  * @param {object}   opts
  * @param {'dni'|'ruc'} opts.tipo
  * @param {number}   opts.longitud           8 (DNI) | 11 (RUC)
  * @param {(doc: string, nombre: string|null) => void} opts.onResuelto
  * @param {string}   opts.mensajeNoEncontrado texto del toast cuando no se halla
+ * @param {boolean}  [opts.limpiarNombreEnFallo=false] si el lookup falla, fija el nombre a '' (Arbitraje)
+ * @param {boolean}  [opts.bloqueadoInicial=false]     arranca bloqueado (edición de un actor ya cargado)
  * @returns {{ cargando: boolean, bloqueado: boolean, onChange: (raw: string) => void, limpiar: () => void }}
  */
-export default function useDocumentoLookup({ tipo, longitud, onResuelto, mensajeNoEncontrado }) {
+export default function useDocumentoLookup({ tipo, longitud, onResuelto, mensajeNoEncontrado, limpiarNombreEnFallo = false, bloqueadoInicial = false }) {
     const [cargando, setCargando] = useState(false);
-    const [bloqueado, setBloqueado] = useState(false);
+    const [bloqueado, setBloqueado] = useState(bloqueadoInicial);
     const timerRef = useRef();
 
     function onChange(raw) {
@@ -45,6 +49,7 @@ export default function useDocumentoLookup({ tipo, longitud, onResuelto, mensaje
             setBloqueado(true);
         } catch {
             toast(mensajeNoEncontrado, { icon: 'ℹ️', duration: 3000 });
+            if (limpiarNombreEnFallo) onResuelto(num, '');
         } finally {
             setCargando(false);
         }

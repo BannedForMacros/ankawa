@@ -10,15 +10,18 @@
 Refactors completados y verificados (build + navegador donde aplica):
 
 - **`resources/js/utils/consultaDocumento.js`** — helper único para la llamada `consulta.documento` (RENIEC/SUNAT). Reemplazó las ~10 copias idénticas de `axios.get(route('consulta.documento'), ...)`. Cero cambio de comportamiento.
-- **`resources/js/hooks/useDocumentoLookup.js`** — hook con la máquina de estado del autocompletado (debounce 500 ms, lock al verificar, manejo de fallo). Contrato: `onResuelto(doc, nombre)` donde `nombre === null` = "no tocar el nombre todavía" (mientras se tipea). **No borra lo tipeado al fallar.**
+- **`resources/js/hooks/useDocumentoLookup.js`** — hook con la máquina de estado del autocompletado (debounce 500 ms, lock al verificar, manejo de fallo). Contrato: `onResuelto(doc, nombre)` donde `nombre === null` = "no tocar el nombre todavía" (mientras se tipea). **No borra lo tipeado al fallar.** Extendido con dos opciones retrocompatibles: `limpiarNombreEnFallo` (si el lookup falla, fija el nombre a `''` — comportamiento de Arbitraje) y `bloqueadoInicial` (arranca bloqueado al editar un actor ya cargado).
 - **JPRD (`JPRDForm.jsx`) — totalmente migrado al hook**: `CampoRuc`/`CampoDni` (→ `CampoDocLookup`), `BloqueRepresentante` y `FilaEmpresaConsorcio`. Además se corrigió que la **razón social del bloque de entidad única ahora se bloquea** al verificar el RUC (antes era editable; el resto de la app sí la bloqueaba). Verificado en navegador.
+- **Arbitraje (`ArbitrajeForm.jsx`) — `RepresentanteDNI`, `RucBuscador` y `FilaEmpresaConsorcio` migrados al hook** (ítem #1 de abajo). Usan el adaptador de callbacks (`onResuelto` → `onDniChange`/`onNombreChange` etc.) + `limpiarNombreEnFallo: true` (preservan su borrado del nombre al fallar) y `bloqueadoInicial: !!valor` donde aplicaba. **`ArbitrajeEmergenciaForm` hereda el cambio gratis** porque importa `RucBuscador`/`BloquePersona` desde `ArbitrajeForm`. Build OK. ⚠️ **Falta verificar en navegador** (detrás del login OTP). `BloquePersona` y `PanelConsorcio` se quedan con el helper a propósito (ver #2 y nota nueva).
 - **`resources/js/Components/FilePreviewModal.jsx`** — previsualización de archivos (4 copias → 1) + **corrige fuga de memoria** (los object URLs nunca se liberaban).
 - **`resources/js/Components/OtpLoginFlow.jsx`** — login OTP (2 copias casi idénticas → 1 componente; `MesaPartes/Login.jsx` y `Portal/Login.jsx` quedaron como wrappers).
 - **Eliminado** `Portal/MisExpedientes.jsx` (código muerto: su ruta redirige al dashboard, que ya usa el `ModalResponder` bueno).
 
 ---
 
-## 1. Migrar lookups de ArbitrajeForm al hook `useDocumentoLookup`
+## 1. Migrar lookups de ArbitrajeForm al hook `useDocumentoLookup` — ✅ HECHO (build OK; falta verificación en navegador)
+
+> **Aplicado:** el hook se extendió con `limpiarNombreEnFallo` y `bloqueadoInicial` (retrocompatibles), y los tres componentes pasaron a usarlo con adaptador de callbacks. Falta solo la verificación en navegador descrita más abajo (login OTP). Lo de abajo se conserva como registro de la decisión.
 
 **Archivos**: `resources/js/Pages/MesaPartes/Formularios/ArbitrajeForm.jsx`
 **Componentes**: `RepresentanteDNI`, `RucBuscador`, `FilaEmpresaConsorcio` (la de este archivo).
@@ -43,7 +46,10 @@ Y en cada componente usar un **adaptador de callbacks** para mantener el contrat
 Elimina ~3 copias más de la misma máquina de estado (debounce/lock/fallo) y deja **una sola fuente de verdad** para el autocompletado. Hoy, un cambio (p. ej. ajustar el debounce o el mensaje) hay que hacerlo en cada copia.
 
 ### Cómo verificar (obligatorio antes de dar por hecho)
-En navegador, en el formulario de **Arbitraje** (entrar por el portal): probar DNI del representante y RUC de empresa con un documento **válido** (autocompleta + bloquea + X) y uno **inexistente** (toast + **debe borrar** el nombre, comportamiento propio de este form).
+En navegador, en el formulario de **Arbitraje** (entrar por el portal): probar DNI del representante y RUC de empresa con un documento **válido** (autocompleta + bloquea + X) y uno **inexistente** (toast + **debe borrar** el nombre, comportamiento propio de este form). Probar también el **consorcio** (fila de empresa por RUC + representante).
+
+### 1.b Pendiente relacionado descubierto: 4.ª copia inline en `PanelConsorcio`
+Al migrar se detectó que **`PanelConsorcio` tiene su propia máquina de lookup inline** para el **DNI del representante del consorcio** (`onDniRepChange`/`buscarRep`/`limpiarRep`, ~líneas 320-360 tras la migración) — idéntica a `RepresentanteDNI`, pero **no estaba en la lista original** de este ítem, así que se dejó **sin migrar** para mantener el cambio acotado y verificable en tandas. Migrarla es trivial (mismo patrón: `tipo:'dni'`, `longitud:8`, adaptador `onRepresentanteChange({ dni })`/`({ dni, nombre })`, `limpiarNombreEnFallo:true`). Hacerlo deja a `ArbitrajeForm` **sin ninguna** copia inline de la máquina (solo `BloquePersona`/`PanelConsorcio` usarían el helper multi-tipo del #2). Verificar en navegador junto con el resto del consorcio.
 
 ---
 
