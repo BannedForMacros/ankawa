@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import { useState, useMemo, useRef, useEffect, Children } from 'react';
 import ConfirmModal from '@/Components/ConfirmModal';
+import FilePreviewModal from '@/Components/FilePreviewModal';
 import ModalTrasladoAuto from './ModalTrasladoAuto';
 import toast from 'react-hot-toast';
 import { PlusCircle, Trash2, ChevronUp, ChevronDown, KeyRound, Paperclip, X, FileText, Mail, Layers, ArrowRight, Zap } from 'lucide-react';
@@ -330,11 +331,6 @@ export function MovimientoCard({
 
     function openPreview(f) {
         setPreviewFile(f);
-    }
-
-    function closePreview() {
-        if (previewFile) URL.revokeObjectURL(previewFile._objectUrl);
-        setPreviewFile(null);
     }
 
     return (
@@ -760,48 +756,7 @@ export function MovimientoCard({
                 })()}
 
                 {/* ── Modal de previsualización ── */}
-                {previewFile && (() => {
-                    const url = URL.createObjectURL(previewFile);
-                    const ext = previewFile.name.split('.').pop().toLowerCase();
-                    const esImagen = ['jpg','jpeg','png','gif','webp'].includes(ext);
-                    const esPdf   = ext === 'pdf';
-                    return (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-                            onClick={closePreview}>
-                            <div className="absolute inset-0 bg-black/60"/>
-                            <div className="relative z-10 bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col"
-                                onClick={e => e.stopPropagation()}>
-                                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
-                                    <div className="flex items-center gap-2">
-                                        <FileText size={16} className="text-[#BE0F4A]"/>
-                                        <span className="text-sm font-semibold text-gray-800 truncate max-w-[400px]">{previewFile.name}</span>
-                                    </div>
-                                    <button type="button" onClick={closePreview}
-                                        className="text-gray-400 hover:text-gray-700 transition-colors">
-                                        <X size={20}/>
-                                    </button>
-                                </div>
-                                <div className="flex-1 overflow-auto p-4 flex items-center justify-center min-h-[300px]">
-                                    {esImagen && (
-                                        <img src={url} alt={previewFile.name}
-                                            className="max-w-full max-h-[70vh] rounded object-contain"/>
-                                    )}
-                                    {esPdf && (
-                                        <iframe src={url} title={previewFile.name}
-                                            className="w-full h-[70vh] rounded border-0"/>
-                                    )}
-                                    {!esImagen && !esPdf && (
-                                        <div className="text-center text-gray-400">
-                                            <FileText size={48} className="mx-auto mb-3 text-gray-300"/>
-                                            <p className="text-base font-medium text-gray-500">Vista previa no disponible</p>
-                                            <p className="text-sm mt-1">Este tipo de archivo no puede previsualizarse en el navegador.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
+                <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
 
                 {/* ── SEPARADOR: Opciones adicionales ── */}
                 <div className="border-t border-gray-100 pt-4 space-y-3">
