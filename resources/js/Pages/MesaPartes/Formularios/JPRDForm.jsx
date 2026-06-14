@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import axios from 'axios';
 import {
     Building2, HardHat, User, Paperclip, FileText, X, Send,
     Loader2, CheckCircle2, Lock, ChevronRight, AlertCircle, Plus, Trash2
@@ -13,6 +12,8 @@ import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
 import { filtrarArchivosValidos } from '@/utils/archivos';
+import { consultarDocumento } from '@/utils/consultaDocumento';
+import useDocumentoLookup from '@/hooks/useDocumentoLookup';
 
 /* ─── Constantes ─── */
 const SUBTIPOS_JURIDICA = [
@@ -57,47 +58,33 @@ function InputBase({ error, className = '', ...props }) {
     );
 }
 
-/* ─── Lookup RUC vía SUNAT ─── */
-// onResuelto(ruc, nombre) → actualiza ambos campos juntos en el parent para evitar stale closure
-function CampoRuc({ value, onResuelto, error, disabled }) {
-    const [cargando,  setCargando]  = useState(false);
-    const [bloqueado, setBloqueado] = useState(false);
-    const timerRef = useRef();
+/* ─── Lookup de documento (RUC/DNI) con autocompletado ─── */
+// onResuelto(doc, nombre) → actualiza ambos campos juntos en el parent (sin stale closure).
+// La máquina de estado (debounce, lock, fallo) vive en useDocumentoLookup; aquí solo el markup.
+const LOOKUP_CFG = {
+    ruc: { longitud: 11, placeholder: '20xxxxxxxxx', fuente: 'Verificado vía SUNAT',  mensaje: 'RUC no encontrado en SUNAT. Complete manualmente.' },
+    dni: { longitud: 8,  placeholder: '12345678',    fuente: 'Verificado vía RENIEC', mensaje: 'DNI no encontrado en RENIEC. Complete manualmente.' },
+};
 
-    function handleChange(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 11);
-        onResuelto(clean, bloqueado ? '' : null); // null = no tocar nombre todavía
-        setBloqueado(false);
-        clearTimeout(timerRef.current);
-        if (clean.length === 11) {
-            timerRef.current = setTimeout(() => consultar(clean), 500);
-        }
-    }
+function CampoDocLookup({ tipo, value, onResuelto, onVerificado, error, disabled }) {
+    const cfg = LOOKUP_CFG[tipo];
+    const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
+        tipo,
+        longitud: cfg.longitud,
+        onResuelto,
+        mensajeNoEncontrado: cfg.mensaje,
+    });
 
-    async function consultar(ruc) {
-        setCargando(true);
-        try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
-            onResuelto(ruc, data.nombre ?? ''); // un solo callback → sin stale
-            setBloqueado(true);
-        } catch {
-            toast('RUC no encontrado en SUNAT. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    function limpiar() {
-        setBloqueado(false);
-        onResuelto('', '');
-    }
+    // Avisar al padre cuando cambia el estado "verificado" para que pueda bloquear
+    // el campo de nombre/razón social hermano (coherente con el resto de la app).
+    useEffect(() => { onVerificado?.(bloqueado); }, [bloqueado]);
 
     return (
         <div>
             <div className="relative">
-                <input type="text" value={value} onChange={e => handleChange(e.target.value)}
+                <input type="text" value={value} onChange={e => onChange(e.target.value)}
                     disabled={disabled}
-                    placeholder="20xxxxxxxxx" maxLength={11}
+                    placeholder={cfg.placeholder} maxLength={cfg.longitud}
                     className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${
                         bloqueado ? 'border-emerald-400 bg-emerald-50' : error ? 'border-red-300' : 'border-gray-200'
                     } ${disabled ? 'bg-gray-50 text-gray-500' : ''}`} />
@@ -106,78 +93,20 @@ function CampoRuc({ value, onResuelto, error, disabled }) {
                     {!cargando && bloqueado && (
                         <button type="button" onClick={limpiar}><X size={13} className="text-gray-400 hover:text-red-500"/></button>
                     )}
-                    {!cargando && !bloqueado && value.length === 11 && (
+                    {!cargando && !bloqueado && value.length === cfg.longitud && (
                         <CheckCircle2 size={14} className="text-emerald-500"/>
                     )}
                 </div>
             </div>
             {bloqueado && (
-                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> Verificado vía SUNAT</p>
+                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> {cfg.fuente}</p>
             )}
         </div>
     );
 }
 
-/* ─── Lookup DNI vía RENIEC ─── */
-// onResuelto(dni, nombre) → mismo patrón que CampoRuc
-function CampoDni({ value, onResuelto, error, disabled }) {
-    const [cargando,  setCargando]  = useState(false);
-    const [bloqueado, setBloqueado] = useState(false);
-    const timerRef = useRef();
-
-    function handleChange(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 8);
-        onResuelto(clean, bloqueado ? '' : null);
-        setBloqueado(false);
-        clearTimeout(timerRef.current);
-        if (clean.length === 8) {
-            timerRef.current = setTimeout(() => consultar(clean), 500);
-        }
-    }
-
-    async function consultar(dni) {
-        setCargando(true);
-        try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: dni } });
-            onResuelto(dni, data.nombre ?? '');
-            setBloqueado(true);
-        } catch {
-            toast('DNI no encontrado en RENIEC. Complete manualmente.', { icon: 'ℹ️', duration: 3000 });
-        } finally {
-            setCargando(false);
-        }
-    }
-
-    function limpiar() {
-        setBloqueado(false);
-        onResuelto('', '');
-    }
-
-    return (
-        <div>
-            <div className="relative">
-                <input type="text" value={value} onChange={e => handleChange(e.target.value)}
-                    disabled={disabled}
-                    placeholder="12345678" maxLength={8}
-                    className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${
-                        bloqueado ? 'border-emerald-400 bg-emerald-50' : error ? 'border-red-300' : 'border-gray-200'
-                    } ${disabled ? 'bg-gray-50 text-gray-500' : ''}`} />
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                    {cargando && <Loader2 size={14} className="animate-spin text-gray-400"/>}
-                    {!cargando && bloqueado && (
-                        <button type="button" onClick={limpiar}><X size={13} className="text-gray-400 hover:text-red-500"/></button>
-                    )}
-                    {!cargando && !bloqueado && value.length === 8 && (
-                        <CheckCircle2 size={14} className="text-emerald-500"/>
-                    )}
-                </div>
-            </div>
-            {bloqueado && (
-                <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1"><Lock size={10}/> Verificado vía RENIEC</p>
-            )}
-        </div>
-    );
-}
+const CampoRuc = (props) => <CampoDocLookup tipo="ruc" {...props} />;
+const CampoDni = (props) => <CampoDocLookup tipo="dni" {...props} />;
 
 /* ─── Representante legal (DNI lookup) ─── */
 // onResuelto(dni, nombre) — callback único para evitar stale closure
@@ -197,7 +126,7 @@ function BloqueRepresentante({ dni, nombre, onResuelto, label = 'Representante L
     async function buscar(d) {
         setCargando(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: d } });
+            const data = await consultarDocumento('dni', d);
             onResuelto(d, data.nombre ?? '');
             setBloqueado(true);
         } catch {
@@ -265,7 +194,7 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
     async function buscar(ruc) {
         setCargando(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
+            const data = await consultarDocumento('ruc', ruc);
             // onUpdate recibe el objeto completo → no depende de empresa del closure
             onUpdate({ ruc, nombre: data.nombre ?? '' });
             setBloqueado(true);
@@ -369,6 +298,10 @@ function BloqueActor({
 }) {
     function set(campo, val) { onChange({ ...datos, [campo]: val }); }
 
+    // Razón social bloqueada cuando el RUC quedó verificado por SUNAT (el botón X del
+    // RUC la libera al limpiar). Coherente con RucBuscador y las filas de consorcio.
+    const [rucVerificado, setRucVerificado] = useState(false);
+
     const esConsorcio  = datos.subtipo === 'consorcio';
     const subtipoFijo  = subtiposPermitidos.length === 1;
     const subtipoLabel = subtipoFijo ? subtiposPermitidos[0].nombre : null;
@@ -418,12 +351,15 @@ function BloqueActor({
                         <CampoRuc
                             value={datos.documento ?? ''}
                             onResuelto={(doc, nom) => onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) })}
+                            onVerificado={setRucVerificado}
                             error={errors.documento}
                         />
                     </Campo>
                     <Campo label="Razón Social" required error={errors.nombre}>
                         <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
-                            placeholder="Nombre / Razón Social" error={errors.nombre} />
+                            disabled={rucVerificado}
+                            placeholder="Nombre / Razón Social" error={errors.nombre}
+                            className={rucVerificado ? 'bg-gray-50 text-gray-500' : ''} />
                     </Campo>
                 </div>
             ) : (

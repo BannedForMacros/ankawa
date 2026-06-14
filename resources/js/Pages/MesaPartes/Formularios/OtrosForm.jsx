@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import axios from 'axios';
 import {
     Paperclip, Send, FileText, X, User, Building2,
     CreditCard, Loader2, CheckCircle2, Lock, Unlock, AlertCircle
@@ -11,6 +10,7 @@ import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
 import { filtrarArchivosValidos } from '@/utils/archivos';
+import { consultarDocumento } from '@/utils/consultaDocumento';
 
 /* ─── Utilitario de extensión ─── */
 const ICONOS_EXT = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️' };
@@ -89,7 +89,7 @@ function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
     async function consultar(numero) {
         setCargando(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo, numero } });
+            const data = await consultarDocumento(tipo, numero);
             onResuelto(numero, data.nombre ?? '');
             setBloqueado(true);
         } catch {

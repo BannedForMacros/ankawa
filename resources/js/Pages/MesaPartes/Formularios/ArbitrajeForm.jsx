@@ -1,6 +1,5 @@
 import { useForm, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
 import Input from '@/Components/Input';
 import Textarea from '@/Components/Textarea';
 import CustomSelect from '@/Components/CustomSelect';
@@ -12,6 +11,7 @@ import Checkbox from '@/Components/Checkbox';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import { filtrarArchivosValidos } from '@/utils/archivos';
+import { consultarDocumento } from '@/utils/consultaDocumento';
 import FilePreviewModal from '@/Components/FilePreviewModal';
 import {
     User, Users, Scale, FileText, Paperclip,
@@ -127,7 +127,7 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
     async function buscar(dni) {
         setCargando(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: dni } });
+            const data = await consultarDocumento('dni', dni);
             onNombreChange(data.nombre ?? '');
             setBloqueado(true);
         } catch {
@@ -206,7 +206,7 @@ export function RucBuscador({ rucValue, razonSocialValue, onRucChange, onRazonSo
     async function buscar(ruc) {
         setCargando(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
+            const data = await consultarDocumento('ruc', ruc);
             onRazonSocialChange(data.nombre ?? '');
             setBloqueado(true);
         } catch {
@@ -287,7 +287,7 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
     async function buscarRuc(ruc) {
         setCargando(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'ruc', numero: ruc } });
+            const data = await consultarDocumento('ruc', ruc);
             onUpdate({ ruc, nombre: data.nombre ?? '' });
             setBloqueado(true);
         } catch {
@@ -373,7 +373,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
     async function buscarRep(dni) {
         setCargandoRep(true);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo: 'dni', numero: dni } });
+            const data = await consultarDocumento('dni', dni);
             onRepresentanteChange({ dni, nombre: data.nombre ?? '' });
             setBloqueadoRep(true);
         } catch {
@@ -537,7 +537,7 @@ export function BloquePersona({
 
         setCargando(true); setModoManual(false);
         try {
-            const { data } = await axios.get(route('consulta.documento'), { params: { tipo, numero } });
+            const data = await consultarDocumento(tipo, numero);
             const cambios = { nombre: data.nombre ?? '' };
             if (tipo === 'ruc' && data.domicilio) cambios.domicilio = data.domicilio;
             setCampos(cambios);
