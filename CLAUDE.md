@@ -247,6 +247,8 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 
 ## Mesa de Partes / Portal externo — reglas de endurecimiento (junio 2026)
 
+> **Deuda técnica planificada**: ver [`PENDIENTES.md`](PENDIENTES.md) — refactors pendientes (lookups de ArbitrajeForm, multi-tipo, migración a react-hook-form+Zod, dedup de ArbitrajeEmergenciaForm) con el contexto de por qué quedaron pendientes y por qué conviene hacerlos. Lo ya hecho: helper `utils/consultaDocumento.js`, hook `hooks/useDocumentoLookup.js` (JPRD migrado), `Components/FilePreviewModal.jsx`, `Components/OtpLoginFlow.jsx`.
+
 Auditoría de seguridad, lógica, contenido y marca aplicada al flujo público. Reglas a respetar:
 
 ### Seguridad y lógica de backend
