@@ -10,6 +10,7 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
             enviarRoute="mesa-partes.enviarCodigo"
             verificarRoute="mesa-partes.verificarCodigo"
             redirectFallback="mesa-partes.inicio"
+            overlayEnvio
         />
     );
 }

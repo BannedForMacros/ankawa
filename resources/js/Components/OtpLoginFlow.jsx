@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ArrowRight, KeyRound, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, KeyRound, CheckCircle2, ShieldCheck, AlertCircle, HelpCircle, Info } from 'lucide-react';
+import LoginEnvioOverlay from '@/Components/LoginEnvioOverlay';
 
 /**
  * Flujo de login OTP del portal público (identidad → código).
@@ -24,11 +25,13 @@ export default function OtpLoginFlow({
     enviarRoute,
     verificarRoute,
     redirectFallback,
+    overlayEnvio = false,
 }) {
     const [step, setStep] = useState('identidad'); // 'identidad' | 'otp'
     const [email, setEmail] = useState('');
     const [numeroDoc, setNumeroDoc] = useState('');
     const [digito, setDigito] = useState('');
+    const [mostrarAyudaDigito, setMostrarAyudaDigito] = useState(true);
     const [codigo, setCodigo] = useState(['', '', '', '', '', '']);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
@@ -224,6 +227,9 @@ export default function OtpLoginFlow({
         <div className="min-h-screen bg-gray-50 flex flex-col p-4">
             <Head title={headTitle} />
 
+            {/* Overlay de carga con frases — solo Mesa de Partes, durante el envío del código */}
+            <LoginEnvioOverlay visible={overlayEnvio && cargando && step === 'identidad'} />
+
             {/* Header con botón Volver al inicio */}
             <div className="w-full max-w-5xl mx-auto pt-2 pb-4">
                 <Link
@@ -285,7 +291,17 @@ export default function OtpLoginFlow({
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">Dígito verificador del DNI</label>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Dígito verificador del DNI</label>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMostrarAyudaDigito(v => !v)}
+                                            aria-expanded={mostrarAyudaDigito}
+                                            className="flex items-center gap-1 text-xs font-semibold text-[#BE0F4A] hover:text-[#9c0a3b] transition-colors"
+                                        >
+                                            <HelpCircle size={14} /> {mostrarAyudaDigito ? 'Ocultar ejemplo' : '¿Dónde lo encuentro?'}
+                                        </button>
+                                    </div>
                                     <div className="flex items-center gap-3">
                                         <input
                                             type="text"
@@ -297,9 +313,33 @@ export default function OtpLoginFlow({
                                             className="w-16 h-12 text-center text-lg font-bold border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#BE0F4A]"
                                         />
                                         <p className="text-xs text-gray-600 leading-snug">
-                                            Es el número o letra pequeño que aparece junto a su número de DNI
-                                            en el documento físico.
+                                            Es el número o letra al final de su DNI, resaltado en color.
                                         </p>
+                                    </div>
+
+                                    {/* Panel de ayuda instructivo con la imagen del DNI */}
+                                    <div className={`grid transition-all duration-300 ease-out ${mostrarAyudaDigito ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'}`}>
+                                        <div className="overflow-hidden">
+                                            <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-3">
+                                                <div className="flex items-start gap-2 mb-2.5">
+                                                    <Info size={15} className="text-[#BE0F4A] mt-0.5 shrink-0" />
+                                                    <p className="text-xs text-[#291136] leading-snug">
+                                                        El <strong>dígito verificador</strong> es el carácter (número o letra) que aparece
+                                                        <strong> después de su número de DNI</strong>, normalmente en la
+                                                        <strong> esquina superior derecha</strong> del documento, resaltado en color.
+                                                    </p>
+                                                </div>
+                                                <img
+                                                    src="/images/servicios/digito.png"
+                                                    alt="Ejemplo de DNI peruano: el dígito verificador es el número resaltado en verde junto al número de DNI"
+                                                    className="w-full max-w-[18rem] mx-auto rounded-lg border border-[#291136]/10 bg-white"
+                                                />
+                                                <p className="text-[11px] text-gray-500 text-center mt-2 leading-snug">
+                                                    En el ejemplo, para el DNI <strong className="text-[#291136]">47654321</strong> el
+                                                    dígito verificador es <strong className="text-emerald-600">2</strong>.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
