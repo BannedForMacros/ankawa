@@ -13,7 +13,7 @@ import { filtrarArchivosValidos } from '@/utils/archivos';
 import { consultarDocumento } from '@/utils/consultaDocumento';
 import useDocumentoLookup from '@/hooks/useDocumentoLookup';
 import { z } from 'zod';
-import { validarZod } from '@/lib/validar';
+import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import FilePreviewModal from '@/Components/FilePreviewModal';
 import {
@@ -565,6 +565,7 @@ export function BloquePersona({
                     <Input label="Domicilio de notificación" required type="text"
                         value={campos.domicilio ?? ''}
                         onChange={e => setCampos({ domicilio: e.target.value })}
+                        onBlur={() => onBlurCampo?.('domicilio')}
                         disabled={domicilioLocked}
                         placeholder="Dirección completa"
                         error={errors?.domicilio} />
@@ -634,6 +635,7 @@ export function BloquePersona({
                     <Input label="Domicilio de notificación" required type="text"
                         value={campos.domicilio ?? ''}
                         onChange={e => setCampos({ domicilio: e.target.value })}
+                        onBlur={() => onBlurCampo?.('domicilio')}
                         disabled={domicilioLocked}
                         placeholder="Dirección completa"
                         error={errors?.domicilio} />
@@ -710,8 +712,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
     const isAuth   = !!auth?.user && !isPortal;
     const user     = isPortal ? portalUser : auth?.user;
 
-    const tipoPersInicial = user ? (user.tipo_persona || 'natural') : 'natural';
-
     const [aceptoLegal, setAceptoLegal]     = useState(isAuth || isPortal);
     const [modalLegal, setModalLegal]       = useState(false);
     const [mostrarLoader, setMostrarLoader] = useState(false);
@@ -720,8 +720,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
     const [missingFields, setMissingFields]     = useState({});
     const [showErrorModal, setShowErrorModal]   = useState(false);
     // Controla si los datos del demandante están bloqueados (pre-cargados del usuario autenticado)
-    const [demandanteBloqueado, setDemandanteBloqueado] = useState(isAuth || isPortal);
-    const emailInicial = isPortal ? portalEmail : (isAuth ? user?.email : '');
+    const [demandanteBloqueado, setDemandanteBloqueado] = useState(false);
+    const emailInicial = isPortal ? portalEmail : '';
     const [emailsDem, setEmailsDem]         = useState(emailInicial ? [{ email: emailInicial, label: '' }] : [{ email: '', label: '' }]);
     const [emailsDemAdic, setEmailsDemAdic] = useState([]);
     const [emailsDado, setEmailsDado]       = useState([]);
@@ -749,16 +749,17 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
 
     const { data, setData } = useForm({
         servicio_id:                   servicio.id,
-        // Demandante
-        tipo_persona:                  tipoPersInicial,
-        tipo_documento:                docDefaultPorPersona(tipoPersInicial),
-        nombre_demandante:             user?.name ?? '',
-        documento_demandante:          user?.numero_documento ?? '',
+        // Demandante — NO se pre-cargan datos personales: quien presenta puede estar
+        // redactando para otra persona. Solo el correo OTP del portal se conserva (canal verificado).
+        tipo_persona:                  'natural',
+        tipo_documento:                docDefaultPorPersona('natural'),
+        nombre_demandante:             '',
+        documento_demandante:          '',
         nombre_representante:          '',
         documento_representante:       '',
-        domicilio_demandante:          user?.direccion ?? '',
+        domicilio_demandante:          '',
         email_demandante:              emailInicial ?? '',
-        telefono_demandante:           user?.telefono ?? '',
+        telefono_demandante:           '',
         // Demandado
         tipo_persona_demandado:        'natural',
         tipo_documento_demandado:      'dni',
@@ -879,6 +880,9 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             email_principal_dem: !!emailPrincipal,
         };
     }
+
+    // onBlur por campo: valida el esquema completo pero marca/limpia solo ese campo
+    const validarBlur = (campo) => validarCampo(arbitrajeSchema, datosValidables(), campo, setMissingFields);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -1111,31 +1115,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             )}
 
             {/* Bloque Demandante */}
-            {demandanteBloqueado ? (
-                <div className="flex items-center justify-between gap-3 mb-3 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
-                        <CheckCircle2 size={14}/> Identidad verificada — datos cargados automáticamente
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setDemandanteBloqueado(false);
-                            setCamposDem({ tipo_persona: 'natural', tipo_documento: 'dni', documento: '', nombre: '', domicilio: '', nombre_representante: '', documento_representante: '' });
-                            if (!isPortal) setEmailsDem([{ email: '', label: '' }]);
-                            setSubtipoJuridicoDem('');
-                            setEmpresasConsorcioDem([]);
-                            setRepConsorcioDem({ dni: '', nombre: '' });
-                        }}
-                        className="text-xs font-semibold text-emerald-600 hover:text-red-600 underline underline-offset-2 transition-colors shrink-0"
-                    >
-                        Cambiar persona
-                    </button>
-                </div>
-            ) : (isAuth || isPortal) ? (
-                <div className="flex items-center gap-2 mb-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-700">
-                    <AlertTriangle size={14}/> Ingresando datos de otra persona
-                </div>
-            ) : null}
             <BloquePersona
                 icono={User} titulo="Sus Datos (Demandante)"
                 descripcion="El demandante es usted: quien presenta la solicitud."
@@ -1158,6 +1137,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     repDni:    missingFields.rep_consorcio_demandante_dni,
                     repNombre: missingFields.rep_consorcio_demandante_nombre,
                 }}
+                onBlurCampo={campo => validarBlur(`${campo}_demandante`)}
                 bloquearTipoPersona={demandanteBloqueado}
                 conRepresentante={true}
                 esDemandante={true}
@@ -1214,7 +1194,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 </div>
                 <Input id="telefono_demandante" label="Teléfono" required type="text"
                     value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
-                    disabled={isAuth || (isPortal && !!user?.telefono)} placeholder="987654321"
+                    placeholder="987654321"
                     error={errors.telefono_demandante || missingFields.telefono_demandante} />
             </div>
 
@@ -1241,6 +1221,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     repDni:    missingFields.rep_consorcio_demandado_dni,
                     repNombre: missingFields.rep_consorcio_demandado_nombre,
                 }}
+                onBlurCampo={campo => validarBlur(`${campo}_demandado`)}
                 bloquearTipoPersona={false}
                 conRepresentante={false}
                 esDemandante={false}
