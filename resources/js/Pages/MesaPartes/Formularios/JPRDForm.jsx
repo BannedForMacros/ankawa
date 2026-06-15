@@ -5,12 +5,14 @@ import {
     Loader2, CheckCircle2, Lock, ChevronRight, AlertCircle, Plus, Trash2
 } from 'lucide-react';
 import EmailsInput from '@/Components/EmailsInput';
-import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import CustomSelect from '@/Components/CustomSelect';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
+import { z } from 'zod';
+import { validarZod, validarCampo } from '@/lib/validar';
+import { confirmar } from '@/lib/swalAnkawa';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import useDocumentoLookup from '@/hooks/useDocumentoLookup';
 
@@ -65,7 +67,7 @@ const LOOKUP_CFG = {
     dni: { longitud: 8,  placeholder: '12345678',    fuente: 'Verificado vía RENIEC', mensaje: 'DNI no encontrado en RENIEC. Complete manualmente.' },
 };
 
-function CampoDocLookup({ tipo, value, onResuelto, onVerificado, error, disabled }) {
+function CampoDocLookup({ tipo, value, onResuelto, onVerificado, error, disabled, onBlur }) {
     const cfg = LOOKUP_CFG[tipo];
     const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
         tipo,
@@ -82,6 +84,7 @@ function CampoDocLookup({ tipo, value, onResuelto, onVerificado, error, disabled
         <div>
             <div className="relative">
                 <input type="text" value={value} onChange={e => onChange(e.target.value)}
+                    onBlur={onBlur}
                     disabled={disabled}
                     placeholder={cfg.placeholder} maxLength={cfg.longitud}
                     className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${
@@ -248,8 +251,9 @@ function BloqueActor({
     errors = {},
     isSolicitante = false,
     subtiposPermitidos = SUBTIPOS_JURIDICA,
+    onBlurCampo, onClearError,
 }) {
-    function set(campo, val) { onChange({ ...datos, [campo]: val }); }
+    function set(campo, val) { onChange({ ...datos, [campo]: val }); onClearError?.(campo); }
 
     // Razón social bloqueada cuando el RUC quedó verificado por SUNAT (el botón X del
     // RUC la libera al limpiar). Coherente con RucBuscador y las filas de consorcio.
@@ -288,7 +292,7 @@ function BloqueActor({
                     <Campo label="Tipo de entidad jurídica" required error={errors.subtipo}>
                         <CustomSelect
                             value={datos.subtipo}
-                            onChange={val => onChange({ ...datos, subtipo: val, empresas: val === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] })}
+                            onChange={val => { onChange({ ...datos, subtipo: val, empresas: val === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] }); onClearError?.('subtipo'); }}
                             options={subtiposPermitidos}
                             placeholder="Selecciona..."
                             error={errors.subtipo}
@@ -303,13 +307,15 @@ function BloqueActor({
                     <Campo label="RUC" required error={errors.documento}>
                         <CampoRuc
                             value={datos.documento ?? ''}
-                            onResuelto={(doc, nom) => onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) })}
+                            onResuelto={(doc, nom) => { onChange({ ...datos, documento: doc, ...(nom !== null && { nombre: nom }) }); onClearError?.('documento'); }}
                             onVerificado={setRucVerificado}
+                            onBlur={() => onBlurCampo?.('documento')}
                             error={errors.documento}
                         />
                     </Campo>
                     <Campo label="Razón Social" required error={errors.nombre}>
                         <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
+                            onBlur={() => onBlurCampo?.('nombre')}
                             disabled={rucVerificado}
                             placeholder="Nombre / Razón Social" error={errors.nombre}
                             className={rucVerificado ? 'bg-gray-50 text-gray-500' : ''} />
@@ -454,13 +460,38 @@ function actorVacio(emailFijo = null, subtipoInicial = '') {
     };
 }
 
+/* ─── Esquema de validación (espeja la antigua validar()) ─── */
+const jprdSchema = z.object({
+    rol: z.any(), ent_nombre: z.any(), ent_documento: z.any(),
+    con_subtipo: z.any(), con_nombre: z.any(), con_documento: z.any(), con_empresas: z.any(),
+    sol_email_has: z.any(), doc_solicitud: z.any(), doc_contrato: z.any(),
+    tiene_peticion: z.any(), doc_peticion: z.any(), acepta_reglamento: z.any(),
+}).superRefine((d, ctx) => {
+    const add = (campo, msg) => ctx.addIssue({ code: 'custom', path: [campo], message: msg });
+    if (!d.rol) { add('rol', 'Debes seleccionar tu rol'); return; }
+    if (String(d.ent_nombre ?? '').trim() === '')    add('ent_nombre', 'Requerido');
+    if (String(d.ent_documento ?? '').trim() === '') add('ent_documento', 'Requerido');
+    const conConsorcio = d.con_subtipo === 'consorcio';
+    if (!d.con_subtipo) add('con_subtipo', 'Selecciona el tipo de entidad jurídica');
+    if (!conConsorcio) {
+        if (String(d.con_nombre ?? '').trim() === '')    add('con_nombre', 'Requerido');
+        if (String(d.con_documento ?? '').trim() === '') add('con_documento', 'Requerido');
+    } else if (d.con_empresas === 0) {
+        add('con_empresas', 'Agrega al menos una empresa del consorcio');
+    }
+    if (!d.sol_email_has) add('sol_email', 'Ingresa al menos un correo');
+    if (d.doc_solicitud === 0) add('doc_solicitud', 'Adjunta la solicitud de conformación de JPRD');
+    if (d.doc_contrato === 0)  add('doc_contrato', 'Adjunta el contrato de obra');
+    if (d.tiene_peticion && d.doc_peticion === 0) add('doc_peticion', 'Adjunta el documento de la petición de decisión vinculante');
+    if (!d.acepta_reglamento) add('acepta_reglamento', 'Debes aceptar la declaración para enviar la solicitud');
+});
+
 /* ─── Formulario JPRD ─── */
 export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSiteKey }) {
     const [captchaToken, setCaptchaToken] = useState('');
     const isPortal = !!portalEmail;
 
     const [procesando,    setProcesando]    = useState(false);
-    const [confirm,       setConfirm]       = useState(false);
     const [mostrarLoader, setMostrarLoader] = useState(false);
     const [errores,       setErrores]       = useState({});
     const loaderTimer                       = useRef(null);
@@ -516,65 +547,51 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
             .catch(() => setCargandoTipos(false));
     }, [servicio.id]);
 
-    function validar() {
-        const e = {};
-        if (!rolSolicitante) { e.rol = 'Debes seleccionar tu rol'; return e; }
-
-        // ── Entidad (siempre Entidad Pública) ──
-        if (!(entidad.nombre ?? '').trim())    e.ent_nombre    = 'Requerido';
-        if (!(entidad.documento ?? '').trim()) e.ent_documento = 'Requerido';
-
-        // ── Contratista (Empresa o Consorcio) ──
-        const conConsorcio = contratista.subtipo === 'consorcio';
-        if (!contratista.subtipo) {
-            e.con_subtipo = 'Selecciona el tipo de entidad jurídica';
-        }
-        if (!conConsorcio) {
-            if (!(contratista.nombre ?? '').trim())    e.con_nombre    = 'Requerido';
-            if (!(contratista.documento ?? '').trim()) e.con_documento = 'Requerido';
-        } else {
-            if ((contratista.empresas ?? []).length === 0) e.con_empresas = 'Agrega al menos una empresa del consorcio';
-        }
-
-        // ── Email del solicitante (solo si no es portal) ──
+    // Datos planos para el esquema Zod (mismas claves que las marcas de error del render)
+    function datosValidables() {
         const emailsSol = rolSolicitante === 'entidad' ? entidad.emails : contratista.emails;
-        if (!isPortal && !(emailsSol ?? []).some(em => em.email?.trim())) {
-            e.sol_email = 'Ingresa al menos un correo';
-        }
-
-        if (docSolicitudConformacion.length === 0)  e.doc_solicitud = 'Adjunta la solicitud de conformación de JPRD';
-        if (docContratoObra.length === 0)           e.doc_contrato  = 'Adjunta el contrato de obra';
-
-        if (tienePeticionPrevia && docPeticionPrevia.length === 0) {
-            e.doc_peticion = 'Adjunta el documento de la petición de decisión vinculante';
-        }
-
-        if (!aceptaReglamento) {
-            e.acepta_reglamento = 'Debes aceptar la declaración para enviar la solicitud';
-        }
-        return e;
+        return {
+            rol:             rolSolicitante ?? '',
+            ent_nombre:      entidad.nombre ?? '',
+            ent_documento:   entidad.documento ?? '',
+            con_subtipo:     contratista.subtipo ?? '',
+            con_nombre:      contratista.nombre ?? '',
+            con_documento:   contratista.documento ?? '',
+            con_empresas:    (contratista.empresas ?? []).length,
+            sol_email_has:   isPortal ? true : (emailsSol ?? []).some(em => em.email?.trim()),
+            doc_solicitud:   docSolicitudConformacion.length,
+            doc_contrato:    docContratoObra.length,
+            tiene_peticion:  tienePeticionPrevia,
+            doc_peticion:    docPeticionPrevia.length,
+            acepta_reglamento: aceptaReglamento,
+        };
     }
 
-    function handleSubmit(e) {
+    const validarBlur = (campo) => validarCampo(jprdSchema, datosValidables(), campo, setErrores);
+
+    async function handleSubmit(e) {
         e.preventDefault();
-        try {
-            const errs = validar();
-            if (Object.keys(errs).length) {
-                setErrores(errs);
-                // Mensaje descriptivo indicando qué falta
-                const primero = Object.values(errs)[0];
-                toast.error(primero, { position: 'top-center', duration: 4000 });
-                return;
-            }
-            setConfirm(true);
-        } catch (err) {
-            console.error('Error al validar formulario JPRD:', err);
-            toast.error('Error inesperado. Revisa la consola.', { position: 'top-center' });
+        if (!validarZod(jprdSchema, datosValidables(), { setError: setErrores, clearErrors: () => setErrores({}) })) {
+            // Toast con el primer faltante (más útil que un genérico en un form largo)
+            const r = jprdSchema.safeParse(datosValidables());
+            toast.error(r.success ? 'Revise los campos marcados en rojo' : r.error.issues[0].message,
+                { position: 'top-center', duration: 4000 });
+            return;
         }
+        const ok = await confirmar({
+            variant: 'warning',
+            titulo:  'Confirmar solicitud JPRD',
+            mensaje: `Se enviará la solicitud de constitución de JPRD del servicio "${servicio.nombre}". Recibirá un cargo de recepción en el correo registrado.`,
+            detalles: [
+                { label: 'Presenta como', value: rolSolicitante === 'entidad' ? 'Entidad Contratante' : 'Contratista' },
+                tipoActivo ? { label: 'Tipo', value: tipoActivo.nombre } : null,
+            ].filter(Boolean),
+            confirmText: 'Sí, enviar',
+        });
+        if (ok) enviar();
     }
 
-    function confirmar() {
-        setConfirm(false);
+    function enviar() {
         setProcesando(true);
         loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
 
@@ -700,18 +717,11 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
     }
 
     const nombreOtraParte = rolSolicitante === 'entidad' ? `'El Contratista'` : `'La Entidad Contratante'`;
+    const tipoActivo = tiposDocumento.find(t => String(t.id) === tipoDocumentoId);
 
     return (
         <>
         <AnkawaLoader visible={mostrarLoader} />
-        <ConfirmModal
-            open={confirm}
-            titulo="Confirmar solicitud JPRD"
-            resumen={`Se enviará la solicitud de constitución de JPRD del servicio "${servicio.nombre}". Se enviará un cargo de recepción al correo registrado.`}
-            onConfirm={confirmar}
-            onCancel={() => setConfirm(false)}
-            confirmando={procesando}
-        />
 
         <form onSubmit={handleSubmit}>
             {/* Leyenda de campos obligatorios */}
@@ -794,6 +804,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                 errors={rolSolicitante === 'entidad'
                     ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }
                     : { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }}
+                onBlurCampo={campo => validarBlur((rolSolicitante === 'entidad' ? 'ent_' : 'con_') + campo)}
+                onClearError={campo => setErrores(p => ({ ...p, [(rolSolicitante === 'entidad' ? 'ent_' : 'con_') + campo]: undefined }))}
                 isSolicitante
             />
 
@@ -808,6 +820,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                 errors={rolSolicitante === 'entidad'
                     ? { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }
                     : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }}
+                onBlurCampo={campo => validarBlur((rolSolicitante === 'entidad' ? 'con_' : 'ent_') + campo)}
+                onClearError={campo => setErrores(p => ({ ...p, [(rolSolicitante === 'entidad' ? 'con_' : 'ent_') + campo]: undefined }))}
                 isSolicitante={false}
             />
 
@@ -825,7 +839,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                         titulo="Solicitud de Conformación de JPRD"
                         descripcion="Documento formal de solicitud de constitución de la Junta de Prevención y Resolución de Disputas."
                         archivos={docSolicitudConformacion}
-                        onChange={setDocSolicitudConformacion}
+                        onChange={a => { setDocSolicitudConformacion(a); setErrores(p => ({ ...p, doc_solicitud: undefined })); }}
                         required
                         error={errores.doc_solicitud}
                     />
@@ -834,7 +848,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                         titulo="Contrato de Obra"
                         descripcion="Contrato principal de obra materia de la controversia."
                         archivos={docContratoObra}
-                        onChange={setDocContratoObra}
+                        onChange={a => { setDocContratoObra(a); setErrores(p => ({ ...p, doc_contrato: undefined })); }}
                         required
                         error={errores.doc_contrato}
                     />
@@ -891,7 +905,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                             titulo="Documento de Petición de Decisión Vinculante"
                             descripcion="Adjunta el documento formal de la petición previa."
                             archivos={docPeticionPrevia}
-                            onChange={setDocPeticionPrevia}
+                            onChange={a => { setDocPeticionPrevia(a); setErrores(p => ({ ...p, doc_peticion: undefined })); }}
                             required
                             error={errores.doc_peticion}
                         />
@@ -901,7 +915,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
 
             <AceptacionReglamento
                 checked={aceptaReglamento}
-                onChange={setAceptaReglamento}
+                onChange={v => { setAceptaReglamento(v); setErrores(p => ({ ...p, acepta_reglamento: undefined })); }}
                 error={errores.acepta_reglamento}
                 contexto="al presente procedimiento de Junta de Prevención y Resolución de Disputas (JPRD)"
                 finalidad="procedimiento de JPRD"

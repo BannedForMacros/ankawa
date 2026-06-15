@@ -84,7 +84,7 @@ Si algún día se rediseña el bloque de identidad, vale la pena un hook multi-t
 >
 > **Estado por formulario:**
 > - ✅ **`OtrosForm.jsx`** — migrado (piloto). Esquema Zod espeja la antigua `validar()` + formato de email; `onBlur` en los 5 campos; `ConfirmModal` → `swalAnkawa.confirmar()` con resumen (`detalles`); `router.post`+FormData intacto. Build OK. **Falta verificación en navegador.**
-> - ⏳ `JPRDForm.jsx` — pendiente (siguiente).
+> - ✅ **`JPRDForm.jsx`** — migrado. Esquema `jprdSchema` (claves `ent_*`/`con_*`/`doc_*` = marcas de error del render) alimentado por `datosValidables()` (valores planos); `validarZod` al submit (toast con el primer faltante, como antes) + `confirmar()` de swalAnkawa. `onBlur` en `nombre` y `documento` (RUC) vía `onBlurCampo` que `BloqueActor` mapea con el prefijo de rol; **clear-on-change** nuevo en nombre/documento/subtipo (no existía) + 3 documentos + reglamento. `CampoDocLookup`/`BloqueActor` son locales → sin impacto en otros forms. Build OK. **Falta verificación en navegador.**
 > - ⏳ `ArbitrajeForm.jsx` + `ArbitrajeEmergenciaForm.jsx` — pendientes (los más grandes; hacerlos juntos, enlaza con #4).
 
 **Archivos**: `ArbitrajeForm.jsx`, `ArbitrajeEmergenciaForm.jsx`, `JPRDForm.jsx`, `OtrosForm.jsx`.
