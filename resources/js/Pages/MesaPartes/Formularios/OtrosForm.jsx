@@ -4,11 +4,13 @@ import {
     Paperclip, Send, FileText, X, User, Building2,
     CreditCard, Loader2, CheckCircle2, Lock, Unlock, AlertCircle
 } from 'lucide-react';
-import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import toast from 'react-hot-toast';
+import { z } from 'zod';
+import { validarZod, validarCampo } from '@/lib/validar';
+import { confirmar } from '@/lib/swalAnkawa';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import { consultarDocumento } from '@/utils/consultaDocumento';
 
@@ -54,7 +56,7 @@ function InputBase({ error, className = '', ...props }) {
 }
 
 /* ─── Campo documento con lookup API ─── */
-function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
+function CampoDocumento({ tipo, value, onResuelto, error, disabled, onBlur }) {
     const [cargando,  setCargando]  = useState(false);
     const [bloqueado, setBloqueado] = useState(false);
     const timerRef = useRef();
@@ -114,6 +116,7 @@ function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
                     type="text"
                     value={value}
                     onChange={e => handleChange(e.target.value)}
+                    onBlur={onBlur}
                     disabled={disabled}
                     placeholder={placeholder}
                     maxLength={maxLen ?? 20}
@@ -142,6 +145,33 @@ function CampoDocumento({ tipo, value, onResuelto, error, disabled }) {
         </div>
     );
 }
+
+/* ─── Esquema de validación (espeja la antigua validar(), + formato de email) ─── */
+const otrosSchema = ({ tiposCount, cargandoTipos }) => z.object({
+    numero_doc_identidad: z.any(),
+    nombre_remitente:     z.any(),
+    email_remitente:      z.any(),
+    tipo_documento_id:    z.any(),
+    descripcion:          z.any(),
+    acepta_reglamento:    z.any(),
+}).superRefine((d, ctx) => {
+    const req = (campo, msg) => {
+        if (String(d[campo] ?? '').trim() === '') ctx.addIssue({ code: 'custom', path: [campo], message: msg });
+    };
+    req('numero_doc_identidad', 'Requerido');
+    req('nombre_remitente', 'Requerido');
+    if (String(d.email_remitente ?? '').trim() === '')
+        ctx.addIssue({ code: 'custom', path: ['email_remitente'], message: 'Requerido' });
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email_remitente))
+        ctx.addIssue({ code: 'custom', path: ['email_remitente'], message: 'Ingrese un correo válido.' });
+    if (tiposCount > 1 && !d.tipo_documento_id)
+        ctx.addIssue({ code: 'custom', path: ['tipo_documento_id'], message: 'Selecciona un tipo' });
+    if (tiposCount === 0 && !cargandoTipos)
+        ctx.addIssue({ code: 'custom', path: ['tipo_documento_id'], message: 'No hay tipos de documento configurados para este servicio' });
+    req('descripcion', 'Requerido');
+    if (!d.acepta_reglamento)
+        ctx.addIssue({ code: 'custom', path: ['acepta_reglamento'], message: 'Debes aceptar la declaración para enviar la solicitud' });
+});
 
 /* ─── Formulario principal ─── */
 export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
@@ -178,10 +208,14 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
     /* ── UI ── */
     const [procesando,    setProcesando]    = useState(false);
     const [errores,       setErrores]       = useState({});
-    const [confirm,       setConfirm]       = useState(false);
     const [mostrarLoader, setMostrarLoader] = useState(false);
     const loaderTimer = useRef(null);
     const inputRef    = useRef();
+
+    /* ── Validación Zod (submit completo + onBlur por campo) ── */
+    const schema = otrosSchema({ tiposCount: tiposDocumento.length, cargandoTipos });
+    const datosValidables = () => ({ ...form, acepta_reglamento: aceptaReglamento });
+    const validarBlur = (campo) => validarCampo(schema, datosValidables(), campo, setErrores);
 
     /* ── Cargar tipos de documento del servicio ── */
     useEffect(() => {
@@ -240,31 +274,28 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
         setArchivos(prev => prev.filter((_, idx) => idx !== i));
     }
 
-    function validar() {
-        const errs = {};
-        if (!form.numero_doc_identidad.trim()) errs.numero_doc_identidad = 'Requerido';
-        if (!form.nombre_remitente.trim())     errs.nombre_remitente     = 'Requerido';
-        if (!form.email_remitente.trim())      errs.email_remitente      = 'Requerido';
-        if (tiposDocumento.length > 1 && !form.tipo_documento_id) {
-            errs.tipo_documento_id = 'Selecciona un tipo';
-        }
-        if (tiposDocumento.length === 0 && !cargandoTipos) {
-            errs.tipo_documento_id = 'No hay tipos de documento configurados para este servicio';
-        }
-        if (!form.descripcion.trim()) errs.descripcion = 'Requerido';
-        if (!aceptaReglamento) errs.acepta_reglamento = 'Debes aceptar la declaración para enviar la solicitud';
-        return errs;
-    }
-
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
         e.preventDefault();
-        const errs = validar();
-        if (Object.keys(errs).length) { setErrores(errs); return; }
-        setConfirm(true);
+        if (!validarZod(schema, datosValidables(), { setError: setErrores, clearErrors: () => setErrores({}) })) {
+            toast.error('Revise los campos marcados en rojo', { position: 'top-center' });
+            return;
+        }
+        const ok = await confirmar({
+            variant: 'warning',
+            titulo:  'Confirmar envío',
+            mensaje: 'Revise los datos antes de enviar. Recibirá un número de cargo en su correo.',
+            detalles: [
+                tipoActivo ? { label: 'Tipo', value: tipoActivo.nombre } : null,
+                { label: 'Remitente', value: form.nombre_remitente || '—' },
+                { label: 'Correo', value: form.email_remitente },
+                archivos.length ? { label: 'Adjuntos', value: `${archivos.length} archivo(s)` } : null,
+            ].filter(Boolean),
+            confirmText: 'Sí, enviar',
+        });
+        if (ok) enviar();
     }
 
-    function confirmar() {
-        setConfirm(false);
+    function enviar() {
         setProcesando(true);
         loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
 
@@ -299,9 +330,8 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
         });
     }
 
-    /* ── Resumen para modal de confirmación ── */
+    /* ── Tipo de documento activo (para el resumen de confirmación) ── */
     const tipoActivo = tiposDocumento.find(t => String(t.id) === form.tipo_documento_id);
-    const resumenConfirm = `Enviará${tipoActivo ? ' un "' + tipoActivo.nombre + '"' : ''} de parte de ${form.nombre_remitente || '—'}. Se enviará un cargo de recepción a ${form.email_remitente}.${archivos.length ? ` Adjuntos: ${archivos.length} archivo(s).` : ''}`;
 
     /* ── Opciones de tipo de documento según persona ── */
     const opcionesDoc = form.tipo_persona === 'juridica'
@@ -311,14 +341,6 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
     return (
         <>
         <AnkawaLoader visible={mostrarLoader} />
-        <ConfirmModal
-            open={confirm}
-            titulo="Confirmar envío"
-            resumen={resumenConfirm}
-            onConfirm={confirmar}
-            onCancel={() => setConfirm(false)}
-            confirmando={procesando}
-        />
 
         <form onSubmit={handleSubmit}>
 
@@ -365,6 +387,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
                             <select
                                 value={form.tipo_documento_id}
                                 onChange={e => set('tipo_documento_id', e.target.value)}
+                                onBlur={() => validarBlur('tipo_documento_id')}
                                 className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 ${
                                     errores.tipo_documento_id ? 'border-red-300' : 'border-gray-200'
                                 }`}
@@ -452,6 +475,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
                             value={form.numero_doc_identidad}
                             onResuelto={onDocumentoResuelto}
                             error={errores.numero_doc_identidad}
+                            onBlur={() => validarBlur('numero_doc_identidad')}
                         />
                     </Campo>
 
@@ -464,6 +488,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
                                     set('nombre_remitente', e.target.value);
                                     setNombreBloqueado(false);
                                 }}
+                                onBlur={() => validarBlur('nombre_remitente')}
                                 placeholder={form.tipo_persona === 'juridica' ? 'Razón social' : 'Nombre completo'}
                                 className={`w-full text-sm border rounded-xl px-3 py-2.5 pr-9 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 transition-colors ${
                                     errores.nombre_remitente ? 'border-red-300' : nombreBloqueado ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200'
@@ -496,6 +521,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
                             type="email"
                             value={form.email_remitente}
                             onChange={e => set('email_remitente', e.target.value)}
+                            onBlur={() => validarBlur('email_remitente')}
                             placeholder="Se enviará el número de cargo a este correo"
                             error={errores.email_remitente}
                         />
@@ -509,6 +535,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
                     <textarea
                         value={form.descripcion}
                         onChange={e => set('descripcion', e.target.value)}
+                        onBlur={() => validarBlur('descripcion')}
                         rows={4}
                         placeholder="Detalle el motivo o contenido del documento enviado..."
                         className={`w-full text-sm border rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#BE0F4A] focus:ring-1 focus:ring-[#BE0F4A]/20 resize-none transition-colors ${
@@ -565,7 +592,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
             {/* ── Aceptación reglamento ── */}
             <AceptacionReglamento
                 checked={aceptaReglamento}
-                onChange={setAceptaReglamento}
+                onChange={(v) => { setAceptaReglamento(v); setErrores(prev => ({ ...prev, acepta_reglamento: undefined })); }}
                 error={errores.acepta_reglamento}
                 contexto="al presente trámite ante el Centro"
                 finalidad="trámite"

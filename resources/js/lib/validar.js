@@ -43,3 +43,24 @@ export function validarZod(schema, data, { setError, clearErrors }) {
     setError(errs);
     return false;
 }
+
+/**
+ * Valida UN solo campo contra el esquema completo (para `onBlur`): setea o limpia
+ * el error de ESE campo sin tocar los demás. Pensado para formularios con estado
+ * de errores local (`useState({ campo: mensaje })`) que envían por `router.post`
+ * con FormData (Mesa de Partes), donde no aplica el `setError` de `useForm`.
+ *
+ *   onBlur={() => validarCampo(schema, datos, 'email_remitente', setErrores)}
+ *
+ * @param {import('zod').ZodTypeAny} schema  esquema del formulario completo
+ * @param {object} data                      datos completos a parsear
+ * @param {string} campo                      campo a evaluar (primer segmento del path)
+ * @param {Function} setErrores               setter de useState; acepta updater funcional
+ * @returns {boolean} true si el campo es válido
+ */
+export function validarCampo(schema, data, campo, setErrores) {
+    const res = schema.safeParse(data);
+    const issue = res.success ? null : res.error.issues.find(i => i.path?.[0] === campo);
+    setErrores(prev => ({ ...prev, [campo]: issue ? issue.message : undefined }));
+    return !issue;
+}

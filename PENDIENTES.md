@@ -76,12 +76,21 @@ Si algún día se rediseña el bloque de identidad, vale la pena un hook multi-t
 
 ---
 
-## 3. Migrar los 4 formularios a `react-hook-form` + Zod
+## 3. Migrar los 4 formularios a validación Zod (patrón `validarZod` + `swalAnkawa`) — 🔄 EN CURSO
+
+> **Decisión (jun 2026):** en vez de `react-hook-form`, se usa el **patrón ya establecido en Configuración** — `validarZod` (helper `lib/validar.js`, Zod + estado de errores) + confirmación con `swalAnkawa.confirmar()`. Evita una dependencia nueva y unifica con las 9 páginas de Configuración. El envío sigue por `router.post` + `FormData` (no se toca). Se hace **un formulario a la vez**, verificando en navegador.
+>
+> **Bridge técnico:** los 4 forms muestran errores desde estado **local** (`missingFields`/`errores`), no desde `useForm`. `validarZod(schema, data, { setError, clearErrors })` se reusa con un shim que apunta esas funciones al `setErrores` local. Para `onBlur` por campo se agregó `validarCampo(schema, data, campo, setErrores)` a `lib/validar.js` (valida el esquema completo pero setea/limpia solo el campo del blur).
+>
+> **Estado por formulario:**
+> - ✅ **`OtrosForm.jsx`** — migrado (piloto). Esquema Zod espeja la antigua `validar()` + formato de email; `onBlur` en los 5 campos; `ConfirmModal` → `swalAnkawa.confirmar()` con resumen (`detalles`); `router.post`+FormData intacto. Build OK. **Falta verificación en navegador.**
+> - ⏳ `JPRDForm.jsx` — pendiente (siguiente).
+> - ⏳ `ArbitrajeForm.jsx` + `ArbitrajeEmergenciaForm.jsx` — pendientes (los más grandes; hacerlos juntos, enlaza con #4).
 
 **Archivos**: `ArbitrajeForm.jsx`, `ArbitrajeEmergenciaForm.jsx`, `JPRDForm.jsx`, `OtrosForm.jsx`.
 
-### Qué hacer
-Reemplazar la **validación manual** (los `if` que arman objetos `missingFields`/`errores` al hacer submit) por `react-hook-form` + `zodResolver` con un esquema Zod por formulario, en `mode: 'onBlur'`.
+### Qué hacer (registro original)
+Reemplazar la **validación manual** (los `if` que arman objetos `missingFields`/`errores` al hacer submit) por validación Zod con un esquema por formulario, validando en `onBlur` + al Enviar.
 
 ### Por qué quedó pendiente (la decisión)
 Es un cambio **profundo** de los 4 formularios a la vez (estado, validación, render de errores). CLAUDE.md ya lo declara como objetivo, pero hoy validan a mano. `zod` **ya está instalado** (`package.json`), así que la mitad de la dependencia está; falta `react-hook-form`. Se dejó para una tarea dedicada porque toca el envío de solicitudes legales y conviene hacerlo con pruebas, no en lote con otros refactors.
