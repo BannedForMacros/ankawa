@@ -48,8 +48,8 @@ Elimina ~3 copias más de la misma máquina de estado (debounce/lock/fallo) y de
 ### Cómo verificar (obligatorio antes de dar por hecho)
 En navegador, en el formulario de **Arbitraje** (entrar por el portal): probar DNI del representante y RUC de empresa con un documento **válido** (autocompleta + bloquea + X) y uno **inexistente** (toast + **debe borrar** el nombre, comportamiento propio de este form). Probar también el **consorcio** (fila de empresa por RUC + representante).
 
-### 1.b Pendiente relacionado descubierto: 4.ª copia inline en `PanelConsorcio`
-Al migrar se detectó que **`PanelConsorcio` tiene su propia máquina de lookup inline** para el **DNI del representante del consorcio** (`onDniRepChange`/`buscarRep`/`limpiarRep`, ~líneas 320-360 tras la migración) — idéntica a `RepresentanteDNI`, pero **no estaba en la lista original** de este ítem, así que se dejó **sin migrar** para mantener el cambio acotado y verificable en tandas. Migrarla es trivial (mismo patrón: `tipo:'dni'`, `longitud:8`, adaptador `onRepresentanteChange({ dni })`/`({ dni, nombre })`, `limpiarNombreEnFallo:true`). Hacerlo deja a `ArbitrajeForm` **sin ninguna** copia inline de la máquina (solo `BloquePersona`/`PanelConsorcio` usarían el helper multi-tipo del #2). Verificar en navegador junto con el resto del consorcio.
+### 1.b 4.ª copia inline en `PanelConsorcio` — ✅ HECHO (build OK; falta verificación en navegador)
+Al migrar se detectó que **`PanelConsorcio` tenía su propia máquina de lookup inline** para el **DNI del representante del consorcio** (`onDniRepChange`/`buscarRep`/`limpiarRep`) — idéntica a `RepresentanteDNI`, fuera de la lista original. **Migrada**: el hook se destructura a los mismos nombres (`cargando: cargandoRep`, etc.) para no tocar el JSX, con adaptador `onRepresentanteChange(nom === null ? { dni: doc } : { dni: doc, nombre: nom })` + `limpiarNombreEnFallo: true`. **Resultado: `ArbitrajeForm` ya no tiene ninguna copia inline de la máquina** — solo `BloquePersona` usa el helper `consultarDocumento` directo (caso multi-tipo del #2, intencional). Falta verificar en navegador junto con el resto del consorcio.
 
 ---
 

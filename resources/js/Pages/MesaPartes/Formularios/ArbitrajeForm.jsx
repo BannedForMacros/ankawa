@@ -257,9 +257,13 @@ function FilaEmpresaConsorcio({ empresa, onUpdate, onRemove }) {
 
 /* ─── Panel Consorcio: orden empresas → representante → contrato ─── */
 function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange, representante, onRepresentanteChange, docContrato, onDocContratoChange, errores = {} }) {
-    const [cargandoRep, setCargandoRep] = useState(false);
-    const [bloqueadoRep, setBloqueadoRep] = useState(false);
-    const timerRepRef = useRef();
+    const { cargando: cargandoRep, bloqueado: bloqueadoRep, onChange: onDniRepChange, limpiar: limpiarRep } = useDocumentoLookup({
+        tipo: 'dni',
+        longitud: 8,
+        onResuelto: (doc, nom) => onRepresentanteChange(nom === null ? { dni: doc } : { dni: doc, nombre: nom }),
+        mensajeNoEncontrado: 'DNI no encontrado. Complete el nombre manualmente.',
+        limpiarNombreEnFallo: true,
+    });
 
     function agregarEmpresa() {
         onEmpresasChange([...empresas, nuevaEmpresaConsorcio()]);
@@ -271,40 +275,6 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
 
     function eliminarEmpresa(idx) {
         onEmpresasChange(empresas.filter((_, i) => i !== idx));
-    }
-
-    async function onDniRepChange(val) {
-        const clean = val.replace(/\D/g, '').slice(0, 8);
-        if (bloqueadoRep && clean !== representante.dni) {
-            setBloqueadoRep(false);
-            onRepresentanteChange({ dni: clean, nombre: '' });
-            return;
-        }
-        onRepresentanteChange({ dni: clean });
-        clearTimeout(timerRepRef.current);
-        if (clean.length === 8) {
-            timerRepRef.current = setTimeout(() => buscarRep(clean), 500);
-        }
-    }
-
-    async function buscarRep(dni) {
-        setCargandoRep(true);
-        try {
-            const data = await consultarDocumento('dni', dni);
-            onRepresentanteChange({ dni, nombre: data.nombre ?? '' });
-            setBloqueadoRep(true);
-        } catch {
-            toast('DNI no encontrado. Complete el nombre manualmente.', { icon: 'ℹ️', duration: 3000 });
-            onRepresentanteChange({ dni, nombre: '' });
-            setBloqueadoRep(false);
-        } finally {
-            setCargandoRep(false);
-        }
-    }
-
-    function limpiarRep() {
-        setBloqueadoRep(false);
-        onRepresentanteChange({ dni: '', nombre: '' });
     }
 
     return (
