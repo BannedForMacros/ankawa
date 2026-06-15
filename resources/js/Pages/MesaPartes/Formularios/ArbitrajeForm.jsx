@@ -107,13 +107,14 @@ export function MultiArchivoInput({ label, value = [], onChange, accept }) {
 }
 
 /* ─── Buscador de DNI para representante ─── */
-function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true }) {
+function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true, contexto = 'form_representante' }) {
     const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
         tipo: 'dni',
         longitud: 8,
         onResuelto: (doc, nom) => { onDniChange(doc); if (nom !== null) onNombreChange(nom); },
         mensajeNoEncontrado: 'DNI no encontrado. Complete el nombre manualmente.',
         limpiarNombreEnFallo: true,
+        contexto,
     });
 
     return (
@@ -263,6 +264,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
         onResuelto: (doc, nom) => onRepresentanteChange(nom === null ? { dni: doc } : { dni: doc, nombre: nom }),
         mensajeNoEncontrado: 'DNI no encontrado. Complete el nombre manualmente.',
         limpiarNombreEnFallo: true,
+        contexto: 'form_representante',
     });
 
     function agregarEmpresa() {
@@ -424,7 +426,7 @@ export function BloquePersona({
 
         setCargando(true); setModoManual(false);
         try {
-            const data = await consultarDocumento(tipo, numero);
+            const data = await consultarDocumento(tipo, numero, esDemandante ? 'form_demandante' : 'form_demandado');
             const cambios = { nombre: data.nombre ?? '' };
             if (tipo === 'ruc' && data.domicilio) cambios.domicilio = data.domicilio;
             setCampos(cambios);
@@ -1308,6 +1310,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                         <RepresentanteDNI
                             label="Árbitro Propuesto"
                             required={false}
+                            contexto="form_arbitro"
                             dniValue={data.documento_arbitro_propuesto}
                             nombreValue={data.nombre_arbitro_propuesto}
                             onDniChange={val => setData('documento_arbitro_propuesto', val)}

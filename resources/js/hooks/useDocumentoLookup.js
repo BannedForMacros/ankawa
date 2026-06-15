@@ -24,9 +24,10 @@ import { consultarDocumento } from '@/utils/consultaDocumento';
  * @param {string}   opts.mensajeNoEncontrado texto del toast cuando no se halla
  * @param {boolean}  [opts.limpiarNombreEnFallo=false] si el lookup falla, fija el nombre a '' (Arbitraje)
  * @param {boolean}  [opts.bloqueadoInicial=false]     arranca bloqueado (edición de un actor ya cargado)
+ * @param {string}   [opts.contexto]                   etiqueta de auditoría para `validaciones_documento`
  * @returns {{ cargando: boolean, bloqueado: boolean, onChange: (raw: string) => void, limpiar: () => void }}
  */
-export default function useDocumentoLookup({ tipo, longitud, onResuelto, mensajeNoEncontrado, limpiarNombreEnFallo = false, bloqueadoInicial = false }) {
+export default function useDocumentoLookup({ tipo, longitud, onResuelto, mensajeNoEncontrado, limpiarNombreEnFallo = false, bloqueadoInicial = false, contexto }) {
     const [cargando, setCargando] = useState(false);
     const [bloqueado, setBloqueado] = useState(bloqueadoInicial);
     const timerRef = useRef();
@@ -44,7 +45,7 @@ export default function useDocumentoLookup({ tipo, longitud, onResuelto, mensaje
     async function buscar(num) {
         setCargando(true);
         try {
-            const data = await consultarDocumento(tipo, num);
+            const data = await consultarDocumento(tipo, num, contexto);
             onResuelto(num, data.nombre ?? '');
             setBloqueado(true);
         } catch {
