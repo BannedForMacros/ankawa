@@ -4,7 +4,6 @@ import Input from '@/Components/Input';
 import CustomSelect from '@/Components/CustomSelect';
 import PrimaryButton from '@/Components/PrimaryButton';
 import EmailsInput from '@/Components/EmailsInput';
-import ConfirmModal from '@/Components/ConfirmModal';
 import AnkawaLoader from '@/Components/AnkawaLoader';
 import Checkbox from '@/Components/Checkbox';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
@@ -15,6 +14,9 @@ import {
     CreditCard, ShieldAlert, Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { z } from 'zod';
+import { validarZod } from '@/lib/validar';
+import { confirmar } from '@/lib/swalAnkawa';
 
 import {
     Seccion,
@@ -25,6 +27,56 @@ import {
     docDefaultPorPersona,
     empresasPayload,
 } from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
+
+/* ─── Esquema de validación (espeja handleSubmit; sin los montos de controversia) ─── */
+const emergenciaSchema = z.object({
+    documentos_solicitud_inicio: z.any(),
+    tipo_persona: z.any(), subtipo_dem: z.any(), nombre_demandante: z.any(), documento_demandante: z.any(),
+    tipo_documento: z.any(), domicilio_demandante: z.any(), telefono_demandante: z.any(),
+    empresas_dem: z.any(), rep_dem_dni: z.any(), rep_dem_nombre: z.any(),
+    nombre_demandado: z.any(), domicilio_demandado: z.any(), tipo_persona_demandado: z.any(), subtipo_dado: z.any(),
+    empresas_dado: z.any(), rep_dado_dni: z.any(), rep_dado_nombre: z.any(), email_demandado: z.any(),
+    acepta_reglamento_card: z.any(), email_principal_dem: z.any(),
+}).superRefine((d, ctx) => {
+    const add = (k, m) => ctx.addIssue({ code: 'custom', path: [k], message: m });
+    const req = (k, val, m = 'Campo obligatorio') => { if (!String(val ?? '').trim()) add(k, m); };
+
+    if (d.documentos_solicitud_inicio === 0) add('documentos_solicitud_inicio', 'Adjunte la solicitud de inicio de arbitraje de emergencia');
+
+    if (!(d.tipo_persona === 'juridica' && d.subtipo_dem === 'consorcio')) {
+        req('nombre_demandante', d.nombre_demandante);
+        req('documento_demandante', d.documento_demandante);
+        const lon = LONG_DOC[d.tipo_documento];
+        if (lon && d.documento_demandante && d.documento_demandante.length !== lon) add('documento_demandante', `Debe tener ${lon} dígitos`);
+    }
+    req('domicilio_demandante', d.domicilio_demandante);
+    req('telefono_demandante', d.telefono_demandante);
+
+    if (d.tipo_persona === 'juridica') {
+        if (!d.subtipo_dem) add('subtipo_juridico_demandante', 'Seleccione el tipo');
+        if (d.subtipo_dem === 'consorcio') {
+            if (d.empresas_dem === 0) add('empresas_consorcio_demandante', 'Agregue al menos una empresa');
+            if (!d.rep_dem_dni || d.rep_dem_dni.length !== 8) add('rep_consorcio_demandante_dni', 'DNI obligatorio (8 dígitos)');
+            if (!String(d.rep_dem_nombre ?? '').trim()) add('rep_consorcio_demandante_nombre', 'Nombre obligatorio');
+        }
+    }
+
+    req('nombre_demandado', d.nombre_demandado);
+    req('domicilio_demandado', d.domicilio_demandado);
+
+    if (d.tipo_persona_demandado === 'juridica') {
+        if (!d.subtipo_dado) add('subtipo_juridico_demandado', 'Seleccione el tipo');
+        if (d.subtipo_dado === 'consorcio') {
+            if (d.empresas_dado === 0) add('empresas_consorcio_demandado', 'Agregue al menos una empresa');
+            if (!d.rep_dado_dni || d.rep_dado_dni.length !== 8) add('rep_consorcio_demandado_dni', 'DNI obligatorio (8 dígitos)');
+            if (!String(d.rep_dado_nombre ?? '').trim()) add('rep_consorcio_demandado_nombre', 'Nombre obligatorio');
+            if (!String(d.email_demandado ?? '').trim()) add('email_demandado', 'Email del representante del consorcio');
+        }
+    }
+
+    if (!d.acepta_reglamento_card) add('acepta_reglamento_card', 'Debe aceptar la declaración para enviar la solicitud');
+    if (!d.email_principal_dem) add('emails_demandante', 'Ingrese al menos un correo');
+});
 
 export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalUser, hcaptchaSiteKey }) {
     const [captchaToken, setCaptchaToken] = useState('');
@@ -37,7 +89,6 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
     const [aceptoLegal, setAceptoLegal]     = useState(isAuth || isPortal);
     const [modalLegal, setModalLegal]       = useState(false);
-    const [confirm, setConfirm]             = useState(false);
     const [mostrarLoader, setMostrarLoader] = useState(false);
     const [missingFields, setMissingFields]     = useState({});
     const [showErrorModal, setShowErrorModal]   = useState(false);
@@ -156,65 +207,54 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             .catch(() => setCargandoTipos(false));
     }, [servicio.id]);
 
-    const handleSubmit = (e) => {
+    // Datos planos para el esquema Zod (mismas claves que las marcas de error del render)
+    function datosValidables() {
+        const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
+        return {
+            documentos_solicitud_inicio: (data.documentos_solicitud_inicio ?? []).length,
+            tipo_persona: data.tipo_persona,
+            subtipo_dem: subtipoJuridicoDem,
+            nombre_demandante: data.nombre_demandante,
+            documento_demandante: data.documento_demandante,
+            tipo_documento: data.tipo_documento,
+            domicilio_demandante: data.domicilio_demandante,
+            telefono_demandante: data.telefono_demandante,
+            empresas_dem: empresasConsorcioDem.length,
+            rep_dem_dni: repConsorcioDem.dni,
+            rep_dem_nombre: repConsorcioDem.nombre,
+            nombre_demandado: data.nombre_demandado,
+            domicilio_demandado: data.domicilio_demandado,
+            tipo_persona_demandado: data.tipo_persona_demandado,
+            subtipo_dado: subtipoJuridicoDado,
+            empresas_dado: empresasConsorcioDado.length,
+            rep_dado_dni: repConsorcioDado.dni,
+            rep_dado_nombre: repConsorcioDado.nombre,
+            email_demandado: data.email_demandado,
+            acepta_reglamento_card: data.acepta_reglamento_card,
+            email_principal_dem: !!emailPrincipal,
+        };
+    }
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!aceptoLegal) { setModalLegal(true); return; }
 
-        const missing = {};
-
-        // Documento principal: Solicitud de Inicio de Arbitraje de Emergencia
-        if (!Array.isArray(data.documentos_solicitud_inicio) || data.documentos_solicitud_inicio.length === 0)
-            missing.documentos_solicitud_inicio = 'Adjunte la solicitud de inicio de arbitraje de emergencia';
-
-        // Demandante: solo si no es consorcio
-        if (data.tipo_persona !== 'juridica' || subtipoJuridicoDem !== 'consorcio') {
-            if (!data.nombre_demandante?.toString().trim())    missing.nombre_demandante    = 'Campo obligatorio';
-            if (!data.documento_demandante?.toString().trim()) missing.documento_demandante = 'Campo obligatorio';
-            const lon = LONG_DOC[data.tipo_documento];
-            if (lon && data.documento_demandante && data.documento_demandante.length !== lon) {
-                missing.documento_demandante = `Debe tener ${lon} dígitos`;
-            }
-        }
-        if (!data.domicilio_demandante?.toString().trim()) missing.domicilio_demandante = 'Campo obligatorio';
-        if (!data.telefono_demandante?.toString().trim())  missing.telefono_demandante  = 'Campo obligatorio';
-
-        if (data.tipo_persona === 'juridica') {
-            if (!subtipoJuridicoDem) missing.subtipo_juridico_demandante = 'Seleccione el tipo';
-            if (subtipoJuridicoDem === 'consorcio') {
-                if (empresasConsorcioDem.length === 0) missing.empresas_consorcio_demandante = 'Agregue al menos una empresa';
-                if (!repConsorcioDem.dni || repConsorcioDem.dni.length !== 8) missing.rep_consorcio_demandante_dni = 'DNI obligatorio (8 dígitos)';
-                if (!repConsorcioDem.nombre?.trim()) missing.rep_consorcio_demandante_nombre = 'Nombre obligatorio';
-            }
-        }
-
-        if (!data.nombre_demandado?.toString().trim())    missing.nombre_demandado    = 'Campo obligatorio';
-        if (!data.domicilio_demandado?.toString().trim()) missing.domicilio_demandado = 'Campo obligatorio';
-
-        if (data.tipo_persona_demandado === 'juridica') {
-            if (!subtipoJuridicoDado) missing.subtipo_juridico_demandado = 'Seleccione el tipo';
-            if (subtipoJuridicoDado === 'consorcio') {
-                if (empresasConsorcioDado.length === 0) missing.empresas_consorcio_demandado = 'Agregue al menos una empresa';
-                if (!repConsorcioDado.dni || repConsorcioDado.dni.length !== 8) missing.rep_consorcio_demandado_dni = 'DNI obligatorio (8 dígitos)';
-                if (!repConsorcioDado.nombre?.trim()) missing.rep_consorcio_demandado_nombre = 'Nombre obligatorio';
-                if (!data.email_demandado?.trim()) missing.email_demandado = 'Email del representante del consorcio';
-            }
-        }
-
-        if (!data.acepta_reglamento_card) {
-            missing.acepta_reglamento_card = 'Debe aceptar la declaración para enviar la solicitud';
-        }
-
-        const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
-        if (!emailPrincipal) missing.emails_demandante = 'Ingrese al menos un correo';
-
-        if (Object.keys(missing).length > 0) {
-            setMissingFields(missing);
+        if (!validarZod(emergenciaSchema, datosValidables(), { setError: setMissingFields, clearErrors: () => setMissingFields({}) })) {
             setShowErrorModal(true);
             return;
         }
 
-        setMissingFields({});
-        setConfirm(true);
+        const ok = await confirmar({
+            variant: 'warning',
+            titulo:  'Confirmar solicitud de arbitraje de emergencia',
+            mensaje: `Se enviará la solicitud de arbitraje de emergencia del servicio "${servicio.nombre}". Se generará un cargo y se enviarán credenciales de acceso al correo registrado.`,
+            detalles: [
+                { label: 'Demandante', value: data.nombre_demandante || (empresasConsorcioDem[0]?.nombre ? 'Consorcio: ' + empresasConsorcioDem[0].nombre : '—') },
+                { label: 'Demandado', value: data.nombre_demandado || '—' },
+            ],
+            confirmText: 'Sí, enviar',
+        });
+        if (ok) enviarFormulario();
     };
 
     const FIELD_LABELS = {
@@ -270,7 +310,6 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
     const enviarFormulario = () => {
         if (enviando) return;
-        setConfirm(false);
         setEnviando(true);
         loaderTimer.current = setTimeout(() => setMostrarLoader(true), 300);
 
@@ -351,14 +390,6 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
     return (
         <>
         <AnkawaLoader visible={mostrarLoader} />
-        <ConfirmModal
-            open={confirm}
-            titulo="Confirmar solicitud de arbitraje de emergencia"
-            resumen={`Se enviará la solicitud de arbitraje de emergencia del servicio "${servicio.nombre}" a nombre de ${data.nombre_demandante || (empresasConsorcioDem[0]?.nombre ? 'Consorcio: ' + empresasConsorcioDem[0].nombre : '—')}. Se generará un cargo y se enviarán credenciales de acceso al correo registrado.`}
-            onConfirm={enviarFormulario}
-            onCancel={() => setConfirm(false)}
-            confirmando={enviando}
-        />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
             <div className="mb-5 px-4 py-3 bg-[#291136]/5 border border-[#291136]/15 rounded-xl flex items-center gap-3">
