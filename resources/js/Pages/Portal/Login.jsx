@@ -4,7 +4,7 @@ export default function PortalLogin({ hcaptchaSiteKey }) {
     return (
         <OtpLoginFlow
             hcaptchaSiteKey={hcaptchaSiteKey}
-            headTitle="Portal Externo — Ankawa"
+            headTitle="Portal Externo — Ankawa Center"
             titulo="Portal Externo"
             subtitulo="Verifique su identidad para acceder."
             enviarRoute="portal.enviar-codigo"

@@ -46,7 +46,7 @@ export default function Navbar({ sidebarOpen = false, onToggleSidebar = () => {}
 
             {/* Título de la plataforma */}
             <div className="hidden sm:block leading-tight">
-                <p className="text-[#291136] font-bold text-sm tracking-tight">Mesa de Partes Virtual</p>
+                <p className="text-[#291136] font-bold text-sm tracking-tight">Ankawa Center</p>
                 <p className="text-gray-400 text-xs">Expediente Electrónico</p>
             </div>
 

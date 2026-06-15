@@ -146,7 +146,7 @@ export default function Index({ servicios }) {
 
     return (
         <GuestLayout>
-            <Head title="Mesa de Partes Virtual" />
+            <Head title="Ankawa Center" />
 
             <div className="min-h-screen bg-gray-50/50 relative">
                 <div className="absolute top-0 w-full h-64 bg-gradient-to-b from-[#291136]/5 to-transparent -z-10" />
@@ -160,7 +160,7 @@ export default function Index({ servicios }) {
                                 Trámites Digitales
                             </span>
                             <h1 className="text-4xl md:text-5xl font-black text-[#291136] tracking-tight mb-4">
-                                Mesa de Partes Virtual
+                                Ankawa Center
                             </h1>
                             <div className="w-24 h-1 bg-gradient-to-r from-[#BE0F4A] to-[#BC1D35] mx-auto mb-6 rounded-full"></div>
                             <p className="text-lg text-gray-600 max-w-2xl mx-auto">

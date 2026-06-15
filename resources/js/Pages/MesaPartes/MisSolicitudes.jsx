@@ -1074,7 +1074,7 @@ export default function MisSolicitudes({ solicitudes }) {
                             </p>
                             {solicitudes.length === 0 && (
                                 <>
-                                    <p className="text-sm mt-1 mb-6 text-[#291136]/55">Presenta tu primera solicitud desde la Mesa de Partes Virtual.</p>
+                                    <p className="text-sm mt-1 mb-6 text-[#291136]/55">Presenta tu primera solicitud en Ankawa Center.</p>
                                     <Link href={route('mesa-partes.index')}
                                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] transition-colors">
                                         Ir a Mesa de Partes

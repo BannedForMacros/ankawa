@@ -4,7 +4,7 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
     return (
         <OtpLoginFlow
             hcaptchaSiteKey={hcaptchaSiteKey}
-            headTitle="Mesa de Partes — Ankawa"
+            headTitle="Mesa de Partes — Ankawa Center"
             titulo="Mesa de Partes"
             subtitulo="Verifique su identidad para iniciar sesión."
             enviarRoute="mesa-partes.enviarCodigo"

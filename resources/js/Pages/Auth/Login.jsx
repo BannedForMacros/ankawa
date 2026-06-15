@@ -23,7 +23,7 @@ export default function Login({ status, canResetPassword }) {
 
     return (
         <GuestLayout>
-            <Head title="Acceso Seguro | CARD ANKAWA" />
+            <Head title="Acceso Seguro | Ankawa Center" />
 
             {/* Contenedor Principal: Inmersivo y Oscuro (Firma Visual Ankawa) */}
             <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#291136]">

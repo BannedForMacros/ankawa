@@ -53,7 +53,7 @@ export default function HistorialPortal({ eventos = [], eventosDisponibles = [],
 
     return (
         <AuthenticatedLayout>
-            <Head title="Auditoría del Portal — Ankawa" />
+            <Head title="Auditoría del Portal — Ankawa Center" />
 
             <PageHeader
                 breadcrumb={[

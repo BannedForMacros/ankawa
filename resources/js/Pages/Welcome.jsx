@@ -87,9 +87,9 @@ function PlataformaAccesos() {
             <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
                 <Reveal direction="up">
                     <div className="text-center mb-12 lg:mb-16">
-                        {/* Título cambiado a "Mesa de Partes Virtual" */}
+                        {/* Título: nombre del sistema */}
                         <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#291136] mb-4 tracking-tight" style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                            Mesa de Partes Virtual
+                            Ankawa Center
                         </h2>
                         <p className="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg px-2">
                             Gestione sus trámites arbitrales y acceda a sus expedientes de manera rápida, segura y 100% digital.
