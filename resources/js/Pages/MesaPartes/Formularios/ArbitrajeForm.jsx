@@ -50,10 +50,17 @@ export function docDefaultPorPersona(tipo) {
 }
 
 /* ─── Sección visual ─── */
-export function Seccion({ icono: Icono, titulo, descripcion, children }) {
+/* `destacado`: tinte plomito + borde lateral rose para enfatizar importancia. */
+export function Seccion({ icono: Icono, titulo, descripcion, children, destacado = false }) {
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
+        <div className={`rounded-2xl shadow-sm overflow-hidden mb-5 ${
+            destacado
+                ? 'bg-[#291136]/5 border border-[#291136]/15 border-l-4 border-l-[#BE0F4A]'
+                : 'bg-white border border-gray-100'
+        }`}>
+            <div className={`flex items-center gap-3 px-6 py-4 border-b ${
+                destacado ? 'border-[#291136]/10 bg-[#291136]/5' : 'border-gray-100 bg-gray-50/60'
+            }`}>
                 <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
                     <Icono size={16} className="text-[#BE0F4A]" />
                 </div>
@@ -557,7 +564,7 @@ export function BloquePersona({
                             onChange={e => setCampos({ nombre: e.target.value })}
                             onBlur={() => onBlurCampo?.('nombre')}
                             disabled={esNaturalBloqueado || esLocked}
-                            placeholder={tipoPersona === 'juridica' ? 'Ej.: Empresa...' : 'Ej.: Juan Pérez López'}
+                            placeholder={tipoPersona === 'juridica' ? '' : 'Ej.: Juan Pérez López'}
                             error={errors?.nombre} />
 
                         {/* Entidad pública: datos de la procuraduría, secuencial debajo de Razón Social */}
@@ -629,15 +636,19 @@ export function BloquePersona({
                     />
                 )}
 
-                {/* Entidad pública → Documento que acredita facultades de representación */}
+                {/* Entidad pública → Documento que acredita facultades de representación (destacado en plomito) */}
                 {tipoPersona === 'juridica' && subtipoJuridico === 'entidad_publica' && (
-                    <MultiArchivoInput
-                        label={esDemandante ? <>Documento Requerido <span className="text-[#BE0F4A]">*</span></> : 'Documento Requerido'}
-                        hint={esDemandante
-                            ? 'Adjuntar el acto administrativo, resolución, acuerdo societario o documento equivalente que acredite las facultades de representación de la persona que suscribe y presenta la solicitud de inicio de arbitraje.'
-                            : 'Adjunte el documento que acredite las facultades de representación del demandado, si cuenta con él.'}
-                        value={docResolucionFacultades}
-                        onChange={onDocResolucionFacultadesChange} />
+                    <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4">
+                        <MultiArchivoInput
+                            label={
+                                <span className="inline-flex items-center gap-1.5">
+                                    <FileText size={14} className="text-[#BE0F4A] shrink-0" />
+                                    Documento Requerido <span className="text-[#BE0F4A]">*</span>: Resolución autoritativa o delegación
+                                </span>
+                            }
+                            value={docResolucionFacultades}
+                            onChange={onDocResolucionFacultadesChange} />
+                    </div>
                 )}
 
                 {/* Domicilio al final del bloque cuando es consorcio */}
@@ -681,14 +692,14 @@ export function DatosProcuraduria({
 
             {correoSlot}
 
-            <Input label="Dirección de su Mesa de Partes Virtual" type="text"
+            <Input label="Dirección de su Mesa de Partes Virtual" required type="text"
                 hint="Enlace o dirección de la mesa de partes virtual de la entidad (donde se le notificará)."
                 value={mesaPartesValue}
                 onChange={e => onMesaPartesChange(e.target.value)}
                 placeholder="https://mesadepartes.entidad.gob.pe"
                 error={mesaPartesError} />
 
-            <Input label="Teléfono" type="text"
+            <Input label="Teléfono o Número de Celular" type="text"
                 value={telefonoValue}
                 onChange={e => onTelefonoChange(e.target.value)}
                 placeholder="987654321"
@@ -731,9 +742,10 @@ const arbitrajeSchema = z.object({
         if (lon && d.documento_demandante && d.documento_demandante.length !== lon) add('documento_demandante', `Debe tener ${lon} dígitos`);
     }
     req('domicilio_demandante', d.domicilio_demandante);
-    // Entidad pública: el teléfono y la mesa de partes virtual son opcionales
+    // Entidad pública: el teléfono es opcional, pero la mesa de partes virtual es obligatoria
     const demEntidadPublica = d.tipo_persona === 'juridica' && d.subtipo_dem === 'entidad_publica';
     if (!demEntidadPublica) req('telefono_demandante', d.telefono_demandante);
+    if (demEntidadPublica) req('mesa_partes_url_demandante', d.mesa_partes_url_demandante, 'Indique la mesa de partes virtual de la entidad');
 
     if (d.tipo_persona === 'juridica') {
         if (!d.subtipo_dem) add('subtipo_juridico_demandante', 'Seleccione el tipo');
@@ -747,6 +759,10 @@ const arbitrajeSchema = z.object({
     req('nombre_demandado', d.nombre_demandado);
     req('domicilio_demandado', d.domicilio_demandado);
     req('email_demandado', d.email_demandado, 'Correo electrónico obligatorio (canal de comunicación)');
+
+    // Demandado entidad pública: mesa de partes virtual obligatoria
+    if (d.tipo_persona_demandado === 'juridica' && d.subtipo_dado === 'entidad_publica')
+        req('mesa_partes_url_demandado', d.mesa_partes_url_demandado, 'Indique la mesa de partes virtual de la entidad');
 
     if (d.tipo_persona_demandado === 'juridica') {
         if (!d.subtipo_dado) add('subtipo_juridico_demandado', 'Seleccione el tipo');
@@ -1238,7 +1254,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             )}
 
             {/* Solicitud de Inicio de Arbitraje — debajo del Tipo de solicitud */}
-            <Seccion icono={FileText}
+            <Seccion icono={FileText} destacado
                 titulo={<>Solicitud de Inicio de Arbitraje <span className="text-[#BE0F4A]">*</span></>}
                 descripcion="Adjunte el documento de solicitud de inicio de arbitraje y sus anexos.">
                 <MultiArchivoInput
@@ -1308,7 +1324,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 contactoSlot={
                     <>
                         {correoDemandante('Correos del demandante (para notificaciones)')}
-                        <Input id="telefono_demandante" label="Teléfono" required type="text"
+                        <Input id="telefono_demandante" label="Teléfono o Número de Celular" required type="text"
                             value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
                             placeholder="987654321"
                             error={errors.telefono_demandante || missingFields.telefono_demandante} />
@@ -1391,7 +1407,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                                 value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
                                 placeholder="correo@ejemplo.com"
                                 error={errors.email_demandado || missingFields.email_demandado} />
-                            <Input label="Teléfono del demandado" type="text"
+                            <Input label="Teléfono o Número de Celular del demandado" type="text"
                                 value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
                                 placeholder="987654321" error={errors.telefono_demandado} />
                         </div>

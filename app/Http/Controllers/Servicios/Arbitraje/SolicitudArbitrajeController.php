@@ -65,8 +65,8 @@ class SolicitudArbitrajeController extends Controller
             'email_demandante'              => 'required|email|max:255',
             // Entidad pública: el teléfono es opcional (los datos van en "Datos de la Procuraduría")
             'telefono_demandante'           => 'required_unless:subtipo_juridico_demandante,entidad_publica|nullable|string|max:20',
-            // Mesa de partes virtual: opcional (sin asterisco)
-            'mesa_partes_url_demandante'    => 'nullable|string|max:500',
+            // Mesa de partes virtual: obligatoria cuando la parte es entidad pública
+            'mesa_partes_url_demandante'    => 'required_if:subtipo_juridico_demandante,entidad_publica|nullable|string|max:500',
 
             'nombre_demandado'              => 'required|string|max:255',
             'documento_demandado'           => 'nullable|string|max:20',
@@ -75,7 +75,7 @@ class SolicitudArbitrajeController extends Controller
             'domicilio_demandado'           => 'required|string|max:500',
             'email_demandado'               => 'required|email|max:255',
             'telefono_demandado'            => 'nullable|string|max:20',
-            'mesa_partes_url_demandado'     => 'nullable|string|max:500',
+            'mesa_partes_url_demandado'     => 'required_if:subtipo_juridico_demandado,entidad_publica|nullable|string|max:500',
 
             'resumen_controversia'                 => 'nullable|string',
             'monto_involucrado'                    => 'nullable|numeric|min:0',
