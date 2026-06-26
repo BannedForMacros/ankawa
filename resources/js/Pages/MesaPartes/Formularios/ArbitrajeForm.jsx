@@ -557,7 +557,7 @@ export function BloquePersona({
                             onChange={e => setCampos({ nombre: e.target.value })}
                             onBlur={() => onBlurCampo?.('nombre')}
                             disabled={esNaturalBloqueado || esLocked}
-                            placeholder={tipoPersona === 'juridica' ? 'Empresa S.A.C.' : 'Juan Pérez López'}
+                            placeholder={tipoPersona === 'juridica' ? 'Ej.: Empresa...' : 'Ej.: Juan Pérez López'}
                             error={errors?.nombre} />
 
                         {/* Entidad pública: datos de la procuraduría, secuencial debajo de Razón Social */}
@@ -629,23 +629,15 @@ export function BloquePersona({
                     />
                 )}
 
-                {/* Entidad pública → Resolución de facultades */}
+                {/* Entidad pública → Documento que acredita facultades de representación */}
                 {tipoPersona === 'juridica' && subtipoJuridico === 'entidad_publica' && (
-                    <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-[#291136] font-semibold">
-                            <Building2 size={15} className="shrink-0 text-[#BE0F4A]"/>
-                            {esDemandante
-                                ? <>Documento requerido: <span className="font-bold">Resolución de facultades del funcionario a cargo</span></>
-                                : <>Documento del demandado: <span className="font-bold">Resolución de facultades</span></>}
-                        </div>
-                        <MultiArchivoInput
-                            label={esDemandante ? "Adjuntar Resolución de Facultades *" : "Adjuntar Resolución de Facultades"}
-                            value={docResolucionFacultades}
-                            onChange={onDocResolucionFacultadesChange} />
-                        {!esDemandante && (
-                            <p className="text-xs text-[#291136]/60">Adjunte solo si cuenta con el documento del demandado.</p>
-                        )}
-                    </div>
+                    <MultiArchivoInput
+                        label={esDemandante ? <>Documento Requerido <span className="text-[#BE0F4A]">*</span></> : 'Documento Requerido'}
+                        hint={esDemandante
+                            ? 'Adjuntar el acto administrativo, resolución, acuerdo societario o documento equivalente que acredite las facultades de representación de la persona que suscribe y presenta la solicitud de inicio de arbitraje.'
+                            : 'Adjunte el documento que acredite las facultades de representación del demandado, si cuenta con él.'}
+                        value={docResolucionFacultades}
+                        onChange={onDocResolucionFacultadesChange} />
                 )}
 
                 {/* Domicilio al final del bloque cuando es consorcio */}
@@ -1261,8 +1253,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
 
             {/* Bloque Demandante */}
             <BloquePersona
-                icono={User} titulo="Sus Datos (Demandante)"
-                descripcion="El demandante es usted: quien presenta la solicitud."
+                icono={User} titulo="Datos del Demandante"
+                descripcion="El demandante es la persona natural, jurídica o entidad pública que presenta la solicitud de inicio de arbitraje."
                 campos={{
                     tipo_persona:            data.tipo_persona,
                     tipo_documento:          data.tipo_documento,
@@ -1327,7 +1319,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             {/* Bloque Demandado */}
             <BloquePersona
                 icono={Users} titulo="Datos del Demandado"
-                descripcion="El demandado es la persona o empresa contra la que presenta su solicitud."
+                descripcion="El demandado es la persona natural o jurídica contra la cual se dirige la solicitud de inicio de arbitraje."
                 campos={{
                     tipo_persona:            data.tipo_persona_demandado,
                     tipo_documento:          data.tipo_documento_demandado,
