@@ -116,7 +116,7 @@ export function MultiArchivoInput({ label, hint, value = [], onChange, accept })
 }
 
 /* ─── Buscador de DNI para representante ─── */
-function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true, contexto = 'form_representante' }) {
+function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true, contexto = 'form_representante', children }) {
     const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
         tipo: 'dni',
         longitud: 8,
@@ -127,7 +127,8 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
     });
 
     return (
-        <div className="grid grid-cols-2 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
             <div>
                 <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
                     DNI del {label} {required && <span className="text-[#BE0F4A]">*</span>}
@@ -161,6 +162,8 @@ function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, 
                     placeholder="Nombre completo"
                     className={`w-full text-sm border rounded-xl px-3 py-2.5 ${bloqueado ? 'bg-gray-50 text-gray-500 border-gray-200' : 'border-gray-200'}`} />
             </div>
+            </div>
+            {children}
         </div>
     );
 }
@@ -702,7 +705,7 @@ export function DatosProcuraduria({
 /* Las claves de error coinciden 1:1 con las marcas que lee el render (missingFields). */
 const arbitrajeSchema = z.object({
     pretensiones: z.any(), monto_controversias: z.any(), suma_monto_pretensiones_determinadas: z.any(),
-    pretensiones_indeterminadas: z.any(), documentos_solicitud_inicio: z.any(),
+    pretensiones_indeterminadas: z.any(), documentos_solicitud_inicio: z.any(), documentos_controversia: z.any(),
     tipo_persona: z.any(), subtipo_dem: z.any(), nombre_demandante: z.any(), documento_demandante: z.any(),
     tipo_documento: z.any(), domicilio_demandante: z.any(), telefono_demandante: z.any(),
     empresas_dem: z.any(), rep_dem_dni: z.any(), rep_dem_nombre: z.any(),
@@ -718,6 +721,7 @@ const arbitrajeSchema = z.object({
     if (d.suma_monto_pretensiones_determinadas === '' || d.suma_monto_pretensiones_determinadas === null || d.suma_monto_pretensiones_determinadas === undefined)
         add('suma_monto_pretensiones_determinadas', 'Campo obligatorio');
     req('pretensiones_indeterminadas', d.pretensiones_indeterminadas);
+    if (d.documentos_controversia === 0) add('documentos_controversia', 'Adjunte el convenio arbitral');
     if (d.documentos_solicitud_inicio === 0) add('documentos_solicitud_inicio', 'Adjunte la solicitud de inicio de arbitraje');
 
     // Demandante: solo si no es consorcio (en consorcio se usan los datos del rep)
@@ -840,6 +844,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         documentos_controversia:               [],
         documentos_solicitud_inicio:           [],
         // Árbitro
+        conformacion_tribunal:         'arbitro_unico',
         solicita_designacion_director: 1,
         nombre_arbitro_propuesto:      '',
         documento_arbitro_propuesto:   '',
@@ -920,6 +925,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             suma_monto_pretensiones_determinadas: data.suma_monto_pretensiones_determinadas,
             pretensiones_indeterminadas: data.pretensiones_indeterminadas,
             documentos_solicitud_inicio: (data.documentos_solicitud_inicio ?? []).length,
+            documentos_controversia: (data.documentos_controversia ?? []).length,
             tipo_persona: data.tipo_persona,
             subtipo_dem: subtipoJuridicoDem,
             nombre_demandante: data.nombre_demandante,
@@ -978,6 +984,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         suma_monto_pretensiones_determinadas:  'Suma de la cuantía de pretensiones determinadas (En Soles)',
         pretensiones_indeterminadas:           'Número de Pretensiones Indeterminadas (que no se pueden cuantificar)',
         documentos_solicitud_inicio:           'Solicitud de Inicio de Arbitraje',
+        documentos_controversia:               'Convenio Arbitral',
         nombre_demandante:                  'Nombre del demandante',
         documento_demandante:               'Documento del demandante',
         domicilio_demandante:               'Domicilio del demandante',
@@ -1008,6 +1015,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         if (data.pretensiones_indeterminadas?.trim())                   filled.pretensiones_indeterminadas           = true;
         if (Array.isArray(data.documentos_solicitud_inicio) && data.documentos_solicitud_inicio.length > 0)
                                                                         filled.documentos_solicitud_inicio           = true;
+        if (Array.isArray(data.documentos_controversia) && data.documentos_controversia.length > 0)
+                                                                        filled.documentos_controversia               = true;
         if (data.nombre_demandante?.trim())    filled.nombre_demandante    = true;
         if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
         if (componerDomicilio(data.domicilio_demandante).trim()) filled.domicilio_demandante = true;
@@ -1437,46 +1446,64 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 </div>
                 <div className="mt-4">
                     <MultiArchivoInput
-                        label="Convenio Arbitral"
-                        hint="Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe."
+                        label={<>Convenio Arbitral <span className="text-[#BE0F4A]">*</span></>}
+                        hint="Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra."
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
+                    {(errors.documentos_controversia || missingFields.documentos_controversia) && (
+                        <p className="mt-1.5 text-xs font-semibold text-red-500">
+                            {errors.documentos_controversia || missingFields.documentos_controversia}
+                        </p>
+                    )}
                 </div>
             </Seccion>
 
             {/* Conformación del Tribunal */}
             <Seccion icono={FileText} titulo="Conformación del Tribunal">
+                {/* Tipo de tribunal */}
                 <div className="mb-5">
-                    <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                        Designación de Árbitro <span className="text-[#BE0F4A]">*</span>
+                    <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
+                        Conformación del Tribunal <span className="text-[#BE0F4A]">*</span>
                     </label>
-                    <CustomSelect value={data.solicita_designacion_director}
-                        onChange={val => setData(d => ({ ...d, solicita_designacion_director: val }))}
-                        options={OPCIONES_ARBITRO} placeholder={null} />
+                    <RadioGroup
+                        value={data.conformacion_tribunal}
+                        onChange={val => setData('conformacion_tribunal', val)}
+                        options={OPCIONES_CONFORMACION}
+                        columns={2} />
+                </div>
+
+                {/* Mecanismo de designación del árbitro */}
+                <div className="mb-5">
+                    <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">
+                        Mecanismo de Designación del Árbitro <span className="text-[#BE0F4A]">*</span>
+                    </label>
+                    <RadioGroup
+                        value={data.solicita_designacion_director}
+                        onChange={val => setData('solicita_designacion_director', val)}
+                        options={OPCIONES_ARBITRO} />
                 </div>
 
                 {data.solicita_designacion_director === 0 && (
-                    <div className="space-y-4">
-                        <RepresentanteDNI
-                            label="Árbitro Propuesto"
-                            required={false}
-                            contexto="form_arbitro"
-                            dniValue={data.documento_arbitro_propuesto}
-                            nombreValue={data.nombre_arbitro_propuesto}
-                            onDniChange={val => setData('documento_arbitro_propuesto', val)}
-                            onNombreChange={val => setData('nombre_arbitro_propuesto', val)}
-                        />
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
-                            <Input label="Correo del Árbitro Propuesto" type="email"
+                    <RepresentanteDNI
+                        label="Árbitro Propuesto"
+                        required={false}
+                        contexto="form_arbitro"
+                        dniValue={data.documento_arbitro_propuesto}
+                        nombreValue={data.nombre_arbitro_propuesto}
+                        onDniChange={val => setData('documento_arbitro_propuesto', val)}
+                        onNombreChange={val => setData('nombre_arbitro_propuesto', val)}
+                    >
+                        <div>
+                            <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
+                                Correo del Árbitro Propuesto
+                            </label>
+                            <input type="email"
                                 value={data.email_arbitro_propuesto}
-                                onChange={e => setData('email_arbitro_propuesto', e.target.value)} />
-                            <DomicilioFields
-                                label="Domicilio del Árbitro Propuesto"
-                                required={false}
-                                value={data.domicilio_arbitro_propuesto}
-                                onChange={dom => setData('domicilio_arbitro_propuesto', dom)} />
+                                onChange={e => setData('email_arbitro_propuesto', e.target.value)}
+                                placeholder="correo@ejemplo.com"
+                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all" />
                         </div>
-                    </div>
+                    </RepresentanteDNI>
                 )}
             </Seccion>
 
@@ -1519,16 +1546,16 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             {/* Tasa de Solicitud */}
             <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje">
                 <MultiArchivoInput
-                    label="Copia del comprobante de pago"
+                    label="Adjunte el comprobante de pago"
                     value={data.comprobante_pago_tasa}
                     onChange={v => setData('comprobante_pago_tasa', v)} />
 
                 <div className="mt-6">
-                    <h3 className="text-xs font-bold text-[#291136] uppercase tracking-wide opacity-70 mb-3">
-                        Datos de la Emisión de Factura
+                    <h3 className="text-xs font-bold text-[#291136]ff uppercase tracking-wide opacity-70 mb-3">
+                        Datos para la Emisión de Factura
                     </h3>
                     <RucBuscador
-                        label="Cliente"
+                        label="Usuario"
                         rucValue={data.factura_ruc}
                         razonSocialValue={data.factura_razon_social}
                         onRucChange={val => setData('factura_ruc', val)}

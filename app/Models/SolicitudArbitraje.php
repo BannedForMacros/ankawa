@@ -25,6 +25,7 @@ class SolicitudArbitraje extends Model
         'mesa_partes_url_demandante', 'mesa_partes_url_demandado',
         'resumen_controversia', 'pretensiones', 'monto_involucrado',
         'monto_controversias', 'suma_monto_pretensiones_determinadas', 'pretensiones_indeterminadas',
+        'conformacion_tribunal',
         'solicita_designacion_director', 'solicita_designacion_director_demandado', 'nombre_arbitro_propuesto',
         'documento_arbitro_propuesto', 'email_arbitro_propuesto', 'domicilio_arbitro_propuesto',
         'reglas_aplicables', 'estado', 'activo',

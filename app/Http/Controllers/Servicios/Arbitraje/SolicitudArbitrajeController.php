@@ -84,8 +84,10 @@ class SolicitudArbitrajeController extends Controller
             'email_arbitro_propuesto'       => 'nullable|email|max:255',
             'domicilio_arbitro_propuesto'   => 'nullable|string|max:500',
             'reglas_aplicables'             => 'nullable|string|max:255',
+            'conformacion_tribunal'         => 'nullable|in:arbitro_unico,tribunal_arbitral',
 
-            'documentos_controversia'        => 'nullable|array',
+            // Convenio arbitral: obligatorio en arbitraje ordinario (opcional en emergencia)
+            'documentos_controversia'        => $esEmergencia ? 'nullable|array' : 'required|array|min:1',
             'documentos_controversia.*'      => FileRules::accept(),
             'documentos_solicitud_inicio'    => 'required|array|min:1',
             'documentos_solicitud_inicio.*'  => FileRules::accept(),
