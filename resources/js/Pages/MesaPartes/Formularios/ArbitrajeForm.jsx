@@ -1238,10 +1238,10 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             )}
 
             {/* Solicitud de Inicio de Arbitraje — debajo del Tipo de solicitud */}
-            <Seccion icono={FileText} titulo="Solicitud de Inicio de Arbitraje"
-                descripcion="Adjunte el documento de solicitud de inicio de arbitraje.">
+            <Seccion icono={FileText}
+                titulo={<>Solicitud de Inicio de Arbitraje <span className="text-[#BE0F4A]">*</span></>}
+                descripcion="Adjunte el documento de solicitud de inicio de arbitraje y sus anexos.">
                 <MultiArchivoInput
-                    label={<>Solicitud de Inicio de Arbitraje <span className="text-[#BE0F4A]">*</span></>}
                     value={data.documentos_solicitud_inicio}
                     onChange={v => setData('documentos_solicitud_inicio', v)} />
                 {(errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio) && (
