@@ -694,7 +694,7 @@ export function DatosProcuraduria({
                 placeholder="https://mesadepartes.entidad.gob.pe"
                 error={mesaPartesError} />
 
-            <Input label="Teléfono o Número de Celular" type="text"
+            <Input label="Teléfono o Celular de Contacto" type="text"
                 value={telefonoValue}
                 onChange={e => onTelefonoChange(e.target.value)}
                 placeholder="987654321"
@@ -1319,7 +1319,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 contactoSlot={
                     <>
                         {correoDemandante('Correos del demandante (para notificaciones)')}
-                        <Input id="telefono_demandante" label="Teléfono o Número de Celular" required type="text"
+                        <Input id="telefono_demandante" label="Teléfono o Celular de Contacto" required type="text"
                             value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
                             placeholder="987654321"
                             error={errors.telefono_demandante || missingFields.telefono_demandante} />
@@ -1402,7 +1402,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                                 value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
                                 placeholder="correo@ejemplo.com"
                                 error={errors.email_demandado || missingFields.email_demandado} />
-                            <Input label="Teléfono o Número de Celular del demandado" type="text"
+                            <Input label="Teléfono o Celular de Contacto" type="text"
                                 value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
                                 placeholder="987654321" error={errors.telefono_demandado} />
                         </div>

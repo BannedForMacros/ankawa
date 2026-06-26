@@ -523,7 +523,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                         )}
                     </div>
                 </div>
-                <Input id="telefono_demandante" label="Teléfono" required type="text"
+                <Input id="telefono_demandante" label="Teléfono o Celular de Contacto" required type="text"
                     value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
                     placeholder="987654321"
                     error={errors.telefono_demandante || missingFields.telefono_demandante} />
@@ -577,7 +577,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                         value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
                         placeholder="correo@ejemplo.com"
                         error={errors.email_demandado || missingFields.email_demandado} />
-                    <Input label="Teléfono del demandado" type="text"
+                    <Input label="Teléfono o Celular de Contacto" type="text"
                         value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
                         placeholder="987654321" error={errors.telefono_demandado} />
                 </div>

@@ -346,7 +346,7 @@ function BloqueActor({
             )}
 
             {/* Teléfono */}
-            <Campo label="Teléfono de contacto">
+            <Campo label="Teléfono o Celular de Contacto">
                 <InputBase value={datos.telefono ?? ''} onChange={e => set('telefono', e.target.value)}
                     placeholder="01-234-5678 / 987654321" />
             </Campo>
