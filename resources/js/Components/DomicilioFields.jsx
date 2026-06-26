@@ -1,4 +1,5 @@
 import { MapPin } from 'lucide-react';
+import UbigeoSelect from '@/Components/UbigeoSelect';
 
 /* ─────────────────────────────────────────────────────────────
    DomicilioFields — captura de domicilio desglosado y reutilizable.
@@ -111,18 +112,13 @@ export default function DomicilioFields({
                         disabled={disabled} placeholder="Lote / Mz" />
                 </div>
 
-                {/* Departamento · Provincia · Distrito */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <CampoTexto label="Departamento" value={v.departamento}
-                        onChange={val => set('departamento', val)} onBlur={onBlur}
-                        disabled={disabled} placeholder="Departamento" />
-                    <CampoTexto label="Provincia" value={v.provincia}
-                        onChange={val => set('provincia', val)} onBlur={onBlur}
-                        disabled={disabled} placeholder="Provincia" />
-                    <CampoTexto label="Distrito" value={v.distrito}
-                        onChange={val => set('distrito', val)} onBlur={onBlur}
-                        disabled={disabled} placeholder="Distrito" />
-                </div>
+                {/* Departamento · Provincia · Distrito (cascada buscable) */}
+                <UbigeoSelect
+                    value={{ departamento: v.departamento, provincia: v.provincia, distrito: v.distrito }}
+                    onChange={ubi => onChange({ ...v, ...ubi })}
+                    disabled={disabled}
+                    required={false}
+                />
             </div>
 
             {error && <p className="mt-2 text-xs font-semibold text-red-500">{error}</p>}
