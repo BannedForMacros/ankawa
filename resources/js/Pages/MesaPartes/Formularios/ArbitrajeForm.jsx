@@ -122,6 +122,16 @@ export function MultiArchivoInput({ label, hint, value = [], onChange, accept })
     );
 }
 
+/* ─── Label unificado de "Documento Requerido" (icono + nombre, asterisco tras ":") ─── */
+export function labelDocRequerido(nombre, requerido = true) {
+    return (
+        <span className="inline-flex items-center gap-1.5 normal-case">
+            <FileText size={14} className="text-[#BE0F4A] shrink-0" />
+            Documento Requerido :{requerido && <span className="text-[#BE0F4A]">*</span>} {nombre}
+        </span>
+    );
+}
+
 /* ─── Buscador de DNI para representante ─── */
 function RepresentanteDNI({ dniValue, nombreValue, onDniChange, onNombreChange, label = 'Representante Legal', required = true, contexto = 'form_representante', children }) {
     const { cargando, bloqueado, onChange, limpiar } = useDocumentoLookup({
@@ -373,12 +383,9 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
 
             {/* 3. Contrato notariado de consorcio */}
             <MultiArchivoInput
-                label={esDemandante ? "Contrato notariado de consorcio *" : "Contrato notariado de consorcio"}
+                label={labelDocRequerido('Contrato notariado de consorcio', esDemandante)}
                 value={docContrato}
                 onChange={onDocContratoChange} />
-            {!esDemandante && (
-                <p className="text-xs text-gray-500 -mt-2">Adjunte solo si cuenta con el documento del demandado.</p>
-            )}
         </div>
     );
 }
@@ -601,19 +608,10 @@ export function BloquePersona({
                 {/* Empresa → Vigencia de Poder */}
                 {tipoPersona === 'juridica' && subtipoJuridico === 'empresa' && (
                     <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-[#291136] font-semibold">
-                            <Building2 size={15} className="shrink-0 text-[#BE0F4A]"/>
-                            {esDemandante
-                                ? <>Documento requerido: <span className="font-bold">Vigencia de Poder</span></>
-                                : <>Documento del demandado: <span className="font-bold">Vigencia de Poder</span></>}
-                        </div>
                         <MultiArchivoInput
-                            label={esDemandante ? "Adjuntar Vigencia de Poder *" : "Adjuntar Vigencia de Poder"}
+                            label={labelDocRequerido('Vigencia de Poder', esDemandante)}
                             value={docVigenciaPoder}
                             onChange={onDocVigenciaPoderChange} />
-                        {!esDemandante && (
-                            <p className="text-xs text-[#291136]/60">Adjunte solo si cuenta con el documento del demandado.</p>
-                        )}
                     </div>
                 )}
 
@@ -640,12 +638,7 @@ export function BloquePersona({
                 {tipoPersona === 'juridica' && subtipoJuridico === 'entidad_publica' && (
                     <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4">
                         <MultiArchivoInput
-                            label={
-                                <span className="inline-flex items-center gap-1.5">
-                                    <FileText size={14} className="text-[#BE0F4A] shrink-0" />
-                                    Documento Requerido <span className="text-[#BE0F4A]">*</span>: Resolución autoritativa o delegación
-                                </span>
-                            }
+                            label={labelDocRequerido('Resolución autoritativa o delegación', esDemandante)}
                             value={docResolucionFacultades}
                             onChange={onDocResolucionFacultadesChange} />
                     </div>
