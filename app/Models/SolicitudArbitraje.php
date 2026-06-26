@@ -22,6 +22,7 @@ class SolicitudArbitraje extends Model
         'email_demandante', 'telefono_demandante',
         'tipo_persona_demandado', 'tipo_documento_demandado',
         'nombre_demandado', 'documento_demandado', 'domicilio_demandado', 'email_demandado', 'telefono_demandado',
+        'mesa_partes_url_demandante', 'mesa_partes_url_demandado',
         'resumen_controversia', 'pretensiones', 'monto_involucrado',
         'monto_controversias', 'suma_monto_pretensiones_determinadas', 'pretensiones_indeterminadas',
         'solicita_designacion_director', 'solicita_designacion_director_demandado', 'nombre_arbitro_propuesto',
