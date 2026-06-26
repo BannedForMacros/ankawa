@@ -37,6 +37,19 @@ export default function Solicitud({ servicio, portalEmail, portalUser, hcaptchaS
             </div>
 
             <div className="max-w-4xl mx-auto px-4 py-8">
+                {/* Encabezado de la solicitud — jerarquía y contexto */}
+                <div className="border-l-4 border-[#BE0F4A] pl-4 mb-6">
+                    <p className="text-[11px] font-bold text-[#BE0F4A] uppercase tracking-[0.18em] mb-1.5">
+                        Mesa de Partes · Nueva Solicitud
+                    </p>
+                    <h1 className="text-3xl font-black text-[#291136] tracking-tight uppercase leading-none">
+                        {servicio.nombre}
+                    </h1>
+                    <p className="text-sm text-gray-500 mt-2">
+                        Complete los datos requeridos para presentar su solicitud.
+                    </p>
+                </div>
+
                 <Form
                     servicio={servicio}
                     portalEmail={portalEmail}

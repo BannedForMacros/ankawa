@@ -73,7 +73,7 @@ class SolicitudArbitrajeController extends Controller
             'tipo_persona_demandado'        => 'nullable|in:natural,juridica',
             'tipo_documento_demandado'      => 'nullable|in:dni,ruc,ce',
             'domicilio_demandado'           => 'required|string|max:500',
-            'email_demandado'               => 'required_if:subtipo_juridico_demandado,entidad_publica|nullable|email|max:255',
+            'email_demandado'               => 'required|email|max:255',
             'telefono_demandado'            => 'nullable|string|max:20',
             'mesa_partes_url_demandado'     => 'nullable|string|max:500',
 
@@ -115,6 +115,8 @@ class SolicitudArbitrajeController extends Controller
             'doc_vigencia_poder_dado.*'        => FileRules::accept(),
             'doc_contrato_consorcio_dado.*'    => FileRules::accept(),
             'doc_resolucion_facultades_dado.*' => FileRules::accept(),
+            // Si declara medida cautelar, la resolución/orden que la otorga es obligatoria
+            'documentos_medida_cautelar'       => 'required_if:tiene_medida_cautelar,1|nullable|array',
             'documentos_medida_cautelar.*'     => FileRules::accept(),
             'comprobante_pago_tasa.*'          => FileRules::accept(),
             'captcha_token'                    => 'nullable|string',

@@ -386,7 +386,7 @@ export function BloquePersona({
     docResolucionFacultades, onDocResolucionFacultadesChange,
     empresasConsorcio, onEmpresasConsorcioChange,
     representanteConsorcio, onRepresentanteConsorcioChange,
-    onBlurCampo, procuraduriaSlot,
+    onBlurCampo, procuraduriaSlot, contactoSlot,
 }) {
     const [tipoPersona, setTipoPersona] = useState(campos.tipo_persona || 'natural');
     const [tipoDoc,     setTipoDoc]     = useState(campos.tipo_documento || 'dni');
@@ -658,6 +658,10 @@ export function BloquePersona({
                         error={errors?.domicilio} />
                 )}
 
+                {/* Contacto (correo/teléfono) — secuencial, dentro del mismo bloque.
+                    En entidad pública el contacto ya va en "Datos de la Procuraduría". */}
+                {!esEntidadPublica && contactoSlot}
+
             </div>
         </Seccion>
     );
@@ -706,6 +710,7 @@ export function DatosProcuraduria({
 const arbitrajeSchema = z.object({
     pretensiones: z.any(), monto_controversias: z.any(), suma_monto_pretensiones_determinadas: z.any(),
     pretensiones_indeterminadas: z.any(), documentos_solicitud_inicio: z.any(), documentos_controversia: z.any(),
+    tiene_medida_cautelar: z.any(), documentos_medida_cautelar: z.any(),
     tipo_persona: z.any(), subtipo_dem: z.any(), nombre_demandante: z.any(), documento_demandante: z.any(),
     tipo_documento: z.any(), domicilio_demandante: z.any(), telefono_demandante: z.any(),
     empresas_dem: z.any(), rep_dem_dni: z.any(), rep_dem_nombre: z.any(),
@@ -723,6 +728,8 @@ const arbitrajeSchema = z.object({
     req('pretensiones_indeterminadas', d.pretensiones_indeterminadas);
     if (d.documentos_controversia === 0) add('documentos_controversia', 'Adjunte el convenio arbitral');
     if (d.documentos_solicitud_inicio === 0) add('documentos_solicitud_inicio', 'Adjunte la solicitud de inicio de arbitraje');
+    if (d.tiene_medida_cautelar && d.documentos_medida_cautelar === 0)
+        add('documentos_medida_cautelar', 'Adjunte la resolución u orden que otorga la medida cautelar');
 
     // Demandante: solo si no es consorcio (en consorcio se usan los datos del rep)
     if (!(d.tipo_persona === 'juridica' && d.subtipo_dem === 'consorcio')) {
@@ -747,12 +754,7 @@ const arbitrajeSchema = z.object({
 
     req('nombre_demandado', d.nombre_demandado);
     req('domicilio_demandado', d.domicilio_demandado);
-
-    // Demandado entidad pública: solo el correo es obligatorio (mesa de partes y teléfono opcionales)
-    const dadoEntidadPublica = d.tipo_persona_demandado === 'juridica' && d.subtipo_dado === 'entidad_publica';
-    if (dadoEntidadPublica) {
-        req('email_demandado', d.email_demandado, 'Correo electrónico obligatorio');
-    }
+    req('email_demandado', d.email_demandado, 'Correo electrónico obligatorio (canal de comunicación)');
 
     if (d.tipo_persona_demandado === 'juridica') {
         if (!d.subtipo_dado) add('subtipo_juridico_demandado', 'Seleccione el tipo');
@@ -926,6 +928,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             pretensiones_indeterminadas: data.pretensiones_indeterminadas,
             documentos_solicitud_inicio: (data.documentos_solicitud_inicio ?? []).length,
             documentos_controversia: (data.documentos_controversia ?? []).length,
+            tiene_medida_cautelar: data.tiene_medida_cautelar,
+            documentos_medida_cautelar: (data.documentos_medida_cautelar ?? []).length,
             tipo_persona: data.tipo_persona,
             subtipo_dem: subtipoJuridicoDem,
             nombre_demandante: data.nombre_demandante,
@@ -985,6 +989,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         pretensiones_indeterminadas:           'Número de Pretensiones Indeterminadas (que no se pueden cuantificar)',
         documentos_solicitud_inicio:           'Solicitud de Inicio de Arbitraje',
         documentos_controversia:               'Convenio Arbitral',
+        documentos_medida_cautelar:            'Resolución u Orden que Otorga la Medida Cautelar',
         nombre_demandante:                  'Nombre del demandante',
         documento_demandante:               'Documento del demandante',
         domicilio_demandante:               'Domicilio del demandante',
@@ -1017,6 +1022,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                                                                         filled.documentos_solicitud_inicio           = true;
         if (Array.isArray(data.documentos_controversia) && data.documentos_controversia.length > 0)
                                                                         filled.documentos_controversia               = true;
+        if (!data.tiene_medida_cautelar || (Array.isArray(data.documentos_medida_cautelar) && data.documentos_medida_cautelar.length > 0))
+                                                                        filled.documentos_medida_cautelar            = true;
         if (data.nombre_demandante?.trim())    filled.nombre_demandante    = true;
         if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
         if (componerDomicilio(data.domicilio_demandante).trim()) filled.domicilio_demandante = true;
@@ -1250,6 +1257,14 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                         {errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio}
                     </p>
                 )}
+
+                <div className="mt-5 pt-5 border-t border-gray-100">
+                    <MultiArchivoInput
+                        label="Anexos de la Solicitud"
+                        hint="Adjunte los documentos que sustentan su solicitud. Renombre cada archivo según lo que representa (ej.: Contrato_principal.pdf)."
+                        value={data.documentos_anexos}
+                        onChange={v => setData('documentos_anexos', v)} />
+                </div>
             </Seccion>
 
             {/* Bloque Demandante */}
@@ -1306,22 +1321,16 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                         telefonoError={errors.telefono_demandante}
                     />
                 )}
+                contactoSlot={
+                    <>
+                        {correoDemandante('Correos del demandante (para notificaciones)')}
+                        <Input id="telefono_demandante" label="Teléfono" required type="text"
+                            value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
+                            placeholder="987654321"
+                            error={errors.telefono_demandante || missingFields.telefono_demandante} />
+                    </>
+                }
             />
-
-            {/* Correo/teléfono del demandante — oculto si es entidad pública (va en "Datos de la Procuraduría") */}
-            {!demEsEntidadPublica && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div className="col-span-2">
-                            {correoDemandante('Correos del demandante (para notificaciones)')}
-                        </div>
-                    </div>
-                    <Input id="telefono_demandante" label="Teléfono" required type="text"
-                        value={data.telefono_demandante} onChange={e => setData('telefono_demandante', e.target.value)}
-                        placeholder="987654321"
-                        error={errors.telefono_demandante || missingFields.telefono_demandante} />
-                </div>
-            )}
 
             {/* Bloque Demandado */}
             <BloquePersona
@@ -1391,29 +1400,27 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                         telefonoError={errors.telefono_demandado}
                     />
                 )}
-            />
-
-            {/* Correo/teléfono del demandado — oculto si es entidad pública (va en "Datos de la Procuraduría") */}
-            {!dadoEsEntidadPublica && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <Input label="Correo electrónico del demandado" type="email"
-                            value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
+                contactoSlot={
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Input label="Correo electrónico del demandado" required type="email"
+                                value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
+                                placeholder="correo@ejemplo.com"
+                                error={errors.email_demandado || missingFields.email_demandado} />
+                            <Input label="Teléfono del demandado" type="text"
+                                value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
+                                placeholder="987654321" error={errors.telefono_demandado} />
+                        </div>
+                        <EmailsInput
+                            label="Correos adicionales del demandado (para notificaciones)"
+                            value={emailsDado}
+                            onChange={setEmailsDado}
+                            required={false}
                             placeholder="correo@ejemplo.com"
-                            error={errors.email_demandado || missingFields.email_demandado} />
-                        <Input label="Teléfono del demandado" type="text"
-                            value={data.telefono_demandado} onChange={e => setData('telefono_demandado', e.target.value)}
-                            placeholder="987654321" error={errors.telefono_demandado} />
-                    </div>
-                    <EmailsInput
-                        label="Correos adicionales del demandado (para notificaciones)"
-                        value={emailsDado}
-                        onChange={setEmailsDado}
-                        required={false}
-                        placeholder="correo@ejemplo.com"
-                    />
-                </div>
-            )}
+                        />
+                    </>
+                }
+            />
 
             {/* Controversia */}
             <Seccion icono={Scale} titulo="Aspectos Controvertidos Sometidos a Arbitraje">
@@ -1533,12 +1540,17 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 {data.tiene_medida_cautelar && (
                     <div className="mt-4">
                         <div className="bg-[#291136]/5 border border-[#291136]/15 rounded-xl p-3 mb-3 text-sm text-[#291136]">
-                            Puede adjuntar uno o más archivos que acrediten la medida cautelar ejecutada (resolución judicial, laudo de emergencia, etc.).
+                            De existir una medida cautelar otorgada por una autoridad judicial, un Árbitro de Emergencia o un Tribunal Arbitral, deberá adjuntarse obligatoriamente la resolución o documento que acredite su otorgamiento.
                         </div>
                         <MultiArchivoInput
-                            label="Documentos de la medida cautelar"
+                            label={<>Resolución u Orden que Otorga la Medida Cautelar <span className="text-[#BE0F4A]">*</span></>}
                             value={data.documentos_medida_cautelar}
                             onChange={v => setData('documentos_medida_cautelar', v)} />
+                        {(errors.documentos_medida_cautelar || missingFields.documentos_medida_cautelar) && (
+                            <p className="mt-1.5 text-xs font-semibold text-red-500">
+                                {errors.documentos_medida_cautelar || missingFields.documentos_medida_cautelar}
+                            </p>
+                        )}
                     </div>
                 )}
             </Seccion>
@@ -1564,18 +1576,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 </div>
             </Seccion>
 
-            {/* Adjuntos */}
-            <Seccion icono={Paperclip} titulo="Documentos Adjuntos (Anexos)">
-                <div className="bg-[#291136]/5 border border-[#291136]/15 rounded-xl p-4 mb-5">
-                    <p className="text-sm text-[#291136] font-semibold mb-1">Recomendación</p>
-                    <p className="text-sm text-[#291136]/75">
-                        Antes de adjuntar, <strong>renombre cada archivo</strong> con el tipo de documento que representa
-                        (ej: <em>DNI_representante.pdf</em>, <em>Poder_notarial.pdf</em>, <em>Contrato_principal.pdf</em>).
-                        Esto facilita la revisión del expediente.
-                    </p>
-                </div>
-                <MultiArchivoInput value={data.documentos_anexos} onChange={v => setData('documentos_anexos', v)} />
-            </Seccion>
 
             {/* Declaración y Aceptación final */}
             <AceptacionReglamento
