@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import FilePreviewModal from '@/Components/FilePreviewModal';
+import DomicilioFields, { componerDomicilio } from '@/Components/DomicilioFields';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -562,12 +563,11 @@ export function BloquePersona({
 
                 {/* Domicilio — para consorcio se renderiza al final, después del PanelConsorcio */}
                 {!esConsorcio && (
-                    <Input label="Domicilio de notificación" required type="text"
-                        value={campos.domicilio ?? ''}
-                        onChange={e => setCampos({ domicilio: e.target.value })}
+                    <DomicilioFields
+                        value={campos.domicilio}
+                        onChange={dom => setCampos({ domicilio: dom })}
                         onBlur={() => onBlurCampo?.('domicilio')}
                         disabled={domicilioLocked}
-                        placeholder="Dirección completa"
                         error={errors?.domicilio} />
                 )}
 
@@ -632,12 +632,11 @@ export function BloquePersona({
 
                 {/* Domicilio al final del bloque cuando es consorcio */}
                 {esConsorcio && (
-                    <Input label="Domicilio de notificación" required type="text"
-                        value={campos.domicilio ?? ''}
-                        onChange={e => setCampos({ domicilio: e.target.value })}
+                    <DomicilioFields
+                        value={campos.domicilio}
+                        onChange={dom => setCampos({ domicilio: dom })}
                         onBlur={() => onBlurCampo?.('domicilio')}
                         disabled={domicilioLocked}
-                        placeholder="Dirección completa"
                         error={errors?.domicilio} />
                 )}
 
@@ -863,13 +862,13 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             nombre_demandante: data.nombre_demandante,
             documento_demandante: data.documento_demandante,
             tipo_documento: data.tipo_documento,
-            domicilio_demandante: data.domicilio_demandante,
+            domicilio_demandante: componerDomicilio(data.domicilio_demandante),
             telefono_demandante: data.telefono_demandante,
             empresas_dem: empresasConsorcioDem.length,
             rep_dem_dni: repConsorcioDem.dni,
             rep_dem_nombre: repConsorcioDem.nombre,
             nombre_demandado: data.nombre_demandado,
-            domicilio_demandado: data.domicilio_demandado,
+            domicilio_demandado: componerDomicilio(data.domicilio_demandado),
             tipo_persona_demandado: data.tipo_persona_demandado,
             subtipo_dado: subtipoJuridicoDado,
             empresas_dado: empresasConsorcioDado.length,
@@ -946,10 +945,10 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                                                                         filled.documentos_solicitud_inicio           = true;
         if (data.nombre_demandante?.trim())    filled.nombre_demandante    = true;
         if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
-        if (data.domicilio_demandante?.trim()) filled.domicilio_demandante = true;
+        if (componerDomicilio(data.domicilio_demandante).trim()) filled.domicilio_demandante = true;
         if (data.telefono_demandante?.trim())  filled.telefono_demandante  = true;
         if (data.nombre_demandado?.trim())     filled.nombre_demandado     = true;
-        if (data.domicilio_demandado?.trim())  filled.domicilio_demandado  = true;
+        if (componerDomicilio(data.domicilio_demandado).trim())  filled.domicilio_demandado  = true;
         if (data.email_demandado?.trim())      filled.email_demandado      = true;
         if (subtipoJuridicoDem)                filled.subtipo_juridico_demandante = true;
         if (subtipoJuridicoDado)               filled.subtipo_juridico_demandado  = true;
@@ -985,6 +984,11 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 fd.append(k, v);
             }
         });
+
+        // Domicilios desglosados → una sola línea legible para el backend
+        fd.set('domicilio_demandante',      componerDomicilio(data.domicilio_demandante));
+        fd.set('domicilio_demandado',       componerDomicilio(data.domicilio_demandado));
+        fd.set('domicilio_arbitro_propuesto', componerDomicilio(data.domicilio_arbitro_propuesto));
 
         // Tipo de documento de la solicitud
         if (tipoDocumentoId) fd.append('tipo_documento_id', tipoDocumentoId);
@@ -1060,6 +1064,13 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         <AnkawaLoader visible={mostrarLoader} />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
+            {/* Aviso normativo — artículo 20 del Reglamento */}
+            <div className="mb-4 px-4 py-3 bg-[#291136]/5 border-l-4 border-[#BE0F4A] rounded-xl">
+                <p className="text-sm font-bold text-[#291136]">
+                    La presente solicitud de inicio de arbitraje debe ser presentada cumpliendo el artículo 20 del Reglamento Procesal de Arbitraje del Centro, vigente a la fecha de presentación.
+                </p>
+            </div>
+
             {/* Leyenda de campos obligatorios */}
             <div className="mb-5 px-4 py-3 bg-[#291136]/5 border border-[#291136]/15 rounded-xl flex items-center gap-3">
                 <span className="text-[#BE0F4A] text-lg font-black leading-none">*</span>
@@ -1113,6 +1124,20 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     </p>
                 </div>
             )}
+
+            {/* Solicitud de Inicio de Arbitraje — debajo del Tipo de solicitud */}
+            <Seccion icono={FileText} titulo="Solicitud de Inicio de Arbitraje"
+                descripcion="Adjunte el documento de solicitud de inicio de arbitraje.">
+                <MultiArchivoInput
+                    label={<>Solicitud de Inicio de Arbitraje <span className="text-[#BE0F4A]">*</span></>}
+                    value={data.documentos_solicitud_inicio}
+                    onChange={v => setData('documentos_solicitud_inicio', v)} />
+                {(errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio) && (
+                    <p className="mt-1.5 text-xs font-semibold text-red-500">
+                        {errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio}
+                    </p>
+                )}
+            </Seccion>
 
             {/* Bloque Demandante */}
             <BloquePersona
@@ -1290,17 +1315,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
                 </div>
-                <div className="mt-4">
-                    <MultiArchivoInput
-                        label={<>Solicitud de Inicio de Arbitraje <span className="text-[#BE0F4A]">*</span></>}
-                        value={data.documentos_solicitud_inicio}
-                        onChange={v => setData('documentos_solicitud_inicio', v)} />
-                    {(errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio) && (
-                        <p className="mt-1.5 text-xs font-semibold text-red-500">
-                            {errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio}
-                        </p>
-                    )}
-                </div>
             </Seccion>
 
             {/* Conformación del Tribunal */}
@@ -1325,13 +1339,15 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                             onDniChange={val => setData('documento_arbitro_propuesto', val)}
                             onNombreChange={val => setData('nombre_arbitro_propuesto', val)}
                         />
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 gap-4">
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
                             <Input label="Correo del Árbitro Propuesto" type="email"
                                 value={data.email_arbitro_propuesto}
                                 onChange={e => setData('email_arbitro_propuesto', e.target.value)} />
-                            <Input label="Domicilio del Árbitro Propuesto" type="text"
+                            <DomicilioFields
+                                label="Domicilio del Árbitro Propuesto"
+                                required={false}
                                 value={data.domicilio_arbitro_propuesto}
-                                onChange={e => setData('domicilio_arbitro_propuesto', e.target.value)} />
+                                onChange={dom => setData('domicilio_arbitro_propuesto', dom)} />
                         </div>
                     </div>
                 )}
