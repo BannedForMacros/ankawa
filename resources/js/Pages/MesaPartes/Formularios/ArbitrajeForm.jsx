@@ -1430,7 +1430,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 </h3>
                 <div className="pl-4 border-l-2 border-[#BE0F4A]/30 space-y-1">
                     <Input
-                        label={<><span className="text-[#BE0F4A] mr-1">•</span> Suma de la cuantía de retenciones determinadas (En Soles)</>}
+                        label={<><span className="text-[#BE0F4A] mr-1">•</span> Suma de la cuantía de pretenciones determinadas (En Soles)</>}
                         required
                         hint="Aquellas que tienen una cuantía económica precisa."
                         type="number" min="0" step="0.01"
@@ -1486,26 +1486,15 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 </div>
 
                 {data.solicita_designacion_director === 0 && (
-                    <RepresentanteDNI
-                        label="Árbitro Propuesto"
-                        required={false}
-                        contexto="form_arbitro"
-                        dniValue={data.documento_arbitro_propuesto}
-                        nombreValue={data.nombre_arbitro_propuesto}
-                        onDniChange={val => setData('documento_arbitro_propuesto', val)}
-                        onNombreChange={val => setData('nombre_arbitro_propuesto', val)}
-                    >
-                        <div>
-                            <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">
-                                Correo del Árbitro Propuesto
-                            </label>
-                            <input type="email"
-                                value={data.email_arbitro_propuesto}
-                                onChange={e => setData('email_arbitro_propuesto', e.target.value)}
-                                placeholder="correo@ejemplo.com"
-                                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-4 focus:ring-[#BE0F4A]/10 focus:border-[#BE0F4A] transition-all" />
+                    <div>
+                        <Input label="Nombre del Árbitro Propuesto" type="text"
+                            value={data.nombre_arbitro_propuesto}
+                            onChange={e => setData('nombre_arbitro_propuesto', e.target.value)}
+                            placeholder="Nombre completo del árbitro" />
+                        <div className="-mt-3 rounded-xl border border-[#291136]/15 bg-[#291136]/5 px-3 py-2 text-xs text-[#291136]/75">
+                            Miembro de la nómina de Árbitros del Centro.
                         </div>
-                    </RepresentanteDNI>
+                    </div>
                 )}
             </Seccion>
 
