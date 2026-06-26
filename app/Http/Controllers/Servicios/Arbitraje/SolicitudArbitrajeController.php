@@ -45,7 +45,9 @@ class SolicitudArbitrajeController extends Controller
             ]
             : [
                 'pretensiones'                         => 'required|string',
-                'monto_controversias'                  => 'required|string',
+                // "Cuantía de la Controversia" pasó a ser un título de grupo (sin campo);
+                // sus hijos son suma_monto_pretensiones_determinadas + pretensiones_indeterminadas.
+                'monto_controversias'                  => 'nullable|string',
                 'suma_monto_pretensiones_determinadas' => 'required|numeric|min:0',
                 'pretensiones_indeterminadas'          => 'required|string',
                 'solicita_designacion_director'        => 'required|in:0,1',
@@ -73,7 +75,7 @@ class SolicitudArbitrajeController extends Controller
             'domicilio_demandado'           => 'required|string|max:500',
             'email_demandado'               => 'required_if:subtipo_juridico_demandado,entidad_publica|nullable|email|max:255',
             'telefono_demandado'            => 'nullable|string|max:20',
-            'mesa_partes_url_demandado'     => 'required_if:subtipo_juridico_demandado,entidad_publica|nullable|string|max:500',
+            'mesa_partes_url_demandado'     => 'nullable|string|max:500',
 
             'resumen_controversia'                 => 'nullable|string',
             'monto_involucrado'                    => 'nullable|numeric|min:0',

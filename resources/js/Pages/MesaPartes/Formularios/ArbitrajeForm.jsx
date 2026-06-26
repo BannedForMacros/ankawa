@@ -17,6 +17,7 @@ import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import FilePreviewModal from '@/Components/FilePreviewModal';
 import DomicilioFields, { componerDomicilio } from '@/Components/DomicilioFields';
+import RadioGroup from '@/Components/RadioGroup';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -35,8 +36,12 @@ const SUBTIPOS_JURIDICA = [
     { id: 'entidad_publica', nombre: 'Entidad Pública' },
 ];
 const OPCIONES_ARBITRO = [
-    { id: 1, nombre: 'Sí, solicito designación por el Centro' },
-    { id: 0, nombre: 'No, propongo árbitro'                   },
+    { id: 1, nombre: 'Solicito que el árbitro sea designado por el Centro, de conformidad con el Reglamento.' },
+    { id: 0, nombre: 'Propongo árbitro para su designación, de conformidad con el convenio arbitral y el Reglamento.' },
+];
+const OPCIONES_CONFORMACION = [
+    { id: 'arbitro_unico',    nombre: 'Árbitro Único'    },
+    { id: 'tribunal_arbitral', nombre: 'Tribunal Arbitral' },
 ];
 export const LONG_DOC = { dni: 8, ruc: 11, ce: null };
 
@@ -65,7 +70,7 @@ export function Seccion({ icono: Icono, titulo, descripcion, children }) {
 }
 
 /* ─── Multi-archivo con append/remove ─── */
-export function MultiArchivoInput({ label, value = [], onChange, accept }) {
+export function MultiArchivoInput({ label, hint, value = [], onChange, accept }) {
     const { upload_accept, upload_mimes, upload_max_mb } = usePage().props;
     const acceptValue  = accept ?? upload_accept;
     const formatsLabel = (upload_mimes ?? []).map(m => m.toUpperCase()).join(', ');
@@ -81,7 +86,8 @@ export function MultiArchivoInput({ label, value = [], onChange, accept }) {
 
     return (
         <div>
-            {label && <label className="block text-xs font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-70">{label}</label>}
+            {label && <label className="block text-sm font-bold text-[#291136] mb-2 uppercase tracking-wide opacity-80">{label}</label>}
+            {hint && <p className="-mt-1 mb-2 text-xs text-gray-500 normal-case tracking-normal">{hint}</p>}
             <button type="button" onClick={() => inputRef.current?.click()}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-[#BE0F4A] hover:text-[#BE0F4A] transition-colors w-full justify-center">
                 <Paperclip size={15}/> Agregar archivos
@@ -709,7 +715,6 @@ const arbitrajeSchema = z.object({
     const req = (k, val, m = 'Campo obligatorio') => { if (!String(val ?? '').trim()) add(k, m); };
 
     req('pretensiones', d.pretensiones);
-    req('monto_controversias', d.monto_controversias);
     if (d.suma_monto_pretensiones_determinadas === '' || d.suma_monto_pretensiones_determinadas === null || d.suma_monto_pretensiones_determinadas === undefined)
         add('suma_monto_pretensiones_determinadas', 'Campo obligatorio');
     req('pretensiones_indeterminadas', d.pretensiones_indeterminadas);
@@ -970,9 +975,8 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
     // Mapa de claves internas → etiquetas legibles para el modal
     const FIELD_LABELS = {
         pretensiones:                          'Pretensiones',
-        monto_controversias:                   'Monto de la(s) Controversia(s)',
-        suma_monto_pretensiones_determinadas:  'Suma de Monto de Pretensiones Determinadas (Monto en soles)',
-        pretensiones_indeterminadas:           'Pretensiones Indeterminadas',
+        suma_monto_pretensiones_determinadas:  'Suma de la cuantía de pretensiones determinadas (En Soles)',
+        pretensiones_indeterminadas:           'Número de Pretensiones Indeterminadas (que no se pueden cuantificar)',
         documentos_solicitud_inicio:           'Solicitud de Inicio de Arbitraje',
         nombre_demandante:                  'Nombre del demandante',
         documento_demandante:               'Documento del demandante',
@@ -1000,7 +1004,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         if (Object.keys(missingFields).length === 0) return;
         const filled = {};
         if (data.pretensiones?.trim())                                  filled.pretensiones                          = true;
-        if (data.monto_controversias?.trim())                           filled.monto_controversias                   = true;
         if (data.suma_monto_pretensiones_determinadas?.toString().trim()) filled.suma_monto_pretensiones_determinadas = true;
         if (data.pretensiones_indeterminadas?.trim())                   filled.pretensiones_indeterminadas           = true;
         if (Array.isArray(data.documentos_solicitud_inicio) && data.documentos_solicitud_inicio.length > 0)
@@ -1410,26 +1413,32 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     value={data.pretensiones} onChange={e => setData('pretensiones', e.target.value)}
                     placeholder="Ej : Pago de valorizaciónes pendientes s/ 80.000 Ej: Declaración de nulidad de pretensión/resolucion contractual" rows={4}
                     error={errors.pretensiones || missingFields.pretensiones} />
-                <Textarea id="monto_controversias" label="Monto de la(s) Controversia(s)" required
-                    hint="¿Cuánto dinero está en disputa en total? Si hay varios reclamos, descríbalos por separado."
-                    value={data.monto_controversias} onChange={e => setData('monto_controversias', e.target.value)}
-                    placeholder="Ej.: S/ 80,000 por valorizaciones + S/ 20,000 por penalidades..." rows={3}
-                    error={errors.monto_controversias || missingFields.monto_controversias} />
-                <Input label="Suma de Monto de Pretensiones Determinadas (Monto en soles)" required
-                    hint="Sume solo los reclamos que tienen un monto exacto en soles."
-                    type="number" min="0" step="0.01"
-                    value={data.suma_monto_pretensiones_determinadas}
-                    onChange={e => setData('suma_monto_pretensiones_determinadas', e.target.value)}
-                    placeholder="Ej: 50000.00"
-                    error={errors.suma_monto_pretensiones_determinadas || missingFields.suma_monto_pretensiones_determinadas} />
-                <Textarea id="pretensiones_indeterminadas" label="Pretensiones Indeterminadas (Que no se puedan cuantificar)" required
-                    hint="Reclamos sin monto exacto, por ejemplo: que se cumpla el contrato. Si no tiene ninguno, escriba «Ninguna»."
-                    value={data.pretensiones_indeterminadas} onChange={e => setData('pretensiones_indeterminadas', e.target.value)}
-                    placeholder="Ej.: Que se declare resuelto el contrato... (o escriba «Ninguna»)" rows={3}
-                    error={errors.pretensiones_indeterminadas || missingFields.pretensiones_indeterminadas} />
+                {/* Cuantía de la Controversia — título de grupo; sus hijos van con viñeta */}
+                <h3 className="text-sm font-bold text-[#291136] uppercase tracking-wide opacity-80 mb-3">
+                    Cuantía de la Controversia
+                </h3>
+                <div className="pl-4 border-l-2 border-[#BE0F4A]/30 space-y-1">
+                    <Input
+                        label={<><span className="text-[#BE0F4A] mr-1">•</span> Suma de la cuantía de retenciones determinadas (En Soles)</>}
+                        required
+                        hint="Aquellas que tienen una cuantía económica precisa."
+                        type="number" min="0" step="0.01"
+                        value={data.suma_monto_pretensiones_determinadas}
+                        onChange={e => setData('suma_monto_pretensiones_determinadas', e.target.value)}
+                        placeholder="Ej: 50000.00"
+                        error={errors.suma_monto_pretensiones_determinadas || missingFields.suma_monto_pretensiones_determinadas} />
+                    <Textarea id="pretensiones_indeterminadas"
+                        label={<><span className="text-[#BE0F4A] mr-1">•</span> Número de Pretensiones Indeterminadas (que no se pueden cuantificar)</>}
+                        required
+                        hint="Aquellas cuya estimación económica no puede establecerse de manera exacta o inmediata; si no tiene ninguna pretensión indeterminada escriba «Ninguna»."
+                        value={data.pretensiones_indeterminadas} onChange={e => setData('pretensiones_indeterminadas', e.target.value)}
+                        placeholder="Ej: Que se declare la nulidad de la resolución del contrato (o escriba «Ninguna»)" rows={3}
+                        error={errors.pretensiones_indeterminadas || missingFields.pretensiones_indeterminadas} />
+                </div>
                 <div className="mt-4">
                     <MultiArchivoInput
-                        label={<>Convenio Arbitral <span className="font-normal opacity-80">(Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe)</span></>}
+                        label="Convenio Arbitral"
+                        hint="Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe."
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
                 </div>
