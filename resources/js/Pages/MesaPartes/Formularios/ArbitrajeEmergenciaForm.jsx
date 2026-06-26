@@ -613,7 +613,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
                 <div>
                     <MultiArchivoInput
-                        label={<>Contra Cautela <span className="font-normal opacity-80">(Garantía o documento que respalde la medida solicitada — opcional)</span></>}
+                        label={<>Contra Cautela <span className="font-normal opacity-80">(Garantía o documento que respalde la medida solicitada)</span></>}
                         value={data.documentos_contra_cautela}
                         onChange={v => setData('documentos_contra_cautela', v)} />
                 </div>
@@ -640,18 +640,6 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                 </div>
             </Seccion>
 
-            {/* Adjuntos */}
-            <Seccion icono={Paperclip} titulo="Documentos Adjuntos (Anexos)">
-                <div className="bg-[#291136]/5 border border-[#291136]/15 rounded-xl p-4 mb-5">
-                    <p className="text-sm text-[#291136] font-semibold mb-1">Recomendación</p>
-                    <p className="text-sm text-[#291136]/75">
-                        Antes de adjuntar, <strong>renombre cada archivo</strong> con el tipo de documento que representa
-                        (ej: <em>DNI_representante.pdf</em>, <em>Poder_notarial.pdf</em>, <em>Contrato_principal.pdf</em>).
-                        Esto facilita la revisión del expediente.
-                    </p>
-                </div>
-                <MultiArchivoInput value={data.documentos_anexos} onChange={v => setData('documentos_anexos', v)} />
-            </Seccion>
 
             {/* Declaración y Aceptación final */}
             <AceptacionReglamento

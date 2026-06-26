@@ -1187,7 +1187,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             {/* Aviso normativo — artículo 20 del Reglamento */}
             <div className="mb-4 px-4 py-3 bg-[#291136]/5 border-l-4 border-[#BE0F4A] rounded-xl">
                 <p className="text-sm font-bold text-[#291136]">
-                    La presente solicitud de inicio de arbitraje debe ser presentada cumpliendo el artículo 20 del Reglamento Procesal de Arbitraje del Centro, vigente a la fecha de presentación.
+                    La presente solicitud de inicio de arbitraje debe ser presentada cumpliendo lo regulado en el artículo 20 del Reglamento Procesal de Arbitraje del Centro, vigente a la fecha de presentación.
                 </p>
             </div>
 
@@ -1257,14 +1257,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                         {errors.documentos_solicitud_inicio || missingFields.documentos_solicitud_inicio}
                     </p>
                 )}
-
-                <div className="mt-5 pt-5 border-t border-gray-100">
-                    <MultiArchivoInput
-                        label="Anexos de la Solicitud"
-                        hint="Adjunte los documentos que sustentan su solicitud. Renombre cada archivo según lo que representa (ej.: Contrato_principal.pdf)."
-                        value={data.documentos_anexos}
-                        onChange={v => setData('documentos_anexos', v)} />
-                </div>
             </Seccion>
 
             {/* Bloque Demandante */}
