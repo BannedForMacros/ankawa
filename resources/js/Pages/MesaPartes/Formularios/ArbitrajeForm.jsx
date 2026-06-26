@@ -357,7 +357,7 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
 
             {/* 3. Contrato notariado de consorcio */}
             <MultiArchivoInput
-                label={esDemandante ? "Contrato notariado de consorcio *" : "Contrato notariado de consorcio (opcional)"}
+                label={esDemandante ? "Contrato notariado de consorcio *" : "Contrato notariado de consorcio"}
                 value={docContrato}
                 onChange={onDocContratoChange} />
             {!esDemandante && (
@@ -377,7 +377,7 @@ export function BloquePersona({
     docResolucionFacultades, onDocResolucionFacultadesChange,
     empresasConsorcio, onEmpresasConsorcioChange,
     representanteConsorcio, onRepresentanteConsorcioChange,
-    onBlurCampo,
+    onBlurCampo, procuraduriaSlot,
 }) {
     const [tipoPersona, setTipoPersona] = useState(campos.tipo_persona || 'natural');
     const [tipoDoc,     setTipoDoc]     = useState(campos.tipo_documento || 'dni');
@@ -551,6 +551,9 @@ export function BloquePersona({
                             placeholder={tipoPersona === 'juridica' ? 'Empresa S.A.C.' : 'Juan Pérez López'}
                             error={errors?.nombre} />
 
+                        {/* Entidad pública: datos de la procuraduría, secuencial debajo de Razón Social */}
+                        {esEntidadPublica && procuraduriaSlot}
+
                         {/* Representante Legal con DNI lookup — solo empresa
                             (entidad pública usa el bloque "Datos de la Procuraduría") */}
                         {tipoPersona === 'juridica' && subtipoJuridico === 'empresa' && (
@@ -586,7 +589,7 @@ export function BloquePersona({
                             <Building2 size={15} className="shrink-0 text-[#BE0F4A]"/>
                             {esDemandante
                                 ? <>Documento requerido: <span className="font-bold">Vigencia de Poder</span></>
-                                : <>Documento del demandado: <span className="font-bold">Vigencia de Poder (opcional)</span></>}
+                                : <>Documento del demandado: <span className="font-bold">Vigencia de Poder</span></>}
                         </div>
                         <MultiArchivoInput
                             label={esDemandante ? "Adjuntar Vigencia de Poder *" : "Adjuntar Vigencia de Poder"}
@@ -624,7 +627,7 @@ export function BloquePersona({
                             <Building2 size={15} className="shrink-0 text-[#BE0F4A]"/>
                             {esDemandante
                                 ? <>Documento requerido: <span className="font-bold">Resolución de facultades del funcionario a cargo</span></>
-                                : <>Documento del demandado: <span className="font-bold">Resolución de facultades (opcional)</span></>}
+                                : <>Documento del demandado: <span className="font-bold">Resolución de facultades</span></>}
                         </div>
                         <MultiArchivoInput
                             label={esDemandante ? "Adjuntar Resolución de Facultades *" : "Adjuntar Resolución de Facultades"}
@@ -653,7 +656,7 @@ export function BloquePersona({
 
 /* ─── Bloque "Datos de la Procuraduría" (cuando la parte es Entidad Pública) ───
    Reemplaza el bloque genérico de correo/teléfono: dirección desglosada +
-   correo/enlace de mesa de partes virtual (obligatorio) + teléfono (opcional).
+   correo + dirección de mesa de partes virtual + teléfono.
    El control de correo se inyecta vía `correoSlot` porque demandante (OTP/EmailsInput)
    y demandado (Input simple) manejan el correo de forma distinta. */
 export function DatosProcuraduria({
@@ -662,40 +665,30 @@ export function DatosProcuraduria({
     mesaPartesValue, onMesaPartesChange, mesaPartesError,
     telefonoValue, onTelefonoChange, telefonoError,
 }) {
+    // Secuencial, mismo fondo blanco que Razón Social y demás campos (sin caja ni icono).
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5 -mt-4">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
-                <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
-                    <Building2 size={16} className="text-[#BE0F4A]" />
-                </div>
-                <div>
-                    <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Datos de la Procuraduría</h2>
-                    <p className="text-xs text-gray-500 mt-0.5">Dirección y canal de notificación de la entidad pública.</p>
-                </div>
-            </div>
-            <div className="p-6 space-y-4">
-                <DomicilioFields
-                    label="Dirección de la Procuraduría"
-                    value={domicilioValue}
-                    onChange={onDomicilioChange}
-                    error={domicilioError} />
+        <>
+            <DomicilioFields
+                label="Dirección de la Procuraduría"
+                value={domicilioValue}
+                onChange={onDomicilioChange}
+                error={domicilioError} />
 
-                {correoSlot}
+            {correoSlot}
 
-                <Input label="Dirección de su Mesa de Partes Virtual" required type="text"
-                    hint="Enlace o dirección de la mesa de partes virtual de la entidad (donde se le notificará)."
-                    value={mesaPartesValue}
-                    onChange={e => onMesaPartesChange(e.target.value)}
-                    placeholder="https://mesadepartes.entidad.gob.pe"
-                    error={mesaPartesError} />
+            <Input label="Dirección de su Mesa de Partes Virtual" type="text"
+                hint="Enlace o dirección de la mesa de partes virtual de la entidad (donde se le notificará)."
+                value={mesaPartesValue}
+                onChange={e => onMesaPartesChange(e.target.value)}
+                placeholder="https://mesadepartes.entidad.gob.pe"
+                error={mesaPartesError} />
 
-                <Input label="Teléfono (opcional)" type="text"
-                    value={telefonoValue}
-                    onChange={e => onTelefonoChange(e.target.value)}
-                    placeholder="987654321"
-                    error={telefonoError} />
-            </div>
-        </div>
+            <Input label="Teléfono" type="text"
+                value={telefonoValue}
+                onChange={e => onTelefonoChange(e.target.value)}
+                placeholder="987654321"
+                error={telefonoError} />
+        </>
     );
 }
 
@@ -730,10 +723,9 @@ const arbitrajeSchema = z.object({
         if (lon && d.documento_demandante && d.documento_demandante.length !== lon) add('documento_demandante', `Debe tener ${lon} dígitos`);
     }
     req('domicilio_demandante', d.domicilio_demandante);
-    // Entidad pública: el teléfono es opcional, pero la mesa de partes virtual es obligatoria
+    // Entidad pública: el teléfono y la mesa de partes virtual son opcionales
     const demEntidadPublica = d.tipo_persona === 'juridica' && d.subtipo_dem === 'entidad_publica';
     if (!demEntidadPublica) req('telefono_demandante', d.telefono_demandante);
-    if (demEntidadPublica) req('mesa_partes_url_demandante', d.mesa_partes_url_demandante, 'Indique la mesa de partes virtual de la entidad');
 
     if (d.tipo_persona === 'juridica') {
         if (!d.subtipo_dem) add('subtipo_juridico_demandante', 'Seleccione el tipo');
@@ -747,11 +739,10 @@ const arbitrajeSchema = z.object({
     req('nombre_demandado', d.nombre_demandado);
     req('domicilio_demandado', d.domicilio_demandado);
 
-    // Demandado entidad pública: correo y mesa de partes virtual obligatorios
+    // Demandado entidad pública: solo el correo es obligatorio (mesa de partes y teléfono opcionales)
     const dadoEntidadPublica = d.tipo_persona_demandado === 'juridica' && d.subtipo_dado === 'entidad_publica';
     if (dadoEntidadPublica) {
         req('email_demandado', d.email_demandado, 'Correo electrónico obligatorio');
-        req('mesa_partes_url_demandado', d.mesa_partes_url_demandado, 'Indique la mesa de partes virtual de la entidad');
     }
 
     if (d.tipo_persona_demandado === 'juridica') {
@@ -987,6 +978,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         documento_demandante:               'Documento del demandante',
         domicilio_demandante:               'Domicilio del demandante',
         telefono_demandante:                'Teléfono del demandante',
+        mesa_partes_url_demandante:         'Mesa de partes virtual del demandante',
         emails_demandante:                  'Correo del demandante',
         subtipo_juridico_demandante:        'Tipo de persona jurídica del demandante',
         empresas_consorcio_demandante:      'Empresas del consorcio (demandante)',
@@ -995,6 +987,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         nombre_demandado:                   'Nombre del demandado',
         domicilio_demandado:                'Domicilio del demandado',
         email_demandado:                    'Correo electrónico del demandado',
+        mesa_partes_url_demandado:          'Mesa de partes virtual del demandado',
         subtipo_juridico_demandado:         'Tipo de persona jurídica del demandado',
         empresas_consorcio_demandado:       'Empresas del consorcio (demandado)',
         rep_consorcio_demandado_dni:        'DNI del representante del consorcio (demandado)',
@@ -1016,9 +1009,11 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
         if (componerDomicilio(data.domicilio_demandante).trim()) filled.domicilio_demandante = true;
         if (data.telefono_demandante?.trim())  filled.telefono_demandante  = true;
+        if (data.mesa_partes_url_demandante?.trim()) filled.mesa_partes_url_demandante = true;
         if (data.nombre_demandado?.trim())     filled.nombre_demandado     = true;
         if (componerDomicilio(data.domicilio_demandado).trim())  filled.domicilio_demandado  = true;
         if (data.email_demandado?.trim())      filled.email_demandado      = true;
+        if (data.mesa_partes_url_demandado?.trim()) filled.mesa_partes_url_demandado = true;
         if (subtipoJuridicoDem)                filled.subtipo_juridico_demandante = true;
         if (subtipoJuridicoDado)               filled.subtipo_juridico_demandado  = true;
         if (empresasConsorcioDem.length > 0)   filled.empresas_consorcio_demandante = true;
@@ -1285,23 +1280,24 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 onEmpresasConsorcioChange={setEmpresasConsorcioDem}
                 representanteConsorcio={repConsorcioDem}
                 onRepresentanteConsorcioChange={cambios => setRepConsorcioDem(r => ({ ...r, ...cambios }))}
+                procuraduriaSlot={demEsEntidadPublica && (
+                    <DatosProcuraduria
+                        domicilioValue={data.domicilio_demandante}
+                        onDomicilioChange={dom => setData('domicilio_demandante', dom)}
+                        domicilioError={errors.domicilio_demandante || missingFields.domicilio_demandante}
+                        correoSlot={correoDemandante('Correo electrónico (para notificaciones)')}
+                        mesaPartesValue={data.mesa_partes_url_demandante}
+                        onMesaPartesChange={v => setData('mesa_partes_url_demandante', v)}
+                        mesaPartesError={errors.mesa_partes_url_demandante || missingFields.mesa_partes_url_demandante}
+                        telefonoValue={data.telefono_demandante}
+                        onTelefonoChange={v => setData('telefono_demandante', v)}
+                        telefonoError={errors.telefono_demandante}
+                    />
+                )}
             />
 
-            {/* Correo/teléfono del demandante — o "Datos de la Procuraduría" si es entidad pública */}
-            {demEsEntidadPublica ? (
-                <DatosProcuraduria
-                    domicilioValue={data.domicilio_demandante}
-                    onDomicilioChange={dom => setData('domicilio_demandante', dom)}
-                    domicilioError={errors.domicilio_demandante || missingFields.domicilio_demandante}
-                    correoSlot={correoDemandante('Correo electrónico (para notificaciones)')}
-                    mesaPartesValue={data.mesa_partes_url_demandante}
-                    onMesaPartesChange={v => setData('mesa_partes_url_demandante', v)}
-                    mesaPartesError={errors.mesa_partes_url_demandante || missingFields.mesa_partes_url_demandante}
-                    telefonoValue={data.telefono_demandante}
-                    onTelefonoChange={v => setData('telefono_demandante', v)}
-                    telefonoError={errors.telefono_demandante}
-                />
-            ) : (
+            {/* Correo/teléfono del demandante — oculto si es entidad pública (va en "Datos de la Procuraduría") */}
+            {!demEsEntidadPublica && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="col-span-2">
@@ -1355,37 +1351,38 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 onEmpresasConsorcioChange={setEmpresasConsorcioDado}
                 representanteConsorcio={repConsorcioDado}
                 onRepresentanteConsorcioChange={cambios => setRepConsorcioDado(r => ({ ...r, ...cambios }))}
+                procuraduriaSlot={dadoEsEntidadPublica && (
+                    <DatosProcuraduria
+                        domicilioValue={data.domicilio_demandado}
+                        onDomicilioChange={dom => setData('domicilio_demandado', dom)}
+                        domicilioError={errors.domicilio_demandado || missingFields.domicilio_demandado}
+                        correoSlot={
+                            <div className="space-y-3">
+                                <Input label="Correo electrónico" required type="email"
+                                    value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
+                                    placeholder="correo@ejemplo.com"
+                                    error={errors.email_demandado || missingFields.email_demandado} />
+                                <EmailsInput
+                                    label="Correos adicionales del demandado (para notificaciones)"
+                                    value={emailsDado}
+                                    onChange={setEmailsDado}
+                                    required={false}
+                                    placeholder="correo@ejemplo.com"
+                                />
+                            </div>
+                        }
+                        mesaPartesValue={data.mesa_partes_url_demandado}
+                        onMesaPartesChange={v => setData('mesa_partes_url_demandado', v)}
+                        mesaPartesError={errors.mesa_partes_url_demandado || missingFields.mesa_partes_url_demandado}
+                        telefonoValue={data.telefono_demandado}
+                        onTelefonoChange={v => setData('telefono_demandado', v)}
+                        telefonoError={errors.telefono_demandado}
+                    />
+                )}
             />
 
-            {/* Correo/teléfono del demandado — o "Datos de la Procuraduría" si es entidad pública */}
-            {dadoEsEntidadPublica ? (
-                <DatosProcuraduria
-                    domicilioValue={data.domicilio_demandado}
-                    onDomicilioChange={dom => setData('domicilio_demandado', dom)}
-                    domicilioError={errors.domicilio_demandado || missingFields.domicilio_demandado}
-                    correoSlot={
-                        <div className="space-y-3">
-                            <Input label="Correo electrónico" required type="email"
-                                value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
-                                placeholder="correo@ejemplo.com"
-                                error={errors.email_demandado || missingFields.email_demandado} />
-                            <EmailsInput
-                                label="Correos adicionales del demandado (para notificaciones)"
-                                value={emailsDado}
-                                onChange={setEmailsDado}
-                                required={false}
-                                placeholder="correo@ejemplo.com"
-                            />
-                        </div>
-                    }
-                    mesaPartesValue={data.mesa_partes_url_demandado}
-                    onMesaPartesChange={v => setData('mesa_partes_url_demandado', v)}
-                    mesaPartesError={errors.mesa_partes_url_demandado || missingFields.mesa_partes_url_demandado}
-                    telefonoValue={data.telefono_demandado}
-                    onTelefonoChange={v => setData('telefono_demandado', v)}
-                    telefonoError={errors.telefono_demandado}
-                />
-            ) : (
+            {/* Correo/teléfono del demandado — oculto si es entidad pública (va en "Datos de la Procuraduría") */}
+            {!dadoEsEntidadPublica && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <Input label="Correo electrónico del demandado" type="email"
@@ -1432,7 +1429,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     error={errors.pretensiones_indeterminadas || missingFields.pretensiones_indeterminadas} />
                 <div className="mt-4">
                     <MultiArchivoInput
-                        label={<>Convenio Arbitral <span className="font-normal opacity-80">(Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe — opcional)</span></>}
+                        label={<>Convenio Arbitral <span className="font-normal opacity-80">(Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe)</span></>}
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
                 </div>
@@ -1513,7 +1510,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             {/* Tasa de Solicitud */}
             <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje">
                 <MultiArchivoInput
-                    label="Copia del comprobante de pago (opcional)"
+                    label="Copia del comprobante de pago"
                     value={data.comprobante_pago_tasa}
                     onChange={v => setData('comprobante_pago_tasa', v)} />
 
