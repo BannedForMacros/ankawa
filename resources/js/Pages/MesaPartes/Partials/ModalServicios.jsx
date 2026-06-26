@@ -48,10 +48,10 @@ export default function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                 Mesa de Partes
                             </p>
                             <h2 className="text-xl font-black text-[#291136] tracking-tight leading-none">
-                                Nueva solicitud
+                                Nuevo trámite
                             </h2>
                             <p className="text-sm text-gray-500 mt-1.5">
-                                Seleccione el tipo de solicitud que desea presentar
+                                Seleccione el tipo de trámite que desea presentar
                             </p>
                         </div>
                         <button
@@ -123,7 +123,7 @@ export default function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                 {/* Cuerpo */}
                                 <div className="relative p-4 pt-3.5">
                                     {s.descripcion ? (
-                                        <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed mb-3">
+                                        <p className="text-xs text-gray-500 leading-relaxed mb-3">
                                             {s.descripcion}
                                         </p>
                                     ) : (

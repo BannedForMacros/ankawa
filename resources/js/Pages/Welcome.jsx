@@ -109,12 +109,12 @@ function PlataformaAccesos() {
                             
                             <h3 className="text-2xl sm:text-3xl font-bold text-[#291136] mb-3 sm:mb-4">Mesa de Partes</h3>
                             <p className="text-gray-500 leading-relaxed mb-8 sm:mb-10 flex-grow text-sm sm:text-base lg:text-lg">
-                                Ingrese nuevas solicitudes de arbitraje, presente demandas, contestaciones y adjunte documentación probatoria.
+                                Canal oficial para la presentación de solicitudes, escritos, comunicaciones y demás documentación dirigida al Centro.
                             </p>
                             
                             <Link href="/mesa-partes"
                                 className="relative overflow-hidden flex items-center justify-center gap-3 w-full bg-white text-[#BE0F4A] border-2 border-[#BE0F4A] px-5 py-3 sm:px-6 sm:py-4 rounded-xl font-bold hover:bg-[#BE0F4A] hover:text-white active:scale-95 transition-all duration-300 group/btn">
-                                <span className="text-sm sm:text-base">Ingresar Solicitud</span>
+                                <span className="text-sm sm:text-base">Ingresar Trámite</span>
                                 <ArrowRight size={18} className="sm:w-5 sm:h-5 group-hover/btn:translate-x-1 transition-transform" />
                             </Link>
                         </div>
