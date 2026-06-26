@@ -381,11 +381,13 @@ function PanelConsorcio({ esDemandante, portalEmail, empresas, onEmpresasChange,
 
             </div>
 
-            {/* 3. Contrato notariado de consorcio */}
-            <MultiArchivoInput
-                label={labelDocRequerido('Contrato notariado de consorcio', esDemandante)}
-                value={docContrato}
-                onChange={onDocContratoChange} />
+            {/* 3. Contrato notariado de consorcio (solo demandante) */}
+            {esDemandante && (
+                <MultiArchivoInput
+                    label={labelDocRequerido('Contrato notariado de consorcio')}
+                    value={docContrato}
+                    onChange={onDocContratoChange} />
+            )}
         </div>
     );
 }
@@ -605,11 +607,11 @@ export function BloquePersona({
 
                 {/* ── Paneles según sub-tipo jurídico ── */}
 
-                {/* Empresa → Vigencia de Poder */}
-                {tipoPersona === 'juridica' && subtipoJuridico === 'empresa' && (
+                {/* Empresa → Vigencia de Poder (solo demandante) */}
+                {esDemandante && tipoPersona === 'juridica' && subtipoJuridico === 'empresa' && (
                     <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4 space-y-3">
                         <MultiArchivoInput
-                            label={labelDocRequerido('Vigencia de Poder', esDemandante)}
+                            label={labelDocRequerido('Vigencia de Poder')}
                             value={docVigenciaPoder}
                             onChange={onDocVigenciaPoderChange} />
                     </div>
@@ -634,11 +636,11 @@ export function BloquePersona({
                     />
                 )}
 
-                {/* Entidad pública → Documento que acredita facultades de representación (destacado en plomito) */}
-                {tipoPersona === 'juridica' && subtipoJuridico === 'entidad_publica' && (
+                {/* Entidad pública → Documento que acredita facultades (solo demandante, destacado en plomito) */}
+                {esDemandante && tipoPersona === 'juridica' && subtipoJuridico === 'entidad_publica' && (
                     <div className="rounded-xl border border-[#291136]/15 bg-[#291136]/5 p-4">
                         <MultiArchivoInput
-                            label={labelDocRequerido('Resolución autoritativa o delegación', esDemandante)}
+                            label={labelDocRequerido('Resolución autoritativa o delegación')}
                             value={docResolucionFacultades}
                             onChange={onDocResolucionFacultadesChange} />
                     </div>
@@ -685,7 +687,7 @@ export function DatosProcuraduria({
 
             {correoSlot}
 
-            <Input label="Dirección de su Mesa de Partes Virtual" required type="text"
+            <Input label="Dirección de la Mesa de Partes Virtual" required type="text"
                 hint="Enlace o dirección de la mesa de partes virtual de la entidad (donde se le notificará)."
                 value={mesaPartesValue}
                 onChange={e => onMesaPartesChange(e.target.value)}
