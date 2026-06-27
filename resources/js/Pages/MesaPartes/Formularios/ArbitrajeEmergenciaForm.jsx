@@ -30,7 +30,7 @@ import {
 
 /* ─── Esquema de validación (espeja handleSubmit; sin los montos de controversia) ─── */
 const emergenciaSchema = z.object({
-    documentos_solicitud_inicio: z.any(),
+    documentos_solicitud_inicio: z.any(), documentos_controversia: z.any(), documentos_contra_cautela: z.any(),
     tipo_persona: z.any(), subtipo_dem: z.any(), nombre_demandante: z.any(), documento_demandante: z.any(),
     tipo_documento: z.any(), domicilio_demandante: z.any(), telefono_demandante: z.any(),
     empresas_dem: z.any(), rep_dem_dni: z.any(), rep_dem_nombre: z.any(),
@@ -42,6 +42,8 @@ const emergenciaSchema = z.object({
     const req = (k, val, m = 'Campo obligatorio') => { if (!String(val ?? '').trim()) add(k, m); };
 
     if (d.documentos_solicitud_inicio === 0) add('documentos_solicitud_inicio', 'Adjunte la solicitud de inicio de arbitraje de emergencia');
+    if (d.documentos_controversia === 0) add('documentos_controversia', 'Adjunte el convenio arbitral');
+    if (d.documentos_contra_cautela === 0) add('documentos_contra_cautela', 'Adjunte la contra cautela');
 
     if (!(d.tipo_persona === 'juridica' && d.subtipo_dem === 'consorcio')) {
         req('nombre_demandante', d.nombre_demandante);
@@ -63,6 +65,7 @@ const emergenciaSchema = z.object({
 
     req('nombre_demandado', d.nombre_demandado);
     req('domicilio_demandado', d.domicilio_demandado);
+    req('email_demandado', d.email_demandado, 'Ingrese el correo del demandado (canal de comunicación)');
 
     if (d.tipo_persona_demandado === 'juridica') {
         if (!d.subtipo_dado) add('subtipo_juridico_demandado', 'Seleccione el tipo');
@@ -211,6 +214,8 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
         return {
             documentos_solicitud_inicio: (data.documentos_solicitud_inicio ?? []).length,
+            documentos_controversia: (data.documentos_controversia ?? []).length,
+            documentos_contra_cautela: (data.documentos_contra_cautela ?? []).length,
             tipo_persona: data.tipo_persona,
             subtipo_dem: subtipoJuridicoDem,
             nombre_demandante: data.nombre_demandante,
@@ -261,6 +266,8 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
     const FIELD_LABELS = {
         documentos_solicitud_inicio:        'Solicitud de Inicio de Arbitraje de Emergencia',
+        documentos_controversia:            'Convenio Arbitral',
+        documentos_contra_cautela:          'Contra Cautela',
         nombre_demandante:                  'Nombre del demandante',
         documento_demandante:               'Documento del demandante',
         domicilio_demandante:               'Domicilio del demandante',
@@ -285,6 +292,10 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         const filled = {};
         if (Array.isArray(data.documentos_solicitud_inicio) && data.documentos_solicitud_inicio.length > 0)
             filled.documentos_solicitud_inicio = true;
+        if (Array.isArray(data.documentos_controversia) && data.documentos_controversia.length > 0)
+            filled.documentos_controversia = true;
+        if (Array.isArray(data.documentos_contra_cautela) && data.documentos_contra_cautela.length > 0)
+            filled.documentos_contra_cautela = true;
         if (data.nombre_demandante?.trim())    filled.nombre_demandante    = true;
         if (data.documento_demandante?.trim() && (!LONG_DOC[data.tipo_documento] || data.documento_demandante.length === LONG_DOC[data.tipo_documento])) filled.documento_demandante = true;
         if (data.domicilio_demandante?.trim()) filled.domicilio_demandante = true;
@@ -573,7 +584,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 -mt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <Input label="Correo electrónico del demandado" type="email"
+                    <Input label="Correo electrónico del demandado" required type="email"
                         value={data.email_demandado} onChange={e => setData('email_demandado', e.target.value)}
                         placeholder="correo@ejemplo.com"
                         error={errors.email_demandado || missingFields.email_demandado} />
@@ -606,23 +617,35 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
 
                 <div className="mb-5">
                     <MultiArchivoInput
-                        label={<>Convenio Arbitral <span className="font-normal opacity-80">(Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra, si existe — opcional)</span></>}
+                        label={<>Convenio Arbitral <span className="text-[#BE0F4A]">*</span></>}
+                        hint="Contrato donde figura la cláusula arbitral, orden de servicio u orden de compra."
                         value={data.documentos_controversia}
                         onChange={v => setData('documentos_controversia', v)} />
+                    {(errors.documentos_controversia || missingFields.documentos_controversia) && (
+                        <p className="mt-1.5 text-xs font-semibold text-red-500">
+                            {errors.documentos_controversia || missingFields.documentos_controversia}
+                        </p>
+                    )}
                 </div>
 
                 <div>
                     <MultiArchivoInput
-                        label={<>Contra Cautela <span className="font-normal opacity-80">(Garantía o documento que respalde la medida solicitada)</span></>}
+                        label={<>Contra Cautela <span className="text-[#BE0F4A]">*</span></>}
+                        hint="Garantía o documento que respalde la medida solicitada."
                         value={data.documentos_contra_cautela}
                         onChange={v => setData('documentos_contra_cautela', v)} />
+                    {(errors.documentos_contra_cautela || missingFields.documentos_contra_cautela) && (
+                        <p className="mt-1.5 text-xs font-semibold text-red-500">
+                            {errors.documentos_contra_cautela || missingFields.documentos_contra_cautela}
+                        </p>
+                    )}
                 </div>
             </Seccion>
 
             {/* Tasa de Solicitud */}
             <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje de Emergencia">
                 <MultiArchivoInput
-                    label="Copia del comprobante de pago (opcional)"
+                    label="Copia del comprobante de pago"
                     value={data.comprobante_pago_tasa}
                     onChange={v => setData('comprobante_pago_tasa', v)} />
 

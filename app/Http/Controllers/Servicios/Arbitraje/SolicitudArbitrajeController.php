@@ -87,11 +87,13 @@ class SolicitudArbitrajeController extends Controller
             'conformacion_tribunal'         => 'nullable|in:arbitro_unico,tribunal_arbitral',
 
             // Convenio arbitral: obligatorio en arbitraje ordinario (opcional en emergencia)
-            'documentos_controversia'        => $esEmergencia ? 'nullable|array' : 'required|array|min:1',
+            // Convenio arbitral: obligatorio en arbitraje ordinario y de emergencia
+            'documentos_controversia'        => 'required|array|min:1',
             'documentos_controversia.*'      => FileRules::accept(),
             'documentos_solicitud_inicio'    => 'required|array|min:1',
             'documentos_solicitud_inicio.*'  => FileRules::accept(),
-            'documentos_contra_cautela'      => 'nullable|array',
+            // Contra cautela: obligatoria solo en arbitraje de emergencia
+            'documentos_contra_cautela'      => $esEmergencia ? 'required|array|min:1' : 'nullable|array',
             'documentos_contra_cautela.*'    => FileRules::accept(),
             'documentos_anexos'              => 'nullable|array',
             'documentos_anexos.*'            => FileRules::accept(),
