@@ -147,8 +147,9 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         documentos_solicitud_inicio:   [],
         documentos_controversia:       [], // Convenio Arbitral
         documentos_contra_cautela:     [],
-        // Tasa
-        comprobante_pago_tasa:         [],
+        // Tasa — dos comprobantes (honorarios de árbitro de emergencia + gastos administrativos)
+        comprobante_honorarios_emergencia: [],
+        comprobante_gastos_administrativos: [],
         factura_ruc:                   '',
         factura_razon_social:          '',
         // Adjuntos
@@ -643,18 +644,25 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             </Seccion>
 
             {/* Tasa de Solicitud */}
-            <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje de Emergencia">
+            <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje de Emergencia"
+                descripcion="De acuerdo a lo regulado en el artículo 11 de la Directiva de Arbitraje de Emergencia del Centro.">
+                <div className="mb-5">
+                    <MultiArchivoInput
+                        label="Comprobante de pago de honorarios del Árbitro de Emergencia"
+                        value={data.comprobante_honorarios_emergencia}
+                        onChange={v => setData('comprobante_honorarios_emergencia', v)} />
+                </div>
                 <MultiArchivoInput
-                    label="Copia del comprobante de pago"
-                    value={data.comprobante_pago_tasa}
-                    onChange={v => setData('comprobante_pago_tasa', v)} />
+                    label="Comprobante de pago de gastos administrativos"
+                    value={data.comprobante_gastos_administrativos}
+                    onChange={v => setData('comprobante_gastos_administrativos', v)} />
 
                 <div className="mt-6">
                     <h3 className="text-xs font-bold text-[#291136] uppercase tracking-wide opacity-70 mb-3">
-                        Datos de la Emisión de Factura
+                        Datos para la Emisión de Factura
                     </h3>
                     <RucBuscador
-                        label="Cliente"
+                        label="Usuario"
                         rucValue={data.factura_ruc}
                         razonSocialValue={data.factura_razon_social}
                         onRucChange={val => setData('factura_ruc', val)}

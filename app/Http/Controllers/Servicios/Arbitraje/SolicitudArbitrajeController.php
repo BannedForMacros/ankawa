@@ -121,6 +121,10 @@ class SolicitudArbitrajeController extends Controller
             'documentos_medida_cautelar'       => 'required_if:tiene_medida_cautelar,1|nullable|array',
             'documentos_medida_cautelar.*'     => FileRules::accept(),
             'comprobante_pago_tasa.*'          => FileRules::accept(),
+            'comprobante_honorarios_emergencia'   => 'nullable|array',
+            'comprobante_honorarios_emergencia.*' => FileRules::accept(),
+            'comprobante_gastos_administrativos'   => 'nullable|array',
+            'comprobante_gastos_administrativos.*' => FileRules::accept(),
             'captcha_token'                    => 'nullable|string',
         ], $reglasControversia));
 
@@ -399,6 +403,8 @@ class SolicitudArbitrajeController extends Controller
                 'doc_resolucion_facultades_dado'  => 'resolucion_facultades_demandado',
                 'documentos_medida_cautelar'      => 'medida_cautelar',
                 'comprobante_pago_tasa'           => 'comprobante_pago_tasa',
+                'comprobante_honorarios_emergencia'  => 'comprobante_honorarios_emergencia',
+                'comprobante_gastos_administrativos' => 'comprobante_gastos_administrativos',
                 'documentos_solicitud_inicio'     => 'solicitud_inicio_arbitraje',
                 'documentos_contra_cautela'       => 'contra_cautela',
             ];
