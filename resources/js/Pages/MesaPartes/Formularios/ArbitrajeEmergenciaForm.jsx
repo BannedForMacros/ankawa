@@ -746,6 +746,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                 error={missingFields.acepta_reglamento_card}
                 contexto="al presente procedimiento de arbitraje de emergencia"
                 finalidad="arbitraje de emergencia"
+                primerBullet={<><strong className="text-[#291136]">Conozco y me someto a los Reglamentos y Directivas de Arbitraje de Emergencia del CARD ANKAWA INTL aplicables al presente procedimiento de arbitraje de emergencia.</strong></>}
                 bulletsExtra={[
                     <>Confirmo que los <strong className="text-[#291136]">datos del demandante</strong> consignados en este formulario son verídicos y han sido validados previamente a través del correo electrónico registrado.</>,
                     <>Soy consciente de que los <strong className="text-[#291136]">datos del demandado</strong> aquí declarados serán utilizados para las notificaciones del proceso, asumiendo plena responsabilidad sobre su exactitud.</>,

@@ -23,9 +23,10 @@ export default function AceptacionReglamento({
     contexto = 'al presente trámite',
     finalidad = 'trámite',
     bulletsExtra = [],
+    primerBullet = null,
 }) {
     const bullets = [
-        <>Conozco y me someto a los <strong className="text-[#291136]">reglamentos del CARD ANKAWA INTL</strong> aplicables {contexto}.</>,
+        primerBullet ?? <>Conozco y me someto a los <strong className="text-[#291136]">reglamentos del CARD ANKAWA INTL</strong> aplicables {contexto}.</>,
         ...bulletsExtra,
         <>Autorizo el tratamiento de los datos personales conforme a la <strong className="text-[#291136]">Ley N° 29733</strong> y al D.S. 003-2013-JUS, exclusivamente para los fines del presente {finalidad}.</>,
     ];
