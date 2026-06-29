@@ -20,3 +20,29 @@
     from { transform: scaleX(1); }
     to   { transform: scaleX(0); }
 }
+
+/* ─── Mesa de Partes: sidebar mobile animations ─── */
+@keyframes mp-overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes mp-sidebar-in {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+}
+.animate-mp-overlay-in {
+    animation: mp-overlay-in 0.25s ease-out both;
+}
+.animate-mp-sidebar-in {
+    animation: mp-sidebar-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Hide scrollbar but keep scrolling (sidebar step list) */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
