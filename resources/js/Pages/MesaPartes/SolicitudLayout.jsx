@@ -126,16 +126,15 @@ function evaluarSeccion(sectionEl) {
         return filledCount >= requiredCount;
     }
     
-    // Si NO tiene campos requeridos, se considera completada SOLO si el usuario ingresó algún dato opcional
-    // (o si tiene un valor por defecto válido, como el botón "No" en Medida Cautelar o el badge estático)
+    // Si NO tiene campos requeridos, se considera completada SOLO    // (o si tiene un valor por defecto válido, como el botón "No" en Medida Cautelar o el badge estático)
     return optionalFilledCount > 0;
 }
 
 /* ─── Step item individual ─── */
-function StepItem({ number, label, isCompleted, isActive, isVisited, isLast }) {
+function StepItem({ id, number, label, isCompleted, isActive, isVisited, isLast }) {
     // Si está completado pero a la vez es el activo (el usuario está viéndolo), sumamos estilos
     return (
-        <div className="flex items-start gap-3 relative">
+        <div id={id} className="flex items-start gap-3 relative">
             {/* Línea conectora vertical */}
             {!isLast && (
                 <div
@@ -213,6 +212,22 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
     }).length;
     
     const porcentaje = Math.round((completadas / total) * 100);
+    const scrollContainerRef = useRef(null);
+
+    // Auto-scroll del sidebar para mantener centrado el paso activo
+    useEffect(() => {
+        const activeEl = document.getElementById(`sidebar-step-${pasoActivo}`);
+        const container = scrollContainerRef.current;
+        if (activeEl && container) {
+            const containerHalf = container.clientHeight / 2;
+            const elHalf = activeEl.clientHeight / 2;
+            // offsetTop asume que el contenedor padre es relative
+            container.scrollTo({
+                top: activeEl.offsetTop - containerHalf + elHalf,
+                behavior: 'smooth'
+            });
+        }
+    }, [pasoActivo]);
 
     return (
         <aside className={`
@@ -245,7 +260,7 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
             <div className="mx-5 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
             {/* Progreso del trámite */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 scrollbar-hide">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-5 scrollbar-hide relative">
                 <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-5">
                     Progreso del trámite
                 </p>
@@ -268,6 +283,7 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
                         return (
                             <StepItem
                                 key={i}
+                                id={`sidebar-step-${i}`}
                                 number={i + 1}
                                 label={etapa.label}
                                 isCompleted={isCompleted}
