@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import {
-    ArrowLeft, HelpCircle, Menu, X, ChevronRight,
+    ArrowLeft, CheckCircle2, HelpCircle, Menu, X,
 } from 'lucide-react';
 import AnkawaToaster from '@/Components/AnkawaToaster';
 
@@ -39,15 +39,102 @@ const ETAPAS = {
     ],
 };
 
+/* ─── Evalúa si una sección del formulario tiene sus campos requeridos llenos ─── */
+function evaluarSeccion(sectionEl) {
+    // 1. Buscar inputs de texto con asterisco (*) en su label
+    const inputs = sectionEl.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea');
+    const checkboxes = sectionEl.querySelectorAll('input[type="checkbox"]');
+
+    let requiredCount = 0;
+    let filledCount = 0;
+
+    // Evaluar inputs de texto
+    inputs.forEach(input => {
+        // Verificar si es campo requerido: buscar * en su label cercano
+        const wrapper = input.closest('.mb-5, .mb-4, .space-y-4 > div, .grid > div, div');
+        const label = wrapper?.querySelector('label');
+        const isRequired = label?.innerHTML?.includes('#BE0F4A') || input.required;
+
+        if (isRequired) {
+            requiredCount++;
+            if (input.value && input.value.trim().length > 0) {
+                filledCount++;
+            }
+        }
+    });
+
+    // Evaluar CustomSelect (es un <button> con un <span>, si el span NO tiene class text-gray-400 → tiene valor)
+    const selectButtons = sectionEl.querySelectorAll('button[type="button"]');
+    selectButtons.forEach(btn => {
+        // Identificar CustomSelect: tiene un span hijo y un svg (ChevronDown)
+        const span = btn.querySelector('span');
+        const svg = btn.querySelector('svg');
+        if (!span || !svg) return;
+
+        // Verificar si tiene un label con asterisco arriba
+        const wrapper = btn.closest('.relative, div')?.parentElement;
+        const label = wrapper?.querySelector('label');
+        const isRequired = label?.innerHTML?.includes('#BE0F4A');
+
+        if (isRequired) {
+            requiredCount++;
+            // Si el span NO tiene class text-gray-400, significa que tiene un valor seleccionado
+            if (!span.classList.contains('text-gray-400')) {
+                filledCount++;
+            }
+        }
+    });
+
+    // Evaluar checkboxes (AceptacionReglamento)
+    checkboxes.forEach(cb => {
+        requiredCount++;
+        if (cb.checked) filledCount++;
+    });
+
+    // Evaluar archivos adjuntos subidos: buscar elementos que muestran archivos listados
+    // Los archivos cargados se muestran como spans/divs con nombres de archivo
+    const fileListItems = sectionEl.querySelectorAll('[class*="truncate"]');
+    if (fileListItems.length > 0) {
+        // Si hay al menos un archivo listado, y hay un upload button con asterisco
+        const uploadLabels = sectionEl.querySelectorAll('label');
+        uploadLabels.forEach(lbl => {
+            if (lbl.innerHTML?.includes('#BE0F4A') && lbl.closest('div')?.querySelector('button[type="button"]')) {
+                // Ya contado arriba, verificar si tiene archivos
+            }
+        });
+    }
+
+    // Si no hay campos requeridos en esta sección, considerar completa si tiene algún contenido seleccionado
+    // (ej: tipo de solicitud que solo muestra un badge)
+    if (requiredCount === 0) {
+        // Verificar si es una sección de "tipo de solicitud" con badge visible
+        const badges = sectionEl.querySelectorAll('.rounded-full.font-semibold, [class*="bg-"][class*="rounded-full"]');
+        if (badges.length > 0) return true;
+
+        // Verificar si hay CustomSelects con valor seleccionado
+        let anySelected = false;
+        selectButtons.forEach(btn => {
+            const span = btn.querySelector('span');
+            if (span && !span.classList.contains('text-gray-400')) anySelected = true;
+        });
+        if (anySelected) return true;
+
+        // Si no hay nada requerido y no hay indicadores, retornar null (no evaluable)
+        return null;
+    }
+
+    return requiredCount > 0 && filledCount >= requiredCount;
+}
+
 /* ─── Step item individual ─── */
 /* Estados:
-   - 'en_curso'  → paso actualmente visible (rosa activo)
-   - 'visitado'  → el usuario ya scrolleó por aquí (neutral, NO significa completado)
-   - 'pendiente' → aún no ha llegado a esta sección
+   - 'completado' → todos los campos requeridos están llenos (check verde)
+   - 'en_curso'   → paso actualmente visible (rosa activo)
+   - 'pendiente'  → aún no ha llenado sus campos
 */
 function StepItem({ number, label, estado, isLast }) {
-    const isVisited  = estado === 'visitado';
-    const isActive   = estado === 'en_curso';
+    const isCompleted = estado === 'completado';
+    const isActive    = estado === 'en_curso';
 
     return (
         <div className="flex items-start gap-3 relative">
@@ -56,9 +143,11 @@ function StepItem({ number, label, estado, isLast }) {
                 <div
                     className="absolute left-[15px] top-[36px] w-0.5 h-[calc(100%+4px)]"
                     style={{
-                        background: isVisited || isActive
-                            ? 'rgba(255,255,255,0.20)'
-                            : 'rgba(255,255,255,0.08)',
+                        background: isCompleted
+                            ? 'linear-gradient(to bottom, #22c55e, rgba(255,255,255,0.18))'
+                            : isActive
+                                ? 'rgba(255,255,255,0.20)'
+                                : 'rgba(255,255,255,0.08)',
                     }}
                 />
             )}
@@ -66,35 +155,39 @@ function StepItem({ number, label, estado, isLast }) {
             {/* Círculo numerado */}
             <div
                 className={`relative z-10 w-[30px] h-[30px] rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all duration-300 ${
-                    isActive
-                        ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
-                        : isVisited
-                            ? 'bg-white/20 text-white/70 border border-white/25'
+                    isCompleted
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                        : isActive
+                            ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
                             : 'bg-white/10 text-white/30 border border-white/10'
                 }`}
             >
-                {number}
+                {isCompleted ? (
+                    <CheckCircle2 size={15} strokeWidth={2.5} />
+                ) : (
+                    number
+                )}
             </div>
 
             {/* Label */}
             <div className="pt-1 min-w-0">
                 <p className={`text-sm font-semibold leading-tight transition-colors duration-300 ${
-                    isActive
-                        ? 'text-white'
-                        : isVisited
-                            ? 'text-white/60'
+                    isCompleted
+                        ? 'text-emerald-300'
+                        : isActive
+                            ? 'text-white'
                             : 'text-white/30'
                 }`}>
                     {label}
                 </p>
                 <p className={`text-[10px] mt-0.5 font-medium ${
-                    isActive
-                        ? 'text-[#BE0F4A]/80'
-                        : isVisited
-                            ? 'text-white/25'
+                    isCompleted
+                        ? 'text-emerald-400/70'
+                        : isActive
+                            ? 'text-[#BE0F4A]/80'
                             : 'text-white/15'
                 }`}>
-                    {isActive ? 'En curso' : isVisited ? 'Visitado' : 'Pendiente'}
+                    {isCompleted ? 'Completado' : isActive ? 'En curso' : 'Pendiente'}
                 </p>
             </div>
         </div>
@@ -102,10 +195,10 @@ function StepItem({ number, label, estado, isLast }) {
 }
 
 /* ─── Sidebar ─── */
-function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
+function Sidebar({ etapas, pasoActivo, seccionesCompletas, onClose, isMobile }) {
     const total = etapas.length;
-    // El porcentaje refleja la posición de navegación, NO la completitud del formulario
-    const porcentaje = Math.round(((pasoActivo + 1) / total) * 100);
+    const completadas = seccionesCompletas.filter(Boolean).length;
+    const porcentaje = Math.round((completadas / total) * 100);
 
     return (
         <aside className={`
@@ -146,9 +239,10 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
                 <div className="space-y-5">
                     {etapas.map((etapa, i) => {
                         let estado = 'pendiente';
-                        // Solo 'visitado' (neutro) para los que ya scrolleó, NO 'completado'
-                        if (i < pasoActivo) estado = 'visitado';
-                        else if (i === pasoActivo) estado = 'en_curso';
+                        // Si la sección tiene todos sus campos requeridos → completado
+                        if (seccionesCompletas[i]) estado = 'completado';
+                        // Si es la sección actualmente visible → en_curso (salvo que ya esté completa)
+                        if (i === pasoActivo && !seccionesCompletas[i]) estado = 'en_curso';
 
                         return (
                             <StepItem
@@ -165,10 +259,10 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
 
             {/* Bottom: Avance + Ayuda */}
             <div className="px-5 pb-5 space-y-3 mt-auto">
-                {/* Barra de navegación */}
+                {/* Barra de avance real */}
                 <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl p-4 border border-white/[0.08]">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Navegación</span>
+                        <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Avance</span>
                         <span className="text-lg font-black text-white">{porcentaje}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -176,12 +270,12 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
                             className="h-full rounded-full transition-all duration-700 ease-out"
                             style={{
                                 width: `${porcentaje}%`,
-                                background: 'linear-gradient(90deg, #BE0F4A, #e74572)',
+                                background: 'linear-gradient(90deg, #22c55e, #4ade80)',
                             }}
                         />
                     </div>
                     <p className="text-[10px] text-white/30 mt-1.5 font-medium">
-                        Sección {Math.min(pasoActivo + 1, total)} de {total} · {etapas[Math.min(pasoActivo, total - 1)]?.label}
+                        {completadas} de {total} secciones completadas
                     </p>
                 </div>
 
@@ -210,29 +304,29 @@ export default function SolicitudLayout({ servicio, children }) {
     const etapas = ETAPAS[slug] ?? ETAPAS['otros'];
 
     const [pasoActivo, setPasoActivo] = useState(0);
+    const [seccionesCompletas, setSeccionesCompletas] = useState(() => new Array(etapas.length).fill(false));
     const [mobileOpen, setMobileOpen] = useState(false);
     const contentRef = useRef(null);
+    const sectionContainersRef = useRef([]);
 
-    /* ─── Intersection Observer para detectar sección visible ─── */
+    /* ─── Detectar secciones y evaluar completitud ─── */
     useEffect(() => {
         const container = contentRef.current;
         if (!container) return;
 
         let observer = null;
-        let cleanupFn = null;
+        let formListenerCleanup = null;
 
-        function setupObserver() {
-            // Find all section containers: Seccion/BloquePersona each have an h2 in header
+        function setupObservers() {
             const form = container.querySelector('form');
             if (!form) return false;
 
-            // Get all h2 elements (each Seccion has one), find their top-level section container
+            // --- Encontrar secciones del DOM ---
             const h2s = form.querySelectorAll('h2');
             const sectionContainers = [];
             const seen = new Set();
 
             h2s.forEach(h2 => {
-                // Walk up from h2 to find the closest rounded-2xl section container
                 let el = h2.closest('.rounded-2xl');
                 if (el && !seen.has(el) && form.contains(el)) {
                     seen.add(el);
@@ -240,22 +334,12 @@ export default function SolicitudLayout({ servicio, children }) {
                 }
             });
 
-            // Also add the AceptacionReglamento section (last section before submit)
-            // It may not have h2, so find it by checking for the checkbox area near end of form
-            const aceptacion = form.querySelector('[class*="acepta"], [class*="declaraci"]');
-            if (aceptacion) {
-                const container = aceptacion.closest('.rounded-2xl');
-                if (container && !seen.has(container)) {
-                    seen.add(container);
-                    sectionContainers.push(container);
-                }
-            }
-
             if (sectionContainers.length === 0) return false;
+            sectionContainersRef.current = sectionContainers;
 
+            // --- IntersectionObserver: detectar sección visible (para "en_curso") ---
             observer = new IntersectionObserver(
                 (entries) => {
-                    // Track all currently visible sections
                     const visibleIndices = [];
                     entries.forEach(entry => {
                         if (entry.isIntersecting) {
@@ -266,7 +350,6 @@ export default function SolicitudLayout({ servicio, children }) {
 
                     if (visibleIndices.length > 0) {
                         const topIndex = Math.min(...visibleIndices);
-                        // Map section DOM index → step index (linear mapping)
                         const stepIndex = Math.min(
                             Math.round((topIndex / Math.max(sectionContainers.length - 1, 1)) * (etapas.length - 1)),
                             etapas.length - 1
@@ -282,18 +365,66 @@ export default function SolicitudLayout({ servicio, children }) {
             );
 
             sectionContainers.forEach(el => observer.observe(el));
+
+            // --- Evaluar completitud real de cada sección ---
+            function evaluarTodas() {
+                const results = sectionContainers.map(sec => evaluarSeccion(sec));
+
+                // Mapear resultados DOM → etapas (linear mapping)
+                const etapaResults = new Array(etapas.length).fill(false);
+                results.forEach((result, domIdx) => {
+                    const stepIdx = Math.min(
+                        Math.round((domIdx / Math.max(sectionContainers.length - 1, 1)) * (etapas.length - 1)),
+                        etapas.length - 1
+                    );
+                    // Si el resultado es true, marcar la etapa como completa
+                    // Si es null (no evaluable, ej: sección sin campos requeridos), verificar si ya estaba marcada
+                    if (result === true) {
+                        etapaResults[stepIdx] = true;
+                    } else if (result === null && etapaResults[stepIdx] !== true) {
+                        // Secciones sin campos requeridos que tienen contenido visible (ej: tipo de solicitud con badge)
+                        etapaResults[stepIdx] = true;
+                    }
+                });
+
+                setSeccionesCompletas(prev => {
+                    const changed = prev.some((v, i) => v !== etapaResults[i]);
+                    return changed ? etapaResults : prev;
+                });
+            }
+
+            // Evaluar al inicio y cada vez que cambien inputs
+            evaluarTodas();
+
+            // Escuchar cambios en el formulario (input, change, click para checkboxes/selects)
+            const debouncedEval = debounce(evaluarTodas, 300);
+            form.addEventListener('input', debouncedEval);
+            form.addEventListener('change', debouncedEval);
+            form.addEventListener('click', debouncedEval);
+
+            // MutationObserver para detectar archivos añadidos/eliminados (React actualiza el DOM)
+            const mutationObs = new MutationObserver(debouncedEval);
+            mutationObs.observe(form, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'value', 'checked'] });
+
+            formListenerCleanup = () => {
+                form.removeEventListener('input', debouncedEval);
+                form.removeEventListener('change', debouncedEval);
+                form.removeEventListener('click', debouncedEval);
+                mutationObs.disconnect();
+            };
+
             return true;
         }
 
-        // Try immediately, then retry with delay (forms may mount async)
-        if (!setupObserver()) {
-            const retryTimer = setTimeout(setupObserver, 800);
-            cleanupFn = () => clearTimeout(retryTimer);
+        // Intentar setup, reintentar si el form no está listo
+        if (!setupObservers()) {
+            const retryTimer = setTimeout(setupObservers, 800);
+            return () => clearTimeout(retryTimer);
         }
 
         return () => {
             observer?.disconnect();
-            cleanupFn?.();
+            formListenerCleanup?.();
         };
     }, [etapas.length, slug]);
 
@@ -312,7 +443,7 @@ export default function SolicitudLayout({ servicio, children }) {
 
             {/* Sidebar — desktop */}
             <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-[280px]">
-                <Sidebar etapas={etapas} pasoActivo={pasoActivo} isMobile={false} />
+                <Sidebar etapas={etapas} pasoActivo={pasoActivo} seccionesCompletas={seccionesCompletas} isMobile={false} />
             </div>
 
             {/* Sidebar — mobile overlay */}
@@ -326,6 +457,7 @@ export default function SolicitudLayout({ servicio, children }) {
                         <Sidebar
                             etapas={etapas}
                             pasoActivo={pasoActivo}
+                            seccionesCompletas={seccionesCompletas}
                             onClose={() => setMobileOpen(false)}
                             isMobile={true}
                         />
@@ -392,4 +524,13 @@ export default function SolicitudLayout({ servicio, children }) {
             </div>
         </div>
     );
+}
+
+/* ─── Utilidad: debounce ─── */
+function debounce(fn, ms) {
+    let timer;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+    };
 }
