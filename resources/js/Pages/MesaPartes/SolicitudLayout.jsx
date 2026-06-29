@@ -40,9 +40,14 @@ const ETAPAS = {
 };
 
 /* ─── Step item individual ─── */
+/* Estados:
+   - 'en_curso'  → paso actualmente visible (rosa activo)
+   - 'visitado'  → el usuario ya scrolleó por aquí (neutral, NO significa completado)
+   - 'pendiente' → aún no ha llegado a esta sección
+*/
 function StepItem({ number, label, estado, isLast }) {
-    const isCompleted = estado === 'completado';
-    const isActive    = estado === 'en_curso';
+    const isVisited  = estado === 'visitado';
+    const isActive   = estado === 'en_curso';
 
     return (
         <div className="flex items-start gap-3 relative">
@@ -51,9 +56,9 @@ function StepItem({ number, label, estado, isLast }) {
                 <div
                     className="absolute left-[15px] top-[36px] w-0.5 h-[calc(100%+4px)]"
                     style={{
-                        background: isCompleted
-                            ? 'linear-gradient(to bottom, #22c55e, rgba(255,255,255,0.12))'
-                            : 'rgba(255,255,255,0.12)',
+                        background: isVisited || isActive
+                            ? 'rgba(255,255,255,0.20)'
+                            : 'rgba(255,255,255,0.08)',
                     }}
                 />
             )}
@@ -61,39 +66,35 @@ function StepItem({ number, label, estado, isLast }) {
             {/* Círculo numerado */}
             <div
                 className={`relative z-10 w-[30px] h-[30px] rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all duration-300 ${
-                    isCompleted
-                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                        : isActive
-                            ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
-                            : 'bg-white/10 text-white/40 border border-white/15'
+                    isActive
+                        ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
+                        : isVisited
+                            ? 'bg-white/20 text-white/70 border border-white/25'
+                            : 'bg-white/10 text-white/30 border border-white/10'
                 }`}
             >
-                {isCompleted ? (
-                    <CheckCircle2 size={15} strokeWidth={2.5} />
-                ) : (
-                    number
-                )}
+                {number}
             </div>
 
             {/* Label */}
             <div className="pt-1 min-w-0">
                 <p className={`text-sm font-semibold leading-tight transition-colors duration-300 ${
-                    isCompleted
-                        ? 'text-emerald-300'
-                        : isActive
-                            ? 'text-white'
-                            : 'text-white/40'
+                    isActive
+                        ? 'text-white'
+                        : isVisited
+                            ? 'text-white/60'
+                            : 'text-white/30'
                 }`}>
                     {label}
                 </p>
                 <p className={`text-[10px] mt-0.5 font-medium ${
-                    isCompleted
-                        ? 'text-emerald-400/70'
-                        : isActive
-                            ? 'text-[#BE0F4A]/80'
-                            : 'text-white/20'
+                    isActive
+                        ? 'text-[#BE0F4A]/80'
+                        : isVisited
+                            ? 'text-white/25'
+                            : 'text-white/15'
                 }`}>
-                    {isCompleted ? 'Completado' : isActive ? 'En curso' : 'Pendiente'}
+                    {isActive ? 'En curso' : isVisited ? 'Visitado' : 'Pendiente'}
                 </p>
             </div>
         </div>
@@ -103,8 +104,8 @@ function StepItem({ number, label, estado, isLast }) {
 /* ─── Sidebar ─── */
 function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
     const total = etapas.length;
-    const completados = pasoActivo; // steps before current are "completed"
-    const porcentaje = Math.round(((completados) / total) * 100);
+    // El porcentaje refleja la posición de navegación, NO la completitud del formulario
+    const porcentaje = Math.round(((pasoActivo + 1) / total) * 100);
 
     return (
         <aside className={`
@@ -112,22 +113,25 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
             bg-gradient-to-b from-[#1a0b24] via-[#291136] to-[#1a0b24]
             ${isMobile ? 'w-[300px]' : 'w-[280px]'}
         `}>
-            {/* Logo */}
-            <div className="px-6 pt-6 pb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="w-[48px] h-[48px] rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10 overflow-hidden p-1">
-                        <img src="/logo-white.png" alt="Ankawa" className="w-full h-full object-contain" />
+            {/* Logo — grande y prominente para que el usuario sepa que está en CARD ANKAWA */}
+            <div className="px-5 pt-6 pb-5">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="w-[72px] h-[72px] rounded-2xl bg-white/[0.08] backdrop-blur-sm flex items-center justify-center border border-white/[0.12] overflow-hidden p-2 shadow-lg shadow-black/20">
+                        <img src="/logo-white.png" alt="CARD Ankawa" className="w-full h-full object-contain" />
                     </div>
-                    <div>
-                        <p className="text-white font-black text-sm tracking-wide leading-tight">ANKAWA</p>
-                        <p className="text-white/40 text-[9px] font-bold tracking-[0.25em] uppercase">Internacional</p>
+                    {isMobile && (
+                        <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors">
+                            <X size={18} />
+                        </button>
+                    )}
+                </div>
+                <div>
+                    <p className="text-white font-black text-lg tracking-wider leading-none">ANKAWA</p>
+                    <p className="text-white/50 text-[10px] font-bold tracking-[0.3em] uppercase mt-1">Internacional</p>
+                    <div className="mt-2 px-2.5 py-1 rounded-md bg-[#BE0F4A]/15 border border-[#BE0F4A]/20 inline-block">
+                        <p className="text-[9px] font-bold text-[#BE0F4A] tracking-[0.15em] uppercase">Centro de Arbitraje y Resolución de Disputas</p>
                     </div>
                 </div>
-                {isMobile && (
-                    <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors">
-                        <X size={18} />
-                    </button>
-                )}
             </div>
 
             {/* Divider */}
@@ -142,7 +146,8 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
                 <div className="space-y-5">
                     {etapas.map((etapa, i) => {
                         let estado = 'pendiente';
-                        if (i < pasoActivo) estado = 'completado';
+                        // Solo 'visitado' (neutro) para los que ya scrolleó, NO 'completado'
+                        if (i < pasoActivo) estado = 'visitado';
                         else if (i === pasoActivo) estado = 'en_curso';
 
                         return (
@@ -160,10 +165,10 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
 
             {/* Bottom: Avance + Ayuda */}
             <div className="px-5 pb-5 space-y-3 mt-auto">
-                {/* Barra de avance */}
+                {/* Barra de navegación */}
                 <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl p-4 border border-white/[0.08]">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Avance</span>
+                        <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Navegación</span>
                         <span className="text-lg font-black text-white">{porcentaje}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -176,7 +181,7 @@ function Sidebar({ etapas, pasoActivo, onClose, isMobile }) {
                         />
                     </div>
                     <p className="text-[10px] text-white/30 mt-1.5 font-medium">
-                        Paso {Math.min(pasoActivo + 1, total)} de {total} · {etapas[Math.min(pasoActivo, total - 1)]?.label}
+                        Sección {Math.min(pasoActivo + 1, total)} de {total} · {etapas[Math.min(pasoActivo, total - 1)]?.label}
                     </p>
                 </div>
 
