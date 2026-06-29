@@ -110,16 +110,25 @@ function evaluarSeccion(sectionEl) {
                     filledCount++;
                 }
             }
+        } else {
+            // No hay CustomSelect, significa que hay un badge estático (solo 1 opción). Es válido.
+            optionalFilledCount++;
         }
     }
+
+    // Caso especial: botones de Sí/No que no usan RadioGroup (Ej: Medida Cautelar).
+    // Si hay un botón pre-seleccionado con el estilo dark, sumamos a llenados opcionales.
+    const toggleButtons = sectionEl.querySelectorAll('button.bg-\\[\\#291136\\].text-white');
+    if (toggleButtons.length > 0) optionalFilledCount++;
 
     // Si tiene campos requeridos, deben estar todos llenos.
     if (requiredCount > 0) {
         return filledCount >= requiredCount;
     }
     
-    // Si NO tiene campos requeridos, es válida (completada por defecto, ej: Medida Cautelar en "No")
-    return true;
+    // Si NO tiene campos requeridos, se considera completada SOLO si el usuario ingresó algún dato opcional
+    // (o si tiene un valor por defecto válido, como el botón "No" en Medida Cautelar o el badge estático)
+    return optionalFilledCount > 0;
 }
 
 /* ─── Step item individual ─── */
