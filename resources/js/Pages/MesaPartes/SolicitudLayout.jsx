@@ -85,6 +85,11 @@ function evaluarSeccion(sectionEl) {
         const fileNames = wrapper.querySelectorAll('.truncate, [class*="truncate"]');
         if (fileNames.length > 0) hasValue = true;
 
+        // 4. Elementos de solo lectura / verificados (ej: correo OTP bloqueado)
+        if (wrapper.querySelector('[data-filled="true"], .bg-emerald-50.text-emerald-800, .border-emerald-300')) {
+            hasValue = true;
+        }
+
         if (hasValue) {
             if (isRequired) filledCount++;
             else optionalFilledCount++;
