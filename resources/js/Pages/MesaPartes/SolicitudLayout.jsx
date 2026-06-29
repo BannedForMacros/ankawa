@@ -355,40 +355,58 @@ export default function SolicitudLayout({ servicio, children }) {
             if (!form) return false;
 
             // --- Encontrar secciones del DOM ---
-            const h2s = form.querySelectorAll('h2');
-            const sectionContainers = [];
-            const seen = new Set();
-
-            h2s.forEach(h2 => {
-                let el = h2.closest('.rounded-2xl');
-                if (el && !seen.has(el) && form.contains(el)) {
-                    seen.add(el);
-                    sectionContainers.push(el);
+            const seccionesDOM = form.querySelectorAll('.rounded-2xl');
+            
+            // Array a partir de NodeList
+            const sectionContainers = Array.from(seccionesDOM);
+            
+            // Si hay un botón de submit, añadimos su contenedor para representar la etapa final "Revisión y envío"
+            const submitBtn = contentRef.current.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                const submitWrapper = submitBtn.closest('.mt-8') || submitBtn.parentElement;
+                if (submitWrapper && !sectionContainers.includes(submitWrapper)) {
+                    sectionContainers.push(submitWrapper);
                 }
-            });
+            }
 
-            if (sectionContainers.length === 0) return false;
+            // Función para determinar a qué índice de "etapas" corresponde un DOM element
+            function findEtapaIndex(sectionEl, etapas) {
+                if (sectionEl.querySelector('button[type="submit"]')) return etapas.length - 1;
+                
+                const h2 = sectionEl.querySelector('h2, h3');
+                if (!h2) return -1;
+                
+                const normalize = (str) => (str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                const title = normalize(h2.textContent);
+                
+                return etapas.findIndex(e => {
+                    const label = normalize(e.label);
+                    return title.includes(label) || label.includes(title);
+                });
+            }
+
             sectionContainersRef.current = sectionContainers;
 
             // --- IntersectionObserver: detectar sección visible (para "en_curso") ---
+            const visibleIndices = [];
             observer = new IntersectionObserver(
                 (entries) => {
-                    const visibleIndices = [];
                     entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const idx = sectionContainers.indexOf(entry.target);
-                            if (idx >= 0) visibleIndices.push(idx);
+                        const idx = findEtapaIndex(entry.target, etapas);
+                        if (idx !== -1) {
+                            if (entry.isIntersecting) {
+                                if (!visibleIndices.includes(idx)) visibleIndices.push(idx);
+                            } else {
+                                const i = visibleIndices.indexOf(idx);
+                                if (i >= 0) visibleIndices.splice(i, 1);
+                            }
                         }
                     });
 
                     if (visibleIndices.length > 0) {
                         const topIndex = Math.min(...visibleIndices);
-                        const stepIndex = Math.min(
-                            Math.round((topIndex / Math.max(sectionContainers.length - 1, 1)) * (etapas.length - 1)),
-                            etapas.length - 1
-                        );
-                        setPasoActivo(stepIndex);
-                        setMaxPasoAlcanzado(prev => Math.max(prev, stepIndex));
+                        setPasoActivo(topIndex);
+                        setMaxPasoAlcanzado(prev => Math.max(prev, topIndex));
                     }
                 },
                 {
@@ -402,21 +420,17 @@ export default function SolicitudLayout({ servicio, children }) {
 
             // --- Evaluar completitud real de cada sección ---
             function evaluarTodas() {
-                const results = sectionContainers.map(sec => evaluarSeccion(sec));
-
-                // Mapear resultados DOM → etapas (linear mapping)
                 const etapaResults = new Array(etapas.length).fill(false);
-                results.forEach((result, domIdx) => {
-                    const stepIdx = Math.min(
-                        Math.round((domIdx / Math.max(sectionContainers.length - 1, 1)) * (etapas.length - 1)),
-                        etapas.length - 1
-                    );
-                    // Si el resultado es true, marcar la etapa como completa
-                    // Si es null (no evaluable, ej: sección sin campos requeridos), verificar si ya estaba marcada
+                
+                sectionContainers.forEach((sec) => {
+                    const stepIdx = findEtapaIndex(sec, etapas);
+                    if (stepIdx === -1) return; // Ignorar cajas que no son etapas reales
+                    
+                    const result = evaluarSeccion(sec);
                     if (result === true) {
                         etapaResults[stepIdx] = true;
                     } else if (result === null && etapaResults[stepIdx] !== true) {
-                        // Secciones sin campos requeridos que tienen contenido visible (ej: tipo de solicitud con badge)
+                        // Secciones sin campos requeridos que tienen contenido visible
                         etapaResults[stepIdx] = true;
                     }
                 });
