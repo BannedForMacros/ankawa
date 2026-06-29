@@ -192,7 +192,7 @@ function StepItem({ id, number, label, isCompleted, isActive, isVisited, isLast 
                                     ? 'text-white/25'
                                     : 'text-white/15'
                 }`}>
-                    {isCompleted && isActive ? 'Completado (Mirando)' : isCompleted ? 'Completado' : isActive ? 'En curso' : isVisited ? 'Visitado' : 'Pendiente'}
+                    {isCompleted ? 'Completado' : isActive ? 'En curso' : isVisited ? 'Visitado' : 'Pendiente'}
                 </p>
             </div>
         </div>
@@ -203,12 +203,10 @@ function StepItem({ id, number, label, isCompleted, isActive, isVisited, isLast 
 function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onClose, isMobile }) {
     const total = etapas.length;
     // Solo contamos como completadas visualmente las que cumplen la misma regla que los Steps:
-    // válidas Y que ya fueron alcanzadas (y aplicando la excepción del paso 0).
+    // válidas Y que ya fueron alcanzadas.
     const completadas = seccionesCompletas.filter((isValid, i) => {
         if (!isValid) return false;
-        let isCompleted = i <= maxPasoAlcanzado;
-        if (i === 0 && maxPasoAlcanzado === 0) isCompleted = false;
-        return isCompleted;
+        return i <= maxPasoAlcanzado;
     }).length;
     
     const porcentaje = Math.round((completadas / total) * 100);
@@ -269,13 +267,8 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
                     {etapas.map((etapa, i) => {
                         const isValid = !!seccionesCompletas[i];
                         // Es completada si es válida y el usuario ya alcanzó este paso alguna vez
-                        let isCompleted = isValid && (i <= maxPasoAlcanzado);
+                        const isCompleted = isValid && (i <= maxPasoAlcanzado);
                         
-                        // Excepción: El paso 0 no se muestra completado en la primera carga (cuando maxPasoAlcanzado === 0)
-                        if (i === 0 && maxPasoAlcanzado === 0) {
-                            isCompleted = false;
-                        }
-
                         const isActive = i === pasoActivo;
                         // Es visitado si ya fue alcanzado pero no está completado
                         const isVisited = (i <= maxPasoAlcanzado) && !isCompleted && !isActive;
