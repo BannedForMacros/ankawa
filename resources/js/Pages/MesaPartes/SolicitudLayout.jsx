@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { router } from '@inertiajs/react';
 import {
-    ArrowLeft, CheckCircle2, HelpCircle, Menu, X, ChevronRight,
+    ArrowLeft, HelpCircle, Menu, X, ChevronRight,
 } from 'lucide-react';
 import AnkawaToaster from '@/Components/AnkawaToaster';
 
