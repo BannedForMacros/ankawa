@@ -6,13 +6,16 @@ import {
 import AnkawaToaster from '@/Components/AnkawaToaster';
 
 /* ─── Definición de etapas por slug de servicio ─── */
+// Tienen que coincidir exactamente con la cantidad de bloques principales (.rounded-2xl) generados por cada formulario
 const ETAPAS = {
     'arbitraje': [
         { label: 'Tipo de solicitud' },
         { label: 'Datos del demandante' },
         { label: 'Datos del demandado' },
+        { label: 'Datos del contrato' },
         { label: 'Materia y pretensión' },
-        { label: 'Documentos adjuntos' },
+        { label: 'Conformación del tribunal' },
+        { label: 'Medida cautelar' },
         { label: 'Tasa de solicitud' },
         { label: 'Revisión y envío' },
     ],
@@ -20,7 +23,7 @@ const ETAPAS = {
         { label: 'Tipo de solicitud' },
         { label: 'Datos del demandante' },
         { label: 'Datos del demandado' },
-        { label: 'Documentos' },
+        { label: 'Documentos obligatorios' },
         { label: 'Tasa de solicitud' },
         { label: 'Revisión y envío' },
     ],
@@ -28,10 +31,13 @@ const ETAPAS = {
         { label: 'Tipo de solicitud' },
         { label: 'Datos de la entidad' },
         { label: 'Datos del contratista' },
-        { label: 'Documentos adjuntos' },
+        { label: 'Datos del contrato' },
+        { label: 'Controversias sometidas' },
+        { label: 'Tasa de solicitud' },
         { label: 'Revisión y envío' },
     ],
     'otros': [
+        { label: 'Tipo de solicitud' },
         { label: 'Identificación' },
         { label: 'Contenido' },
         { label: 'Documentos adjuntos' },
@@ -127,15 +133,8 @@ function evaluarSeccion(sectionEl) {
 }
 
 /* ─── Step item individual ─── */
-/* Estados:
-   - 'completado' → todos los campos requeridos están llenos (check verde)
-   - 'en_curso'   → paso actualmente visible (rosa activo)
-   - 'pendiente'  → aún no ha llenado sus campos
-*/
-function StepItem({ number, label, estado, isLast }) {
-    const isCompleted = estado === 'completado';
-    const isActive    = estado === 'en_curso';
-
+function StepItem({ number, label, isCompleted, isActive, isLast }) {
+    // Si está completado pero a la vez es el activo (el usuario está viéndolo), sumamos estilos
     return (
         <div className="flex items-start gap-3 relative">
             {/* Línea conectora vertical */}
@@ -155,11 +154,13 @@ function StepItem({ number, label, estado, isLast }) {
             {/* Círculo numerado */}
             <div
                 className={`relative z-10 w-[30px] h-[30px] rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all duration-300 ${
-                    isCompleted
-                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                        : isActive
-                            ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
-                            : 'bg-white/10 text-white/30 border border-white/10'
+                    isCompleted && isActive
+                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 ring-4 ring-emerald-500/30 ring-offset-2 ring-offset-[#291136]'
+                        : isCompleted
+                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                            : isActive
+                                ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
+                                : 'bg-white/10 text-white/30 border border-white/10'
                 }`}
             >
                 {isCompleted ? (
@@ -172,22 +173,22 @@ function StepItem({ number, label, estado, isLast }) {
             {/* Label */}
             <div className="pt-1 min-w-0">
                 <p className={`text-sm font-semibold leading-tight transition-colors duration-300 ${
-                    isCompleted
-                        ? 'text-emerald-300'
-                        : isActive
-                            ? 'text-white'
-                            : 'text-white/30'
+                    isCompleted || isActive
+                        ? 'text-white'
+                        : 'text-white/30'
                 }`}>
                     {label}
                 </p>
                 <p className={`text-[10px] mt-0.5 font-medium ${
-                    isCompleted
-                        ? 'text-emerald-400/70'
-                        : isActive
-                            ? 'text-[#BE0F4A]/80'
-                            : 'text-white/15'
+                    isCompleted && isActive
+                        ? 'text-emerald-300 font-bold'
+                        : isCompleted
+                            ? 'text-emerald-400/70'
+                            : isActive
+                                ? 'text-[#BE0F4A]/80 font-bold'
+                                : 'text-white/15'
                 }`}>
-                    {isCompleted ? 'Completado' : isActive ? 'En curso' : 'Pendiente'}
+                    {isCompleted && isActive ? 'Completado (Mirando)' : isCompleted ? 'Completado' : isActive ? 'En curso' : 'Pendiente'}
                 </p>
             </div>
         </div>
@@ -238,18 +239,16 @@ function Sidebar({ etapas, pasoActivo, seccionesCompletas, onClose, isMobile }) 
 
                 <div className="space-y-5">
                     {etapas.map((etapa, i) => {
-                        let estado = 'pendiente';
-                        // Si la sección tiene todos sus campos requeridos → completado
-                        if (seccionesCompletas[i]) estado = 'completado';
-                        // Si es la sección actualmente visible → en_curso (salvo que ya esté completa)
-                        if (i === pasoActivo && !seccionesCompletas[i]) estado = 'en_curso';
+                        const isCompleted = !!seccionesCompletas[i];
+                        const isActive = i === pasoActivo;
 
                         return (
                             <StepItem
                                 key={i}
                                 number={i + 1}
                                 label={etapa.label}
-                                estado={estado}
+                                isCompleted={isCompleted}
+                                isActive={isActive}
                                 isLast={i === etapas.length - 1}
                             />
                         );
