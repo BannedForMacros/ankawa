@@ -203,7 +203,15 @@ function StepItem({ number, label, isCompleted, isActive, isVisited, isLast }) {
 /* ─── Sidebar ─── */
 function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onClose, isMobile }) {
     const total = etapas.length;
-    const completadas = seccionesCompletas.filter(Boolean).length;
+    // Solo contamos como completadas visualmente las que cumplen la misma regla que los Steps:
+    // válidas Y que ya fueron alcanzadas (y aplicando la excepción del paso 0).
+    const completadas = seccionesCompletas.filter((isValid, i) => {
+        if (!isValid) return false;
+        let isCompleted = i <= maxPasoAlcanzado;
+        if (i === 0 && maxPasoAlcanzado === 0) isCompleted = false;
+        return isCompleted;
+    }).length;
+    
     const porcentaje = Math.round((completadas / total) * 100);
 
     return (
