@@ -47,93 +47,68 @@ const ETAPAS = {
 
 /* ─── Evalúa si una sección del formulario tiene sus campos requeridos llenos ─── */
 function evaluarSeccion(sectionEl) {
-    // 1. Buscar inputs de texto con asterisco (*) en su label
-    const inputs = sectionEl.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea');
-    const checkboxes = sectionEl.querySelectorAll('input[type="checkbox"]');
-
+    const labels = sectionEl.querySelectorAll('label');
     let requiredCount = 0;
     let filledCount = 0;
+    let optionalFilledCount = 0;
 
-    // Evaluar inputs de texto
-    inputs.forEach(input => {
-        // Verificar si es campo requerido: buscar * en su label cercano
-        const wrapper = input.closest('.mb-5, .mb-4, .space-y-4 > div, .grid > div, div');
-        const label = wrapper?.querySelector('label');
-        const isRequired = label?.innerHTML?.includes('#BE0F4A') || input.required;
+    labels.forEach(label => {
+        const isRequired = label.innerHTML.includes('#BE0F4A') || label.innerHTML.includes('*');
+        const wrapper = label.closest('.mb-5, .mb-4, .space-y-4 > div, .grid > div, div');
+        if (!wrapper) return;
 
-        if (isRequired) {
-            requiredCount++;
-            if (input.value && input.value.trim().length > 0) {
-                filledCount++;
+        if (isRequired) requiredCount++;
+
+        let hasValue = false;
+
+        // 1. Standard input/textarea
+        const inputs = wrapper.querySelectorAll('input:not([type="hidden"]):not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea');
+        inputs.forEach(input => {
+            if (input.value && input.value.trim().length > 0) hasValue = true;
+        });
+
+        // 2. CustomSelect & RadioGroup (buttons)
+        const buttons = wrapper.querySelectorAll('button[type="button"]');
+        buttons.forEach(btn => {
+            // CustomSelect: has span and svg, and span is not text-gray-400
+            const span = btn.querySelector('span');
+            const svg = btn.querySelector('svg');
+            if (span && svg && !span.classList.contains('text-gray-400')) hasValue = true;
+            
+            // RadioGroup: selected button has specific classes
+            if (!svg && (btn.className.includes('bg-[#BE0F4A]/5') || btn.className.includes('border-[#BE0F4A]'))) {
+                hasValue = true;
             }
+        });
+
+        // 3. MultiArchivoInput (files attached)
+        const fileNames = wrapper.querySelectorAll('.truncate, [class*="truncate"]');
+        if (fileNames.length > 0) hasValue = true;
+
+        if (hasValue) {
+            if (isRequired) filledCount++;
+            else optionalFilledCount++;
         }
     });
 
-    // Evaluar CustomSelect (es un <button> con un <span>, si el span NO tiene class text-gray-400 → tiene valor)
-    const selectButtons = sectionEl.querySelectorAll('button[type="button"]');
-    selectButtons.forEach(btn => {
-        // Identificar CustomSelect: tiene un span hijo y un svg (ChevronDown)
-        const span = btn.querySelector('span');
-        const svg = btn.querySelector('svg');
-        if (!span || !svg) return;
-
-        // Verificar si tiene un label con asterisco arriba
-        const wrapper = btn.closest('.relative, div')?.parentElement;
-        const label = wrapper?.querySelector('label');
-        const isRequired = label?.innerHTML?.includes('#BE0F4A');
-
-        if (isRequired) {
-            requiredCount++;
-            // Si el span NO tiene class text-gray-400, significa que tiene un valor seleccionado
-            if (!span.classList.contains('text-gray-400')) {
-                filledCount++;
-            }
-        }
-    });
-
-    // Evaluar checkboxes (AceptacionReglamento)
+    // Check standalone checkboxes with required (like AceptacionReglamento)
+    const checkboxes = sectionEl.querySelectorAll('input[type="checkbox"][required]');
     checkboxes.forEach(cb => {
         requiredCount++;
         if (cb.checked) filledCount++;
     });
 
-    // Evaluar archivos adjuntos subidos: buscar elementos que muestran archivos listados
-    // Los archivos cargados se muestran como spans/divs con nombres de archivo
-    const fileListItems = sectionEl.querySelectorAll('[class*="truncate"]');
-    if (fileListItems.length > 0) {
-        // Si hay al menos un archivo listado, y hay un upload button con asterisco
-        const uploadLabels = sectionEl.querySelectorAll('label');
-        uploadLabels.forEach(lbl => {
-            if (lbl.innerHTML?.includes('#BE0F4A') && lbl.closest('div')?.querySelector('button[type="button"]')) {
-                // Ya contado arriba, verificar si tiene archivos
-            }
-        });
+    // Si tiene campos requeridos, deben estar todos llenos.
+    if (requiredCount > 0) {
+        return filledCount >= requiredCount;
     }
-
-    // Si no hay campos requeridos en esta sección, considerar completa si tiene algún contenido seleccionado
-    // (ej: tipo de solicitud que solo muestra un badge)
-    if (requiredCount === 0) {
-        // Verificar si es una sección de "tipo de solicitud" con badge visible
-        const badges = sectionEl.querySelectorAll('.rounded-full.font-semibold, [class*="bg-"][class*="rounded-full"]');
-        if (badges.length > 0) return true;
-
-        // Verificar si hay CustomSelects con valor seleccionado
-        let anySelected = false;
-        selectButtons.forEach(btn => {
-            const span = btn.querySelector('span');
-            if (span && !span.classList.contains('text-gray-400')) anySelected = true;
-        });
-        if (anySelected) return true;
-
-        // Si no hay nada requerido y no hay indicadores, retornar null (no evaluable)
-        return null;
-    }
-
-    return requiredCount > 0 && filledCount >= requiredCount;
+    
+    // Si NO tiene campos requeridos, es válida (completada por defecto, ej: Medida Cautelar en "No")
+    return true;
 }
 
 /* ─── Step item individual ─── */
-function StepItem({ number, label, isCompleted, isActive, isLast }) {
+function StepItem({ number, label, isCompleted, isActive, isVisited, isLast }) {
     // Si está completado pero a la vez es el activo (el usuario está viéndolo), sumamos estilos
     return (
         <div className="flex items-start gap-3 relative">
@@ -144,7 +119,7 @@ function StepItem({ number, label, isCompleted, isActive, isLast }) {
                     style={{
                         background: isCompleted
                             ? 'linear-gradient(to bottom, #22c55e, rgba(255,255,255,0.18))'
-                            : isActive
+                            : (isActive || isVisited)
                                 ? 'rgba(255,255,255,0.20)'
                                 : 'rgba(255,255,255,0.08)',
                     }}
@@ -160,7 +135,9 @@ function StepItem({ number, label, isCompleted, isActive, isLast }) {
                             ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
                             : isActive
                                 ? 'bg-[#BE0F4A] text-white shadow-lg shadow-[#BE0F4A]/40 ring-2 ring-[#BE0F4A]/30 ring-offset-2 ring-offset-[#291136]'
-                                : 'bg-white/10 text-white/30 border border-white/10'
+                                : isVisited
+                                    ? 'bg-white/20 text-white/70 border border-white/25'
+                                    : 'bg-white/10 text-white/30 border border-white/10'
                 }`}
             >
                 {isCompleted ? (
@@ -175,7 +152,9 @@ function StepItem({ number, label, isCompleted, isActive, isLast }) {
                 <p className={`text-sm font-semibold leading-tight transition-colors duration-300 ${
                     isCompleted || isActive
                         ? 'text-white'
-                        : 'text-white/30'
+                        : isVisited
+                            ? 'text-white/60'
+                            : 'text-white/30'
                 }`}>
                     {label}
                 </p>
@@ -186,9 +165,11 @@ function StepItem({ number, label, isCompleted, isActive, isLast }) {
                             ? 'text-emerald-400/70'
                             : isActive
                                 ? 'text-[#BE0F4A]/80 font-bold'
-                                : 'text-white/15'
+                                : isVisited
+                                    ? 'text-white/25'
+                                    : 'text-white/15'
                 }`}>
-                    {isCompleted && isActive ? 'Completado (Mirando)' : isCompleted ? 'Completado' : isActive ? 'En curso' : 'Pendiente'}
+                    {isCompleted && isActive ? 'Completado (Mirando)' : isCompleted ? 'Completado' : isActive ? 'En curso' : isVisited ? 'Visitado' : 'Pendiente'}
                 </p>
             </div>
         </div>
@@ -239,8 +220,13 @@ function Sidebar({ etapas, pasoActivo, seccionesCompletas, onClose, isMobile }) 
 
                 <div className="space-y-5">
                     {etapas.map((etapa, i) => {
-                        const isCompleted = !!seccionesCompletas[i];
+                        const isValid = !!seccionesCompletas[i];
+                        // Solo mostramos como completada si es válida Y el usuario ya llegó a esta sección.
+                        // Excepción: El paso 0 no se muestra completado al cargar la página (pasoActivo === 0)
+                        const isCompleted = isValid && (i < pasoActivo || (i === pasoActivo && pasoActivo > 0));
                         const isActive = i === pasoActivo;
+                        // Es visitado si ya scrolleamos por él (i < pasoActivo) y NO está completado
+                        const isVisited = i < pasoActivo && !isCompleted;
 
                         return (
                             <StepItem
@@ -249,6 +235,7 @@ function Sidebar({ etapas, pasoActivo, seccionesCompletas, onClose, isMobile }) 
                                 label={etapa.label}
                                 isCompleted={isCompleted}
                                 isActive={isActive}
+                                isVisited={isVisited}
                                 isLast={i === etapas.length - 1}
                             />
                         );
