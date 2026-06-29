@@ -98,6 +98,21 @@ function evaluarSeccion(sectionEl) {
         if (cb.checked) filledCount++;
     });
 
+    // Especial: Tipo de Solicitud no tiene label, tiene h2. Si hay un CustomSelect, debe ser requerido.
+    const h2 = sectionEl.querySelector('h2');
+    if (h2 && h2.textContent.toLowerCase().includes('tipo de solicitud')) {
+        const customSelect = sectionEl.querySelector('button[type="button"]');
+        if (customSelect) {
+            const span = customSelect.querySelector('span');
+            if (span) {
+                requiredCount++;
+                if (!span.classList.contains('text-gray-400')) {
+                    filledCount++;
+                }
+            }
+        }
+    }
+
     // Si tiene campos requeridos, deben estar todos llenos.
     if (requiredCount > 0) {
         return filledCount >= requiredCount;
@@ -177,7 +192,7 @@ function StepItem({ number, label, isCompleted, isActive, isVisited, isLast }) {
 }
 
 /* ─── Sidebar ─── */
-function Sidebar({ etapas, pasoActivo, seccionesCompletas, onClose, isMobile }) {
+function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onClose, isMobile }) {
     const total = etapas.length;
     const completadas = seccionesCompletas.filter(Boolean).length;
     const porcentaje = Math.round((completadas / total) * 100);
@@ -221,12 +236,17 @@ function Sidebar({ etapas, pasoActivo, seccionesCompletas, onClose, isMobile }) 
                 <div className="space-y-5">
                     {etapas.map((etapa, i) => {
                         const isValid = !!seccionesCompletas[i];
-                        // Solo mostramos como completada si es válida Y el usuario ya llegó a esta sección.
-                        // Excepción: El paso 0 no se muestra completado al cargar la página (pasoActivo === 0)
-                        const isCompleted = isValid && (i < pasoActivo || (i === pasoActivo && pasoActivo > 0));
+                        // Es completada si es válida y el usuario ya alcanzó este paso alguna vez
+                        let isCompleted = isValid && (i <= maxPasoAlcanzado);
+                        
+                        // Excepción: El paso 0 no se muestra completado en la primera carga (cuando maxPasoAlcanzado === 0)
+                        if (i === 0 && maxPasoAlcanzado === 0) {
+                            isCompleted = false;
+                        }
+
                         const isActive = i === pasoActivo;
-                        // Es visitado si ya scrolleamos por él (i < pasoActivo) y NO está completado
-                        const isVisited = i < pasoActivo && !isCompleted;
+                        // Es visitado si ya fue alcanzado pero no está completado
+                        const isVisited = (i <= maxPasoAlcanzado) && !isCompleted && !isActive;
 
                         return (
                             <StepItem
@@ -290,6 +310,7 @@ export default function SolicitudLayout({ servicio, children }) {
     const etapas = ETAPAS[slug] ?? ETAPAS['otros'];
 
     const [pasoActivo, setPasoActivo] = useState(0);
+    const [maxPasoAlcanzado, setMaxPasoAlcanzado] = useState(0);
     const [seccionesCompletas, setSeccionesCompletas] = useState(() => new Array(etapas.length).fill(false));
     const [mobileOpen, setMobileOpen] = useState(false);
     const contentRef = useRef(null);
@@ -341,6 +362,7 @@ export default function SolicitudLayout({ servicio, children }) {
                             etapas.length - 1
                         );
                         setPasoActivo(stepIndex);
+                        setMaxPasoAlcanzado(prev => Math.max(prev, stepIndex));
                     }
                 },
                 {
@@ -429,7 +451,7 @@ export default function SolicitudLayout({ servicio, children }) {
 
             {/* Sidebar — desktop */}
             <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:w-[280px]">
-                <Sidebar etapas={etapas} pasoActivo={pasoActivo} seccionesCompletas={seccionesCompletas} isMobile={false} />
+                <Sidebar etapas={etapas} pasoActivo={pasoActivo} maxPasoAlcanzado={maxPasoAlcanzado} seccionesCompletas={seccionesCompletas} isMobile={false} />
             </div>
 
             {/* Sidebar — mobile overlay */}
@@ -443,6 +465,7 @@ export default function SolicitudLayout({ servicio, children }) {
                         <Sidebar
                             etapas={etapas}
                             pasoActivo={pasoActivo}
+                            maxPasoAlcanzado={maxPasoAlcanzado}
                             seccionesCompletas={seccionesCompletas}
                             onClose={() => setMobileOpen(false)}
                             isMobile={true}
