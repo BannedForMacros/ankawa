@@ -74,22 +74,24 @@ class ConsultaDocumentoController extends Controller
             ]);
         }
 
-        $partes = array_filter([
-            $data['via_tipo'] ?? null,
-            $data['via_nombre'] ?? null,
-            isset($data['numero']) && $data['numero'] !== '' ? 'NRO. ' . $data['numero'] : null,
-            isset($data['interior']) && $data['interior'] !== '' && $data['interior'] !== '-' ? 'INT. ' . $data['interior'] : null,
-            $data['zona_codigo'] ?? null,
-            $data['zona_tipo'] ?? null,
-            $data['distrito'] ?? null,
-            $data['provincia'] ?? null,
-            $data['departamento'] ?? null,
-        ]);
+        $domicilioObj = [
+            'direccion' => implode(' ', array_filter([
+                $data['via_tipo'] ?? null,
+                $data['via_nombre'] ?? null,
+                $data['zona_codigo'] ?? null,
+                $data['zona_tipo'] ?? null,
+            ])) ?: ($data['direccion'] ?? null),
+            'numero'       => $data['numero'] ?? '',
+            'lote_mz'      => isset($data['interior']) && $data['interior'] !== '' && $data['interior'] !== '-' ? $data['interior'] : '',
+            'departamento' => $data['departamento'] ?? null,
+            'provincia'    => $data['provincia'] ?? null,
+            'distrito'     => $data['distrito'] ?? null,
+        ];
 
         return response()->json([
             'nombre'    => $data['razon_social'] ?? null,
             'documento' => $data['numero_documento'] ?? null,
-            'domicilio' => implode(' ', $partes) ?: ($data['direccion'] ?? null),
+            'domicilio' => $domicilioObj,
             'estado'    => $data['estado'] ?? null,
             'condicion' => $data['condicion'] ?? null,
         ]);

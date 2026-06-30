@@ -556,9 +556,6 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                 onRepresentanteConsorcioChange={cambios => setRepConsorcioDem(r => ({ ...r, ...cambios }))}
                 procuraduriaSlot={demEsEntidadPublica && (
                     <DatosProcuraduria
-                        domicilioValue={data.domicilio_demandante}
-                        onDomicilioChange={dom => setData('domicilio_demandante', dom)}
-                        domicilioError={errors.domicilio_demandante || missingFields.domicilio_demandante}
                         correoSlot={correoDemandante('Correo electrónico (para notificaciones)')}
                         mesaPartesValue={data.mesa_partes_url_demandante}
                         onMesaPartesChange={v => setData('mesa_partes_url_demandante', v)}
@@ -621,9 +618,6 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                 onRepresentanteConsorcioChange={cambios => setRepConsorcioDado(r => ({ ...r, ...cambios }))}
                 procuraduriaSlot={dadoEsEntidadPublica && (
                     <DatosProcuraduria
-                        domicilioValue={data.domicilio_demandado}
-                        onDomicilioChange={dom => setData('domicilio_demandado', dom)}
-                        domicilioError={errors.domicilio_demandado || missingFields.domicilio_demandado}
                         correoSlot={
                             <div className="space-y-3">
                                 <Input label="Correo electrónico" required type="email"

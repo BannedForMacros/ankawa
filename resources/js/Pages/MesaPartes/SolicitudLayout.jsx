@@ -10,6 +10,7 @@ import AnkawaToaster from '@/Components/AnkawaToaster';
 const ETAPAS = {
     'arbitraje': [
         { label: 'Tipo de solicitud' },
+        { label: 'Solicitud de Inicio de Arbitraje' },
         { label: 'Datos del demandante' },
         { label: 'Datos del demandado' },
         { label: 'Aspectos Controvertidos Sometidos a Arbitraje' },
@@ -117,6 +118,13 @@ function evaluarSeccion(sectionEl) {
             // No hay CustomSelect, significa que hay un badge estático (solo 1 opción). Es válido.
             optionalFilledCount++;
         }
+    } else if (h2 && h2.textContent.toLowerCase().includes('solicitud de inicio de arbitraje')) {
+        // Especial: "Solicitud de Inicio de Arbitraje" usa MultiArchivoInput sin label interno, su requerimiento está en el h2
+        const isRequired = h2.innerHTML.includes('#BE0F4A') || h2.innerHTML.includes('*');
+        if (isRequired) requiredCount++;
+        
+        const fileNames = sectionEl.querySelectorAll('.truncate, [class*="truncate"]');
+        if (fileNames.length > 0) filledCount++;
     }
 
     // Caso especial: botones de Sí/No que no usan RadioGroup (Ej: Medida Cautelar).

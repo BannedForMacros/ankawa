@@ -594,10 +594,10 @@ export function BloquePersona({
                     </>
                 )}
 
-                {/* Domicilio — consorcio se renderiza al final; entidad pública lo
-                    muestra en "Datos de la Procuraduría" (formulario padre) */}
-                {!esConsorcio && !esEntidadPublica && (
+                {/* Domicilio — consorcio se renderiza al final */}
+                {!esConsorcio && (
                     <DomicilioFields
+                        label={esEntidadPublica ? "Dirección de la Procuraduría" : "Domicilio de notificación"}
                         value={campos.domicilio}
                         onChange={dom => setCampos({ domicilio: dom })}
                         onBlur={() => onBlurCampo?.('domicilio')}
@@ -671,7 +671,6 @@ export function BloquePersona({
    El control de correo se inyecta vía `correoSlot` porque demandante (OTP/EmailsInput)
    y demandado (Input simple) manejan el correo de forma distinta. */
 export function DatosProcuraduria({
-    domicilioValue, onDomicilioChange, domicilioError,
     correoSlot,
     mesaPartesValue, onMesaPartesChange, mesaPartesError,
     telefonoValue, onTelefonoChange, telefonoError,
@@ -679,11 +678,6 @@ export function DatosProcuraduria({
     // Secuencial, mismo fondo blanco que Razón Social y demás campos (sin caja ni icono).
     return (
         <>
-            <DomicilioFields
-                label="Dirección de la Procuraduría"
-                value={domicilioValue}
-                onChange={onDomicilioChange}
-                error={domicilioError} />
 
             {correoSlot}
 
@@ -1304,9 +1298,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 onRepresentanteConsorcioChange={cambios => setRepConsorcioDem(r => ({ ...r, ...cambios }))}
                 procuraduriaSlot={demEsEntidadPublica && (
                     <DatosProcuraduria
-                        domicilioValue={data.domicilio_demandante}
-                        onDomicilioChange={dom => setData('domicilio_demandante', dom)}
-                        domicilioError={errors.domicilio_demandante || missingFields.domicilio_demandante}
                         correoSlot={correoDemandante('Correo electrónico (para notificaciones)')}
                         mesaPartesValue={data.mesa_partes_url_demandante}
                         onMesaPartesChange={v => setData('mesa_partes_url_demandante', v)}
@@ -1369,9 +1360,6 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                 onRepresentanteConsorcioChange={cambios => setRepConsorcioDado(r => ({ ...r, ...cambios }))}
                 procuraduriaSlot={dadoEsEntidadPublica && (
                     <DatosProcuraduria
-                        domicilioValue={data.domicilio_demandado}
-                        onDomicilioChange={dom => setData('domicilio_demandado', dom)}
-                        domicilioError={errors.domicilio_demandado || missingFields.domicilio_demandado}
                         correoSlot={
                             <div className="space-y-3">
                                 <Input label="Correo electrónico" required type="email"
