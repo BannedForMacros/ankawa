@@ -50,24 +50,28 @@ export function docDefaultPorPersona(tipo) {
 }
 
 /* ─── Sección visual ─── */
-/* `destacado`: tinte plomito + borde lateral rose para enfatizar importancia. */
-export function Seccion({ icono: Icono, titulo, descripcion, children, destacado = false }) {
+/* `destacado`: tinte plomito + borde lateral rose */
+export function Seccion({ titulo, descripcion, icono: Icono, children, destacado = false }) {
     return (
-        <div className={`rounded-2xl shadow-sm overflow-hidden mb-5 ${
-            destacado
-                ? 'bg-[#291136]/5 border border-[#291136]/15 border-l-4 border-l-[#BE0F4A]'
-                : 'bg-white border border-gray-100'
+        <div className={`mb-8 bg-white rounded-2xl border transition-all duration-300 ${
+            destacado ? 'border-[#BE0F4A]/50 shadow-md shadow-[#BE0F4A]/10' : 'shadow-sm border-gray-100 hover:border-[#BE0F4A]/20 hover:shadow-md'
         }`}>
             <div className={`flex items-center gap-3 px-6 py-4 border-b ${
-                destacado ? 'border-[#291136]/10 bg-[#291136]/5' : 'border-gray-100 bg-gray-50/60'
+                destacado ? 'border-[#BE0F4A]/20 bg-gradient-to-r from-[#BE0F4A]/10 to-transparent' : 'border-gray-100 bg-gray-50/60'
             }`}>
-                <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
-                    <Icono size={16} className="text-[#BE0F4A]" />
+                <div className={`rounded-lg flex items-center justify-center shrink-0 ${
+                    destacado ? 'w-10 h-10 bg-[#BE0F4A] text-white shadow-inner' : 'w-8 h-8 bg-[#BE0F4A]/10 text-[#BE0F4A]'
+                }`}>
+                    <Icono size={destacado ? 20 : 16} />
                 </div>
                 <div>
-                    <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">{titulo}</h2>
+                    <h2 className={`${destacado ? 'text-base sm:text-lg text-[#BE0F4A]' : 'text-sm text-[#291136]'} font-black uppercase tracking-wide`}>
+                        {titulo}
+                    </h2>
                     {descripcion && (
-                        <p className="text-xs text-gray-500 mt-0.5">{descripcion}</p>
+                        <p className={`${destacado ? 'text-sm text-gray-600' : 'text-xs text-gray-500'} mt-0.5`}>
+                            {descripcion}
+                        </p>
                     )}
                 </div>
             </div>

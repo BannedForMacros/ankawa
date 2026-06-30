@@ -500,8 +500,38 @@ export default function SolicitudLayout({ servicio, children }) {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Determinar qué imagen de fondo mostrar (1 a 5) basado en el avance del formulario
+    const getBgIndex = () => {
+        const total = etapas.length;
+        if (total <= 5) return Math.min(pasoActivo + 1, 5);
+        
+        // Distribución porcentual
+        const percent = pasoActivo / (total - 1);
+        if (percent < 0.2) return 1;
+        if (percent < 0.4) return 2;
+        if (percent < 0.6) return 3;
+        if (percent < 0.8) return 4;
+        return 5;
+    };
+    
+    const bgIndex = getBgIndex();
+
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-gray-50/60 flex relative">
+            {/* Animación de fondo: Imágenes fotográficas como marca de agua */}
+            <div className="fixed inset-y-0 right-0 left-0 lg:left-[280px] pointer-events-none z-0 overflow-hidden bg-gray-100">
+                {[1, 2, 3, 4, 5].map((num) => (
+                    <div 
+                        key={`bg-${num}`}
+                        className={`absolute inset-0 transition-opacity duration-[1500ms] ease-in-out ${
+                            bgIndex === num ? 'opacity-100' : 'opacity-0'
+                        }`}
+                    >
+                        <img src={`/images/backgrounds/bg${num}.png`} alt="" className="w-full h-full object-cover grayscale opacity-[0.40]" />
+                    </div>
+                ))}
+            </div>
+
             <AnkawaToaster position="top-center" duration={5000} />
 
             {/* Sidebar — desktop */}
@@ -530,7 +560,7 @@ export default function SolicitudLayout({ servicio, children }) {
             )}
 
             {/* Main content area */}
-            <div className="flex-1 lg:ml-[280px] flex flex-col min-h-screen">
+            <div className="flex-1 lg:ml-[280px] flex flex-col min-h-screen relative z-10">
                 {/* Top bar */}
                 <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200/60">
                     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
