@@ -698,7 +698,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             />
 
             {/* Documentos del Procedimiento de Emergencia */}
-            <Seccion icono={Zap} destacado
+            <Seccion icono={FileText} destacado
                 titulo={<>Documentos del Arbitraje de Emergencia <span className="text-[#BE0F4A]">*</span></>}>
                 <div className="mb-5">
                     <MultiArchivoInput
