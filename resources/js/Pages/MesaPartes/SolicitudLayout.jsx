@@ -240,10 +240,14 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
 
     return (
         <aside className={`
-            flex flex-col h-full
-            bg-gradient-to-b from-[#1a0b24] via-[#291136] to-[#1a0b24]
+            flex flex-col h-full relative overflow-hidden
+            bg-[#13071A]
             ${isMobile ? 'w-[300px]' : 'w-[280px]'}
         `}>
+            {/* Ambient Background Glows */}
+            <div className="absolute top-[-5%] right-[-15%] w-[300px] h-[300px] bg-[#BE0F4A]/35 rounded-full blur-[100px] pointer-events-none" />
+            <div className="absolute top-[40%] left-[-30%] w-[250px] h-[250px] bg-[#431259]/25 rounded-full blur-[90px] pointer-events-none" />
+            
             {/* Logo — grande y prominente para que el usuario sepa que está en CARD ANKAWA */}
             <div className="px-5 pt-8 pb-6 relative">
                 {isMobile && (
