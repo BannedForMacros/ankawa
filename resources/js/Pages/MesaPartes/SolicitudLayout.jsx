@@ -245,22 +245,22 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
             ${isMobile ? 'w-[300px]' : 'w-[280px]'}
         `}>
             {/* Logo — grande y prominente para que el usuario sepa que está en CARD ANKAWA */}
-            <div className="px-5 pt-6 pb-5">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="w-[72px] h-[72px] rounded-2xl bg-white/[0.08] backdrop-blur-sm flex items-center justify-center border border-white/[0.12] overflow-hidden p-2 shadow-lg shadow-black/20">
-                        <img src="/logo-white.png" alt="CARD Ankawa" className="w-full h-full object-contain" />
+            <div className="px-5 pt-8 pb-6 relative">
+                {isMobile && (
+                    <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors z-10">
+                        <X size={18} />
+                    </button>
+                )}
+                <div className="flex flex-col items-center text-center">
+                    <div className="w-[100px] h-[100px] mb-4 rounded-[2rem] bg-white/[0.08] backdrop-blur-sm flex items-center justify-center border border-white/[0.12] overflow-hidden p-2.5 shadow-xl shadow-black/30">
+                        <img src="/logo-white.png" alt="CARD Ankawa" className="w-full h-full object-contain drop-shadow-md" />
                     </div>
-                    {isMobile && (
-                        <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors">
-                            <X size={18} />
-                        </button>
-                    )}
-                </div>
-                <div>
-                    <p className="text-white font-black text-lg tracking-wider leading-none">ANKAWA</p>
-                    <p className="text-white/50 text-[10px] font-bold tracking-[0.3em] uppercase mt-1">Internacional</p>
-                    <div className="mt-2 px-2.5 py-1 rounded-md bg-[#BE0F4A]/15 border border-[#BE0F4A]/20 inline-block">
-                        <p className="text-[9px] font-bold text-[#BE0F4A] tracking-[0.15em] uppercase">Centro de Arbitraje y Resolución de Disputas</p>
+                    <div>
+                        <p className="text-white font-black text-xl tracking-[0.15em] leading-none">ANKAWA</p>
+                        <p className="text-white/50 text-[11px] font-bold tracking-[0.3em] uppercase mt-1.5">Internacional</p>
+                        <div className="mt-3 px-3 py-1.5 rounded-lg bg-[#BE0F4A]/15 border border-[#BE0F4A]/20 inline-block">
+                            <p className="text-[9px] font-bold text-[#BE0F4A] tracking-[0.15em] uppercase">Centro de Arbitraje y<br/>Resolución de Disputas</p>
+                        </div>
                     </div>
                 </div>
             </div>
