@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import {
-    ArrowLeft, CheckCircle2, HelpCircle, Menu, X,
+    ArrowLeft, CheckCircle2, HelpCircle, Menu, X, Landmark
 } from 'lucide-react';
 import AnkawaToaster from '@/Components/AnkawaToaster';
 
@@ -570,16 +570,35 @@ export default function SolicitudLayout({ servicio, children }) {
                 {/* Content area */}
                 <main ref={contentRef} className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
                     {/* Encabezado de la solicitud */}
-                    <div className="border-l-4 border-[#BE0F4A] pl-4 mb-6">
-                        <p className="text-[11px] font-bold text-[#BE0F4A] uppercase tracking-[0.18em] mb-1.5">
-                            Mesa de Partes · Nueva Solicitud
-                        </p>
-                        <h1 className="text-2xl sm:text-3xl font-black text-[#291136] tracking-tight uppercase leading-none">
-                            {servicio.nombre}
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-2">
-                            Complete los datos requeridos para presentar su solicitud.
-                        </p>
+                    <div className="relative overflow-hidden bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 mb-8 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)]">
+                        {/* Elementos decorativos de fondo para un look premium */}
+                        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-[#291136]/[0.03] via-[#BE0F4A]/[0.02] to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#291136] via-[#BE0F4A] to-transparent" />
+
+                        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
+                            <div className="w-16 h-16 shrink-0 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#291136]/5 to-transparent" />
+                                <Landmark size={32} className="text-[#291136] relative z-10" strokeWidth={1.5} />
+                            </div>
+                            
+                            <div>
+                                <div className="flex items-center gap-2.5 mb-2">
+                                    <span className="flex h-2 w-2 relative">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#BE0F4A] opacity-30"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#BE0F4A]"></span>
+                                    </span>
+                                    <p className="text-[11px] font-black text-[#BE0F4A] uppercase tracking-[0.2em]">
+                                        Mesa de Partes · Nueva Solicitud
+                                    </p>
+                                </div>
+                                <h1 className="text-2xl sm:text-[32px] font-black text-[#291136] tracking-tight uppercase leading-tight mb-2">
+                                    {servicio.nombre}
+                                </h1>
+                                <p className="text-sm sm:text-base text-gray-500 font-medium">
+                                    Complete los datos requeridos para presentar su solicitud.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     {/* El formulario se renderiza aquí */}
