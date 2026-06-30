@@ -13,25 +13,13 @@ import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import { consultarDocumento } from '@/utils/consultaDocumento';
+import { Seccion } from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 
 /* ─── Utilitario de extensión ─── */
 const ICONOS_EXT = { pdf: '📄', doc: '📝', docx: '📝', jpg: '🖼️', jpeg: '🖼️', png: '🖼️' };
 function ext(nombre) { return nombre.split('.').pop().toLowerCase(); }
 
-/* ─── Sub-componentes de layout ─── */
-function Seccion({ icono: Icono, titulo, children }) {
-    return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
-                <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
-                    <Icono size={16} className="text-[#BE0F4A]" />
-                </div>
-                <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">{titulo}</h2>
-            </div>
-            <div className="p-6 space-y-4">{children}</div>
-        </div>
-    );
-}
+/* ─── Sub-componentes de layout (Importando Seccion de ArbitrajeForm) ─── */
 
 function Campo({ label, required, error, children }) {
     return (

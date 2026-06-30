@@ -11,7 +11,7 @@ import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import {
     User, Users, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
-    CreditCard, ShieldAlert, Zap,
+    CreditCard, ShieldAlert, Zap, Scale, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { z } from 'zod';
@@ -462,6 +462,34 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
         <AnkawaLoader visible={mostrarLoader} />
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
+            {/* Aviso normativo — Directiva de Arbitraje de Emergencia con link al PDF */}
+            <div className="mb-5 relative overflow-hidden bg-white border border-gray-200 rounded-2xl shadow-sm">
+                <div className="absolute left-0 top-0 w-1.5 h-full bg-[#BE0F4A]" />
+                <div className="p-4 sm:p-5 flex gap-4 items-start">
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-[#291136]/5 flex items-center justify-center">
+                        <Scale size={20} className="text-[#291136]" strokeWidth={2} />
+                    </div>
+                    <div>
+                        <h3 className="text-[11px] font-black text-[#BE0F4A] tracking-[0.15em] uppercase mb-1">
+                            Aviso Importante
+                        </h3>
+                        <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                            Este servicio se presta de conformidad con lo regulado en la <strong className="text-[#291136] font-bold">Directiva de Arbitraje de Emergencia</strong> del CARD ANKAWA INTL.
+                        </p>
+                        <a
+                            href="https://www.ankawainternacional.org/wp-content/uploads/DIRECTIVA-ARBITRO-DE-EMERGENCIA-.pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#BE0F4A]/5 border border-[#BE0F4A]/20 text-[#BE0F4A] text-xs font-semibold hover:bg-[#BE0F4A]/10 transition-colors shadow-sm"
+                        >
+                            <FileText size={13} />
+                            Directiva de Arbitraje de Emergencia (PDF)
+                            <ExternalLink size={12} className="opacity-70" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <div className="mb-5 px-4 py-3 bg-[#291136]/5 border border-[#291136]/15 rounded-xl flex items-center gap-3">
                 <span className="text-[#BE0F4A] text-lg font-black leading-none">*</span>
                 <p className="text-sm text-[#291136]">
@@ -664,7 +692,8 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             />
 
             {/* Documentos del Procedimiento de Emergencia */}
-            <Seccion icono={Zap} titulo="Documentos del Arbitraje de Emergencia">
+            <Seccion icono={Zap} destacado
+                titulo={<>Documentos del Arbitraje de Emergencia <span className="text-[#BE0F4A]">*</span></>}>
                 <div className="mb-5">
                     <MultiArchivoInput
                         label={<>Solicitud de Inicio de Arbitraje de Emergencia <span className="text-[#BE0F4A]">*</span></>}

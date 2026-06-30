@@ -15,6 +15,7 @@ import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import useDocumentoLookup from '@/hooks/useDocumentoLookup';
+import { Seccion } from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 
 /* ─── Constantes ─── */
 const SUBTIPOS_JURIDICA = [
@@ -25,20 +26,7 @@ const SUBTIPOS_JURIDICA = [
 const SUBTIPOS_ENTIDAD     = SUBTIPOS_JURIDICA.filter(s => s.id === 'entidad_publica');
 const SUBTIPOS_CONTRATISTA = SUBTIPOS_JURIDICA.filter(s => s.id !== 'entidad_publica');
 
-/* ─── Sección visual ─── */
-function Seccion({ icono: Icono, titulo, children, accent = false }) {
-    return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-            <div className={`flex items-center gap-3 px-6 py-4 border-b border-gray-100 ${accent ? 'bg-[#291136]/5' : 'bg-gray-50/60'}`}>
-                <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
-                    <Icono size={16} className="text-[#BE0F4A]" />
-                </div>
-                <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">{titulo}</h2>
-            </div>
-            <div className="p-6 space-y-4">{children}</div>
-        </div>
-    );
-}
+/* ─── Sección visual (importada de ArbitrajeForm) ─── */
 
 function Campo({ label, required, error, children }) {
     return (
@@ -264,7 +252,7 @@ function BloqueActor({
     const subtipoLabel = subtipoFijo ? subtiposPermitidos[0].nombre : null;
 
     return (
-        <Seccion icono={Icono} titulo={titulo} accent={isSolicitante}>
+        <Seccion icono={Icono} titulo={titulo} destacado={isSolicitante}>
             {isSolicitante && (
                 <div className="flex items-center gap-2 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-2.5 text-xs font-semibold text-[#291136] mb-2">
                     <CheckCircle2 size={14} className="text-[#BE0F4A]"/>
