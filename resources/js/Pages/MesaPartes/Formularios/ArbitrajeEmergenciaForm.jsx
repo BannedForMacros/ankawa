@@ -510,10 +510,16 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
                         </div>
                         <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Tipo de solicitud</h2>
                     </div>
-                    <div className="px-6 py-4 flex items-center gap-3">
-                        <span className="px-3 py-1.5 rounded-full text-sm font-semibold bg-[#291136]/10 text-[#291136]">
-                            {tiposDocumento[0].nombre}
-                        </span>
+                    <div className="p-5 sm:p-6">
+                        <div className="flex items-center gap-4 p-4 sm:px-5 bg-[#291136]/5 border border-[#291136]/10 rounded-xl relative overflow-hidden">
+                            <div className="absolute right-0 top-0 h-full w-1.5 bg-[#BE0F4A]" />
+                            <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 border border-gray-200">
+                                <CheckCircle2 size={20} className="text-[#BE0F4A]" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm sm:text-base font-black text-[#291136] tracking-tight">{tiposDocumento[0].nombre}</h3>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : tiposDocumento.length > 1 ? (
