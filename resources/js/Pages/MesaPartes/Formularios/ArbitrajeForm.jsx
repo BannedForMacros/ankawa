@@ -1182,10 +1182,21 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
         <form onSubmit={handleSubmit} encType="multipart/form-data">
 
             {/* Aviso normativo — artículo 20 del Reglamento */}
-            <div className="mb-4 px-4 py-3 bg-[#291136]/5 border-l-4 border-[#BE0F4A] rounded-xl">
-                <p className="text-sm font-bold text-[#291136]">
-                    La presente solicitud de inicio de arbitraje debe ser presentada cumpliendo lo regulado en el artículo 20 del Reglamento Procesal de Arbitraje del Centro, vigente a la fecha de presentación.
-                </p>
+            <div className="mb-5 relative overflow-hidden bg-white border border-gray-200 rounded-2xl shadow-sm">
+                <div className="absolute left-0 top-0 w-1.5 h-full bg-[#BE0F4A]" />
+                <div className="p-4 sm:p-5 flex gap-4 items-start">
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-[#291136]/5 flex items-center justify-center">
+                        <Scale size={20} className="text-[#291136]" strokeWidth={2} />
+                    </div>
+                    <div>
+                        <h3 className="text-[11px] font-black text-[#BE0F4A] tracking-[0.15em] uppercase mb-1">
+                            Aviso Normativo
+                        </h3>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                            La presente solicitud de inicio de arbitraje debe ser presentada cumpliendo lo regulado en el <strong className="text-[#291136] font-bold">artículo 20 del Reglamento Procesal de Arbitraje</strong> del Centro, vigente a la fecha de presentación.
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Leyenda de campos obligatorios */}

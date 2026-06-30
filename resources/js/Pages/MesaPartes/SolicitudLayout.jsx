@@ -575,13 +575,8 @@ export default function SolicitudLayout({ servicio, children }) {
                         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-bl from-[#291136]/[0.03] via-[#BE0F4A]/[0.02] to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#291136] via-[#BE0F4A] to-transparent" />
 
-                        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6">
-                            <div className="w-16 h-16 shrink-0 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm relative overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-br from-[#291136]/5 to-transparent" />
-                                <Landmark size={32} className="text-[#291136] relative z-10" strokeWidth={1.5} />
-                            </div>
-                            
-                            <div>
+                        <div className="relative flex flex-col-reverse sm:flex-row items-start sm:items-center justify-between gap-5 sm:gap-6">
+                            <div className="flex-1">
                                 <div className="flex items-center gap-2.5 mb-2">
                                     <span className="flex h-2 w-2 relative">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#BE0F4A] opacity-30"></span>
@@ -594,9 +589,18 @@ export default function SolicitudLayout({ servicio, children }) {
                                 <h1 className="text-2xl sm:text-[32px] font-black text-[#291136] tracking-tight uppercase leading-tight mb-2">
                                     {servicio.nombre}
                                 </h1>
-                                <p className="text-sm sm:text-base text-gray-500 font-medium">
+                                <p className="text-sm sm:text-base text-gray-500 font-medium max-w-xl">
                                     Complete los datos requeridos para presentar su solicitud.
                                 </p>
+                            </div>
+
+                            <div className="w-28 sm:w-36 shrink-0 relative z-10 hidden sm:block">
+                                <img src="/logo.png" alt="Ankawa Logo" className="w-full h-auto object-contain" />
+                            </div>
+                            
+                            {/* Logo móvil centrado/arriba */}
+                            <div className="w-24 shrink-0 relative z-10 sm:hidden mb-2">
+                                <img src="/logo.png" alt="Ankawa Logo" className="w-full h-auto object-contain" />
                             </div>
                         </div>
                     </div>
