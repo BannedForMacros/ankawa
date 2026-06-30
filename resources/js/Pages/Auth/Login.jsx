@@ -35,7 +35,7 @@ export default function Login({ status, canResetPassword }) {
                 ></div>
 
                 {/* Logo marca de agua gigante */}
-                <img src="/logo-white.png" alt="" className="absolute -bottom-20 -left-16 w-[42rem] h-auto opacity-[0.04] -rotate-12 pointer-events-none select-none" />
+                <img src="/logo-white.png" alt="" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[42rem] lg:w-[50rem] h-auto opacity-[0.03] pointer-events-none select-none" />
 
                 <div className="relative z-10 w-full max-w-7xl mx-auto px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-24">
                     

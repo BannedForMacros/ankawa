@@ -561,38 +561,52 @@ export default function SolicitudLayout({ servicio, children }) {
 
             {/* Main content area */}
             <div className="flex-1 lg:ml-[280px] flex flex-col min-h-screen relative z-10">
-                {/* Top bar */}
-                <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200/60">
-                    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                {/* Top bar Premium */}
+                <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-sm">
+                    {/* Línea de acento superior */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#291136] via-[#431259] to-[#BE0F4A]"></div>
+                    
+                    <div className="w-full px-4 sm:px-8 lg:px-10 h-16 flex items-center justify-between">
+                        <div className="flex items-center gap-3 sm:gap-4">
                             {/* Mobile menu button */}
                             <button
                                 onClick={() => setMobileOpen(true)}
-                                className="lg:hidden w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-[#291136] transition-colors"
+                                className="lg:hidden w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-[#BE0F4A] transition-all border border-gray-200"
                             >
-                                <Menu size={18} />
+                                <Menu size={20} />
                             </button>
 
                             <button
                                 onClick={() => router.get(route('mesa-partes.inicio'))}
-                                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-[#291136] transition-colors group"
+                                className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 text-sm font-semibold text-gray-500 hover:text-[#291136] transition-all group"
                             >
-                                <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+                                <div className="w-6 h-6 rounded-md bg-gray-100 group-hover:bg-[#291136]/10 flex items-center justify-center transition-colors shrink-0">
+                                    <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+                                </div>
                                 <span className="hidden sm:inline">Mis expedientes</span>
                             </button>
 
-                            <span className="text-gray-200 hidden sm:inline">·</span>
-
-                            <div className="hidden sm:flex items-center gap-2">
-                                <img src="/logo.png" alt="Ankawa" className="h-5 object-contain" />
-                                <span className="text-sm font-bold text-[#291136]">{servicio.nombre}</span>
+                            <div className="hidden sm:flex items-center gap-3 pl-4 ml-2 border-l-2 border-gray-100">
+                                <div className="w-8 h-8 rounded-full bg-[#291136] flex items-center justify-center shadow-inner shrink-0">
+                                    <Landmark size={14} className="text-white" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-[#BE0F4A] leading-none mb-1">Ankawa Center</span>
+                                    <span className="text-sm font-black text-[#291136] leading-none truncate max-w-[200px]">Mesa de Partes Virtual</span>
+                                </div>
                             </div>
                         </div>
 
                         {/* Borrador guardado badge */}
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/60">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-semibold text-emerald-700">Borrador guardado</span>
+                        <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm shrink-0">
+                            <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-emerald-700 mt-0.5">
+                                <span className="hidden sm:inline">Borrador Guardado</span>
+                                <span className="sm:hidden">Guardado</span>
+                            </span>
                         </div>
                     </div>
                 </header>
