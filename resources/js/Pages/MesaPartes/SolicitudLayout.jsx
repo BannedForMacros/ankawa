@@ -634,7 +634,9 @@ export default function SolicitudLayout({ servicio, children }) {
                                     {servicio.nombre}
                                 </h1>
                                 <p className="text-sm sm:text-base text-gray-500 font-medium max-w-xl">
-                                    Complete los datos requeridos para presentar su solicitud.
+                                    {slug === 'otros'
+                                        ? "Complete los datos requeridos para presentar su oficio, solicitud, carta, consulta o cualquier comunicación institucional relacionada con los servicios del centro."
+                                        : "Complete los datos requeridos para presentar su solicitud."}
                                 </p>
                             </div>
 

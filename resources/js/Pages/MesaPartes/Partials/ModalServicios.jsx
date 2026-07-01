@@ -75,7 +75,7 @@ export default function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                 key={s.id}
                                 type="button"
                                 onClick={() => onSeleccionar(s.slug)}
-                                className="group relative text-left rounded-2xl overflow-hidden border border-gray-200 bg-white hover:border-transparent hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                                className="group relative flex flex-col w-full p-0 text-left rounded-2xl overflow-hidden border border-gray-200 bg-white hover:border-transparent hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                             >
                                 {/* Cabecera: gradiente + tipografía */}
                                 <div className={`relative h-44 bg-gradient-to-br ${meta.gradiente} overflow-hidden`}>

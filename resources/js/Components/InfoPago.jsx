@@ -42,7 +42,7 @@ export default function InfoPago() {
                         
                         {/* Opción 1: Depósito / Transferencia */}
                         <div className="bg-white rounded-xl border border-gray-200 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden">
-                            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                            <div className="h-[80px] px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                                 <span className="text-[11px] font-black uppercase tracking-[0.15em] text-[#BE0F4A]">Opción 1: Transferencia</span>
                                 <div className="h-12 bg-white rounded-lg flex items-center justify-center px-4 border border-gray-200 shadow-sm">
                                     <img src="/images/interbank.webp" alt="Interbank" className="h-7 sm:h-8 w-auto object-contain scale-110" />
@@ -90,21 +90,21 @@ export default function InfoPago() {
                         </div>
 
                         {/* Opción 2: Pago en Línea */}
-                        <div className="bg-[#291136] rounded-xl shadow-lg overflow-hidden relative flex flex-col">
-                            {/* Decoración de fondo */}
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
-                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#BE0F4A] opacity-20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
+                        <div className="bg-[#fcfafc] rounded-xl border border-gray-200 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden relative flex flex-col">
+                            {/* Decoración de fondo suave */}
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-[#BE0F4A] opacity-[0.03] rounded-full blur-2xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                            <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#291136] opacity-[0.03] rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
 
-                            <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between relative z-10">
+                            <div className="h-[80px] px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 relative z-10">
                                 <span className="text-[11px] font-black uppercase tracking-[0.15em] text-[#BE0F4A]">Opción 2: Tarjeta</span>
                             </div>
                             
                             <div className="p-6 flex-1 flex flex-col justify-center items-center text-center relative z-10">
-                                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4">
-                                    <CreditCard size={24} className="text-white" />
+                                <div className="w-12 h-12 rounded-full bg-[#291136]/5 border border-[#291136]/10 flex items-center justify-center mb-4">
+                                    <CreditCard size={24} className="text-[#291136]" />
                                 </div>
-                                <h4 className="text-white font-black text-lg tracking-tight mb-2">Pago Rápido y Seguro</h4>
-                                <p className="text-white/60 text-xs font-medium leading-relaxed mb-6 max-w-[200px]">
+                                <h4 className="text-[#291136] font-black text-lg tracking-tight mb-2">Pago Rápido y Seguro</h4>
+                                <p className="text-gray-500 text-xs font-medium leading-relaxed mb-6 max-w-[200px]">
                                     Aceptamos todas las tarjetas de crédito y débito a través de nuestra pasarela de pagos.
                                 </p>
                                 
@@ -112,7 +112,7 @@ export default function InfoPago() {
                                     href="https://card.ankawagroup.org/pago-de-servicios/" 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#BE0F4A] hover:bg-[#9c0a3b] text-white text-sm font-bold transition-all shadow-lg shadow-[#BE0F4A]/30 group"
+                                    className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-[#BE0F4A] hover:bg-[#9c0a3b] text-white text-sm font-bold transition-all shadow-lg shadow-[#BE0F4A]/20 group"
                                 >
                                     Pagar en Línea
                                     <ExternalLink size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
