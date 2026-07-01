@@ -466,7 +466,6 @@ export function BloquePersona({
         try {
             const data = await consultarDocumento(tipo, numero, esDemandante ? 'form_demandante' : 'form_demandado');
             const cambios = { nombre: data.nombre ?? '' };
-            if (tipo === 'ruc' && data.domicilio) cambios.domicilio = data.domicilio;
             setCampos(cambios);
             setBloqueado(true);
         } catch (err) {
@@ -489,7 +488,6 @@ export function BloquePersona({
     const lon             = LONG_DOC[tipoDoc];
     const docValido       = lon ? campos.documento?.length === lon : (campos.documento?.length ?? 0) >= 6;
     const esLocked        = bloqueado && !modoManual && !esNaturalBloqueado;
-    const domicilioLocked = esNaturalBloqueado || (esLocked && tipoDoc === 'ruc');
 
     return (
         <Seccion icono={Icono} titulo={titulo} descripcion={descripcion}>
@@ -606,7 +604,6 @@ export function BloquePersona({
                         value={campos.domicilio}
                         onChange={dom => setCampos({ domicilio: dom })}
                         onBlur={() => onBlurCampo?.('domicilio')}
-                        disabled={domicilioLocked}
                         error={errors?.domicilio} />
                 )}
 
@@ -657,7 +654,6 @@ export function BloquePersona({
                         value={campos.domicilio}
                         onChange={dom => setCampos({ domicilio: dom })}
                         onBlur={() => onBlurCampo?.('domicilio')}
-                        disabled={domicilioLocked}
                         error={errors?.domicilio} />
                 )}
 
