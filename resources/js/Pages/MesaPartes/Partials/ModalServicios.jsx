@@ -9,13 +9,13 @@ const SERVICIO_META_BY_SLUG = {
     },
     jprd: {
         gradiente: 'from-[#1A0B22]/90 via-[#1A0B22]/30 to-transparent',
-        acento:    '#291136',
+        acento:    '#BE0F4A',
         etiqueta:  'Prevención',
         imagen:    '/images/servicio-final/jprd.png',
     },
     otros: {
         gradiente: 'from-[#1A0B22]/90 via-[#1A0B22]/30 to-transparent',
-        acento:    '#4A153D',
+        acento:    '#BE0F4A',
         etiqueta:  'Comunicación',
         imagen:    '/images/servicio-final/otros.png',
     },
