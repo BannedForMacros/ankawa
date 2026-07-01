@@ -2,34 +2,39 @@
 // acentos por servicio que usa MisSolicitudes (SERVICIO_META) — todo dentro de paleta.
 const SERVICIO_META_BY_SLUG = {
     arbitraje: {
-        gradiente: 'from-[#291136] via-[#4A153D] to-[#BE0F4A]',
+        gradiente: 'from-black/80 via-[#291136]/70 to-[#BE0F4A]/40',
         acento:    '#BE0F4A',
         etiqueta:  'Resolución',
+        imagen:    '/images/servicio-final/arbitraje.png',
     },
     jprd: {
-        gradiente: 'from-[#291136] via-[#3D1A52] to-[#4A153D]',
+        gradiente: 'from-black/80 via-[#3D1A52]/70 to-[#4A153D]/40',
         acento:    '#291136',
         etiqueta:  'Prevención',
+        imagen:    '/images/servicio-final/jprd.png',
     },
     otros: {
-        gradiente: 'from-[#3D1A52] via-[#4A153D] to-[#9C0A3B]',
+        gradiente: 'from-black/80 via-[#4A153D]/70 to-[#9C0A3B]/40',
         acento:    '#4A153D',
         etiqueta:  'Comunicación',
+        imagen:    '/images/servicio-final/otros.png',
     },
 };
 
 const SERVICIO_META_BY_ID = {
     3: {
-        gradiente: 'from-[#4A153D] via-[#9C0A3B] to-[#BC1D35]',
+        gradiente: 'from-black/80 via-[#9C0A3B]/70 to-[#BC1D35]/40',
         acento:    '#BC1D35',
         etiqueta:  'Urgente',
+        imagen:    '/images/servicio-final/emergencia.png',
     },
 };
 
 const META_DEFAULT = {
-    gradiente: 'from-[#291136] via-[#4A153D] to-[#BE0F4A]',
+    gradiente: 'from-black/80 via-[#291136]/70 to-[#BE0F4A]/40',
     acento:    '#BE0F4A',
     etiqueta:  'Trámite',
+    imagen:    '/images/servicio-final/otros.png',
 };
 
 function getServicioMeta(s) {
@@ -77,51 +82,41 @@ export default function ModalServicios({ servicios, onSeleccionar, onClose }) {
                                 onClick={() => onSeleccionar(s.slug)}
                                 className="group relative flex flex-col w-full p-0 text-left rounded-2xl overflow-hidden border border-gray-200 bg-white hover:border-transparent hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                             >
-                                {/* Cabecera: gradiente + tipografía */}
-                                <div className={`relative h-44 bg-gradient-to-br ${meta.gradiente} overflow-hidden`}>
+                                {/* Cabecera: Imagen + gradiente + tipografía */}
+                                <div className="relative h-44 overflow-hidden bg-black">
+                                    <img 
+                                        src={meta.imagen} 
+                                        alt={s.nombre} 
+                                        className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 ease-out" 
+                                    />
+                                    <div className={`absolute inset-0 bg-gradient-to-t ${meta.gradiente} group-hover:opacity-80 transition-opacity duration-500`} />
+                                    
                                     {/* Decoración blur */}
                                     <div className="absolute inset-0 opacity-25">
                                         <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-white/40 blur-3xl" />
                                         <div className="absolute -bottom-12 -left-8 w-36 h-36 rounded-full bg-white/20 blur-2xl" />
                                     </div>
 
-                                    {/* Patrón diagonal sutil */}
-                                    <div
-                                        className="absolute inset-0 opacity-[0.06]"
-                                        style={{
-                                            backgroundImage: 'repeating-linear-gradient(135deg, white 0, white 1px, transparent 1px, transparent 16px)',
-                                        }}
-                                    />
 
-                                    {/* Número display gigante - decorativo */}
-                                    <span
-                                        className="absolute -bottom-6 -right-2 text-[180px] font-black leading-none text-white/10 select-none tracking-tighter group-hover:text-white/15 group-hover:-translate-y-1 transition-all duration-500"
-                                        aria-hidden="true"
-                                    >
-                                        {indice}
-                                    </span>
 
                                     {/* Etiqueta superior */}
                                     <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm text-white/95 text-[10px] font-bold uppercase tracking-[0.15em] border border-white/20">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-md text-white/95 text-[10px] font-bold uppercase tracking-[0.15em] border border-white/20 shadow-sm">
                                             {meta.etiqueta}
-                                        </span>
-                                        <span className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">
-                                            {indice}
                                         </span>
                                     </div>
 
                                     {/* Nombre del servicio - tipografía protagonista */}
-                                    <div className="absolute bottom-4 left-4 right-4">
-                                        <div className="w-8 h-0.5 bg-white/60 mb-2 group-hover:w-12 transition-all duration-300" />
-                                        <h3 className="text-2xl font-black text-white tracking-tight leading-tight drop-shadow-sm">
+                                    <div className="absolute bottom-4 left-4 right-4 z-10">
+                                        <div className="w-8 h-0.5 bg-white/80 mb-2 group-hover:w-12 group-hover:bg-white transition-all duration-300" />
+                                        <h3 className="text-2xl font-black text-white tracking-tight leading-tight drop-shadow-md">
                                             {s.nombre}
                                         </h3>
                                     </div>
                                 </div>
 
                                 {/* Cuerpo */}
-                                <div className="relative p-4 pt-3.5">
+                                <div className="relative p-4 pt-3.5 z-20 bg-white">
                                     {s.descripcion ? (
                                         <p className="text-xs text-gray-500 leading-relaxed mb-3">
                                             {s.descripcion}

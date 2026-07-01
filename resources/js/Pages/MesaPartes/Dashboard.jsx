@@ -73,7 +73,13 @@ export default function Dashboard({ expedientes, servicios, portalUser, portalEm
 
     return (
         <div className="min-h-screen bg-gray-50 relative">
-            <Head title="Mesa de Partes — Ankawa" />
+            <Head title="Panel de Expedientes">
+                {/* Preload para imágenes de servicios del ModalServicios para evitar delay */}
+                <link rel="preload" as="image" href="/images/servicio-final/arbitraje.png" />
+                <link rel="preload" as="image" href="/images/servicio-final/jprd.png" />
+                <link rel="preload" as="image" href="/images/servicio-final/otros.png" />
+                <link rel="preload" as="image" href="/images/servicio-final/emergencia.png" />
+            </Head>
             <AnkawaToaster position="top-right" />
 
             {/* ── Animaciones ── */}
