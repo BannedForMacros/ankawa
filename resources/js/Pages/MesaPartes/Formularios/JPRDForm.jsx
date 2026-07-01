@@ -820,14 +820,8 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
             />
 
             {/* Documentos */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-                <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gray-50/60">
-                    <div className="w-8 h-8 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center">
-                        <Paperclip size={16} className="text-[#BE0F4A]"/>
-                    </div>
-                    <h2 className="text-sm font-bold text-[#291136] uppercase tracking-wide">Documentos</h2>
-                </div>
-                <div className="p-6 space-y-3">
+            <Seccion icono={FileText} destacado titulo="Documentos">
+                <div className="space-y-3">
                     <SeccionDoc
                         icono={FileText}
                         titulo="Solicitud de Conformación de JPRD"
@@ -863,7 +857,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                         required={false}
                     />
                 </div>
-            </div>
+            </Seccion>
 
             {/* Petición de Decisión Vinculante */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-5">
