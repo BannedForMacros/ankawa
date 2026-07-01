@@ -41,8 +41,8 @@ export default function InfoPago() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         
                         {/* Opción 1: Depósito / Transferencia */}
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden">
-                            <div className="h-[80px] px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <div className="bg-white rounded-xl border-2 border-[#291136]/20 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden">
+                            <div className="h-[80px] px-5 py-4 border-b border-[#291136]/20 flex items-center justify-between bg-gray-50/50">
                                 <span className="text-[11px] font-black uppercase tracking-[0.15em] text-[#BE0F4A]">Opción 1: Transferencia</span>
                                 <div className="h-12 bg-white rounded-lg flex items-center justify-center px-4 border border-gray-200 shadow-sm">
                                     <img src="/images/interbank.webp" alt="Interbank" className="h-7 sm:h-8 w-auto object-contain scale-110" />
@@ -63,10 +63,21 @@ export default function InfoPago() {
                                         <button 
                                             type="button" 
                                             onClick={() => handleCopy('420-3001901183', 'cta')}
-                                            className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#BE0F4A] hover:border-[#BE0F4A] transition-all shadow-sm"
+                                            className={`relative h-8 rounded flex items-center justify-center transition-all duration-300 shadow-sm overflow-hidden ${
+                                                copiedItem === 'cta' 
+                                                ? 'w-[88px] bg-emerald-500 border-emerald-600 text-white border scale-105'
+                                                : 'w-8 bg-white border border-gray-200 text-gray-400 hover:text-[#BE0F4A] hover:border-[#BE0F4A]'
+                                            }`}
                                             title="Copiar Cuenta"
                                         >
-                                            {copiedItem === 'cta' ? <CheckCircle2 size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className={`absolute flex items-center justify-center transition-all duration-300 transform ${copiedItem === 'cta' ? 'opacity-0 scale-50 rotate-90' : 'opacity-100 scale-100 rotate-0'}`}>
+                                                    <Copy size={16} />
+                                                </div>
+                                                <div className={`absolute flex items-center gap-1 text-[10px] font-bold transition-all duration-300 transform ${copiedItem === 'cta' ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-90'}`}>
+                                                    <CheckCircle2 size={14} /> ¡Copiado!
+                                                </div>
+                                            </div>
                                         </button>
                                     </div>
                                     
@@ -79,10 +90,21 @@ export default function InfoPago() {
                                         <button 
                                             type="button" 
                                             onClick={() => handleCopy('01142000300190118379', 'cci')}
-                                            className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#BE0F4A] hover:border-[#BE0F4A] transition-all shadow-sm"
+                                            className={`relative h-8 rounded flex items-center justify-center transition-all duration-300 shadow-sm overflow-hidden ${
+                                                copiedItem === 'cci' 
+                                                ? 'w-[88px] bg-emerald-500 border-emerald-600 text-white border scale-105'
+                                                : 'w-8 bg-white border border-gray-200 text-gray-400 hover:text-[#BE0F4A] hover:border-[#BE0F4A]'
+                                            }`}
                                             title="Copiar CCI"
                                         >
-                                            {copiedItem === 'cci' ? <CheckCircle2 size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className={`absolute flex items-center justify-center transition-all duration-300 transform ${copiedItem === 'cci' ? 'opacity-0 scale-50 rotate-90' : 'opacity-100 scale-100 rotate-0'}`}>
+                                                    <Copy size={16} />
+                                                </div>
+                                                <div className={`absolute flex items-center gap-1 text-[10px] font-bold transition-all duration-300 transform ${copiedItem === 'cci' ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 -rotate-90'}`}>
+                                                    <CheckCircle2 size={14} /> ¡Copiado!
+                                                </div>
+                                            </div>
                                         </button>
                                     </div>
                                 </div>
@@ -90,12 +112,12 @@ export default function InfoPago() {
                         </div>
 
                         {/* Opción 2: Pago en Línea */}
-                        <div className="bg-[#fcfafc] rounded-xl border border-gray-200 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden relative flex flex-col">
+                        <div className="bg-[#fcfafc] rounded-xl border-2 border-[#291136]/20 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] overflow-hidden relative flex flex-col">
                             {/* Decoración de fondo suave */}
                             <div className="absolute top-0 right-0 w-32 h-32 bg-[#BE0F4A] opacity-[0.03] rounded-full blur-2xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
                             <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#291136] opacity-[0.03] rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none" />
 
-                            <div className="h-[80px] px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 relative z-10">
+                            <div className="h-[80px] px-5 py-4 border-b border-[#291136]/20 flex items-center justify-between bg-gray-50/50 relative z-10">
                                 <span className="text-[11px] font-black uppercase tracking-[0.15em] text-[#BE0F4A]">Opción 2: Tarjeta</span>
                             </div>
                             
