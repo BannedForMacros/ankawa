@@ -219,8 +219,8 @@ function SoporteTecnico() {
                                 <div className="bg-white border border-gray-200 rounded-2xl p-5 lg:p-6 hover:shadow-lg transition-all duration-300 flex flex-col sm:col-span-2 lg:col-span-1">
                                     <Mail className="text-[#BE0F4A] w-7 h-7 sm:w-8 sm:h-8 mb-4" />
                                     <p className="text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest font-semibold mb-1 sm:mb-2">Correo Electrónico</p>
-                                    <a href="mailto:soporte@ankawainternacional.org" className="text-sm sm:text-base lg:text-sm xl:text-base font-bold text-gray-900 hover:text-[#BE0F4A] transition-colors truncate block w-full" title="soporte@ankawainternacional.org">
-                                        soporte@ankawainternacional.org
+                                    <a href="mailto:soportetecnico@ankawainternacional.org" className="text-sm sm:text-base lg:text-sm xl:text-base font-bold text-gray-900 hover:text-[#BE0F4A] transition-colors truncate block w-full" title="soportetecnico@ankawainternacional.org">
+                                        soportetecnico@ankawainternacional.org
                                     </a>
                                 </div>
 

@@ -21,9 +21,10 @@ import RadioGroup from '@/Components/RadioGroup';
 import {
     User, Users, Scale, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
-    Loader2, X, Lock, Unlock, ShieldAlert, CreditCard, Plus, Trash2, Building2
+    Loader2, X, Lock, Unlock, ShieldAlert, CreditCard, Plus, Trash2, Building2, ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import InfoPago from '@/Components/InfoPago';
 
 /* ─── Constantes ─── */
 const TIPOS_PERSONA = [
@@ -1194,11 +1195,21 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     </div>
                     <div>
                         <h3 className="text-[11px] font-black text-[#BE0F4A] tracking-[0.15em] uppercase mb-1">
-                            Aviso Normativo
+                            Aviso Importante
                         </h3>
-                        <p className="text-sm text-gray-600 leading-relaxed">
+                        <p className="text-sm text-gray-600 leading-relaxed mb-3">
                             La presente solicitud de inicio de arbitraje debe ser presentada cumpliendo lo regulado en el <strong className="text-[#291136] font-bold">artículo 20 del Reglamento Procesal de Arbitraje</strong> del Centro, vigente a la fecha de presentación.
                         </p>
+                        <a
+                            href="https://card.ankawagroup.org/wp-content/uploads/REGLAMENTO-PROCESAL-DE-ARBITRAJE-2023.pdf"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#BE0F4A]/5 border border-[#BE0F4A]/20 text-[#BE0F4A] text-xs font-semibold hover:bg-[#BE0F4A]/10 transition-colors shadow-sm"
+                        >
+                            <FileText size={13} />
+                            Reglamento Procesal de Arbitraje (PDF)
+                            <ExternalLink size={12} className="opacity-70" />
+                        </a>
                     </div>
                 </div>
             </div>
@@ -1444,7 +1455,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
                     <Textarea id="pretensiones_indeterminadas"
                         label={<><span className="text-[#BE0F4A] mr-1">•</span> Número de Pretensiones Indeterminadas (que no se pueden cuantificar)</>}
                         required
-                        hint="Aquellas cuya estimación económica no puede establecerse de manera exacta o inmediata; si no tiene ninguna pretensión indeterminada escriba «Ninguna»."
+                        hint={<>Aquellas cuya estimación económica no puede establecerse de manera exacta o inmediata.<br />Si no tiene ninguna pretensión indeterminada escriba «Ninguna».</>}
                         value={data.pretensiones_indeterminadas} onChange={e => setData('pretensiones_indeterminadas', e.target.value)}
                         placeholder="Ej: Que se declare la nulidad de la resolución del contrato (o escriba «Ninguna»)" rows={3}
                         error={errors.pretensiones_indeterminadas || missingFields.pretensiones_indeterminadas} />
@@ -1544,6 +1555,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
 
             {/* Tasa de Solicitud */}
             <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje">
+                <InfoPago />
                 <MultiArchivoInput
                     label="Adjunte el comprobante de pago"
                     value={data.comprobante_pago_tasa}

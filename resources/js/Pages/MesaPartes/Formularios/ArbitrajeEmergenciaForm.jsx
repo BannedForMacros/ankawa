@@ -8,6 +8,7 @@ import AnkawaLoader from '@/Components/AnkawaLoader';
 import Checkbox from '@/Components/Checkbox';
 import AceptacionReglamento from '@/Components/AceptacionReglamento';
 import HCaptchaWidget from '@/Components/HCaptchaWidget';
+import InfoPago from '@/Components/InfoPago';
 import {
     User, Users, FileText, Paperclip,
     CheckCircle2, AlertTriangle, ChevronRight, ShieldCheck,
@@ -742,6 +743,7 @@ export default function ArbitrajeEmergenciaForm({ servicio, portalEmail, portalU
             {/* Tasa de Solicitud */}
             <Seccion icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje de Emergencia"
                 descripcion="De acuerdo a lo regulado en el artículo 11 de la Directiva de Arbitraje de Emergencia del CARD ANKAWA INTL.">
+                <InfoPago />
                 <div className="mb-5">
                     <MultiArchivoInput
                         label="Comprobante de pago de honorarios del Árbitro de Emergencia"

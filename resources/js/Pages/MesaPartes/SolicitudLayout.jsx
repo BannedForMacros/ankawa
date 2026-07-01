@@ -256,8 +256,8 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
                     </button>
                 )}
                 <div className="flex flex-col items-center text-center">
-                    <div className="w-[100px] h-[100px] mb-4 rounded-[2rem] bg-white/[0.08] backdrop-blur-sm flex items-center justify-center border border-white/[0.12] overflow-hidden p-2.5 shadow-xl shadow-black/30">
-                        <img src="/logo-white.png" alt="CARD Ankawa" className="w-full h-full object-contain drop-shadow-md" />
+                    <div className="w-[110px] h-[110px] mb-4 rounded-[2rem] bg-white flex items-center justify-center overflow-hidden p-1.5 shadow-xl shadow-black/40">
+                        <img src="/logo.png" alt="CARD Ankawa" className="w-full h-full object-contain" />
                     </div>
                     <div>
                         <p className="text-white font-black text-xl tracking-[0.15em] leading-none">ANKAWA</p>
@@ -335,8 +335,8 @@ function Sidebar({ etapas, pasoActivo, maxPasoAlcanzado, seccionesCompletas, onC
                     <p className="text-[10px] text-white/30 leading-relaxed">
                         Mesa de Partes · Lun a Vie 9–18h
                         <br />
-                        <a href="mailto:soporte@ankawa.org" className="text-[#BE0F4A]/70 hover:text-[#BE0F4A] transition-colors">
-                            soporte@ankawa.org
+                        <a href="mailto:soportetecnico@ankawainternacional.org" className="text-[#BE0F4A]/70 hover:text-[#BE0F4A] transition-colors">
+                            soportetecnico@ankawainternacional.org
                         </a>
                     </p>
                 </div>
