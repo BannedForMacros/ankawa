@@ -120,7 +120,9 @@
       "Bash(command -v fnm asdf volta)",
       "Bash(/opt/homebrew/Cellar/node@24/24.16.0/bin/node -v)",
       "Read(//private/tmp/**)",
-      "Bash(curl -sL --max-time 30 \"https://raw.githubusercontent.com/jmcastagnetto/ubigeo-peru-aumentado/main/ubigeo_distrito.csv\" -o ubigeo.csv)"
+      "Bash(curl -sL --max-time 30 \"https://raw.githubusercontent.com/jmcastagnetto/ubigeo-peru-aumentado/main/ubigeo_distrito.csv\" -o ubigeo.csv)",
+      "Bash(brew install *)",
+      "Bash(pdftotext -layout \"Manual de identidad de ANKAWA INTL.pdf\" -)"
     ]
   }
 }

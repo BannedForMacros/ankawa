@@ -939,7 +939,7 @@ export function MovimientoCard({
                                                 </div>
                                                 <div className="flex flex-wrap gap-1 mt-0.5">
                                                     {emails.map((em, i) => (
-                                                        <span key={i} className="text-[11px] text-gray-400 font-mono">
+                                                        <span key={i} className="text-[11px] text-gray-400">
                                                             {em}{i < emails.length - 1 ? ',' : ''}
                                                         </span>
                                                     ))}

@@ -796,7 +796,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 </p>
                                 <p className="text-xs text-gray-500">{confirmarValidarActor.tipo_actor?.nombre}</p>
                                 <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold mt-2">Correo a validar</p>
-                                <p className="text-base font-mono text-[#BE0F4A] break-all">
+                                <p className="text-base text-[#BE0F4A] break-all">
                                     {confirmarValidarActor.usuario?.email ?? confirmarValidarActor.email_externo ?? '(sin correo)'}
                                 </p>
                             </div>
@@ -869,7 +869,7 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
                     <div className="flex items-center gap-3 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">N° de Cargo</p>
-                            <p className="text-xl font-black font-mono text-[#291136] tracking-wider">{solicitud.numero_cargo}</p>
+                            <p className="text-xl font-black tabular-nums text-[#291136] tracking-wider">{solicitud.numero_cargo}</p>
                         </div>
                     </div>
                 )}
@@ -1113,7 +1113,7 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
                                                 {emp.nombre?.trim() || <span className="text-gray-400 italic font-normal">Sin nombre registrado</span>}
                                             </p>
                                             {emp.ruc && (
-                                                <p className="text-[11px] text-gray-500 font-mono mt-0.5">RUC: {emp.ruc}</p>
+                                                <p className="text-[11px] text-gray-500 tabular-nums mt-0.5">RUC: {emp.ruc}</p>
                                             )}
                                         </div>
                                         <Building2 size={14} className="text-blue-400 shrink-0" />

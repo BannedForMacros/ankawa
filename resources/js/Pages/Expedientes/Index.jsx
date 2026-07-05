@@ -77,11 +77,11 @@ function MetaCol({ icon: Icon, label, value, highlight = false, mono = false }) 
     if (!value && value !== 0) return null;
     return (
         <div className="min-w-0">
-            <div className="font-mono text-[9px] uppercase tracking-widest text-ankawa-deep/50 flex items-center gap-1.5 mb-1">
+            <div className="text-[9px] uppercase tracking-widest text-ankawa-deep/50 flex items-center gap-1.5 mb-1">
                 {Icon && <Icon size={10} className={highlight ? 'text-ankawa-rose' : 'text-ankawa-deep/45'} strokeWidth={2.2} />}
                 {label}
             </div>
-            <div className={`text-sm font-semibold truncate ${mono ? 'font-mono tabular-nums' : ''} ${highlight ? 'text-ankawa-rose' : 'text-ankawa-deep'}`}>
+            <div className={`text-sm font-semibold truncate ${mono ? 'tabular-nums' : ''} ${highlight ? 'text-ankawa-rose' : 'text-ankawa-deep'}`}>
                 {value}
             </div>
         </div>
@@ -229,7 +229,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
             {/* ── Fila 2: limpiar filtros (solo si hay filtros activos) ── */}
             {hayFiltros && (
                 <div className="flex items-center justify-between gap-3 pt-3 border-t border-ankawa-deep/[0.06]">
-                    <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-ankawa-deep/55">
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-ankawa-deep/55">
                         <span className="w-1.5 h-1.5 rounded-full bg-ankawa-rose animate-pulse" />
                         Filtros aplicados
                     </div>
@@ -366,7 +366,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
 
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                                            <span className="font-mono text-sm font-bold text-ankawa-deep/85 tracking-tight">
+                                                            <span className="text-sm font-bold text-ankawa-deep/85 tracking-tight tabular-nums">
                                                                 {exp.numero_expediente}
                                                             </span>
                                                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${estadoColors[exp.estado] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
@@ -374,7 +374,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                                             </span>
                                                         </div>
                                                         {exp.servicio && (
-                                                            <h3 className="font-serif text-2xl font-medium text-ankawa-deep leading-tight truncate">
+                                                            <h3 className="text-2xl font-semibold text-ankawa-deep leading-tight truncate">
                                                                 {exp.servicio}
                                                             </h3>
                                                         )}
@@ -421,7 +421,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                                             strokeWidth={2.4}
                                                         />
                                                         <div className="min-w-0 flex-1">
-                                                            <p className={`text-[10px] font-bold font-mono uppercase tracking-widest ${
+                                                            <p className={`text-[10px] font-bold uppercase tracking-widest ${
                                                                 isUrgente ? 'text-red-700' :
                                                                 isUrgenteSoft ? 'text-amber-700' :
                                                                 'text-ankawa-rose'
@@ -440,7 +440,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                             <div className={`relative flex flex-col justify-between p-6 border-t md:border-t-0 md:border-l ${plazoPanelClass}`}>
                                                 {mov ? (
                                                     <div>
-                                                        <div className="font-mono text-[10px] uppercase tracking-widest text-ankawa-deep/55 flex items-center gap-1.5">
+                                                        <div className="text-[10px] uppercase tracking-widest text-ankawa-deep/55 flex items-center gap-1.5">
                                                             <Clock
                                                                 size={10}
                                                                 className={isUrgente ? 'text-red-500' : isUrgenteSoft ? 'text-amber-500' : 'text-ankawa-rose'}
@@ -456,19 +456,19 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
 
                                                         <div className="mt-2.5 flex items-baseline gap-2">
                                                             {mov.dias_restantes !== null && mov.dias_restantes !== undefined && mov.dias_restantes <= 0 ? (
-                                                                <span className={`font-serif text-3xl font-medium leading-none ${
+                                                                <span className={`text-3xl font-semibold leading-none ${
                                                                     isUrgente ? 'text-red-700' : 'text-ankawa-deep'
                                                                 }`}>
                                                                     {mov.dias_restantes === 0 ? 'Hoy' : 'Vencido'}
                                                                 </span>
                                                             ) : (
                                                                 <>
-                                                                    <span className={`font-serif text-4xl font-medium leading-none tabular-nums ${
+                                                                    <span className={`text-4xl font-semibold leading-none tabular-nums ${
                                                                         isUrgente ? 'text-red-700' : isUrgenteSoft ? 'text-amber-700' : 'text-ankawa-deep'
                                                                     }`}>
                                                                         {mov.dias_restantes ?? '—'}
                                                                     </span>
-                                                                    <span className="font-mono text-xs text-ankawa-deep/65">
+                                                                    <span className="text-xs text-ankawa-deep/65">
                                                                         {mov.tipo_dias === 'habiles' ? 'días háb.' : 'días'}
                                                                     </span>
                                                                 </>
@@ -476,28 +476,28 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                                         </div>
 
                                                         {mov.fecha_limite && (
-                                                            <div className="mt-1.5 text-xs font-mono text-ankawa-deep/55">
+                                                            <div className="mt-1.5 text-xs tabular-nums text-ankawa-deep/55">
                                                                 Vence {mov.fecha_limite}
                                                             </div>
                                                         )}
 
                                                         {mov.dias_plazo && (
-                                                            <div className="mt-3 pt-3 border-t border-ankawa-deep/[0.08] text-[10px] font-mono uppercase tracking-widest text-ankawa-deep/45">
+                                                            <div className="mt-3 pt-3 border-t border-ankawa-deep/[0.08] text-[10px] uppercase tracking-widest text-ankawa-deep/45">
                                                                 Plazo total · {mov.dias_plazo}{mov.tipo_dias === 'habiles' ? ' háb.' : 'd'}
                                                             </div>
                                                         )}
                                                     </div>
                                                 ) : (
                                                     <div>
-                                                        <div className="font-mono text-[10px] uppercase tracking-widest text-ankawa-deep/55">
+                                                        <div className="text-[10px] uppercase tracking-widest text-ankawa-deep/55">
                                                             Estado del plazo
                                                         </div>
                                                         <div className="mt-2 flex items-baseline gap-2">
-                                                            <span className="font-serif text-2xl font-medium text-ankawa-deep/55 leading-none">
+                                                            <span className="text-2xl font-semibold text-ankawa-deep/55 leading-none">
                                                                 Sin plazo
                                                             </span>
                                                         </div>
-                                                        <div className="mt-1.5 text-xs font-mono text-ankawa-deep/45">
+                                                        <div className="mt-1.5 text-xs text-ankawa-deep/45">
                                                             activo
                                                         </div>
                                                     </div>

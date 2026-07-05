@@ -204,7 +204,7 @@ function RespuestaCard({ mov }) {
                             <span className="text-sm text-gray-500">{mov.respondido_por.name}</span>
                         )}
                         {mov.cargo?.numero_cargo && (
-                            <span className="text-xs font-mono font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded border border-[#291136]/10">
+                            <span className="text-xs tabular-nums font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded border border-[#291136]/10">
                                 {mov.cargo.numero_cargo}
                             </span>
                         )}
@@ -812,7 +812,7 @@ export default function TabHistorial({ movimientos = [], solicitud, esGestor = f
                         </div>
                         <div>
                             <span className="text-sm text-gray-400 block mb-0.5">N. Cargo</span>
-                            <span className="text-base font-mono font-semibold text-[#291136]">{solicitud.numero_cargo}</span>
+                            <span className="text-base tabular-nums font-semibold text-[#291136]">{solicitud.numero_cargo}</span>
                         </div>
                         <div>
                             <span className="text-sm text-gray-400 block mb-0.5">Solicitud</span>
