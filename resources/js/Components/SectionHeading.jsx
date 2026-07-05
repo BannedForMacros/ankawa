@@ -17,12 +17,12 @@ export default function SectionHeading({ title, meta }) {
         <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
             <div>
                 <div className="w-12 h-[3px] bg-ankawa-rose mb-4" aria-hidden="true" />
-                <h2 className="font-serif text-2xl md:text-3xl font-medium text-ankawa-deep leading-tight">
+                <h2 className="text-2xl md:text-3xl font-semibold text-ankawa-deep leading-tight">
                     {title}
                 </h2>
             </div>
             {meta != null && meta !== false && (
-                <div className="font-mono text-xs tracking-widest uppercase text-ankawa-deep/60">
+                <div className="text-xs tracking-widest uppercase text-ankawa-deep/60">
                     {meta}
                 </div>
             )}

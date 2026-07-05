@@ -44,8 +44,8 @@ export default function DonutChart({ data = [], emptyLabel = 'Sin datos' }) {
                 </ResponsiveContainer>
                 {/* Total exactamente al centro de la dona */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="font-serif text-4xl leading-none text-ankawa-deep tabular-nums">{total}</span>
-                    <span className="font-mono text-[10px] uppercase tracking-widest text-ankawa-deep/45 mt-1.5">Total</span>
+                    <span className="text-4xl font-semibold leading-none text-ankawa-deep tabular-nums">{total}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-ankawa-deep/45 mt-1.5">Total</span>
                 </div>
             </div>
 
@@ -55,7 +55,7 @@ export default function DonutChart({ data = [], emptyLabel = 'Sin datos' }) {
                     <li key={`${d.label}-${i}`} className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: RAMPA_ROSE[i % RAMPA_ROSE.length] }} />
                         <span className="text-sm text-ankawa-deep/70">{d.label}</span>
-                        <span className="font-mono text-sm tabular-nums text-ankawa-deep">{d.total}</span>
+                        <span className="text-sm tabular-nums text-ankawa-deep">{d.total}</span>
                     </li>
                 ))}
             </ul>

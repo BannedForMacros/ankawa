@@ -34,7 +34,7 @@ export default function ConfigHeader({
                 <div className="max-w-3xl">
                     {hasBreadcrumb && (
                         <nav aria-label="Breadcrumb" className="mb-4">
-                            <ol className="flex flex-wrap items-center font-mono text-xs uppercase tracking-widest">
+                            <ol className="flex flex-wrap items-center text-xs uppercase tracking-widest">
                                 {breadcrumb.map((item, idx) => {
                                     const isLast = idx === breadcrumb.length - 1;
                                     const labelClass = isLast
@@ -64,7 +64,7 @@ export default function ConfigHeader({
 
                     <div className="w-12 h-[3px] bg-ankawa-rose mb-4" aria-hidden="true" />
 
-                    <h1 className="font-serif font-medium text-4xl md:text-5xl leading-tight text-ankawa-deep mb-3">
+                    <h1 className="font-semibold text-4xl md:text-5xl leading-tight text-ankawa-deep mb-3">
                         {title}
                         {titleAccent && (
                             <>

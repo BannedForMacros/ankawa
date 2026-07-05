@@ -1,3 +1,4 @@
+import { cloneElement } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import {
@@ -26,17 +27,29 @@ function urgencia(dias) {
 
 /* ── Bloques presentacionales ─────────────────────────────────────────── */
 
+const PANEL_GRADIENT = 'linear-gradient(135deg, #291136 0%, #4A153D 55%, #BE0F4A 100%)';
+
 function Panel({ title, icon, children, action }) {
     return (
-        <section className="bg-white rounded-xl border border-ankawa-deep/[0.08] p-5">
-            <div className="flex items-center justify-between gap-3 mb-4">
-                <h3 className="flex items-center gap-2 font-semibold text-ankawa-deep">
-                    {icon}
-                    <span>{title}</span>
+        <section className="bg-white rounded-2xl border border-ankawa-deep/[0.08] shadow-sm overflow-hidden flex flex-col">
+            {/* Banda de cabecera con gradiente de marca — parte el card en dos */}
+            <div
+                className="flex items-center justify-between gap-3 px-5 py-3.5"
+                style={{ background: PANEL_GRADIENT }}
+            >
+                <h3 className="flex items-center gap-3 min-w-0">
+                    {icon && (
+                        <span className="grid place-items-center w-11 h-11 rounded-xl bg-white/15 ring-1 ring-white/25 shrink-0">
+                            {cloneElement(icon, { size: 22, strokeWidth: 2, className: 'text-white' })}
+                        </span>
+                    )}
+                    <span className="font-bold text-white text-[15px] leading-tight truncate">{title}</span>
                 </h3>
                 {action}
             </div>
-            {children}
+            <div className="p-5">
+                {children}
+            </div>
         </section>
     );
 }
@@ -61,7 +74,7 @@ function ListaVencimientos({ items, emptyLabel = 'Nada por aquí — todo al dí
                             className="flex items-center gap-3 py-3 group hover:bg-ankawa-deep/[0.015] -mx-2 px-2 rounded-lg transition-colors"
                         >
                             <div className="min-w-0 flex-1">
-                                <p className="font-mono text-xs text-ankawa-rose mb-0.5">{m.expediente ?? '—'}</p>
+                                <p className="text-xs tabular-nums text-ankawa-rose mb-0.5">{m.expediente ?? '—'}</p>
                                 <p className="text-sm text-ankawa-deep/80 truncate">{m.instruccion || 'Movimiento'}</p>
                             </div>
                             <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold border ${u.cls}`}>
@@ -89,7 +102,7 @@ function ListaExpedientes({ items, emptyLabel }) {
                         className="flex items-center gap-3 py-3 group hover:bg-ankawa-deep/[0.015] -mx-2 px-2 rounded-lg transition-colors"
                     >
                         <div className="min-w-0 flex-1">
-                            <p className="font-mono text-xs text-ankawa-rose mb-0.5">{e.numero ?? '—'}</p>
+                            <p className="text-xs tabular-nums text-ankawa-rose mb-0.5">{e.numero ?? '—'}</p>
                             <p className="text-sm text-ankawa-deep/70 truncate">
                                 {e.servicio}{e.etapa ? ` · ${e.etapa}` : ''}
                             </p>
@@ -144,7 +157,7 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
                 {/* ── Bloque GLOBAL (dirección / secretarías con visión institucional) ── */}
                 {global && (
                     <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-ankawa-deep/50 font-mono text-xs uppercase tracking-widest">
+                        <div className="flex items-center gap-2 text-ankawa-deep/50 text-xs uppercase tracking-widest">
                             <ShieldCheck size={14} /> Visión institucional
                         </div>
 
@@ -172,7 +185,7 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
                             <Panel
                                 title="Vencimientos más próximos"
                                 icon={<Clock size={18} className="text-ankawa-rose" />}
-                                action={<Link href="/expedientes" className="text-xs font-semibold text-ankawa-rose hover:text-ankawa-rose-hover">Ver todos</Link>}
+                                action={<Link href="/expedientes" className="shrink-0 text-xs font-semibold text-white/90 hover:text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full transition-colors">Ver todos</Link>}
                             >
                                 <ListaVencimientos items={global.urgentes} emptyLabel="Sin plazos pendientes." />
                             </Panel>
@@ -180,7 +193,7 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
                                 <Panel
                                     title="Expedientes recientes"
                                     icon={<FileStack size={18} className="text-ankawa-rose" />}
-                                    action={<Link href="/expedientes" className="text-xs font-semibold text-ankawa-rose hover:text-ankawa-rose-hover">Ir a expedientes</Link>}
+                                    action={<Link href="/expedientes" className="shrink-0 text-xs font-semibold text-white/90 hover:text-white bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full transition-colors">Ir a expedientes</Link>}
                                 >
                                     <ListaExpedientes items={global.recientes} emptyLabel="Aún no hay expedientes." />
                                 </Panel>
@@ -192,7 +205,7 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
                 {/* ── Bloque GESTOR (secretario arbitral / gestor JPRD con casos a cargo) ── */}
                 {gestor && (
                     <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-ankawa-deep/50 font-mono text-xs uppercase tracking-widest">
+                        <div className="flex items-center gap-2 text-ankawa-deep/50 text-xs uppercase tracking-widest">
                             <Briefcase size={14} /> Mis casos como gestor
                         </div>
 
@@ -219,7 +232,7 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
                 {/* ── Bloque ARBITRAL (árbitro / adjudicador designado) ── */}
                 {arbitral && (
                     <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-ankawa-deep/50 font-mono text-xs uppercase tracking-widest">
+                        <div className="flex items-center gap-2 text-ankawa-deep/50 text-xs uppercase tracking-widest">
                             <Gavel size={14} /> Casos para resolver
                         </div>
 
