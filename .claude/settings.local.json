@@ -122,7 +122,29 @@
       "Read(//private/tmp/**)",
       "Bash(curl -sL --max-time 30 \"https://raw.githubusercontent.com/jmcastagnetto/ubigeo-peru-aumentado/main/ubigeo_distrito.csv\" -o ubigeo.csv)",
       "Bash(brew install *)",
-      "Bash(pdftotext -layout \"Manual de identidad de ANKAWA INTL.pdf\" -)"
+      "Bash(pdftotext -layout \"Manual de identidad de ANKAWA INTL.pdf\" -)",
+      "Skill(artifact-design)",
+      "Bash(sips -g hasAlpha -g pixelWidth -g pixelHeight -g format public/logo.png)",
+      "Read(//Applications/Google Chrome.app/Contents/MacOS/**)",
+      "Bash(npx playwright *)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --window-size=1300,1100 --screenshot=preview.png file://__TRACKED_VAR__/preview.html)",
+      "Bash(echo \"exit: $?\")",
+      "Artifact",
+      "Bash(curl -s \"http://[::1]:5173/resources/js/Pages/Dashboard.jsx\")",
+      "Bash(curl -s \"http://[::1]:5173/resources/js/Components/KPICard.jsx\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"http://[::1]:5173/@vite/client\")",
+      "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 public/images/backgrounds/bg1.png --out public/images/backgrounds/hero-dashboard.jpg)",
+      "Bash(awk '{print $5\" bytes  \"$9}')",
+      "Bash(printf 'data:image/jpeg;base64,')",
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/hero-dashboard.jpg)",
+      "Bash(sips -Z 640 --out eagle-small.png /Users/jesus/MacSoft/ankawa/public/logo.png)",
+      "Bash(printf 'data:image/png;base64,')",
+      "Bash(base64 -i eagle-small.png)",
+      "Bash(perl -0pi -e 's/<KPIGrid>/<KPIGrid className=\"dash-stagger\">/g' resources/js/Pages/Dashboard.jsx)",
+      "Bash(perl -0pi -e 's/className=\"grid grid-cols-1 lg:grid-cols-2 gap-6\"/className=\"grid grid-cols-1 lg:grid-cols-2 gap-6 dash-stagger\"/g' resources/js/Pages/Dashboard.jsx)",
+      "Bash(perl -0pi -e 's/className=\"grid grid-cols-1 lg:grid-cols-3 gap-6\"/className=\"grid grid-cols-1 lg:grid-cols-3 gap-6 dash-stagger\"/g' resources/js/Pages/Dashboard.jsx)",
+      "Bash(sips -g pixelWidth -g pixelHeight -g hasAlpha public/images/backgrounds/fondo.png)",
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/contenido-aguila.jpg)"
     ]
   }
 }

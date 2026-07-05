@@ -5,9 +5,9 @@
  * No agrega padding ni borders; ese contexto lo provee la página contenedora.
  */
 
-export default function KPIGrid({ children }) {
+export default function KPIGrid({ children, className = '' }) {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${className}`}>
             {children}
         </div>
     );

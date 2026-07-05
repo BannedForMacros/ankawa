@@ -37,6 +37,32 @@
     animation: mp-sidebar-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* ─── Dashboard: animaciones de entrada y ambiente ─── */
+@keyframes dash-fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes dash-kenburns {
+    from { transform: scale(1);    }
+    to   { transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: no-preference) {
+    /* Entrada escalonada de tarjetas (hijos directos del contenedor) */
+    .dash-stagger > * {
+        opacity: 0;
+        animation: dash-fade-up 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    }
+    .dash-stagger > *:nth-child(1) { animation-delay: 0.04s; }
+    .dash-stagger > *:nth-child(2) { animation-delay: 0.10s; }
+    .dash-stagger > *:nth-child(3) { animation-delay: 0.16s; }
+    .dash-stagger > *:nth-child(4) { animation-delay: 0.22s; }
+    .dash-stagger > *:nth-child(5) { animation-delay: 0.28s; }
+    .dash-stagger > *:nth-child(6) { animation-delay: 0.34s; }
+
+    .dash-hero-in  { animation: dash-fade-up 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+    .dash-kenburns { animation: dash-kenburns 20s ease-out both; }
+}
+
 /* Hide scrollbar but keep scrolling (sidebar step list) */
 .scrollbar-hide {
     -ms-overflow-style: none;

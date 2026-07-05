@@ -5,8 +5,9 @@
  * detecta rutas. El padre decide qué pasarle según la vista actual.
  *
  * Diseño: bloque blanco con breadcrumb dinámico, línea ornamental rose, título
- * serif refinado (Fraunces) con acento opcional, descripción y marca de agua del
- * logo a la derecha tintada en color ankawa-deep al ~6 % de opacidad.
+ * Montserrat con acento opcional, descripción y marca de agua del logo a la
+ * derecha. Por defecto es sutil (logo tintado en ankawa-deep al ~7 %); con
+ * `watermarkVivid` se muestra el águila a todo color de la paleta (Dashboard).
  *
  * Uso típico:
  *   <PageHeader
@@ -22,6 +23,7 @@
  *   - titleAccent?:   string                                    — fragmento en rose al final
  *   - description?:   string                                    — párrafo descriptivo
  *   - showWatermark?: boolean (default true)                    — marca de agua del logo
+ *   - watermarkVivid?: boolean (default false)                  — águila a todo color (sin tinte)
  *
  * Notas:
  *   - Items con `href` se renderizan como Inertia <Link> (SPA navigation).
@@ -40,6 +42,7 @@ export default function PageHeader({
     titleAccent,
     description,
     showWatermark = true,
+    watermarkVivid = false,
 }) {
     const hasBreadcrumb = Array.isArray(breadcrumb) && breadcrumb.length > 0;
 
@@ -47,11 +50,13 @@ export default function PageHeader({
         <header className="relative overflow-hidden bg-white px-6 sm:px-10 py-8 border-b border-ankawa-deep/5">
             {showWatermark && (
                 <img
-                    src="/logo-white.png"
+                    src={watermarkVivid ? '/logo.png' : '/logo-white.png'}
                     alt=""
                     aria-hidden="true"
-                    className="hidden md:block pointer-events-none select-none absolute right-10 top-1/2 -translate-y-1/2 h-[170px] w-auto z-0"
-                    style={{ filter: WATERMARK_FILTER, opacity: 0.07 }}
+                    className="hidden md:block pointer-events-none select-none absolute right-6 lg:right-10 top-1/2 -translate-y-1/2 w-auto z-0"
+                    style={watermarkVivid
+                        ? { height: 210, opacity: 0.92 }
+                        : { height: 170, opacity: 0.07, filter: WATERMARK_FILTER }}
                 />
             )}
 
