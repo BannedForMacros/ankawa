@@ -144,7 +144,16 @@
       "Bash(perl -0pi -e 's/className=\"grid grid-cols-1 lg:grid-cols-2 gap-6\"/className=\"grid grid-cols-1 lg:grid-cols-2 gap-6 dash-stagger\"/g' resources/js/Pages/Dashboard.jsx)",
       "Bash(perl -0pi -e 's/className=\"grid grid-cols-1 lg:grid-cols-3 gap-6\"/className=\"grid grid-cols-1 lg:grid-cols-3 gap-6 dash-stagger\"/g' resources/js/Pages/Dashboard.jsx)",
       "Bash(sips -g pixelWidth -g pixelHeight -g hasAlpha public/images/backgrounds/fondo.png)",
-      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/contenido-aguila.jpg)"
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/contenido-aguila.jpg)",
+      "Bash(awk '{print $5\" bytes\"}')",
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/aguila-watermark.png)",
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/aguila-bg.png)",
+      "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 bg3.png --out hero-expedientes.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 bg2.png --out hero-mesapartes.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 bg4.png --out hero-config.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 bg5.png --out hero-auditoria.jpg)",
+      "Bash(perl -0pi -e 's/\\(title=\"Expedientes\"\\\\n\\\\s+titleAccent=\"Electrónicos\"\\\\n\\\\s+description=\"[^\"]*\"\\\\n\\)\\(\\\\s+\\\\/>\\)/$1                image=\"\\\\/images\\\\/backgrounds\\\\/hero-expedientes.jpg\"\\\\n$2/' resources/js/Pages/Expedientes/Index.jsx)",
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/hero-config.jpg)"
     ]
   }
 }

@@ -64,6 +64,7 @@ export default function HistorialPortal({ eventos = [], eventosDisponibles = [],
                 title="Auditoría del"
                 titleAccent="Portal Público"
                 description="Historial completo de la actividad de Mesa de Partes — sesiones, validaciones de identidad, solicitudes y cargos generados."
+                image="/images/backgrounds/hero-auditoria.jpg"
             />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">

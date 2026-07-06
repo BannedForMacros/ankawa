@@ -186,6 +186,7 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 
 - `resources/js/Pages/Expedientes/Index.jsx` — lista de expedientes
 - `resources/js/Pages/Expedientes/Show.jsx` — detalle con tabs
+- [`docs/header-images.md`](docs/header-images.md) — sistema de headers estandarizados (`PageHeader`/`ConfigHeader`), tabla de imágenes `hero-*.jpg` por sección y prompts de IA para generarlas
 - `app/Http/Controllers/ExpedienteController.php` — controlador principal
 - `resources/js/utils/archivos.js` — `filtrarArchivosValidos()` (validación de uploads en cliente)
 - `app/Http/Controllers/PortalController.php` — flujo del portal externo (OTP, responder, enviar doc)

@@ -59,8 +59,8 @@
     .dash-stagger > *:nth-child(5) { animation-delay: 0.28s; }
     .dash-stagger > *:nth-child(6) { animation-delay: 0.34s; }
 
-    .dash-hero-in  { animation: dash-fade-up 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-    .dash-kenburns { animation: dash-kenburns 20s ease-out both; }
+    .hero-in       { animation: dash-fade-up 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+    .hero-kenburns { animation: dash-kenburns 20s ease-out both; }
 }
 
 /* Hide scrollbar but keep scrolling (sidebar step list) */

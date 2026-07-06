@@ -6,6 +6,7 @@ import {
     AlertTriangle, UserX, Gavel, Send, CheckSquare, ChevronRight,
     Layers, Users, BarChart3, FileStack, Briefcase, ShieldCheck,
 } from 'lucide-react';
+import PageHeader from '@/Components/PageHeader';
 import KPIGrid from '@/Components/KPIGrid';
 import KPICard from '@/Components/KPICard';
 import BarrasChart from '@/Components/charts/BarrasChart';
@@ -124,50 +125,16 @@ export default function Dashboard({ perfil = {}, personal = {}, global = null, g
         <AuthenticatedLayout>
             <Head title="Panel de Control" />
 
-            {/* ── Hero fotográfico de marca (momento de entrada) ── */}
-            <header className="relative overflow-hidden">
-                {/* Foto de oficina legal (zoom lento Ken Burns) */}
-                <div
-                    className="absolute inset-0 bg-cover bg-center dash-kenburns"
-                    style={{ backgroundImage: 'url(/images/backgrounds/hero-dashboard.jpg)' }}
-                />
-                {/* Velo de marca — oscuro a la izquierda (legibilidad) hacia rose a la derecha */}
-                <div
-                    className="absolute inset-0"
-                    style={{ background: 'linear-gradient(100deg, rgba(41,17,54,0.95) 0%, rgba(74,21,61,0.88) 42%, rgba(190,15,74,0.60) 100%)' }}
-                />
-                {/* Águila a color de marca */}
-                <img
-                    src="/logo.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="hidden md:block pointer-events-none select-none absolute right-8 lg:right-14 top-1/2 -translate-y-1/2 h-[200px] w-auto z-10"
-                    style={{ opacity: 0.9 }}
-                />
+            {/* Hero estandarizado (mismo componente en toda la app) */}
+            <PageHeader
+                breadcrumb={[{ label: 'Inicio' }]}
+                title="Hola,"
+                titleAccent={primerNombre}
+                description={`${perfil?.rol_nombre ?? ''}${perfil?.puede_ver_todos ? ' · visión institucional' : ''}`}
+            />
 
-                <div className="relative z-20 px-6 sm:px-10 py-10 max-w-3xl dash-hero-in">
-                    <nav aria-label="Breadcrumb" className="mb-4">
-                        <span className="text-xs uppercase tracking-widest text-white/70">Inicio</span>
-                    </nav>
-                    <div className="w-12 h-[3px] bg-ankawa-rose mb-4" aria-hidden="true" />
-                    <h1 className="font-black text-4xl md:text-5xl leading-tight text-white mb-2 tracking-tight">
-                        Hola, <span className="text-ankawa-rose">{primerNombre}</span>
-                    </h1>
-                    <p className="text-sm md:text-base text-white/80">
-                        {perfil?.rol_nombre ?? ''}{perfil?.puede_ver_todos ? ' · visión institucional' : ''}
-                    </p>
-                </div>
-            </header>
-
-            <div className="relative min-h-full" style={{ background: 'linear-gradient(to bottom, #f4f1f6 0%, #ebe6ef 100%)' }}>
-                {/* Fondo del contenido — águila de marca COMPLETA (contain, a color).
-                    bg-fixed: se mantiene visible al hacer scroll (no desaparece).
-                    Base plum-gris cálida (ni rosado lavado, ni gris plano). */}
-                <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-                    <div className="absolute inset-0 bg-contain bg-center bg-no-repeat bg-fixed opacity-20"
-                        style={{ backgroundImage: 'url(/images/backgrounds/contenido-aguila.jpg)' }} />
-                </div>
-
+            {/* El fondo (águila de marca) ahora es global — vive en AuthenticatedLayout */}
+            <div className="relative min-h-full">
                 <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 py-8 space-y-10">
 
                 {/* ── Resumen personal (siempre) ── */}

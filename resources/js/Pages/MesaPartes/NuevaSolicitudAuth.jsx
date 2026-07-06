@@ -37,6 +37,7 @@ export default function NuevaSolicitudAuth({ servicios }) {
                         ? `Estás iniciando una solicitud de ${servicioSeleccionado.nombre}. Completa el formulario con los datos requeridos.`
                         : 'Selecciona el tipo de trámite que deseas iniciar y completa el formulario correspondiente.'
                 }
+                image="/images/backgrounds/hero-mesapartes.jpg"
             />
 
             <div className="py-6">

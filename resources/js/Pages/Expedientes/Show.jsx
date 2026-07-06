@@ -114,6 +114,7 @@ export default function Show({
                 title="Expediente"
                 titleAccent={expediente.numero_expediente ?? `EXP-${expediente.id}`}
                 description={`Detalle, etapas y actuaciones del expediente. Servicio: ${expediente.servicio?.nombre ?? '—'} · Etapa actual: ${expediente.etapa_actual?.nombre ?? '—'}.`}
+                image="/images/backgrounds/hero-expedientes.jpg"
             />
 
             {/* ── Resumen ejecutivo del expediente ── */}

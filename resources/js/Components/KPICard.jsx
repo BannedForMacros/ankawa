@@ -99,10 +99,11 @@ export default function KPICard({
                     </span>
                 </div>
 
-                {/* Cuerpo: cantidad grande + sello de icono de fondo (mata el blanco plano) */}
+                {/* Cuerpo OPACO (tinte sólido sobre blanco) para que el fondo global no
+                    se transparente a través del card; sello de icono para matar el blanco. */}
                 <div
                     className="relative overflow-hidden px-5 py-5 flex-1"
-                    style={{ background: `linear-gradient(135deg, rgba(${rgb},0.04) 0%, rgba(${rgb},0.13) 100%)` }}
+                    style={{ background: `linear-gradient(135deg, #ffffff 0%, rgba(${rgb},0.14) 100%), #ffffff` }}
                 >
                     {icon && (
                         <span

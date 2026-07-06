@@ -257,6 +257,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                 title="Expedientes"
                 titleAccent="Electrónicos"
                 description="Accede, consulta y da seguimiento a tus expedientes electrónicos de manera centralizada."
+                image="/images/backgrounds/hero-expedientes.jpg"
             />
 
             <div className="pt-6 pb-12">

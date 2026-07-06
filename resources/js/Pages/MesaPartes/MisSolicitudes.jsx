@@ -1020,6 +1020,7 @@ export default function MisSolicitudes({ solicitudes }) {
                 ]}
                 title="Mis Solicitudes"
                 description="Seguimiento completo de tus solicitudes presentadas en Mesa de Partes."
+                image="/images/backgrounds/hero-mesapartes.jpg"
             />
 
             <div className="py-6 bg-gradient-to-b from-[#291136]/[0.035] via-transparent to-[#BE0F4A]/[0.025] min-h-[calc(100vh-9rem)]">

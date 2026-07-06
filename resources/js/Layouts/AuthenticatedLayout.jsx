@@ -21,7 +21,17 @@ export default function AuthenticatedLayout({ children }) {
             <Navbar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(o => !o)} />
             <div className="flex flex-1 overflow-hidden relative">
                 <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-                <main className="flex-1 overflow-y-auto">
+                <main
+                    className="flex-1 overflow-y-auto"
+                    style={{
+                        backgroundColor: '#f5f3f6',
+                        backgroundImage: 'url(/images/backgrounds/aguila-bg.png)',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundAttachment: 'fixed',
+                        backgroundSize: 'auto 40vh',
+                        backgroundPosition: 'center 66%',
+                    }}
+                >
                     {children}
                 </main>
             </div>
