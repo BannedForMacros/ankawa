@@ -153,7 +153,10 @@
       "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 bg4.png --out hero-config.jpg)",
       "Bash(sips -s format jpeg -s formatOptions 72 -Z 1920 bg5.png --out hero-auditoria.jpg)",
       "Bash(perl -0pi -e 's/\\(title=\"Expedientes\"\\\\n\\\\s+titleAccent=\"Electrónicos\"\\\\n\\\\s+description=\"[^\"]*\"\\\\n\\)\\(\\\\s+\\\\/>\\)/$1                image=\"\\\\/images\\\\/backgrounds\\\\/hero-expedientes.jpg\"\\\\n$2/' resources/js/Pages/Expedientes/Index.jsx)",
-      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/hero-config.jpg)"
+      "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/hero-config.jpg)",
+      "Bash(pip3 install *)",
+      "Bash(awk '{print $5\" \"$9}')",
+      "Bash(awk 'NR>1 {print $5\" \"$9}')"
     ]
   }
 }

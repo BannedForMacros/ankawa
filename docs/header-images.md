@@ -35,10 +35,12 @@ prompts de abajo.
 - **Formato**: 16:9, mínimo **1920 px** de ancho.
 - **Peso**: optimizar a JPEG calidad ~72–76 (objetivo < 250 KB). Comando usado
   en el proyecto: `sips -s format jpeg -s formatOptions 72 -Z 1920 origen.png --out hero-x.jpg`
-- **Composición obligatoria**: lado **izquierdo oscuro/calmado** (ahí va el
-  texto) y el interés visual a la **derecha**. Bajo contraste — la imagen va
-  debajo de un velo `plum → rose` a ~90 % de opacidad, solo se percibe la
-  atmósfera.
+- **Composición obligatoria** (¡importante!): tercio **izquierdo oscuro/vacío**
+  (ahí va el texto) · **sujeto al CENTRO** del encuadre · borde **derecho limpio
+  y suave** (solo luz difusa/bokeh) porque ahí se superpone el **águila del
+  logo** — o el botón CTA en Configuración. Si el sujeto sale a la derecha,
+  el águila lo tapa. Bajo contraste — la imagen va debajo de un velo
+  `plum → rose` a ~90 % de opacidad, solo se percibe la atmósfera.
 - **Sin** texto, logos, marcas de agua ni rostros en foco.
 - Si la imagen sale con la marca de agua de Gemini (estrella ✦ abajo-derecha),
   generarla en [AI Studio](https://aistudio.google.com) (sin marca visible) o
@@ -87,11 +89,14 @@ cluttered, busy patterns, harsh lighting
 Professional photograph inside a modern high-end law firm, soft blurred
 background (bokeh), deep plum purple (#291136) and magenta-crimson (#BE0F4A)
 brand accents in the decor (glass panels, lamps, chair upholstery). Cinematic
-soft lighting, elegant institutional atmosphere. Composition: left side dark
-and calm with generous negative space for text overlay, subject interest on
-the right side. Low contrast, muted tones, premium corporate aesthetic.
+soft lighting, elegant institutional atmosphere. Composition: left third dark and
+calm with generous negative space for text overlay; main subject placed in the
+CENTER of the frame; the far right edge must stay clean and soft — only blurred
+light and gentle bokeh, no important elements — because a brand emblem will be
+overlaid on that area. Keep key elements inside the vertical middle band.
+Low contrast, muted tones, premium corporate aesthetic.
 Subject: spacious executive lobby with floor-to-ceiling windows and a city
-skyline, two silhouetted professionals conversing in the far background.
+skyline, two silhouetted professionals conversing in the center background.
 No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 ```
 
@@ -101,11 +106,14 @@ No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 Professional photograph inside a modern high-end law firm, soft blurred
 background (bokeh), deep plum purple (#291136) and magenta-crimson (#BE0F4A)
 brand accents in the decor (glass panels, lamps, chair upholstery). Cinematic
-soft lighting, elegant institutional atmosphere. Composition: left side dark
-and calm with generous negative space for text overlay, subject interest on
-the right side. Low contrast, muted tones, premium corporate aesthetic.
+soft lighting, elegant institutional atmosphere. Composition: left third dark and
+calm with generous negative space for text overlay; main subject placed in the
+CENTER of the frame; the far right edge must stay clean and soft — only blurred
+light and gentle bokeh, no important elements — because a brand emblem will be
+overlaid on that area. Keep key elements inside the vertical middle band.
+Low contrast, muted tones, premium corporate aesthetic.
 Subject: stacks of organized legal case files and bound dossiers on a walnut
-desk, a brass scale of justice softly blurred on the right.
+desk at the center, a brass scale of justice softly blurred beside them.
 No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 ```
 
@@ -115,11 +123,14 @@ No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 Professional photograph inside a modern high-end law firm, soft blurred
 background (bokeh), deep plum purple (#291136) and magenta-crimson (#BE0F4A)
 brand accents in the decor (glass panels, lamps, chair upholstery). Cinematic
-soft lighting, elegant institutional atmosphere. Composition: left side dark
-and calm with generous negative space for text overlay, subject interest on
-the right side. Low contrast, muted tones, premium corporate aesthetic.
-Subject: elegant reception counter with documents being handed over, a
-stamped envelope and a fountain pen on the counter, right side.
+soft lighting, elegant institutional atmosphere. Composition: left third dark and
+calm with generous negative space for text overlay; main subject placed in the
+CENTER of the frame; the far right edge must stay clean and soft — only blurred
+light and gentle bokeh, no important elements — because a brand emblem will be
+overlaid on that area. Keep key elements inside the vertical middle band.
+Low contrast, muted tones, premium corporate aesthetic.
+Subject: elegant reception counter with documents being handed over at the
+center of the frame, a stamped envelope and a fountain pen on the counter.
 No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 ```
 
@@ -129,11 +140,15 @@ No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 Professional photograph inside a modern high-end law firm, soft blurred
 background (bokeh), deep plum purple (#291136) and magenta-crimson (#BE0F4A)
 brand accents in the decor (glass panels, lamps, chair upholstery). Cinematic
-soft lighting, elegant institutional atmosphere. Composition: left side dark
-and calm with generous negative space for text overlay, subject interest on
-the right side. Low contrast, muted tones, premium corporate aesthetic.
+soft lighting, elegant institutional atmosphere. Composition: left third dark and
+calm with generous negative space for text overlay; main subject placed in the
+CENTER of the frame; the far right edge must stay clean and soft — only blurred
+light and gentle bokeh, no important elements — because a brand emblem will be
+overlaid on that area. Keep key elements inside the vertical middle band.
+Low contrast, muted tones, premium corporate aesthetic.
 Subject: minimalist glass meeting room with neatly arranged binders and a
-laptop, subtle geometric wall pattern echoing low-poly facets.
+laptop at the center of the table, subtle geometric wall pattern echoing
+low-poly facets.
 No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 ```
 
@@ -143,11 +158,14 @@ No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 Professional photograph inside a modern high-end law firm, soft blurred
 background (bokeh), deep plum purple (#291136) and magenta-crimson (#BE0F4A)
 brand accents in the decor (glass panels, lamps, chair upholstery). Cinematic
-soft lighting, elegant institutional atmosphere. Composition: left side dark
-and calm with generous negative space for text overlay, subject interest on
-the right side. Low contrast, muted tones, premium corporate aesthetic.
+soft lighting, elegant institutional atmosphere. Composition: left third dark and
+calm with generous negative space for text overlay; main subject placed in the
+CENTER of the frame; the far right edge must stay clean and soft — only blurred
+light and gentle bokeh, no important elements — because a brand emblem will be
+overlaid on that area. Keep key elements inside the vertical middle band.
+Low contrast, muted tones, premium corporate aesthetic.
 Subject: close-up of a magnifying glass resting over printed registry ledgers
-and audit reports, warm desk lamp glow on the right.
+and audit reports at the center, soft warm desk lamp glow from above.
 No text, no logos, no watermarks, no faces in focus. Wide 16:9 format.
 ```
 

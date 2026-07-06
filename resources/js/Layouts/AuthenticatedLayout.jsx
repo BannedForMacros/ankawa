@@ -5,10 +5,10 @@ import Sidebar from '@/Components/Sidebar';
 import AnkawaToaster from '@/Components/AnkawaToaster';
 
 export default function AuthenticatedLayout({ children }) {
-    // Abierto por defecto en escritorio, cerrado en móvil
-    const [sidebarOpen, setSidebarOpen] = useState(
-        () => (typeof window !== 'undefined' ? window.innerWidth >= 1024 : true)
-    );
+    // Inicia SIEMPRE minimizado (oculto por completo; la hamburguesa lo abre).
+    // Antes iniciaba abierto y el evento 'navigate' de la carga inicial lo
+    // colapsaba — se veía abrirse y cerrarse solo (flash).
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Al navegar a cualquier ruta, el sidebar se colapsa
     useEffect(() => {

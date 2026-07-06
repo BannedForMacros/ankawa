@@ -86,11 +86,12 @@ function SidebarItem({ item, onNavigate }) {
 
 /**
  * Sidebar de navegación. Controlado por el header (hamburguesa).
- * - Escritorio (lg+): forma parte del flujo; al cerrar colapsa su ancho a 0.
- * - Móvil: se desliza como drawer con backdrop.
+ * - Escritorio (lg+): minimizado por defecto y oculto en su totalidad (ancho 0);
+ *   la hamburguesa lo expande.
+ * - Móvil: se desliza como drawer con backdrop (cerrado = fuera de pantalla).
  *
- * Identidad Ankawa: degradado oscuro de marca + acento rose en el activo y un
- * pie discreto con la firma de la empresa (presencia sin saturar).
+ * Identidad Ankawa: degradado oscuro de marca + acento rose en el activo y el
+ * águila blanca centrada como firma en el pie.
  */
 export default function Sidebar({ open, onClose }) {
     const { auth } = usePage().props;
@@ -124,12 +125,12 @@ export default function Sidebar({ open, onClose }) {
                     ))}
                 </nav>
 
-                {/* Pie de marca — presencia discreta */}
-                <div className="shrink-0 px-5 py-4 border-t border-white/10 w-72">
+                {/* Pie de marca — águila blanca centrada */}
+                <div className="shrink-0 px-5 py-4 border-t border-white/10 w-72 flex flex-col items-center text-center">
                     <img
-                        src="/logo-white.png"
+                        src="/images/aguila-icon-white.png"
                         alt="The Ankawa Global Group"
-                        className="h-7 w-auto object-contain opacity-90"
+                        className="h-9 w-auto object-contain opacity-90"
                     />
                     <p className="text-white/40 text-[10px] mt-2 leading-snug">
                         The Ankawa Global Group SAC<br />
