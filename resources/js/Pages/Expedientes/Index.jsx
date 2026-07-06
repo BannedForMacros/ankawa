@@ -267,8 +267,9 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                     <section>
                         <SectionHeading title="Resumen del libro registro" />
 
-                        <KPIGrid>
+                        <KPIGrid className="dash-stagger">
                             <KPICard
+                                variant="filled"
                                 label="Total"
                                 value={stats.total}
                                 unit="expedientes"
@@ -276,6 +277,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                 accentColor="deep"
                             />
                             <KPICard
+                                variant="filled"
                                 label="En trámite"
                                 value={stats.activo}
                                 unit="activos"
@@ -283,6 +285,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                 accentColor="rose"
                             />
                             <KPICard
+                                variant="filled"
                                 label="Plazo crítico"
                                 value={stats.vencidos + stats.criticos}
                                 unit="≤ 2 días"
@@ -290,6 +293,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                                 accentColor="crimson"
                             />
                             <KPICard
+                                variant="filled"
                                 label="Por vencer"
                                 value={stats.urgentes}
                                 unit="3 a 5 días"
@@ -304,6 +308,7 @@ export default function Index({ expedientes = [], titulo = 'Expedientes' }) {
                     {/* ── Listado ── */}
                     <ListingSection
                         title="Listado de expedientes"
+                        icon={<Scale />}
                         description="Consulta, filtra y abre cualquier expediente bajo tu jurisdicción."
                         meta={`Mostrando ${filtrados.length} de ${expedientes.length} expedientes`}
                         filters={filtrosBar}
