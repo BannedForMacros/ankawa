@@ -13,6 +13,7 @@ import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import { consultarDocumento } from '@/utils/consultaDocumento';
+import useBorrador, { claveBorrador } from '@/hooks/useBorrador';
 import { Seccion } from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 
 /* ─── Utilitario de extensión ─── */
@@ -200,6 +201,16 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
     const loaderTimer = useRef(null);
     const inputRef    = useRef();
 
+    /* ── Borrador (autoguardado en localStorage; la aceptación legal no se restaura) ── */
+    const { limpiar: limpiarBorrador } = useBorrador({
+        clave: claveBorrador(servicio.slug, portalEmail),
+        datos: { form },
+        archivos: { 'Documentos adjuntos': archivos.map(f => f.name) },
+        hayAvance: [form.numero_doc_identidad, form.nombre_remitente, form.descripcion, form.observacion]
+            .some(v => String(v ?? '').trim() !== '') || archivos.length > 0,
+        aplicar: s => { if (s.form) setForm(prev => ({ ...prev, ...s.form })); },
+    });
+
     /* ── Validación Zod (submit completo + onBlur por campo) ── */
     const schema = otrosSchema({ tiposCount: tiposDocumento.length, cargandoTipos });
     const datosValidables = () => ({ ...form, acepta_reglamento: aceptaReglamento });
@@ -303,6 +314,7 @@ export default function OtrosForm({ servicio, portalEmail, hcaptchaSiteKey }) {
 
         router.post(route('solicitud.otros.store'), fd, {
             forceFormData: true,
+            onSuccess: () => limpiarBorrador(),
             onFinish: () => {
                 clearTimeout(loaderTimer.current);
                 setMostrarLoader(false);

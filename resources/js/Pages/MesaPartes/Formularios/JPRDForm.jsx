@@ -15,6 +15,7 @@ import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import useDocumentoLookup from '@/hooks/useDocumentoLookup';
+import useBorrador, { claveBorrador } from '@/hooks/useBorrador';
 import { Seccion } from '@/Pages/MesaPartes/Formularios/ArbitrajeForm';
 
 /* ─── Constantes ─── */
@@ -549,6 +550,35 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
             .catch(() => setCargandoTipos(false));
     }, [servicio.id]);
 
+    /* ── Borrador (autoguardado en localStorage; la aceptación legal no se restaura) ── */
+    const { limpiar: limpiarBorrador } = useBorrador({
+        clave: claveBorrador(servicio.slug, portalEmail),
+        datos: { rolSolicitante, entidad, contratista, observacion, tienePeticionPrevia, tipoDocumentoId },
+        archivos: {
+            'Solicitud de Conformación de JPRD': docSolicitudConformacion.map(f => f.name),
+            'Contrato de Obra':                  docContratoObra.map(f => f.name),
+            'Adendas':                           docAdendas.map(f => f.name),
+            'Anexos':                            docAnexos.map(f => f.name),
+            'Petición de Decisión Vinculante':   docPeticionPrevia.map(f => f.name),
+        },
+        hayAvance: !!rolSolicitante && (
+            [entidad.nombre, entidad.documento, contratista.nombre, contratista.documento, observacion]
+                .some(v => String(v ?? '').trim() !== '')
+            || (entidad.empresas ?? []).length > 0
+            || (contratista.empresas ?? []).length > 0
+            || docSolicitudConformacion.length > 0
+            || docContratoObra.length > 0
+        ),
+        aplicar: s => {
+            if (s.rolSolicitante) setRolSolicitante(s.rolSolicitante);
+            if (s.entidad)        setEntidad(prev => ({ ...prev, ...s.entidad }));
+            if (s.contratista)    setContratista(prev => ({ ...prev, ...s.contratista }));
+            if (s.observacion !== undefined)         setObservacion(s.observacion);
+            if (s.tienePeticionPrevia !== undefined) setTienePeticionPrevia(!!s.tienePeticionPrevia);
+            if (s.tipoDocumentoId)                   setTipoDocumentoId(String(s.tipoDocumentoId));
+        },
+    });
+
     // Datos planos para el esquema Zod (mismas claves que las marcas de error del render)
     function datosValidables() {
         const emailsSol = rolSolicitante === 'entidad' ? entidad.emails : contratista.emails;
@@ -662,6 +692,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
 
         router.post(route('solicitud.jprd.store'), fd, {
             forceFormData: true,
+            onSuccess: () => limpiarBorrador(),
             onFinish: () => {
                 clearTimeout(loaderTimer.current);
                 setMostrarLoader(false);

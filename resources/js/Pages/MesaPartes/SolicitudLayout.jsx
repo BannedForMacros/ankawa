@@ -4,6 +4,7 @@ import {
     ArrowLeft, CheckCircle2, HelpCircle, Menu, X, Landmark
 } from 'lucide-react';
 import AnkawaToaster from '@/Components/AnkawaToaster';
+import { BorradorEstadoContext } from '@/hooks/useBorrador';
 
 /* ─── Definición de etapas por slug de servicio ─── */
 // Tienen que coincidir exactamente con la cantidad de bloques principales (.rounded-2xl) generados por cada formulario
@@ -354,6 +355,9 @@ export default function SolicitudLayout({ servicio, children }) {
     const [maxPasoAlcanzado, setMaxPasoAlcanzado] = useState(0);
     const [seccionesCompletas, setSeccionesCompletas] = useState(() => new Array(etapas.length).fill(false));
     const [mobileOpen, setMobileOpen] = useState(false);
+    // Estado real del borrador, publicado por useBorrador desde el formulario hijo:
+    // null = sin actividad (badge oculto) | { estado: 'guardando' } | { estado: 'guardado', hora }
+    const [borradorEstado, setBorradorEstado] = useState(null);
     const contentRef = useRef(null);
     const sectionContainersRef = useRef([]);
 
@@ -517,6 +521,7 @@ export default function SolicitudLayout({ servicio, children }) {
     const bgIndex = getBgIndex();
 
     return (
+        <BorradorEstadoContext.Provider value={setBorradorEstado}>
         <div className="min-h-screen bg-gray-50/60 flex relative">
             {/* Animación de fondo: Imágenes fotográficas como marca de agua */}
             <div className="fixed inset-y-0 right-0 left-0 lg:left-[280px] pointer-events-none z-0 overflow-hidden bg-gray-100">
@@ -597,17 +602,29 @@ export default function SolicitudLayout({ servicio, children }) {
                             </div>
                         </div>
 
-                        {/* Borrador guardado badge */}
-                        <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm shrink-0">
-                            <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500"></span>
-                            </span>
-                            <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-emerald-700 mt-0.5">
-                                <span className="hidden sm:inline">Borrador Guardado</span>
-                                <span className="sm:hidden">Guardado</span>
-                            </span>
-                        </div>
+                        {/* Borrador guardado badge — refleja el estado real de useBorrador */}
+                        {borradorEstado?.estado === 'guardando' && (
+                            <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-amber-50 border border-amber-100 shadow-sm shrink-0">
+                                <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-full w-full bg-amber-500"></span>
+                                </span>
+                                <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-amber-700 mt-0.5">
+                                    Guardando…
+                                </span>
+                            </div>
+                        )}
+                        {borradorEstado?.estado === 'guardado' && (
+                            <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm shrink-0">
+                                <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5">
+                                    <span className="relative inline-flex rounded-full h-full w-full bg-emerald-500"></span>
+                                </span>
+                                <span className="text-[10px] sm:text-[11px] uppercase font-black tracking-wider text-emerald-700 mt-0.5">
+                                    <span className="hidden sm:inline">Borrador guardado{borradorEstado.hora ? ` · ${borradorEstado.hora}` : ''}</span>
+                                    <span className="sm:hidden">Guardado</span>
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </header>
 
@@ -656,6 +673,7 @@ export default function SolicitudLayout({ servicio, children }) {
                 </main>
             </div>
         </div>
+        </BorradorEstadoContext.Provider>
     );
 }
 
