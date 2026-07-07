@@ -187,6 +187,7 @@ Todo componente que cargue datos DEBE tener los 3 estados:
 - `resources/js/Pages/Expedientes/Index.jsx` — lista de expedientes
 - `resources/js/Pages/Expedientes/Show.jsx` — detalle con tabs
 - [`docs/header-images.md`](docs/header-images.md) — sistema de headers estandarizados (`PageHeader`/`ConfigHeader`), tabla de imágenes `hero-*.jpg` por sección y prompts de IA para generarlas
+- [`docs/sesion-branding-ui-2026-07.md`](docs/sesion-branding-ui-2026-07.md) — **contexto completo de la remodelación visual de julio 2026**: tipografía, headers, dashboard, águila de fondo global, sidebar, KPICard `filled`, decisiones de diseño y pendientes. Leer antes de tocar UI
 - `app/Http/Controllers/ExpedienteController.php` — controlador principal
 - `resources/js/utils/archivos.js` — `filtrarArchivosValidos()` (validación de uploads en cliente)
 - `app/Http/Controllers/PortalController.php` — flujo del portal externo (OTP, responder, enviar doc)

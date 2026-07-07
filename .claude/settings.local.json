@@ -156,7 +156,10 @@
       "Bash(base64 -i /Users/jesus/MacSoft/ankawa/public/images/backgrounds/hero-config.jpg)",
       "Bash(pip3 install *)",
       "Bash(awk '{print $5\" \"$9}')",
-      "Bash(awk 'NR>1 {print $5\" \"$9}')"
+      "Bash(awk 'NR>1 {print $5\" \"$9}')",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(awk -F\"registrar\\\\\\\\\\\\\\('\" '{print $2}')",
+      "Bash(awk -F\"'\" '{print $1}')"
     ]
   }
 }

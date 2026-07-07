@@ -97,7 +97,7 @@ export default function Show({
     const bannerColors = {
         urgente: 'bg-red-50 border-red-300 text-red-800',
         alerta:  'bg-amber-50 border-amber-300 text-amber-800',
-        info:    'bg-blue-50 border-blue-200 text-blue-800',
+        info:    'bg-[#291136]/5 border-[#291136]/15 text-[#291136]',   // aviso neutro: tinte de marca, no azul
         ok:      'bg-emerald-50 border-emerald-200 text-emerald-800',
     };
 
@@ -175,25 +175,27 @@ export default function Show({
                         </div>
                     )}
 
-                    {/* ── Tabs ── */}
-                    <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+                    {/* ── Tabs — control segmentado sobre card blanco (activo en rose de marca) ── */}
+                    <div className="bg-white rounded-2xl border border-ankawa-deep/[0.08] shadow-sm p-1.5 flex gap-1 overflow-x-auto">
                         {tabs.map(({ id, label, Icon, alerta, badge }) => (
                             <button
                                 key={id}
                                 onClick={() => setActiveTab(id)}
-                                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-colors whitespace-nowrap ${
                                     activeTab === id
-                                        ? 'border-[#BE0F4A] text-[#BE0F4A]'
-                                        : 'border-transparent text-gray-400 hover:text-[#291136]'
+                                        ? 'bg-[#BE0F4A] text-white shadow-sm shadow-[#BE0F4A]/30'
+                                        : 'text-ankawa-deep/55 hover:text-[#291136] hover:bg-ankawa-deep/[0.04]'
                                 }`}
                             >
                                 <Icon size={15}/>
                                 {label}
                                 {alerta && (
-                                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
+                                    <span className={`w-2 h-2 rounded-full animate-pulse ${activeTab === id ? 'bg-white' : 'bg-red-500'}`}/>
                                 )}
                                 {badge > 0 && (
-                                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#BE0F4A] text-white text-[10px] font-black">
+                                    <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black ${
+                                        activeTab === id ? 'bg-white text-[#BE0F4A]' : 'bg-[#BE0F4A] text-white'
+                                    }`}>
                                         {badge}
                                     </span>
                                 )}

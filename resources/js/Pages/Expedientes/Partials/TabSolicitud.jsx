@@ -1087,15 +1087,15 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
                     </div>
 
                     {/* Bloque 2: Empresas que conforman el consorcio */}
-                    <div className="bg-blue-50/40 rounded-xl border border-blue-200 p-4">
+                    <div className="bg-[#291136]/[0.04] rounded-xl border border-[#291136]/15 p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <Building2 size={14} className="text-blue-700" />
+                                <div className="w-7 h-7 rounded-full bg-[#291136]/10 flex items-center justify-center">
+                                    <Building2 size={14} className="text-[#291136]" />
                                 </div>
                                 <span className="text-xs font-bold text-[#291136] uppercase tracking-wide">Empresas que conforman el consorcio</span>
                             </div>
-                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#291136]/10 text-[#291136]">
                                 {empresasArr.length} {empresasArr.length === 1 ? 'empresa' : 'empresas'}
                             </span>
                         </div>

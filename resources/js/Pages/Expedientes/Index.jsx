@@ -59,10 +59,10 @@ const URGENCIA_CONFIG = {
     },
     proximo: {
         anim:  '',
-        badge: 'bg-blue-50 text-blue-700 border-blue-200',
-        dot:   'bg-blue-400',
-        ring:  'ring-blue-100',
-        accent:'bg-blue-400',
+        badge: 'bg-[#291136]/5 text-[#291136]/75 border-[#291136]/15',   // aviso neutro: tinte de marca, no azul
+        dot:   'bg-[#291136]/40',
+        ring:  'ring-[#291136]/10',
+        accent:'bg-[#291136]/30',
     },
     normal: {
         anim:  '',
