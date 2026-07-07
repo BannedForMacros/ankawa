@@ -356,7 +356,7 @@ export default function SolicitudLayout({ servicio, children }) {
     const [seccionesCompletas, setSeccionesCompletas] = useState(() => new Array(etapas.length).fill(false));
     const [mobileOpen, setMobileOpen] = useState(false);
     // Estado real del borrador, publicado por useBorrador desde el formulario hijo:
-    // null = sin actividad (badge oculto) | { estado: 'guardando' } | { estado: 'guardado', hora }
+    // null = sin actividad (badge oculto) | 'guardando' | { estado: 'guardado', hora }
     const [borradorEstado, setBorradorEstado] = useState(null);
     const contentRef = useRef(null);
     const sectionContainersRef = useRef([]);
@@ -603,7 +603,7 @@ export default function SolicitudLayout({ servicio, children }) {
                         </div>
 
                         {/* Borrador guardado badge — refleja el estado real de useBorrador */}
-                        {borradorEstado?.estado === 'guardando' && (
+                        {borradorEstado === 'guardando' && (
                             <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-amber-50 border border-amber-100 shadow-sm shrink-0">
                                 <span className="relative flex h-2 sm:h-2.5 w-2 sm:w-2.5">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>

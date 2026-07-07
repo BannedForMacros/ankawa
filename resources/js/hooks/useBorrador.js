@@ -143,7 +143,9 @@ export default function useBorrador({ clave, datos, aplicar, archivos = null, ha
         if (hayAvance) dirty.current = true;    // latch: una vez con avance, siempre guardar
         if (!dirty.current) return;             // formulario virgen → no ensuciar storage
 
-        publicar({ estado: 'guardando' });
+        // String primitivo a propósito: React ignora sets repetidos del mismo valor,
+        // así el tecleo continuo no re-renderiza el layout en cada pulsación.
+        publicar('guardando');
         clearTimeout(timer.current);
         timer.current = setTimeout(escribir, DEBOUNCE_MS);
         return () => clearTimeout(timer.current);

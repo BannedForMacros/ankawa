@@ -12,6 +12,7 @@ import HCaptchaWidget from '@/Components/HCaptchaWidget';
 import { filtrarArchivosValidos } from '@/utils/archivos';
 import { consultarDocumento } from '@/utils/consultaDocumento';
 import useDocumentoLookup from '@/hooks/useDocumentoLookup';
+import useBorrador, { claveBorrador } from '@/hooks/useBorrador';
 import { z } from 'zod';
 import { validarZod, validarCampo } from '@/lib/validar';
 import { confirmar } from '@/lib/swalAnkawa';
@@ -916,6 +917,62 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
             .catch(() => setCargandoTipos(false));
     }, [servicio.id]);
 
+    /* ── Borrador (autoguardado en localStorage) ── */
+    // Se excluyen del snapshot los arrays de File (no serializables) y la aceptación legal
+    // (debe volver a marcarse). Los nombres de los archivos sí se guardan para avisar
+    // qué hay que volver a adjuntar al restaurar.
+    const {
+        documentos_controversia: _dc, documentos_solicitud_inicio: _dsi,
+        documentos_medida_cautelar: _dmc, comprobante_pago_tasa: _cpt,
+        documentos_anexos: _da, acepta_reglamento_card: _arc,
+        ...dataBorrador
+    } = data;
+    const { limpiar: limpiarBorrador } = useBorrador({
+        clave: claveBorrador(servicio.slug, portalEmail),
+        datos: {
+            data: dataBorrador,
+            emailsDem, emailsDemAdic, emailsDado,
+            subtipoJuridicoDem, subtipoJuridicoDado,
+            empresasConsorcioDem, empresasConsorcioDado,
+            repConsorcioDem, repConsorcioDado,
+            tipoDocumentoId,
+        },
+        archivos: {
+            'Solicitud de Inicio de Arbitraje':        (data.documentos_solicitud_inicio ?? []).map(f => f.name),
+            'Convenio Arbitral':                       (data.documentos_controversia ?? []).map(f => f.name),
+            'Medida Cautelar':                         (data.documentos_medida_cautelar ?? []).map(f => f.name),
+            'Comprobante de Pago de Tasa':             (data.comprobante_pago_tasa ?? []).map(f => f.name),
+            'Anexos':                                  (data.documentos_anexos ?? []).map(f => f.name),
+            'Vigencia de Poder (demandante)':          docVigenciaPoderDem.map(f => f.name),
+            'Contrato de Consorcio (demandante)':      docContratoConsorcioDem.map(f => f.name),
+            'Resolución de Facultades (demandante)':   docResolucionFacultadesDem.map(f => f.name),
+            'Vigencia de Poder (demandado)':           docVigenciaPoderDado.map(f => f.name),
+            'Contrato de Consorcio (demandado)':       docContratoConsorcioDado.map(f => f.name),
+            'Resolución de Facultades (demandado)':    docResolucionFacultadesDado.map(f => f.name),
+        },
+        hayAvance:
+            [data.nombre_demandante, data.documento_demandante, data.nombre_demandado,
+             data.documento_demandado, data.pretensiones, data.monto_controversias,
+             data.suma_monto_pretensiones_determinadas]
+                .some(v => String(v ?? '').trim() !== '')
+            || empresasConsorcioDem.length > 0
+            || empresasConsorcioDado.length > 0
+            || (data.documentos_solicitud_inicio ?? []).length > 0,
+        aplicar: s => {
+            if (s.data) setData(d => ({ ...d, ...s.data }));
+            if (s.emailsDem)     setEmailsDem(s.emailsDem);
+            if (s.emailsDemAdic) setEmailsDemAdic(s.emailsDemAdic);
+            if (s.emailsDado)    setEmailsDado(s.emailsDado);
+            if (s.subtipoJuridicoDem  !== undefined) setSubtipoJuridicoDem(s.subtipoJuridicoDem);
+            if (s.subtipoJuridicoDado !== undefined) setSubtipoJuridicoDado(s.subtipoJuridicoDado);
+            if (s.empresasConsorcioDem)  setEmpresasConsorcioDem(s.empresasConsorcioDem);
+            if (s.empresasConsorcioDado) setEmpresasConsorcioDado(s.empresasConsorcioDado);
+            if (s.repConsorcioDem)  setRepConsorcioDem(s.repConsorcioDem);
+            if (s.repConsorcioDado) setRepConsorcioDado(s.repConsorcioDado);
+            if (s.tipoDocumentoId)  setTipoDocumentoId(String(s.tipoDocumentoId));
+        },
+    });
+
     // Datos planos para el esquema Zod (mismas claves que las marcas de error del render)
     function datosValidables() {
         const emailPrincipal = isPortal ? { email: portalEmail } : emailsDem.find(e => e.email.trim());
@@ -1127,6 +1184,7 @@ export default function ArbitrajeForm({ servicio, portalEmail, portalUser, hcapt
 
         router.post(route('solicitud.arbitraje.store'), fd, {
             forceFormData: true,
+            onSuccess: () => limpiarBorrador(),
             onFinish: () => {
                 setEnviando(false);
                 clearTimeout(loaderTimer.current);
