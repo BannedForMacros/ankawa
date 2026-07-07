@@ -339,6 +339,18 @@ function BloqueActor({
                     placeholder="01-234-5678 / 987654321" />
             </Campo>
 
+            {/* Mesa de Partes Virtual — solo entidad pública (donde se le notificará) */}
+            {datos.subtipo === 'entidad_publica' && (
+                <Campo label="Dirección de la Mesa de Partes Virtual" required error={errors.mesa_partes}>
+                    <InputBase value={datos.mesa_partes_url ?? ''} onChange={e => set('mesa_partes_url', e.target.value)}
+                        onBlur={() => onBlurCampo?.('mesa_partes')}
+                        placeholder="https://mesadepartes.entidad.gob.pe" error={errors.mesa_partes} />
+                    <p className="text-xs text-gray-400 mt-1">
+                        Enlace o dirección de la mesa de partes virtual de la entidad (donde se le notificará).
+                    </p>
+                </Campo>
+            )}
+
             {/* Email */}
             {emailBloqueado ? (
                 <div className="space-y-3">
@@ -442,6 +454,7 @@ function actorVacio(emailFijo = null, subtipoInicial = '') {
         documento: '',
         nombre: '',
         telefono: '',
+        mesa_partes_url: '',
         emails: emailFijo ? [{ email: emailFijo, label: '' }] : [{ email: '', label: '' }],
         representante: { dni: '', nombre: '' },
         empresas: [],
@@ -450,7 +463,7 @@ function actorVacio(emailFijo = null, subtipoInicial = '') {
 
 /* ─── Esquema de validación (espeja la antigua validar()) ─── */
 const jprdSchema = z.object({
-    rol: z.any(), ent_nombre: z.any(), ent_documento: z.any(),
+    rol: z.any(), ent_nombre: z.any(), ent_documento: z.any(), ent_mesa_partes: z.any(),
     con_subtipo: z.any(), con_nombre: z.any(), con_documento: z.any(), con_empresas: z.any(),
     sol_email_has: z.any(), doc_solicitud: z.any(), doc_contrato: z.any(),
     tiene_peticion: z.any(), doc_peticion: z.any(), acepta_reglamento: z.any(),
@@ -459,6 +472,7 @@ const jprdSchema = z.object({
     if (!d.rol) { add('rol', 'Debes seleccionar tu rol'); return; }
     if (String(d.ent_nombre ?? '').trim() === '')    add('ent_nombre', 'Requerido');
     if (String(d.ent_documento ?? '').trim() === '') add('ent_documento', 'Requerido');
+    if (String(d.ent_mesa_partes ?? '').trim() === '') add('ent_mesa_partes', 'Indique la mesa de partes virtual de la entidad');
     const conConsorcio = d.con_subtipo === 'consorcio';
     if (!d.con_subtipo) add('con_subtipo', 'Selecciona el tipo de entidad jurídica');
     if (!conConsorcio) {
@@ -542,6 +556,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
             rol:             rolSolicitante ?? '',
             ent_nombre:      entidad.nombre ?? '',
             ent_documento:   entidad.documento ?? '',
+            ent_mesa_partes: entidad.mesa_partes_url ?? '',
             con_subtipo:     contratista.subtipo ?? '',
             con_nombre:      contratista.nombre ?? '',
             con_documento:   contratista.documento ?? '',
@@ -601,6 +616,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
         fd.append('nombre_entidad',                 entidad.nombre ?? '');
         fd.append('ruc_entidad',                    entidad.documento ?? '');
         fd.append('telefono_entidad',               entidad.telefono ?? '');
+        fd.append('mesa_partes_url_entidad',        entidad.mesa_partes_url ?? '');
         fd.append('tipo_persona_entidad',           entidad.tipo_persona);
         fd.append('subtipo_entidad',                entidad.subtipo ?? '');
         fd.append('representante_entidad_dni',      entidad.representante?.dni ?? '');
@@ -796,7 +812,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                 emailFijo={portalEmail}
                 subtiposPermitidos={rolSolicitante === 'entidad' ? SUBTIPOS_ENTIDAD : SUBTIPOS_CONTRATISTA}
                 errors={rolSolicitante === 'entidad'
-                    ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }
+                    ? { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas, mesa_partes: errores.ent_mesa_partes }
                     : { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }}
                 onBlurCampo={campo => validarBlur((rolSolicitante === 'entidad' ? 'ent_' : 'con_') + campo)}
                 onClearError={campo => setErrores(p => ({ ...p, [(rolSolicitante === 'entidad' ? 'ent_' : 'con_') + campo]: undefined }))}
@@ -813,7 +829,7 @@ export default function JPRDForm({ servicio, portalEmail, portalUser, hcaptchaSi
                 subtiposPermitidos={rolSolicitante === 'entidad' ? SUBTIPOS_CONTRATISTA : SUBTIPOS_ENTIDAD}
                 errors={rolSolicitante === 'entidad'
                     ? { documento: errores.con_documento, nombre: errores.con_nombre, subtipo: errores.con_subtipo, empresas: errores.con_empresas }
-                    : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas }}
+                    : { documento: errores.ent_documento, nombre: errores.ent_nombre, subtipo: errores.ent_subtipo, empresas: errores.ent_empresas, mesa_partes: errores.ent_mesa_partes }}
                 onBlurCampo={campo => validarBlur((rolSolicitante === 'entidad' ? 'con_' : 'ent_') + campo)}
                 onClearError={campo => setErrores(p => ({ ...p, [(rolSolicitante === 'entidad' ? 'con_' : 'ent_') + campo]: undefined }))}
                 isSolicitante={false}

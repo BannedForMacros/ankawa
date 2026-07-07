@@ -41,6 +41,9 @@ class SolicitudJPRDController extends Controller
             'ruc_entidad'                       => 'nullable|string|max:20',
             'representante_entidad_dni'         => 'nullable|string|max:20',
             'representante_entidad_nombre'      => 'nullable|string|max:255',
+            // La entidad en JPRD siempre es pública → la mesa de partes virtual es obligatoria
+            // (es donde se le notificará). Espeja mesa_partes_url_demandante de arbitraje.
+            'mesa_partes_url_entidad'           => 'required|string|max:500',
             'emails_entidad'                    => 'required|string',
             'tipo_persona_contratista'          => 'required|in:juridica',
             'subtipo_contratista'               => 'required|in:empresa,consorcio',
@@ -143,6 +146,7 @@ class SolicitudJPRDController extends Controller
                 'nombre_entidad'                   => $nombreEntidad,
                 'ruc_entidad'                      => $request->ruc_entidad,
                 'telefono_entidad'                 => $request->telefono_entidad,
+                'mesa_partes_url_entidad'          => $request->mesa_partes_url_entidad,
                 'emails_entidad'                   => $emailsEntidad,
                 'tipo_persona_entidad'             => $request->tipo_persona_entidad,
                 'subtipo_entidad'                  => $request->subtipo_entidad,

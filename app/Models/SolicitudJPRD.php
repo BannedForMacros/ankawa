@@ -20,6 +20,7 @@ class SolicitudJPRD extends Model
         'nombre_entidad',
         'ruc_entidad',
         'telefono_entidad',
+        'mesa_partes_url_entidad',
         'emails_entidad',
         'tipo_persona_entidad',
         'subtipo_entidad',
