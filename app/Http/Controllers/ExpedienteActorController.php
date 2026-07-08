@@ -245,9 +245,13 @@ class ExpedienteActorController extends Controller
         // Envolvemos en transacción + lockForUpdate para evitar `orden` duplicado en
         // requests concurrentes (max('orden') sin lock es race condition).
         $registro = DB::transaction(function () use ($actor, $emailNorm, $request) {
+            // Serializa inserciones concurrentes del mismo actor bloqueando su fila
+            // padre. (PostgreSQL no admite FOR UPDATE junto a un agregado como max(),
+            // por eso el lock va sobre expediente_actores, no sobre el max de abajo.)
+            ExpedienteActor::whereKey($actor->id)->lockForUpdate()->first();
+
             $existente = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
                 ->where('email', $emailNorm)
-                ->lockForUpdate()
                 ->first();
 
             if ($existente) {
@@ -256,7 +260,6 @@ class ExpedienteActorController extends Controller
             }
 
             $maxOrden = ExpedienteActorEmail::where('expediente_actor_id', $actor->id)
-                ->lockForUpdate()
                 ->max('orden') ?? 0;
 
             return ExpedienteActorEmail::create([
