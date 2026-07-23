@@ -11,6 +11,7 @@ export default function MesaPartesLogin({ hcaptchaSiteKey }) {
             verificarRoute="mesa-partes.verificarCodigo"
             redirectFallback="mesa-partes.inicio"
             overlayEnvio
+            variant="mesa-partes"
         />
     );
 }

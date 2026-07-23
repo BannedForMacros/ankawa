@@ -1,6 +1,6 @@
 import { useForm, router } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText, Users, Landmark } from 'lucide-react';
+import { UserPlus, Trash2, Star, Globe, Building2, ShieldCheck, ShieldAlert, Mail, Plus, X, Monitor, FileText, Users, Landmark, Pencil, AlertTriangle, ArrowUpCircle } from 'lucide-react';
 import AnkawaModal from '@/Components/AnkawaModal';
 
 /**
@@ -173,6 +173,55 @@ export default function TabActores({
     function eliminarEmail(actorId, emailId) {
         if (!confirm('¿Eliminar este correo?')) return;
         router.delete(route('expedientes.actores.emails.destroy', [expediente.id, actorId, emailId]));
+    }
+
+    // ── Form: Correo principal (asignar / editar / promover un adicional) ──
+    // Usa el endpoint existente expedientes.actores.email-principal.update, que
+    // maneja los 4 casos de User y ya invalida la validación previa del actor.
+    const [principalFormActorId, setPrincipalFormActorId] = useState(null);
+    const formPrincipal = useForm({ email: '' });
+
+    function abrirFormPrincipal(actor) {
+        formPrincipal.clearErrors();
+        formPrincipal.setData('email', actor.usuario?.email ?? actor.email_externo ?? '');
+        setPrincipalFormActorId(actor.id);
+    }
+
+    function cerrarFormPrincipal() {
+        formPrincipal.reset();
+        formPrincipal.clearErrors();
+        setPrincipalFormActorId(null);
+    }
+
+    function guardarPrincipal(e, actorId) {
+        e.preventDefault();
+        formPrincipal.put(
+            route('expedientes.actores.email-principal.update', [expediente.id, actorId]),
+            { preserveScroll: true, onSuccess: () => cerrarFormPrincipal() }
+        );
+    }
+
+    function hacerPrincipal(actor, emailAdicional) {
+        const principalActual = actor.usuario?.email ?? actor.email_externo ?? null;
+        const msg = principalActual
+            ? `"${emailAdicional.email}" pasará a ser el correo principal y reemplazará a "${principalActual}". Si el actor estaba validado, deberá validarse de nuevo. ¿Continuar?`
+            : `"${emailAdicional.email}" pasará a ser el correo principal del actor. ¿Continuar?`;
+        if (!confirm(msg)) return;
+
+        router.put(
+            route('expedientes.actores.email-principal.update', [expediente.id, actor.id]),
+            { email: emailAdicional.email },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    // Ya es el principal: se retira de los adicionales para no verlo duplicado
+                    router.delete(
+                        route('expedientes.actores.emails.destroy', [expediente.id, actor.id, emailAdicional.id]),
+                        { preserveScroll: true }
+                    );
+                },
+            }
+        );
     }
 
     const inputCls = "w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]";
@@ -399,13 +448,76 @@ export default function TabActores({
                                             </p>
                                             <div className="space-y-1">
                                                 {/* Email principal */}
-                                                {emailPrincipal && (
+                                                {emailPrincipal ? (
                                                     <div className="flex items-center gap-1.5 text-xs text-gray-600">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] shrink-0" />
                                                         <span className="font-medium">{emailPrincipal}</span>
                                                         <span className="text-gray-400 text-[10px]">(principal)</span>
+                                                        {puedeEditar && (
+                                                            <button
+                                                                onClick={() => principalFormActorId === actor.id ? cerrarFormPrincipal() : abrirFormPrincipal(actor)}
+                                                                className="text-gray-300 hover:text-[#BE0F4A] transition-colors"
+                                                                title="Editar correo principal"
+                                                            >
+                                                                <Pencil size={11} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 text-xs text-amber-600 flex-wrap">
+                                                        <AlertTriangle size={12} className="shrink-0" />
+                                                        <span className="font-medium">Sin correo principal</span>
+                                                        <span className="text-amber-500/80 text-[10px]">— necesario para validar al actor</span>
+                                                        {puedeEditar && (
+                                                            <button
+                                                                onClick={() => principalFormActorId === actor.id ? cerrarFormPrincipal() : abrirFormPrincipal(actor)}
+                                                                className="text-[11px] font-bold text-[#BE0F4A] hover:text-[#9C0A3B] transition-colors"
+                                                            >
+                                                                Asignar principal
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
+
+                                                {/* Formulario inline: asignar / editar correo principal */}
+                                                {principalFormActorId === actor.id && (
+                                                    <form
+                                                        onSubmit={e => guardarPrincipal(e, actor.id)}
+                                                        className="mt-1.5 flex flex-wrap gap-2 items-start rounded-lg bg-[#291136]/5 border border-[#291136]/10 p-2"
+                                                    >
+                                                        <div className="flex-1 min-w-[180px]">
+                                                            <input
+                                                                type="email"
+                                                                value={formPrincipal.data.email}
+                                                                onChange={e => formPrincipal.setData('email', e.target.value)}
+                                                                placeholder="principal@correo.com"
+                                                                required
+                                                                className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"
+                                                            />
+                                                            {formPrincipal.errors.email && (
+                                                                <p className="text-[10px] text-red-500 mt-0.5">{formPrincipal.errors.email}</p>
+                                                            )}
+                                                            <p className="text-[10px] text-gray-400 mt-0.5">
+                                                                Si el actor estaba validado, deberá validarse de nuevo con este correo.
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="submit"
+                                                            disabled={formPrincipal.processing}
+                                                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] disabled:opacity-50 transition-colors"
+                                                        >
+                                                            Guardar
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={cerrarFormPrincipal}
+                                                            className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5"
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                    </form>
+                                                )}
+
                                                 {/* Emails adicionales activos */}
                                                 {emailsAdicionales.map(e => (
                                                     <div key={e.id} className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -413,13 +525,22 @@ export default function TabActores({
                                                         <span>{e.email}</span>
                                                         {e.label && <span className="text-gray-400 text-[10px]">({e.label})</span>}
                                                         {puedeEditar && (
-                                                            <button
-                                                                onClick={() => eliminarEmail(actor.id, e.id)}
-                                                                className="ml-auto text-gray-300 hover:text-red-500 transition-colors"
-                                                                title="Eliminar correo"
-                                                            >
-                                                                <X size={11} />
-                                                            </button>
+                                                            <span className="ml-auto flex items-center gap-1.5">
+                                                                <button
+                                                                    onClick={() => hacerPrincipal(actor, e)}
+                                                                    className="inline-flex items-center gap-0.5 text-[10px] font-bold text-gray-400 hover:text-[#BE0F4A] transition-colors"
+                                                                    title="Convertir en correo principal"
+                                                                >
+                                                                    <ArrowUpCircle size={11} /> Hacer principal
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => eliminarEmail(actor.id, e.id)}
+                                                                    className="text-gray-300 hover:text-red-500 transition-colors"
+                                                                    title="Eliminar correo"
+                                                                >
+                                                                    <X size={11} />
+                                                                </button>
+                                                            </span>
                                                         )}
                                                     </div>
                                                 ))}

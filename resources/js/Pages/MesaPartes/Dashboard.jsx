@@ -30,11 +30,11 @@ const ICON_ESTADO = {
 };
 
 const BACKGROUNDS = [
-    '/images/backgrounds/bg1.png',
-    '/images/backgrounds/bg2.png',
-    '/images/backgrounds/bg3.png',
-    '/images/backgrounds/bg4.png',
-    '/images/backgrounds/bg5.png',
+    '/images/backgrounds/bg1.jpg',
+    '/images/backgrounds/bg2.jpg',
+    '/images/backgrounds/bg3.jpg',
+    '/images/backgrounds/bg4.jpg',
+    '/images/backgrounds/bg5.jpg',
 ];
 
 export default function Dashboard({ expedientes, servicios, portalUser, portalEmail, pendientesAceptacion = [], avisoActorIds = [] }) {

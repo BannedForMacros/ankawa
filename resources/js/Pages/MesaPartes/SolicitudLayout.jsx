@@ -532,7 +532,7 @@ export default function SolicitudLayout({ servicio, children }) {
                             bgIndex === num ? 'opacity-100' : 'opacity-0'
                         }`}
                     >
-                        <img src={`/images/backgrounds/bg${num}.png`} alt="" className="w-full h-full object-cover grayscale opacity-[0.40]" />
+                        <img src={`/images/backgrounds/bg${num}.jpg`} alt="" className="w-full h-full object-cover grayscale opacity-[0.40]" />
                     </div>
                 ))}
             </div>
