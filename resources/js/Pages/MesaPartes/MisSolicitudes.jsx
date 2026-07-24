@@ -943,7 +943,7 @@ function CardSolicitud({ solicitud }) {
                                         <div className="space-y-1.5 pt-1">
                                             {solicitud.documentos.map(doc => (
                                                 <a key={doc.id}
-                                                    href={route('documentos.descargar', doc.id)}
+                                                    href={route('documentos.descargar', `d-${doc.id}`)}
                                                     target="_blank" rel="noopener noreferrer"
                                                     className="flex items-center gap-3 p-2.5 rounded-xl bg-[#BE0F4A]/[0.035] hover:bg-[#BE0F4A]/[0.09] transition-colors group border border-[#BE0F4A]/15 hover:border-[#BE0F4A]/30">
                                                     <FileText size={14} className="text-[#BE0F4A]/55 group-hover:text-[#BE0F4A] shrink-0 transition-colors" />

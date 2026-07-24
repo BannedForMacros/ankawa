@@ -61,7 +61,9 @@ class PortalController extends Controller
         $email = (string) session('portal_email');
         abort_unless($email, 403, 'Sesión de portal no válida.');
 
-        $documento = \App\Support\DocumentoAcceso::resolver($id);
+        // Los enlaces antiguos (correos ya enviados) traen id numérico pelado y
+        // siempre apuntan a documentos de movimiento → preferir esa tabla.
+        $documento = \App\Support\DocumentoAcceso::resolver($id, prefiereMovimiento: true);
         abort_unless($documento, 404, 'El documento solicitado no existe.');
 
         $actorIds = $this->actorIdsPorEmail($email)->all();

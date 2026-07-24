@@ -132,7 +132,7 @@
             </p>
             @foreach($docsRequerimiento as $doc)
                 <div style="margin-bottom: 8px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 4px; background: #fafafa;">
-                    <a href="{{ route('mesa-partes.documentos.descargar', $doc->id) }}"
+                    <a href="{{ route('mesa-partes.documentos.descargar', 'm-' . $doc->id) }}"
                        target="_blank"
                        style="color: #BE0F4A; text-decoration: none; font-size: 13px; font-weight: bold;">
                         &#128206; {{ $doc->nombre_original }}

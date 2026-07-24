@@ -29,10 +29,32 @@ class DocumentoAcceso
     /** Disco privado donde residen los documentos de expediente. */
     public const DISK = 'documentos';
 
-    /** Busca el documento por id en ambas tablas (sin distinción para el frontend). */
-    public static function resolver(int|string $id): ?Model
+    /**
+     * Busca el documento por id. Las dos tablas tienen numeraciones
+     * independientes que COLISIONAN, así que los enlaces nuevos llevan prefijo:
+     *   - `d-{id}` → `documentos` (adjuntos de la solicitud)
+     *   - `m-{id}` → `movimiento_documentos` (adjuntos de un movimiento)
+     *
+     * Un id numérico pelado es un enlace antiguo, inherentemente ambiguo:
+     * se resuelve según `$prefiereMovimiento` — true para la ruta del portal
+     * (sus enlaces históricos, en correos de notificación, siempre apuntan a
+     * documentos de movimiento), false para la ruta interna del staff.
+     */
+    public static function resolver(int|string $id, bool $prefiereMovimiento = false): ?Model
     {
-        return Documento::find($id) ?? MovimientoDocumento::find($id);
+        if (is_string($id) && preg_match('/^([dm])-(\d+)$/', $id, $m)) {
+            return $m[1] === 'm'
+                ? MovimientoDocumento::find((int) $m[2])
+                : Documento::find((int) $m[2]);
+        }
+
+        if (!ctype_digit((string) $id)) {
+            return null;
+        }
+
+        return $prefiereMovimiento
+            ? (MovimientoDocumento::find($id) ?? Documento::find($id))
+            : (Documento::find($id) ?? MovimientoDocumento::find($id));
     }
 
     /** Expediente dueño del documento, o null si aún es una solicitud sin expediente. */

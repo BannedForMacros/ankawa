@@ -220,7 +220,7 @@ function RespuestaCard({ mov }) {
                     {verDocs && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
                             {docsRespuesta.map(doc => (
-                                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
                                     target="_blank" rel="noopener noreferrer"
                                     className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
                                     <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
@@ -509,7 +509,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                                                 </p>
                                                                 <div className="flex flex-wrap gap-1">
                                                                     {grupo.archivos.map(doc => (
-                                                                        <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                                        <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
                                                                             target="_blank" rel="noopener noreferrer"
                                                                             className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
                                                                             <FileText size={10}/> {doc.nombre_original} <Download size={9}/>
@@ -569,7 +569,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     <p className="text-sm font-semibold text-gray-400 mb-1.5">Documentos adjuntos</p>
                                     <div className="flex flex-wrap gap-1.5">
                                         {todosDocsMov.map(doc => (
-                                            <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                            <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
                                                 target="_blank" rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
                                                 <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
@@ -662,7 +662,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                             </p>
                                             <div className="flex flex-wrap gap-1">
                                                 {docsCancelacion.map(doc => (
-                                                    <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                                    <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
                                                         target="_blank" rel="noopener noreferrer"
                                                         className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-white/10 text-white border border-white/20 hover:bg-white/20 transition-colors">
                                                         <FileText size={10}/> {doc.nombre_original} <Download size={9}/>

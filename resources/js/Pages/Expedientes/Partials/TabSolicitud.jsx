@@ -1036,7 +1036,7 @@ function ListaDocs({ docs, labelMap = {}, vacio = null }) {
     return (
         <div className="space-y-2">
             {docs.map(doc => (
-                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                <a key={doc.id} href={route('documentos.descargar', `d-${doc.id}`)}
                     target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200 hover:border-[#BE0F4A]/40 hover:bg-white hover:shadow-md transition-all duration-200 motion-safe:hover:translate-x-1 group">
                     <div className="w-9 h-9 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center shrink-0 group-hover:bg-[#BE0F4A] transition-colors">
@@ -1444,7 +1444,7 @@ function SeccionDocumentos({ grupos, titulo = 'Documentos Adjuntos', sinBorde = 
                         </p>
                         <div className="space-y-1.5">
                             {docs.map(doc => (
-                                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                                <a key={doc.id} href={route('documentos.descargar', `d-${doc.id}`)}
                                     target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors group">
                                     <FileText size={15} className="text-[#BE0F4A]/60 group-hover:text-[#BE0F4A] shrink-0" />
