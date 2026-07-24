@@ -241,7 +241,13 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
     const tieneRespuesta = !!mov.respuesta;
     const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
     const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
-    const todosDocsMov = [...docsCreacion, ...(docsSolicitud ?? [])];
+    // Mezcla adjuntos del movimiento con los de la solicitud (solo primer mov).
+    // Vienen de TABLAS distintas con ids que colisionan: cada uno lleva su
+    // prefijo de descarga (m- = movimiento_documentos, d- = documentos).
+    const todosDocsMov = [
+        ...docsCreacion.map(d => ({ ...d, _dl: `m-${d.id}`, _key: `m-${d.id}` })),
+        ...(docsSolicitud ?? []).map(d => ({ ...d, _dl: `d-${d.id}`, _key: `d-${d.id}` })),
+    ];
     const pivotRows = mov.responsables ?? [];
     const extensiones = mov.extensiones ?? [];
     const tieneExtras = todosDocsMov.length > 0 || docsRespuesta.length > 0 || mov.observaciones || resolucion || pivotRows.length > 0 || extensiones.length > 0;
@@ -569,7 +575,7 @@ function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANue
                                     <p className="text-sm font-semibold text-gray-400 mb-1.5">Documentos adjuntos</p>
                                     <div className="flex flex-wrap gap-1.5">
                                         {todosDocsMov.map(doc => (
-                                            <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
+                                            <a key={doc._key} href={route('documentos.descargar', doc._dl)}
                                                 target="_blank" rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors">
                                                 <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
