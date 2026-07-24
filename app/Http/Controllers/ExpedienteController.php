@@ -113,6 +113,7 @@ class ExpedienteController extends Controller
                     'tipoDocumentoRequerido',
                     'resolucionTipo', 'resueltoPor',
                     'cargo',
+                    'cargos:id,numero_cargo,cargable_type,cargable_id,generado_por_id,created_at',
                     'notificaciones',
                     'responsables.actor.usuario:id,name',
                     'responsables.tipoActor:id,nombre',

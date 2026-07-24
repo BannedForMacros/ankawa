@@ -168,6 +168,16 @@ class ExpedienteMovimiento extends Model
         return $this->morphOne(\App\Models\Cargo::class, 'cargable');
     }
 
+    /**
+     * Todos los cargos emitidos sobre el movimiento — un requerimiento
+     * multi-responsable genera un cargo POR CADA respuesta (se distinguen
+     * por generado_por_id). `cargo` (morphOne) devuelve solo el primero.
+     */
+    public function cargos(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(\App\Models\Cargo::class, 'cargable');
+    }
+
     public function responsables(): HasMany
     {
         return $this->hasMany(MovimientoResponsable::class, 'movimiento_id');

@@ -185,52 +185,98 @@ function ContinuarPanel({ mov, expedienteId, onContinuar }) {
 }
 
 // ── Tarjeta de respuesta ─────────────────────────────────────────────────────
-function RespuestaCard({ mov }) {
+// Un requerimiento multi-responsable recibe UNA respuesta POR PARTE: cada fila
+// respondida de `movimiento_responsables` trae su texto, autor y fecha; sus
+// archivos se identifican por `subido_por` y su cargo por `generado_por_id`.
+// Los campos a nivel de movimiento (respuesta/fecha/cargo) son legacy — cada
+// respuesta los sobreescribe — y solo se usan como fallback en movimientos
+// antiguos sin responsables.
+function BloqueRespuesta({ titulo, rol, fecha, cargo, texto, docs }) {
     const [verDocs, setVerDocs] = useState(false);
-    const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
-
     return (
         <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-3 shadow-sm">
-            <div className="flex items-start gap-2">
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-                        <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Respuesta</span>
-                        {mov.fecha_respuesta && (
-                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700">
-                                <CalendarDays size={13}/> {formatFecha(mov.fecha_respuesta)}
-                            </span>
-                        )}
-                        {mov.respondido_por?.name && (
-                            <span className="text-sm text-gray-500">{mov.respondido_por.name}</span>
-                        )}
-                        {mov.cargo?.numero_cargo && (
-                            <span className="text-xs tabular-nums font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded border border-[#291136]/10">
-                                {mov.cargo.numero_cargo}
-                            </span>
-                        )}
-                        {docsRespuesta.length > 0 && (
-                            <button onClick={() => setVerDocs(v => !v)}
-                                className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 font-bold">
-                                <FileText size={11}/> {docsRespuesta.length} doc(s) {verDocs ? '▲' : '▼'}
-                            </button>
-                        )}
-                    </div>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{mov.respuesta}</p>
-
-                    {verDocs && (
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                            {docsRespuesta.map(doc => (
-                                <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
-                                    target="_blank" rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
-                                    <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
-                                </a>
-                            ))}
-                        </div>
-                    )}
-                </div>
+            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+                <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Respuesta</span>
+                {fecha && (
+                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700">
+                        <CalendarDays size={13}/> {formatFecha(fecha)}
+                    </span>
+                )}
+                {titulo && <span className="text-sm font-semibold text-gray-600">{titulo}</span>}
+                {rol && <span className="text-xs text-gray-400">({rol})</span>}
+                {cargo && (
+                    <span className="text-xs tabular-nums font-bold text-[#291136] bg-[#291136]/5 px-2 py-0.5 rounded border border-[#291136]/10">
+                        {cargo}
+                    </span>
+                )}
+                {docs.length > 0 && (
+                    <button onClick={() => setVerDocs(v => !v)}
+                        className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 font-bold">
+                        <FileText size={11}/> {docs.length} doc(s) {verDocs ? '▲' : '▼'}
+                    </button>
+                )}
             </div>
+            {texto && <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{texto}</p>}
+            {verDocs && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                    {docs.map(doc => (
+                        <a key={doc.id} href={route('documentos.descargar', `m-${doc.id}`)}
+                            target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                            <FileText size={11}/> {doc.nombre_original} <Download size={10}/>
+                        </a>
+                    ))}
+                </div>
+            )}
         </div>
+    );
+}
+
+function RespuestaCard({ mov }) {
+    const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
+    const respondidas = (mov.responsables ?? [])
+        .filter(r => r.estado === 'respondido' || r.respuesta || r.fecha_respuesta)
+        .sort((a, b) => new Date(a.fecha_respuesta ?? 0) - new Date(b.fecha_respuesta ?? 0));
+
+    // ── Caso moderno: un bloque por responsable que respondió ──
+    if (respondidas.length > 0) {
+        const bloques = respondidas.map(r => {
+            const uid = r.respondido_por?.id ?? null;
+            return {
+                key:    r.id,
+                titulo: r.respondido_por?.name ?? r.actor?.usuario?.name ?? 'Responsable',
+                rol:    r.tipo_actor?.nombre ?? null,
+                fecha:  r.fecha_respuesta,
+                texto:  r.respuesta,
+                cargo:  (mov.cargos ?? []).find(c => c.generado_por_id === uid)?.numero_cargo ?? null,
+                docs:   uid ? docsRespuesta.filter(d => d.subido_por?.id === uid) : [],
+            };
+        });
+        // Archivos de respuesta que no calzan con ningún respondedor (subido_por
+        // nulo o distinto): se muestran aparte para no perderlos.
+        const asignados = new Set(bloques.flatMap(b => b.docs.map(d => d.id)));
+        const sueltos = docsRespuesta.filter(d => !asignados.has(d.id));
+
+        return (
+            <div className="space-y-2">
+                {bloques.map(b => <BloqueRespuesta key={b.key} {...b} />)}
+                {sueltos.length > 0 && (
+                    <BloqueRespuesta titulo="Otros archivos de respuesta" rol={null} fecha={null} cargo={null} texto={null} docs={sueltos} />
+                )}
+            </div>
+        );
+    }
+
+    // ── Fallback legacy: movimientos antiguos sin filas de responsables ──
+    return (
+        <BloqueRespuesta
+            titulo={mov.respondido_por?.name ?? null}
+            rol={null}
+            fecha={mov.fecha_respuesta}
+            cargo={mov.cargo?.numero_cargo ?? null}
+            texto={mov.respuesta}
+            docs={docsRespuesta}
+        />
     );
 }
 
@@ -238,7 +284,7 @@ function RespuestaCard({ mov }) {
 function MovimientoCard({ mov, esGestor, expedienteId, tiposResolucion, onIrANuevo, expandidos, toggleExpandir, docsSolicitud, esUltimo, actores = [], tiposDocumento = [], onAbrirCancelarAuto }) {
     const expandido = expandidos.has(mov.id);
     const resolucion = mov.resolucion_tipo;
-    const tieneRespuesta = !!mov.respuesta;
+    const tieneRespuesta = !!mov.respuesta || (mov.responsables ?? []).some(r => r.estado === 'respondido' || r.respuesta);
     const docsCreacion = mov.documentos?.filter(d => d.momento === 'creacion') ?? [];
     const docsRespuesta = mov.documentos?.filter(d => d.momento === 'respuesta') ?? [];
     // Mezcla adjuntos del movimiento con los de la solicitud (solo primer mov).
