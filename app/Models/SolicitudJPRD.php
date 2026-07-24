@@ -64,6 +64,11 @@ class SolicitudJPRD extends Model
         return $this->belongsTo(Servicio::class);
     }
 
+    public function tipoDocumento()
+    {
+        return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
+    }
+
     public function expediente(): MorphOne
     {
         return $this->morphOne(Expediente::class, 'solicitud', 'solicitud_type', 'solicitud_id');

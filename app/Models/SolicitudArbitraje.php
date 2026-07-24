@@ -43,6 +43,11 @@ class SolicitudArbitraje extends Model
         return $this->belongsTo(Servicio::class, 'servicio_id');
     }
 
+    public function tipoDocumento(): BelongsTo
+    {
+        return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
+    }
+
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'usuario_id');

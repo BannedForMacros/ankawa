@@ -95,6 +95,7 @@ class ExpedienteController extends Controller
 
         $expediente->load([
             'solicitud.documentos',
+            'solicitud.tipoDocumento:id,nombre',
             'servicio',
             'etapaActual',
             'actores.usuario.rol:id,nombre,slug',

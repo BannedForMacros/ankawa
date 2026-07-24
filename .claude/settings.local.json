@@ -191,7 +191,10 @@
       "Bash(curl -sk -o /private/tmp/claude-501/-Users-jesus-MacSoft-ankawa/ad8f2bc3-72d9-464c-b341-8a0026937544/scratchpad/body39b.html -w 'HTTP %{http_code}\\\\n' -F archivo=@/private/tmp/claude-501/-Users-jesus-MacSoft-ankawa/ad8f2bc3-72d9-464c-b341-8a0026937544/scratchpad/p.bin https://center.ankawagroup.org/mesa-partes)",
       "Bash(dd if=/dev/zero of=/private/tmp/claude-501/-Users-jesus-MacSoft-ankawa/ad8f2bc3-72d9-464c-b341-8a0026937544/scratchpad/p120.bin bs=1m count=120)",
       "Bash(curl -sk -o /private/tmp/claude-501/-Users-jesus-MacSoft-ankawa/ad8f2bc3-72d9-464c-b341-8a0026937544/scratchpad/v120.html -w 'POST 120MB → HTTP %{http_code} \\(subido: %{size_upload} bytes en %{time_total}s\\)\\\\n' -F archivo=@/private/tmp/claude-501/-Users-jesus-MacSoft-ankawa/ad8f2bc3-72d9-464c-b341-8a0026937544/scratchpad/p120.bin https://center.ankawagroup.org/mesa-partes)",
-      "Bash(export PGPASSWORD=postgres)"
+      "Bash(export PGPASSWORD=postgres)",
+      "Read(//Users/jesus/Downloads/**)",
+      "Bash(ssh *)",
+      "Bash(scp /private/tmp/claude-501/-Users-jesus-MacSoft-ankawa/2f1262e7-d471-4bdd-8630-841b0a22cac3/scratchpad/fix-exp54-55.sql center-ankawa:/tmp/fix-exp54-55.sql)"
     ]
   }
 }

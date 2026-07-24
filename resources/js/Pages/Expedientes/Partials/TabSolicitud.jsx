@@ -1,6 +1,6 @@
 import { router, useForm } from '@inertiajs/react';
 import { useState, useMemo } from 'react';
-import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus, Building2, Users, Landmark, AlertTriangle, ShieldCheck, ShieldAlert, Check } from 'lucide-react';
+import { Pencil, X, CheckCircle, XCircle, FileText, Download, PlusCircle, Mail, Plus, UserPlus, Building2, Users, User, Landmark, AlertTriangle, ShieldCheck, ShieldAlert, Check, Scale, CreditCard, ClipboardList } from 'lucide-react';
 import { MovimientoCard, movVacioBase } from './TabNuevoMovimiento';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,8 @@ const DOC_LABELS_ARB = {
     contra_cautela:                    { label: 'Contra Cautela',                   seccion: 'Controversia' },
     anexo_inicial:                     { label: 'Anexos',                           seccion: 'Controversia' },
     comprobante_pago_tasa:             { label: 'Comprobante de Pago de Tasa',      seccion: 'Pago' },
+    comprobante_honorarios_emergencia:   { label: 'Comprobante de Honorarios (Emergencia)',    seccion: 'Pago' },
+    comprobante_gastos_administrativos:  { label: 'Comprobante de Gastos Administrativos',     seccion: 'Pago' },
     medida_cautelar:                   { label: 'Medida Cautelar',                  seccion: 'Controversia' },
     vigencia_poder_demandante:         { label: 'Vigencia de Poder',                seccion: 'Demandante' },
     contrato_consorcio_demandante:     { label: 'Contrato de Consorcio',            seccion: 'Demandante' },
@@ -50,6 +52,31 @@ const SUBTIPO_META = {
 };
 
 const movVacio = movVacioBase;
+
+// Pill de acción (Partes del Proceso): visible, con etiqueta y micro-animación
+// de elevación al hover + presión al click.
+const BTN_PILL = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap ' +
+    'transition-all duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95';
+
+// Animación estándar de botones grandes (CTA): elevación + sombra + presión
+const BTN_CTA = 'transition-all duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98]';
+
+// Pill de acción con tooltip: al pasar el mouse aparece una descripción breve
+// de lo que hace el botón (globo plum con flecha, sobre el botón).
+function BotonPill({ tip, className = '', onClick, children }) {
+    return (
+        <button type="button" onClick={onClick} className={`relative group ${BTN_PILL} ${className}`}>
+            {children}
+            <span
+                role="tooltip"
+                className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 whitespace-nowrap rounded-lg bg-[#291136] px-2.5 py-1.5 text-[10px] font-semibold normal-case tracking-normal text-white shadow-lg opacity-0 translate-y-1 transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0 z-20
+                    after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-[#291136]"
+            >
+                {tip}
+            </span>
+        </button>
+    );
+}
 
 export default function TabSolicitud({ expediente, solicitud, esGestor = false, etapas = [], tiposActor = [], actoresNotificables = [], tiposDocumento = [], miTipoActorId = null }) {
     const [editando, setEditando]             = useState(false);
@@ -407,9 +434,9 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
     }
 
     const campo = (label, value) => (
-        <div>
-            <span className="text-sm text-gray-400 block mb-0.5">{label}</span>
-            <span className="text-base font-semibold text-[#291136]">{value || '—'}</span>
+        <div className="border-l-2 border-[#BE0F4A]/25 pl-3 transition-colors duration-200 hover:border-[#BE0F4A]">
+            <span className="text-[10px] text-[#291136]/45 uppercase tracking-[0.14em] font-bold block mb-1">{label}</span>
+            <span className="text-[15px] font-semibold text-[#291136] break-words leading-snug">{value || '—'}</span>
         </div>
     );
 
@@ -456,7 +483,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
 
                 {resultado === 'conforme' && !movimientos.some(m => m.habilitar_mesa_partes) && (
                     <button type="button" onClick={agregarTrasladoEmplazamiento}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-[#BE0F4A] rounded-xl hover:bg-[#9C0A3B] transition-colors"
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-[#BE0F4A] rounded-xl hover:bg-[#9C0A3B] hover:shadow-[#BE0F4A]/40 ${BTN_CTA}`}
                     >
                         <PlusCircle size={14}/> Agregar traslado de emplazamiento (recomendado)
                     </button>
@@ -519,32 +546,36 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                         )}
                     </div>
                     {esGestor && (
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                             {requiereValidacion && (
                                 validado ? (
-                                    <button onClick={() => revocarValidacion(actor)}
-                                        className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                        title="Revocar validación">
-                                        <ShieldAlert size={14}/>
-                                    </button>
+                                    <BotonPill onClick={() => revocarValidacion(actor)}
+                                        tip="Anula la validación del correo de esta parte"
+                                        className="border border-gray-200 bg-white text-gray-500 hover:border-red-300 hover:text-red-600 hover:bg-red-50">
+                                        <ShieldAlert size={13}/> Revocar
+                                    </BotonPill>
                                 ) : (
-                                    <button onClick={() => setConfirmarValidarActor(actor)}
-                                        className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                                        title="Validar correo">
-                                        <ShieldCheck size={14}/>
-                                    </button>
+                                    <BotonPill onClick={() => setConfirmarValidarActor(actor)}
+                                        tip="Confirma que este correo pertenece realmente a la parte"
+                                        className="bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:shadow-emerald-600/30">
+                                        <ShieldCheck size={13}/> Validar
+                                    </BotonPill>
                                 )
                             )}
-                            <button onClick={() => editandoEmail ? cerrarEditarEmailPrincipal() : abrirEditarEmailPrincipal(actor)}
-                                className={`p-1.5 rounded-lg transition-colors ${editandoEmail ? 'bg-[#291136]/10 text-[#291136]' : 'text-gray-300 hover:text-[#291136] hover:bg-[#291136]/10'}`}
-                                title="Corregir correo principal">
-                                <Pencil size={14}/>
-                            </button>
-                            <button onClick={() => mostrando ? cerrarFormEmail() : abrirFormEmail(actor.id)}
-                                className={`p-1.5 rounded-lg transition-colors ${mostrando ? 'bg-[#BE0F4A]/10 text-[#BE0F4A]' : 'text-gray-300 hover:text-[#BE0F4A] hover:bg-[#BE0F4A]/10'}`}
-                                title="Gestionar correos adicionales">
-                                <Mail size={14}/>
-                            </button>
+                            <BotonPill onClick={() => editandoEmail ? cerrarEditarEmailPrincipal() : abrirEditarEmailPrincipal(actor)}
+                                tip="Cambia el correo principal de esta parte"
+                                className={editandoEmail
+                                    ? 'bg-[#291136] text-white shadow-md'
+                                    : 'border border-[#291136]/15 bg-[#291136]/5 text-[#291136] hover:bg-[#291136] hover:text-white hover:shadow-[#291136]/30'}>
+                                <Pencil size={13}/> Corregir
+                            </BotonPill>
+                            <BotonPill onClick={() => mostrando ? cerrarFormEmail() : abrirFormEmail(actor.id)}
+                                tip="Agrega o elimina correos adicionales de notificación"
+                                className={mostrando
+                                    ? 'bg-[#BE0F4A] text-white shadow-md'
+                                    : 'border border-[#BE0F4A]/20 bg-[#BE0F4A]/5 text-[#BE0F4A] hover:bg-[#BE0F4A] hover:text-white hover:shadow-[#BE0F4A]/30'}>
+                                <Mail size={13}/> Correos
+                            </BotonPill>
                         </div>
                     )}
                 </div>
@@ -578,7 +609,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             placeholder="nuevo@correo.com" className="flex-1 min-w-[180px] text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"/>
                         <input type="text" value={formEmail.data.label} onChange={e => formEmail.setData('label', e.target.value)}
                             placeholder="Etiqueta (opc.)" className="w-28 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#BE0F4A]/20 focus:border-[#BE0F4A]"/>
-                        <button type="submit" disabled={formEmail.processing} className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#BE0F4A]/90 disabled:opacity-50">
+                        <button type="submit" disabled={formEmail.processing} className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] disabled:opacity-50 ${BTN_CTA}`}>
                             <Plus size={11}/> Agregar
                         </button>
                         <button type="button" onClick={cerrarFormEmail} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5">Cancelar</button>
@@ -596,7 +627,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                                 placeholder="correo@ejemplo.com"
                                 className="flex-1 min-w-[180px] text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#291136]/20 focus:border-[#291136]"/>
                             <button type="submit" disabled={formEmailPrincipal.processing}
-                                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#291136] text-white hover:bg-[#3d1a52] disabled:opacity-50">
+                                className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#291136] text-white hover:bg-[#3d1a52] disabled:opacity-50 ${BTN_CTA}`}>
                                 {formEmailPrincipal.processing ? 'Guardando…' : 'Guardar'}
                             </button>
                             <button type="button" onClick={cerrarEditarEmailPrincipal}
@@ -623,7 +654,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                     <h3 className="text-sm font-black text-white uppercase tracking-widest">Partes del Proceso</h3>
                     {esGestor && tipoActorDemandado && (
                         <button onClick={() => setShowFormDemandado(v => !v)}
-                            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#BE0F4A]/90 transition-colors">
+                            className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#BE0F4A] text-white hover:bg-[#9C0A3B] hover:shadow-[#BE0F4A]/40 ${BTN_CTA}`}>
                             <UserPlus size={12}/> Agregar {labelDado.toLowerCase()}
                         </button>
                     )}
@@ -667,7 +698,7 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             <p className="text-xs text-gray-400">Se registrará al {labelDado.toLowerCase()} con este correo. La cuenta de usuario se creará cuando valide el correo desde "Partes del Proceso".</p>
                             <div className="flex gap-2">
                                 <button type="submit" disabled={formDemandado.processing}
-                                    className="px-4 py-2 text-xs font-bold bg-[#BE0F4A] text-white rounded-lg hover:bg-[#BE0F4A]/90 disabled:opacity-50">
+                                    className={`px-4 py-2 text-xs font-bold bg-[#BE0F4A] text-white rounded-lg hover:bg-[#9C0A3B] disabled:opacity-50 ${BTN_CTA}`}>
                                     {formDemandado.processing ? 'Agregando...' : `Agregar ${labelDado}`}
                                 </button>
                                 <button type="button" onClick={() => { setShowFormDemandado(false); formDemandado.reset(); }}
@@ -693,11 +724,11 @@ export default function TabSolicitud({ expediente, solicitud, esGestor = false, 
                             <div>
                                 <div className="flex gap-3 flex-wrap">
                                     <button onClick={iniciarConforme}
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+                                        className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-600/30 ${BTN_CTA}`}>
                                         <CheckCircle size={16}/> Admitir a Trámite
                                     </button>
                                     <button onClick={iniciarNoConforme}
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200">
+                                        className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-200 hover:shadow-red-600/20 ${BTN_CTA}`}>
                                         <XCircle size={16}/> Observado
                                     </button>
                                 </div>
@@ -834,9 +865,12 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
     // Arbitraje (y Emergencia) y JPRD tienen endpoint de edición implementado
     const puedeEditar = esGestor && (esArb || esJPRD);
 
-    const docsAgrupados = esJPRD
-        ? agruparDocumentos(solicitud.documentos, DOC_LABELS_JPRD)
-        : agruparDocumentos(solicitud.documentos, DOC_LABELS_ARB);
+    const labelMap     = esJPRD ? DOC_LABELS_JPRD : DOC_LABELS_ARB;
+    const docsActivos  = (solicitud.documentos ?? []).filter(d => d.activo !== false);
+    // Las vistas colocan cada documento en la sección del formulario donde se pidió;
+    // los tipos no contemplados caen en un bloque final "Otros Documentos".
+    const docsRestantes = docsActivos.filter(d => !(d.tipo_documento in labelMap));
+    const docsAgrupados = agruparDocumentos(solicitud.documentos, labelMap);
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -856,20 +890,22 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
                 </div>
                 {puedeEditar && !editando && (
                     <button onClick={() => setEditando(true)}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-colors">
+                        className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25 border border-white/20 ${BTN_CTA}`}>
                         <Pencil size={12} /> Editar
                     </button>
                 )}
             </div>
             <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #BE0F4A 40%, #BC1D35 60%, transparent 100%)' }} />
 
-            <div className="p-5 space-y-6">
+            <div className={`p-4 sm:p-5 space-y-4 ${!editando ? 'bg-gray-100/70' : ''}`}>
                 {/* N° de Cargo */}
                 {solicitud.numero_cargo && (
-                    <div className="flex items-center gap-3 bg-[#291136]/5 border border-[#291136]/10 rounded-xl px-4 py-3">
-                        <div>
-                            <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold mb-0.5">N° de Cargo</p>
-                            <p className="text-xl font-black tabular-nums text-[#291136] tracking-wider">{solicitud.numero_cargo}</p>
+                    <div className={`rounded-2xl px-4 sm:px-5 py-4 motion-safe:animate-fade-up-blur transition-all duration-300 ${
+                        editando ? 'bg-[#291136]/5 border border-[#291136]/10' : 'bg-white border border-gray-200 shadow-sm hover:shadow-md'
+                    }`}>
+                        <div className="border-l-2 border-[#BE0F4A]/25 pl-3">
+                            <p className="text-[10px] text-[#291136]/45 uppercase tracking-[0.14em] font-bold mb-1">N° de Cargo</p>
+                            <p className="text-lg font-black tabular-nums text-[#291136] tracking-wider">{solicitud.numero_cargo}</p>
                         </div>
                     </div>
                 )}
@@ -879,13 +915,20 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
                 ) : editando && esJPRD ? (
                     <FormEditJPRD formEdit={formEdit} guardarEdicion={guardarEdicion} setEditando={setEditando} inputField={inputField} />
                 ) : esJPRD ? (
-                    <VistaJPRD solicitud={solicitud} campo={campo} />
+                    <VistaJPRD solicitud={solicitud} docs={docsActivos} />
                 ) : (
-                    <VistaArbitraje solicitud={solicitud} campo={campo} />
+                    <VistaArbitraje solicitud={solicitud} campo={campo} docs={docsActivos} />
                 )}
 
-                {/* Documentos agrupados */}
-                <SeccionDocumentos grupos={docsAgrupados} />
+                {/* Documentos: en modo edición se listan todos agrupados; en vista solo
+                    los tipos que ninguna sección del formulario contempla */}
+                {editando ? (
+                    <SeccionDocumentos grupos={docsAgrupados} />
+                ) : docsRestantes.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 motion-safe:animate-fade-up-blur">
+                        <SeccionDocumentos titulo="Otros Documentos" grupos={agruparDocumentos(docsRestantes, labelMap)} sinBorde />
+                    </div>
+                )}
 
                 {/* Motivo no conformidad */}
                 {solicitud.resultado_revision === 'no_conforme' && solicitud.motivo_no_conformidad && (
@@ -906,29 +949,188 @@ function DatosSolicitud({ expediente, solicitud, esGestor, editando, setEditando
     );
 }
 
-// ─── Vista Arbitraje ────────────────────────────────────────────
-function VistaArbitraje({ solicitud, campo }) {
-    return (
-        <div className="space-y-6">
-            {/* Demandante */}
-            <SeccionPersona
-                titulo="Demandante"
-                nombre={solicitud.nombre_demandante}
-                documento={solicitud.documento_demandante}
-                tipoPersona={solicitud.tipo_persona}
-                subtipo={solicitud.subtipo_juridico_demandante}
-                representante={solicitud.nombre_representante}
-                docRepresentante={solicitud.documento_representante}
-                domicilio={solicitud.domicilio_demandante}
-                email={solicitud.email_demandante}
-                telefono={solicitud.telefono_demandante}
-                empresas={solicitud.empresas_consorcio_demandante}
-            />
+// ─── Helpers de vista espejo del formulario ─────────────────────
+const fmtSoles = v => `S/ ${Number(v).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            {/* Demandado */}
-            <div className="border-t border-gray-100 pt-4">
+const docsDe = (docs, tipos) => (docs ?? []).filter(d => tipos.includes(d.tipo_documento));
+
+// Sección de la vista: card con el MISMO lenguaje visual que <Seccion> del
+// formulario público (header con tile de icono, cuerpo blanco), numerada para
+// leer la solicitud en la misma secuencia en que se llenó. Entra con fade-up
+// escalonado (motion-safe). Variantes:
+//   hero      → banda de gradiente canónico plum→rose (card de apertura)
+//   destacado → acentos rose (sección principal de documentos, como en el form)
+//   normal    → header plomito
+function SeccionVista({ icono: Icono, titulo, chip, numero, delay = 0, variant = 'normal', children }) {
+    const esDest = variant === 'destacado';
+    return (
+        <section
+            className="motion-safe:animate-fade-up-blur rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md"
+            style={{ animationDelay: `${delay}ms` }}
+        >
+            <header className="flex items-center gap-3 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+                <div className={`rounded-lg flex items-center justify-center shrink-0 w-8 h-8 ${
+                    esDest ? 'bg-[#BE0F4A] text-white' : 'bg-[#BE0F4A]/10 text-[#BE0F4A]'
+                }`}>
+                    <Icono size={15} />
+                </div>
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <h4 className="font-black uppercase tracking-wide text-sm text-[#291136]">
+                        {titulo}
+                    </h4>
+                    {chip}
+                </div>
+                {numero && (
+                    <span className="ml-auto text-lg font-black tabular-nums select-none shrink-0 text-[#291136]/10" aria-hidden="true">
+                        {numero}
+                    </span>
+                )}
+            </header>
+            <div className="p-4 sm:p-5">{children}</div>
+        </section>
+    );
+}
+
+// Badge de subtipo (empresa / consorcio / entidad pública) para el header de sección
+function BadgeSubtipo({ subtipo }) {
+    const meta = subtipo ? SUBTIPO_META[subtipo] : null;
+    if (!meta) return null;
+    return (
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.color}`}>
+            <meta.Icono size={9} /> {meta.label}
+        </span>
+    );
+}
+
+const BADGE_SOLICITANTE = (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#BE0F4A]/10 text-[#BE0F4A] border border-[#BE0F4A]/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#BE0F4A] animate-pulse" /> SOLICITANTE
+    </span>
+);
+
+// Bloque de texto largo (pretensiones, observaciones…). Los textos pegados desde
+// PDF/Word traen saltos de línea duros a mitad de párrafo (\r\n): se refluyen —
+// un salto simple se vuelve espacio y solo la línea en blanco separa párrafos,
+// para que el texto ocupe todo el ancho disponible.
+function TextoLargo({ label, value }) {
+    if (!value) return null;
+    const texto = String(value)
+        .replace(/\r\n?/g, '\n')
+        .split(/\n\s*\n/)
+        .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
+        .filter(Boolean)
+        .join('\n\n');
+    return (
+        <div>
+            <span className="text-[10px] text-[#291136]/45 uppercase tracking-[0.14em] font-bold block mb-1.5">{label}</span>
+            <p className="text-sm text-[#291136] bg-gray-50 border border-gray-100 rounded-xl p-4 leading-relaxed whitespace-pre-line">{texto}</p>
+        </div>
+    );
+}
+
+// Lista plana de documentos descargables (fila con tile rose + hover de marca)
+function ListaDocs({ docs, labelMap = {}, vacio = null }) {
+    if (!docs || docs.length === 0) {
+        return vacio ? <p className="text-xs text-gray-400 italic">{vacio}</p> : null;
+    }
+    return (
+        <div className="space-y-2">
+            {docs.map(doc => (
+                <a key={doc.id} href={route('documentos.descargar', doc.id)}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-200 hover:border-[#BE0F4A]/40 hover:bg-white hover:shadow-md transition-all duration-200 motion-safe:hover:translate-x-1 group">
+                    <div className="w-9 h-9 rounded-lg bg-[#BE0F4A]/10 flex items-center justify-center shrink-0 group-hover:bg-[#BE0F4A] transition-colors">
+                        <FileText size={16} className="text-[#BE0F4A] group-hover:text-white transition-colors" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold text-[#291136] truncate block">{doc.nombre_original}</span>
+                        <span className="text-[10px] text-gray-400 uppercase tracking-wide">{labelMap[doc.tipo_documento]?.label ?? doc.tipo_documento}</span>
+                    </div>
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-gray-300 group-hover:text-white group-hover:bg-[#291136] transition-colors shrink-0">
+                        <Download size={13} />
+                    </div>
+                </a>
+            ))}
+        </div>
+    );
+}
+
+// Sub-grupo de documentos con el mismo título que el campo del formulario
+function GrupoDocs({ titulo, docs, labelMap, vacio = null }) {
+    if ((!docs || docs.length === 0) && !vacio) return null;
+    return (
+        <div>
+            <p className="text-[10px] font-bold text-[#291136]/60 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <span className="w-3 h-[2px] bg-[#BE0F4A] inline-block rounded-full" />
+                {titulo}
+                {docs?.length > 1 && (
+                    <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#291136]/10 text-[#291136] text-[9px] font-black tabular-nums">{docs.length}</span>
+                )}
+            </p>
+            <ListaDocs docs={docs} labelMap={labelMap} vacio={vacio} />
+        </div>
+    );
+}
+
+// ─── Vista Arbitraje — espejo del formulario de solicitud ───────
+// Orden del formulario: Tipo de solicitud → Solicitud de Inicio → Demandante →
+// Demandado → Aspectos Controvertidos → Conformación del Tribunal →
+// Medida Cautelar → Tasa de Solicitud.
+function VistaArbitraje({ solicitud, campo, docs }) {
+    const conformacionLabel = {
+        arbitro_unico:     'Árbitro Único',
+        tribunal_arbitral: 'Tribunal Arbitral',
+    }[solicitud.conformacion_tribunal];
+    const proponeArbitro = Number(solicitud.solicita_designacion_director) === 0;
+
+    const docsDemandante = docsDe(docs, ['vigencia_poder_demandante', 'contrato_consorcio_demandante', 'resolucion_facultades_demandante']);
+    const docsDemandado  = docsDe(docs, ['vigencia_poder_demandado', 'contrato_consorcio_demandado', 'resolucion_facultades_demandado']);
+    const docsTasa       = docsDe(docs, ['comprobante_pago_tasa', 'comprobante_honorarios_emergencia', 'comprobante_gastos_administrativos']);
+    const docsCautelar   = docsDe(docs, ['medida_cautelar', 'contra_cautela']);
+    const hayTasa        = docsTasa.length > 0 || solicitud.factura_ruc || solicitud.factura_razon_social;
+
+    return (
+        <div className="space-y-4">
+            {/* 1. Tipo de solicitud */}
+            <SeccionVista icono={ClipboardList} titulo="Tipo de Solicitud" numero="01" delay={0}>
+                <p className="border-l-2 border-[#BE0F4A]/25 pl-3 text-base font-bold text-[#291136] leading-snug">
+                    {solicitud.tipo_documento?.nombre ?? 'Solicitud de Inicio de Arbitraje'}
+                </p>
+            </SeccionVista>
+
+            {/* 2. Solicitud de Inicio de Arbitraje (documento principal) */}
+            <SeccionVista icono={FileText} titulo="Solicitud de Inicio de Arbitraje" variant="destacado" numero="02" delay={60}>
+                <ListaDocs
+                    docs={docsDe(docs, ['solicitud_inicio_arbitraje', 'anexo_inicial'])}
+                    labelMap={DOC_LABELS_ARB}
+                    vacio="Sin documento de solicitud adjunto." />
+            </SeccionVista>
+
+            {/* 3. Datos del Demandante */}
+            <SeccionVista icono={User} titulo="Datos del Demandante" numero="03" delay={120}
+                chip={<><BadgeSubtipo subtipo={solicitud.subtipo_juridico_demandante} />{BADGE_SOLICITANTE}</>}>
                 <SeccionPersona
-                    titulo="Demandado"
+                    nombre={solicitud.nombre_demandante}
+                    documento={solicitud.documento_demandante}
+                    tipoPersona={solicitud.tipo_persona}
+                    subtipo={solicitud.subtipo_juridico_demandante}
+                    representante={solicitud.nombre_representante}
+                    docRepresentante={solicitud.documento_representante}
+                    domicilio={solicitud.domicilio_demandante}
+                    email={solicitud.email_demandante}
+                    telefono={solicitud.telefono_demandante}
+                    mesaPartes={solicitud.mesa_partes_url_demandante}
+                    empresas={solicitud.empresas_consorcio_demandante}
+                />
+                {docsDemandante.length > 0 && (
+                    <div className="mt-3"><ListaDocs docs={docsDemandante} labelMap={DOC_LABELS_ARB} /></div>
+                )}
+            </SeccionVista>
+
+            {/* 4. Datos del Demandado */}
+            <SeccionVista icono={Users} titulo="Datos del Demandado" numero="04" delay={180}
+                chip={<BadgeSubtipo subtipo={solicitud.subtipo_juridico_demandado} />}>
+                <SeccionPersona
                     nombre={solicitud.nombre_demandado}
                     documento={solicitud.documento_demandado}
                     tipoPersona={solicitud.tipo_persona_demandado}
@@ -938,134 +1140,201 @@ function VistaArbitraje({ solicitud, campo }) {
                     domicilio={solicitud.domicilio_demandado}
                     email={solicitud.email_demandado}
                     telefono={solicitud.telefono_demandado}
+                    mesaPartes={solicitud.mesa_partes_url_demandado}
                     empresas={solicitud.empresas_consorcio_demandado}
                 />
-            </div>
+                {docsDemandado.length > 0 && (
+                    <div className="mt-3"><ListaDocs docs={docsDemandado} labelMap={DOC_LABELS_ARB} /></div>
+                )}
+            </SeccionVista>
 
-            {/* Controversia */}
-            <div className="border-t border-gray-100 pt-4">
-                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Controversia y Pretensiones</h4>
+            {/* 5. Aspectos Controvertidos Sometidos a Arbitraje */}
+            <SeccionVista icono={Scale} titulo="Aspectos Controvertidos Sometidos a Arbitraje" numero="05" delay={240}>
                 <div className="space-y-3">
+                    <TextoLargo label="Pretensiones" value={solicitud.pretensiones} />
                     {solicitud.resumen_controversia && (
+                        <TextoLargo label="Resumen de la controversia" value={solicitud.resumen_controversia} />
+                    )}
+                    {(solicitud.suma_monto_pretensiones_determinadas || solicitud.pretensiones_indeterminadas || solicitud.monto_involucrado) && (
                         <div>
-                            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Resumen de la controversia</span>
-                            <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.resumen_controversia}</p>
+                            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-2">Cuantía de la controversia</span>
+                            <div className="pl-4 border-l-2 border-[#BE0F4A]/30 space-y-3">
+                                {solicitud.suma_monto_pretensiones_determinadas && campo('Suma de pretensiones determinadas', fmtSoles(solicitud.suma_monto_pretensiones_determinadas))}
+                                {solicitud.pretensiones_indeterminadas && (
+                                    <TextoLargo label="Pretensiones indeterminadas" value={solicitud.pretensiones_indeterminadas} />
+                                )}
+                                {solicitud.monto_involucrado && campo('Monto involucrado', fmtSoles(solicitud.monto_involucrado))}
+                            </div>
                         </div>
                     )}
-                    {solicitud.pretensiones && (
-                        <div>
-                            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Pretensiones</span>
-                            <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.pretensiones}</p>
-                        </div>
-                    )}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-1">
-                        {solicitud.monto_involucrado && campo('Monto involucrado', `S/ ${Number(solicitud.monto_involucrado).toLocaleString()}`)}
-                        {campo('Dem. solicita designación árbitro', solicitud.solicita_designacion_director ? 'Sí' : 'No')}
-                        {campo('Dado. solicita designación árbitro', solicitud.solicita_designacion_director_demandado ? 'Sí' : 'No')}
-                        {solicitud.nombre_arbitro_propuesto && campo('Árbitro propuesto', solicitud.nombre_arbitro_propuesto)}
-                        {solicitud.email_arbitro_propuesto  && campo('Email árbitro', solicitud.email_arbitro_propuesto)}
-                        {solicitud.reglas_aplicables        && campo('Reglas aplicables', solicitud.reglas_aplicables)}
-                        {solicitud.precision_reglas         && campo('Precisión', solicitud.precision_reglas)}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+                        {solicitud.reglas_aplicables && campo('Reglas aplicables', solicitud.reglas_aplicables)}
+                        {solicitud.precision_reglas  && campo('Precisión', solicitud.precision_reglas)}
                     </div>
-                    {solicitud.tiene_medida_cautelar ? (
-                        <div className="flex items-center gap-2 mt-1">
-                            <AlertTriangle size={14} className="text-amber-500" />
-                            <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">Solicita medida cautelar</span>
-                        </div>
-                    ) : null}
+                    <GrupoDocs titulo="Convenio Arbitral" docs={docsDe(docs, ['doc_controversia'])}
+                        labelMap={DOC_LABELS_ARB} vacio="Sin convenio arbitral adjunto." />
                 </div>
-            </div>
-        </div>
-    );
-}
+            </SeccionVista>
 
-// ─── Vista JPRD ─────────────────────────────────────────────────
-function VistaJPRD({ solicitud, campo }) {
-    return (
-        <div className="space-y-6">
-            {/* Solicitante */}
-            <div>
-                <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">Solicitante</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {campo('Nombre', solicitud.nombre_solicitante)}
-                    {campo('Documento', solicitud.documento_solicitante)}
-                    {solicitud.rol_solicitante && campo('Rol', solicitud.rol_solicitante === 'entidad' ? 'Entidad' : 'Contratista')}
+            {/* 6. Conformación del Tribunal */}
+            <SeccionVista icono={Scale} titulo="Conformación del Tribunal" numero="06" delay={300}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {campo('Conformación del tribunal', conformacionLabel)}
+                    {campo('Mecanismo de designación del árbitro', proponeArbitro
+                        ? 'Propone árbitro, conforme al convenio arbitral y el Reglamento'
+                        : 'Designación por el Centro, de conformidad con el Reglamento')}
+                    {proponeArbitro && solicitud.nombre_arbitro_propuesto && campo('Árbitro propuesto', solicitud.nombre_arbitro_propuesto)}
+                    {proponeArbitro && solicitud.email_arbitro_propuesto  && campo('Correo del árbitro propuesto', solicitud.email_arbitro_propuesto)}
+                    {solicitud.solicita_designacion_director_demandado ? campo('El demandado solicita designación por el Centro', 'Sí') : null}
                 </div>
-            </div>
+            </SeccionVista>
 
-            {/* Entidad */}
-            <div className="border-t border-gray-100 pt-4">
-                <SeccionPersona
-                    titulo="Entidad"
-                    nombre={solicitud.nombre_entidad}
-                    ruc={solicitud.ruc_entidad}
-                    telefono={solicitud.telefono_entidad}
-                    tipoPersona={solicitud.tipo_persona_entidad}
-                    subtipo={solicitud.subtipo_entidad}
-                    representante={solicitud.representante_entidad_nombre}
-                    docRepresentante={solicitud.representante_entidad_dni}
-                    empresas={solicitud.empresas_entidad}
-                />
-            </div>
-
-            {/* Contratista */}
-            <div className="border-t border-gray-100 pt-4">
-                <SeccionPersona
-                    titulo="Contratista"
-                    nombre={solicitud.nombre_contratista}
-                    ruc={solicitud.ruc_contratista}
-                    telefono={solicitud.telefono_contratista}
-                    tipoPersona={solicitud.tipo_persona_contratista}
-                    subtipo={solicitud.subtipo_contratista}
-                    representante={solicitud.representante_contratista_nombre}
-                    docRepresentante={solicitud.representante_contratista_dni}
-                    empresas={solicitud.empresas_contratista}
-                />
-            </div>
-
-            {/* Petición de Decisión Vinculante */}
-            {(solicitud.tiene_peticion_previa || solicitud.observacion) && (
-                <div className="border-t border-gray-100 pt-4">
-                    <h4 className="text-sm font-bold text-[#BE0F4A] mb-3 uppercase tracking-wide">
-                        Petición de Decisión Vinculante
-                    </h4>
+            {/* 7. Medida Cautelar */}
+            <SeccionVista icono={ShieldAlert} titulo="Medida Cautelar" numero="07" delay={360}>
+                {solicitud.tiene_medida_cautelar ? (
                     <div className="space-y-3">
-                        {solicitud.tiene_peticion_previa && (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"/>
-                                Existe petición previa
-                            </span>
-                        )}
-                        {solicitud.observacion && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                            <AlertTriangle size={12} /> Se ha ejecutado una medida cautelar
+                        </span>
+                        <ListaDocs docs={docsCautelar} labelMap={DOC_LABELS_ARB}
+                            vacio="Sin resolución de la medida cautelar adjunta." />
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500">No se ha ejecutado ninguna medida cautelar.</p>
+                )}
+            </SeccionVista>
+
+            {/* 8. Tasa de Solicitud de Arbitraje */}
+            {hayTasa && (
+                <SeccionVista icono={CreditCard} titulo="Tasa de Solicitud de Arbitraje" numero="08" delay={420}>
+                    <div className="space-y-3">
+                        <GrupoDocs titulo="Comprobante de pago" docs={docsTasa} labelMap={DOC_LABELS_ARB}
+                            vacio="Sin comprobante de pago adjunto." />
+                        {(solicitud.factura_ruc || solicitud.factura_razon_social) && (
                             <div>
-                                <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-1">Observación</span>
-                                <p className="text-sm text-[#291136] bg-gray-50 rounded-lg p-3 leading-relaxed">{solicitud.observacion}</p>
+                                <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-2">Datos para la emisión de factura</span>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {campo('RUC', solicitud.factura_ruc)}
+                                    {campo('Razón social', solicitud.factura_razon_social)}
+                                </div>
                             </div>
                         )}
                     </div>
-                </div>
+                </SeccionVista>
             )}
         </div>
     );
 }
 
+// ─── Vista JPRD — espejo del formulario de solicitud ────────────
+// Orden del formulario: Tipo de solicitud (+ rol del solicitante) → datos del
+// solicitante → datos de la otra parte → Documentos → Petición de Decisión Vinculante.
+function VistaJPRD({ solicitud, docs }) {
+    const solicitaEntidad = solicitud.rol_solicitante !== 'contratista';
+
+    const seccionEntidad = (numero, delay) => (
+        <SeccionVista key="entidad" icono={Landmark} titulo="Entidad Contratante" numero={numero} delay={delay}
+            chip={<><BadgeSubtipo subtipo={solicitud.subtipo_entidad} />{solicitaEntidad && BADGE_SOLICITANTE}</>}>
+            <SeccionPersona
+                nombre={solicitud.nombre_entidad}
+                ruc={solicitud.ruc_entidad}
+                telefono={solicitud.telefono_entidad}
+                tipoPersona={solicitud.tipo_persona_entidad}
+                subtipo={solicitud.subtipo_entidad}
+                representante={solicitud.representante_entidad_nombre}
+                docRepresentante={solicitud.representante_entidad_dni}
+                emails={(solicitud.emails_entidad ?? []).map(e => e.email)}
+                mesaPartes={solicitud.mesa_partes_url_entidad}
+                empresas={solicitud.empresas_entidad}
+            />
+        </SeccionVista>
+    );
+
+    const seccionContratista = (numero, delay) => (
+        <SeccionVista key="contratista" icono={Building2} titulo="Contratista" numero={numero} delay={delay}
+            chip={<><BadgeSubtipo subtipo={solicitud.subtipo_contratista} />{!solicitaEntidad && BADGE_SOLICITANTE}</>}>
+            <SeccionPersona
+                nombre={solicitud.nombre_contratista}
+                ruc={solicitud.ruc_contratista}
+                telefono={solicitud.telefono_contratista}
+                tipoPersona={solicitud.tipo_persona_contratista}
+                subtipo={solicitud.subtipo_contratista}
+                representante={solicitud.representante_contratista_nombre}
+                docRepresentante={solicitud.representante_contratista_dni}
+                emails={(solicitud.emails_contratista ?? []).map(e => e.email)}
+                empresas={solicitud.empresas_contratista}
+            />
+        </SeccionVista>
+    );
+
+    return (
+        <div className="space-y-4">
+            {/* 1. Tipo de solicitud + quién la presenta */}
+            <SeccionVista icono={ClipboardList} titulo="Tipo de Solicitud" numero="01" delay={0}>
+                <div className="space-y-4">
+                    <p className="border-l-2 border-[#BE0F4A]/25 pl-3 text-base font-bold text-[#291136] leading-snug">
+                        {solicitud.tipo_documento?.nombre ?? 'Solicitud de JPRD'}
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+                        <Dato label="Presentada por" value={solicitud.nombre_solicitante} />
+                        {solicitud.documento_solicitante && <Dato label="Documento" value={solicitud.documento_solicitante} />}
+                        <Dato label="En calidad de" value={solicitaEntidad ? 'Entidad Contratante' : 'Contratista'} />
+                    </div>
+                </div>
+            </SeccionVista>
+
+            {/* 2-3. Partes: primero el solicitante, como en el formulario */}
+            {solicitaEntidad
+                ? [seccionEntidad('02', 60), seccionContratista('03', 120)]
+                : [seccionContratista('02', 60), seccionEntidad('03', 120)]}
+
+            {/* 4. Documentos — mismos títulos que el formulario */}
+            <SeccionVista icono={FileText} titulo="Documentos" variant="destacado" numero="04" delay={180}>
+                <div className="space-y-4">
+                    <GrupoDocs titulo="Solicitud de Conformación de JPRD"
+                        docs={docsDe(docs, ['solicitud_conformacion'])} labelMap={DOC_LABELS_JPRD}
+                        vacio="Sin documento de solicitud adjunto." />
+                    <GrupoDocs titulo="Contrato de Obra"
+                        docs={docsDe(docs, ['contrato_obra'])} labelMap={DOC_LABELS_JPRD} />
+                    <GrupoDocs titulo="Adendas"
+                        docs={docsDe(docs, ['adenda'])} labelMap={DOC_LABELS_JPRD} />
+                    <GrupoDocs titulo="Anexos / Otros documentos"
+                        docs={docsDe(docs, ['anexo'])} labelMap={DOC_LABELS_JPRD} />
+                </div>
+            </SeccionVista>
+
+            {/* 5. Petición de Decisión Vinculante */}
+            <SeccionVista icono={FileText} titulo="Petición de Decisión Vinculante" numero="05" delay={240}>
+                {solicitud.tiene_peticion_previa ? (
+                    <div className="space-y-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Existe petición previa
+                        </span>
+                        {solicitud.observacion && <TextoLargo label="Observación" value={solicitud.observacion} />}
+                        <ListaDocs docs={docsDe(docs, ['peticion_decision_vinculante'])} labelMap={DOC_LABELS_JPRD}
+                            vacio="Sin documento de petición adjunto." />
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <p className="text-sm text-gray-500">No se registró una petición de decisión vinculante previa.</p>
+                        {solicitud.observacion && <TextoLargo label="Observación" value={solicitud.observacion} />}
+                    </div>
+                )}
+            </SeccionVista>
+        </div>
+    );
+}
+
 // ─── Sección persona (natural / empresa / consorcio / entidad) ──
-function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, representante, docRepresentante, domicilio, email, telefono, empresas }) {
-    const meta = subtipo ? SUBTIPO_META[subtipo] : null;
+// El título y el badge de subtipo los pinta SeccionVista; aquí solo el cuerpo.
+function SeccionPersona({ nombre, documento, ruc, tipoPersona, subtipo, representante, docRepresentante, domicilio, email, telefono, emails, mesaPartes, empresas }) {
     const esConsorcio = subtipo === 'consorcio';
     const empresasArr = Array.isArray(empresas) ? empresas : [];
+    const emailsArr   = (emails ?? []).filter(Boolean);
 
     return (
         <div>
-            <div className="flex items-center gap-2 mb-3">
-                <h4 className="text-sm font-bold text-[#BE0F4A] uppercase tracking-wide">{titulo}</h4>
-                {meta && (
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.color}`}>
-                        <meta.Icono size={9} /> {meta.label}
-                    </span>
-                )}
-            </div>
-
             {/* Caso CONSORCIO: estructura clara con dos sub-bloques */}
             {esConsorcio ? (
                 <div className="space-y-4">
@@ -1077,12 +1346,14 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
                             </div>
                             <span className="text-xs font-bold text-[#291136] uppercase tracking-wide">Representante Legal del Consorcio</span>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
                             {nombre    && <Dato label="Nombre del representante" value={nombre} />}
                             {documento && <Dato label="DNI" value={documento} />}
                             {email     && <Dato label="Correo" value={email} />}
+                            {emailsArr.length > 0 && <Dato label="Correos para notificaciones" value={emailsArr.join(', ')} />}
                             {telefono  && <Dato label="Teléfono" value={telefono} />}
                             {domicilio && <Dato label="Domicilio de notificación" value={domicilio} />}
+                            {mesaPartes && <Dato label="Mesa de Partes Virtual" value={mesaPartes} />}
                         </div>
                     </div>
 
@@ -1125,12 +1396,13 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
                 </div>
             ) : (
                 /* Caso NO consorcio (natural / empresa / entidad pública) */
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
                     {nombre     && <Dato label={tipoPersona === 'juridica' ? 'Razón Social / Nombre' : 'Nombre completo'} value={nombre} />}
                     {documento  && <Dato label="Documento" value={documento} />}
                     {ruc        && <Dato label="RUC" value={ruc} />}
                     {domicilio  && <Dato label="Domicilio" value={domicilio} />}
-                    {email      && <Dato label="Email" value={email} />}
+                    {email      && <Dato label="Correo electrónico" value={email} />}
+                    {emailsArr.length > 0 && <Dato label="Correos para notificaciones" value={emailsArr.join(', ')} />}
                     {telefono   && <Dato label="Teléfono" value={telefono} />}
                     {representante && (
                         <>
@@ -1138,6 +1410,7 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
                             {docRepresentante && <Dato label="Doc. Representante" value={docRepresentante} />}
                         </>
                     )}
+                    {mesaPartes && <Dato label="Mesa de Partes Virtual" value={mesaPartes} />}
                 </div>
             )}
         </div>
@@ -1147,21 +1420,21 @@ function SeccionPersona({ titulo, nombre, documento, ruc, tipoPersona, subtipo, 
 function Dato({ label, value }) {
     if (!value && value !== 0) return null;
     return (
-        <div>
-            <span className="text-xs text-gray-400 uppercase tracking-wide font-semibold block mb-0.5">{label}</span>
-            <span className="text-sm font-semibold text-[#291136]">{value}</span>
+        <div className="border-l-2 border-[#BE0F4A]/25 pl-3 transition-colors duration-200 hover:border-[#BE0F4A]">
+            <span className="text-[10px] text-[#291136]/45 uppercase tracking-[0.14em] font-bold block mb-1">{label}</span>
+            <span className="text-[15px] font-semibold text-[#291136] break-words leading-snug">{value}</span>
         </div>
     );
 }
 
 // ─── Documentos agrupados por sección ──────────────────────────
-function SeccionDocumentos({ grupos }) {
+function SeccionDocumentos({ grupos, titulo = 'Documentos Adjuntos', sinBorde = false }) {
     const secciones = Object.entries(grupos);
     if (secciones.length === 0) return null;
 
     return (
-        <div className="border-t border-gray-100 pt-4">
-            <h4 className="text-sm font-bold text-[#BE0F4A] mb-4 uppercase tracking-wide">Documentos Adjuntos</h4>
+        <div className={sinBorde ? '' : 'border-t border-gray-100 pt-4'}>
+            <h4 className="text-sm font-bold text-[#BE0F4A] mb-4 uppercase tracking-wide">{titulo}</h4>
             <div className="space-y-4">
                 {secciones.map(([seccion, docs]) => (
                     <div key={seccion}>
