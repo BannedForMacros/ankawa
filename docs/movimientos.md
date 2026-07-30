@@ -187,7 +187,12 @@ Requerimiento (tipo)
        - Inserta una fila en `movimiento_responsables` con su `tipo_documento_id`, `es_opcional`, plazo, fecha límite.
    - Si tiene `traslado_auto` configurado, persiste una fila en `movimiento_traslados_auto`.
 3. Guarda los archivos adjuntos del propio requerimiento (`momento='creacion'`).
-4. Notifica a los actores en `notificar_a` con su cédula correlativada.
+4. **Candado de acceso (server-side)**: si algún responsable no tiene `acceso_mesa_partes`, se le habilita automáticamente en el mismo acto — recibe el email de acceso a Mesa de Partes Y su cédula de notificación con documentos requeridos y plazo, aunque no viniera en `notificar_a` (la lista del frontend se armó cuando el actor aún no era notificable). Un requerimiento nunca queda apuntando a un actor que no puede verlo ni responderlo. Aplica a `store`, `storeLote`, `registrarConformidad` y a los requerimientos generados por `dispararTrasladosAuto` — todos pasan por `MovimientoService::crear`.
+   - **Guard de correo confiable** (antes de abrir la transacción, fail-fast): la habilitación automática respeta el mismo criterio que `ExpedienteActorController::toggleAcceso` — un actor sin User vinculado y sin aceptación `validado_por_gestor` NO puede ser habilitado; el movimiento se rechaza con 422 indicando validar el correo en "Partes del Proceso" primero. Nunca corre un plazo contra un correo no verificado.
+   - **Orden de correos dentro del acto**: primero el email de acceso a Mesa de Partes (`AccesoMesaPartesMail`), luego credenciales de Exp. Electrónico si aplica, y al final las cédulas (`MovimientoNotificacionMail`). Todos los writes de BD ocurren antes de cualquier envío.
+5. Notifica a los actores en `notificar_a` con su cédula correlativada.
+
+En la UI, el selector de responsables incluye a los actores sin acceso (excepto gestores) con un badge ámbar "Se habilitará acceso"; al seleccionarlos aparece un aviso esmeralda explicando la habilitación automática. No hay checkbox que el secretario pueda olvidar: el invariante vive en el backend.
 
 ### Compatibilidad legacy
 

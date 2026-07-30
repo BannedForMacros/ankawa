@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Expediente;
 use App\Models\ExpedienteActor;
+use App\Models\ExpedienteActorAceptacion;
 use App\Models\ExpedienteMovimiento;
 use App\Models\ExpedienteHistorial;
 use App\Models\MovimientoDocumento;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class MovimientoService
 {
@@ -36,6 +38,37 @@ class MovimientoService
         array $notificarActorIds = [],
         string $estadoInicial = ExpedienteMovimiento::ESTADO_PENDIENTE
     ): ExpedienteMovimiento {
+        // Guard de correo confiable (mismo criterio que ExpedienteActorController::toggleAcceso):
+        // nunca conceder acceso a Mesa de Partes sobre un correo no verificado. Se valida ANTES
+        // de abrir la transacción para fallar rápido, sin archivos guardados ni filas creadas.
+        // Candidatos a habilitación: los marcados explícitamente + todo responsable del payload.
+        $idsCandidatos = array_map('intval', $datos['actores_mesa_partes_ids'] ?? []);
+        foreach (($datos['requerimientos'] ?? []) as $req) {
+            foreach (($req['responsables'] ?? []) as $r) {
+                foreach (($r['actor_ids'] ?? []) as $id) {
+                    $idsCandidatos[] = (int) $id;
+                }
+            }
+        }
+        $idsCandidatos = array_values(array_unique($idsCandidatos));
+        if (!empty($idsCandidatos)) {
+            $noConfiables = ExpedienteActor::whereIn('id', $idsCandidatos)
+                ->where('expediente_id', $expediente->id)
+                ->where('acceso_mesa_partes', 0)
+                ->whereNull('usuario_id')
+                ->get()
+                ->filter(fn ($a) => !ExpedienteActorAceptacion::where('expediente_id', $expediente->id)
+                    ->where('expediente_actor_id', $a->id)
+                    ->where('tipo', 'validado_por_gestor')
+                    ->exists());
+            if ($noConfiables->isNotEmpty()) {
+                $nombres = $noConfiables->map(fn ($a) => $a->nombre_externo ?? "actor #{$a->id}")->implode(', ');
+                throw ValidationException::withMessages([
+                    'requerimientos' => "No se puede habilitar el acceso a Mesa de Partes de {$nombres}: su correo aún no ha sido validado. Valide el correo en \"Partes del Proceso\" antes de crear este movimiento.",
+                ]);
+            }
+        }
+
         $movimiento = DB::transaction(function () use ($expediente, $datos, $archivos, $notificarActorIds, $estadoInicial) {
 
             $tipoDias    = $datos['tipo_dias'] ?? 'calendario';
@@ -150,9 +183,27 @@ class MovimientoService
                 'created_at'    => now(),
             ]);
 
-            // Habilitar acceso a Mesa de Partes
-            if (!empty($datos['habilitar_mesa_partes']) && !empty($datos['actores_mesa_partes_ids'])) {
-                $this->habilitarMesaPartes($movimiento, $expediente, $datos['actores_mesa_partes_ids']);
+            // Habilitar acceso a Mesa de Partes (marcado explícitamente en el movimiento)
+            $actoresHabilitar = (!empty($datos['habilitar_mesa_partes']) && !empty($datos['actores_mesa_partes_ids']))
+                ? array_map('intval', $datos['actores_mesa_partes_ids'])
+                : [];
+
+            // Candado server-side: un requerimiento nunca debe apuntar a un responsable sin
+            // acceso a Mesa de Partes (no vería el requerimiento ni podría responderlo).
+            // Si el frontend no lo marcó, se habilita automáticamente en el mismo acto.
+            $responsableIds = MovimientoResponsable::where('movimiento_id', $movimiento->id)
+                ->pluck('expediente_actor_id')->unique();
+            $responsablesSinAcceso = $responsableIds->isEmpty() ? [] : ExpedienteActor::whereIn('id', $responsableIds)
+                ->where('activo', 1)
+                ->where('acceso_mesa_partes', 0)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $actoresHabilitar = array_values(array_unique(array_merge($actoresHabilitar, $responsablesSinAcceso)));
+
+            if (!empty($actoresHabilitar)) {
+                $this->habilitarMesaPartes($movimiento, $expediente, $actoresHabilitar);
 
                 // Para traslados/notificaciones: los actores recién habilitados reciben
                 // automáticamente su cédula de notificación en el mismo acto procesal.
@@ -160,9 +211,14 @@ class MovimientoService
                 // así que notificarActores los encontrará aunque no estuvieran en el
                 // actoresNotificables que cargó el frontend al abrir la página.
                 if (($datos['tipo'] ?? ExpedienteMovimiento::TIPO_REQUERIMIENTO) === ExpedienteMovimiento::TIPO_NOTIFICACION) {
-                    $notificarActorIds = array_unique(
-                        array_merge($notificarActorIds, $datos['actores_mesa_partes_ids'])
-                    );
+                    $notificarActorIds = array_unique(array_merge($notificarActorIds, $actoresHabilitar));
+                }
+
+                // Responsables auto-habilitados: cédula garantizada en el mismo acto, con sus
+                // documentos requeridos y plazo — el notificar_a del frontend se armó cuando
+                // estos actores aún no eran notificables, así que se fuerza server-side.
+                if (!empty($responsablesSinAcceso)) {
+                    $notificarActorIds = array_unique(array_merge($notificarActorIds, $responsablesSinAcceso));
                 }
             }
 

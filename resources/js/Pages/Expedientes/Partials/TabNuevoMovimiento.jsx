@@ -217,9 +217,14 @@ function MultiActorSelect({ value = [], onChange, actores, hasError, disabled = 
                                         checked={sel}
                                         onChange={() => toggleActor(actor.id)}
                                         className="w-3.5 h-3.5 accent-[#BE0F4A] rounded shrink-0"/>
-                                    <span className={`text-sm font-medium ${sel ? 'text-[#291136] font-semibold' : 'text-gray-700'}`}>
+                                    <span className={`text-sm font-medium truncate ${sel ? 'text-[#291136] font-semibold' : 'text-gray-700'}`}>
                                         {actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre'}
                                     </span>
+                                    {!actor.acceso_mesa_partes && (
+                                        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                                            Se habilitará acceso
+                                        </span>
+                                    )}
                                 </label>
                             );
                         })}
@@ -291,11 +296,29 @@ export function MovimientoCard({
         actoresExpediente.filter(a => a.acceso_mesa_partes),
     [actoresExpediente]);
 
-    // Tipos de actor donde al menos uno tiene acceso (para el select de Responsable)
-    const tiposActorConAcceso = useMemo(() => {
-        const ids = new Set(actoresConAcceso.map(a => a.tipo_actor_id));
+    // Requeribles: con acceso a Mesa de Partes, o sin acceso aún — el backend habilita
+    // automáticamente a todo responsable sin acceso al crear el movimiento (candado en
+    // MovimientoService). Gestores sin acceso quedan fuera: operan por Expediente Electrónico.
+    const actoresRequeribles = useMemo(() =>
+        actoresExpediente.filter(a => a.acceso_mesa_partes || !a.es_gestor),
+    [actoresExpediente]);
+
+    // Tipos de actor con al menos un actor requerible (para el select de Responsable)
+    const tiposActorRequeribles = useMemo(() => {
+        const ids = new Set(actoresRequeribles.map(a => a.tipo_actor_id));
         return tiposActorEnExpediente.filter(t => ids.has(t.id));
-    }, [actoresConAcceso, tiposActorEnExpediente]);
+    }, [actoresRequeribles, tiposActorEnExpediente]);
+
+    // Responsables seleccionados que aún no tienen acceso a Mesa de Partes: el backend
+    // los habilita y les envía su cédula automáticamente al crear el movimiento. Se usan
+    // para el aviso bajo los bloques y como filas bloqueadas en "Notificación por email".
+    const autoNotificados = useMemo(() => {
+        if (!esReq) return [];
+        const idsSel = new Set((mov.requerimientos ?? []).flatMap(r =>
+            (r.responsables ?? []).flatMap(f => (f.actor_ids ?? []).map(String))
+        ));
+        return actoresRequeribles.filter(a => idsSel.has(String(a.id)) && !a.acceso_mesa_partes);
+    }, [esReq, mov.requerimientos, actoresRequeribles]);
 
     const usuariosFiltrados = useMemo(() => {
         const base = actoresConAcceso;
@@ -510,7 +533,7 @@ export function MovimientoCard({
                                         </p>
                                         {(req.responsables ?? []).map((fila, ri) => {
                                             const actoresDeFila = fila.tipo_actor_id
-                                                ? actoresConAcceso.filter(a => String(a.tipo_actor_id) === String(fila.tipo_actor_id))
+                                                ? actoresRequeribles.filter(a => String(a.tipo_actor_id) === String(fila.tipo_actor_id))
                                                 : [];
                                             const updateFila = (cambios) => {
                                                 onChange('requerimientos', (mov.requerimientos ?? []).map((r, j) =>
@@ -528,13 +551,13 @@ export function MovimientoCard({
                                                         hasError={!!errores[`requerimientos_${qi}_resp_${ri}_tipo`]}
                                                         onChange={e => {
                                                             const nuevoTipoId = e.target.value;
-                                                            const actoresDelTipo = actoresConAcceso
+                                                            const actoresDelTipo = actoresRequeribles
                                                                 .filter(a => String(a.tipo_actor_id) === String(nuevoTipoId))
                                                                 .map(a => String(a.id));
                                                             updateFila({ tipo_actor_id: nuevoTipoId, actor_ids: actoresDelTipo });
                                                         }}>
                                                         <option value="">— Tipo de actor —</option>
-                                                        {tiposActorConAcceso.map(ta => (
+                                                        {tiposActorRequeribles.map(ta => (
                                                             <option key={ta.id} value={String(ta.id)}>{ta.nombre}</option>
                                                         ))}
                                                     </AnkawaSelect>
@@ -663,6 +686,23 @@ export function MovimientoCard({
                                 <PlusCircle size={14}/>
                                 Agregar otro tipo de documento
                             </button>
+                            {/* Aviso: responsables sin acceso serán habilitados automáticamente por el backend */}
+                            {autoNotificados.length > 0 && (() => {
+                                const nombres = autoNotificados.map(a => a.usuario?.name ?? a.nombre_externo ?? 'Sin nombre').join(', ');
+                                const uno = autoNotificados.length === 1;
+                                return (
+                                    <div className="flex items-start gap-2.5 px-3.5 py-2.5 bg-emerald-50/60 border border-emerald-200/60 rounded-xl">
+                                        <Mail size={13} className="text-emerald-600 shrink-0 mt-0.5"/>
+                                        <p className="text-xs text-emerald-700 leading-relaxed">
+                                            <span className="font-bold">Acceso a Mesa de Partes automático:</span>{' '}
+                                            <span className="font-semibold">{nombres}</span> aún no {uno ? 'tiene' : 'tienen'} acceso.
+                                            Al crear el movimiento se {uno ? 'le' : 'les'} habilitará automáticamente y
+                                            recibirá{uno ? '' : 'n'} el correo de acceso junto con su cédula de notificación,
+                                            documentos requeridos y plazo.
+                                        </p>
+                                    </div>
+                                );
+                            })()}
                         </div>
                         <FieldError msg={errores.requerimientos ? errores.requerimientos : null}/>
                     </div>
@@ -896,17 +936,54 @@ export function MovimientoCard({
                             placeholder="Observaciones adicionales..."/>
                     </div>
 
-                    {/* Notificación por email — solo actores con acceso_mesa_partes, no en propia */}
-                    {!esPropia && actoresNotificables.length > 0 && (
+                    {/* Notificación por email — actores con acceso_mesa_partes + responsables
+                        que serán habilitados automáticamente (filas bloqueadas), no en propia */}
+                    {!esPropia && (actoresNotificables.length > 0 || autoNotificados.length > 0) && (
                         <div className="border border-gray-100 rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-3.5 py-2.5 bg-gray-50 border-b border-gray-100">
                                 <Mail size={13} className="text-gray-400"/>
                                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Notificación por email</p>
                                 <span className="ml-auto text-[11px] text-gray-400">
-                                    {mov.notificar_a.length} / {actoresNotificables.length} seleccionados
+                                    {mov.notificar_a.length + autoNotificados.length} / {actoresNotificables.length + autoNotificados.length} seleccionados
                                 </span>
                             </div>
                             <div className="p-3 space-y-1.5">
+                                {/* Responsables sin acceso: cédula automática garantizada por el backend — no desmarcable */}
+                                {autoNotificados.map(actor => {
+                                    const emailPrincipal = actor.usuario?.email ?? actor.email_externo;
+                                    const adicionales = (actor.emails_adicionales ?? []).filter(e => e.activo !== false).map(e => e.email);
+                                    const emails = [emailPrincipal, ...adicionales].filter(Boolean);
+                                    return (
+                                        <div key={`auto-${actor.id}`}
+                                            className="flex items-start gap-2.5 p-2.5 rounded-lg border bg-emerald-50/60 border-emerald-200/60 select-none">
+                                            <input type="checkbox" checked disabled readOnly
+                                                className="mt-0.5 w-3.5 h-3.5 accent-emerald-600 rounded shrink-0"/>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="text-sm font-semibold text-emerald-800">
+                                                        {actor.usuario?.name ?? actor.nombre_externo ?? 'Sin nombre'}
+                                                    </span>
+                                                    <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                                                        {actor.tipo_actor?.nombre}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                                        Automático — se habilitará acceso
+                                                    </span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                                    {emails.map((em, i) => (
+                                                        <span key={i} className="text-[11px] text-emerald-700/70">
+                                                            {em}{i < emails.length - 1 ? ',' : ''}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[11px] text-emerald-600 mt-0.5">
+                                                    Recibirá el correo de acceso a Mesa de Partes y su cédula de notificación con documentos y plazo.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                                 {actoresNotificables.map(actor => {
                                     const seleccionado = mov.notificar_a.includes(actor.id);
                                     const emails = actor.emails ?? [];
