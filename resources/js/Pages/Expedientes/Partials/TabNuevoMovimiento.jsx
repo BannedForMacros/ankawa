@@ -857,8 +857,9 @@ export function MovimientoCard({
                         </div>
                     )}
 
-                    {/* Enviar credenciales de Expediente Electrónico — solo notificacion/propia */}
-                    {!esReq && actoresSinExpElectronico.length > 0 && (
+                    {/* Enviar credenciales de Expediente Electrónico — opcional en todos los tipos,
+                        a elección de quien crea el movimiento (Mesa de Partes en cambio es automática) */}
+                    {actoresSinExpElectronico.length > 0 && (
                         <div className="border border-amber-200/60 rounded-xl">
                             <label className={`flex items-center gap-2.5 px-3.5 py-2.5 bg-amber-50/60 cursor-pointer select-none ${mov.enviar_credenciales_expediente ? 'rounded-t-xl' : 'rounded-xl'}`}>
                                 <input type="checkbox"
