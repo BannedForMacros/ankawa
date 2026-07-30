@@ -337,7 +337,7 @@ function BloqueActor({
             {/* Teléfono */}
             <Campo label="Teléfono o Celular de Contacto">
                 <InputBase value={datos.telefono ?? ''} onChange={e => set('telefono', e.target.value)}
-                    placeholder="01-234-5678 / 987654321" />
+                    maxLength={100} placeholder="01-234-5678 / 987654321" />
             </Campo>
 
             {/* Mesa de Partes Virtual — solo entidad pública (donde se le notificará) */}
