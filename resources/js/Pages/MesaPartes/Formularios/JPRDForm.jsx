@@ -281,7 +281,21 @@ function BloqueActor({
                     <Campo label="Tipo de entidad jurídica" required error={errors.subtipo}>
                         <CustomSelect
                             value={datos.subtipo}
-                            onChange={val => { onChange({ ...datos, subtipo: val, empresas: val === 'consorcio' ? [{ ruc: '', nombre: '' }] : [] }); onClearError?.('subtipo'); }}
+                            onChange={val => {
+                                // Al cambiar de subtipo, nombre y RUC significan otra cosa
+                                // (razón social ↔ denominación del consorcio): se limpian
+                                // para no arrastrar el valor anterior al envío.
+                                onChange({
+                                    ...datos,
+                                    subtipo:   val,
+                                    nombre:    '',
+                                    documento: '',
+                                    empresas:  val === 'consorcio' ? [{ ruc: '', nombre: '' }] : [],
+                                });
+                                onClearError?.('subtipo');
+                                onClearError?.('nombre');
+                                onClearError?.('documento');
+                            }}
                             options={subtiposPermitidos}
                             placeholder="Selecciona..."
                             error={errors.subtipo}
@@ -311,11 +325,26 @@ function BloqueActor({
                     </Campo>
                 </div>
             ) : (
-                <EmpresasConsorcio
-                    empresas={datos.empresas ?? []}
-                    onChange={emps => onChange({ ...datos, empresas: emps })}
-                    error={errors.empresas}
-                />
+                <div className="space-y-4">
+                    {/* Denominación del consorcio: es el nombre con el que la parte figura
+                        en el expediente. Sin este campo el sistema solo podía concatenar
+                        las razones sociales de las empresas, que no es cómo se llama. */}
+                    <Campo label="Nombre del consorcio" required error={errors.nombre}>
+                        <InputBase value={datos.nombre ?? ''} onChange={e => set('nombre', e.target.value)}
+                            onBlur={() => onBlurCampo?.('nombre')}
+                            placeholder="Ej.: CONSORCIO EJECUTOR PACÍFICO" error={errors.nombre} />
+                        <p className="text-xs text-gray-400 mt-1">
+                            Escríbalo tal como figura en la promesa formal de consorcio. Con este nombre
+                            aparecerá en el expediente y en las notificaciones.
+                        </p>
+                    </Campo>
+
+                    <EmpresasConsorcio
+                        empresas={datos.empresas ?? []}
+                        onChange={emps => onChange({ ...datos, empresas: emps })}
+                        error={errors.empresas}
+                    />
+                </div>
             )}
 
             {/* Representante legal */}
@@ -479,8 +508,9 @@ const jprdSchema = z.object({
     if (!conConsorcio) {
         if (String(d.con_nombre ?? '').trim() === '')    add('con_nombre', 'Requerido');
         if (String(d.con_documento ?? '').trim() === '') add('con_documento', 'Requerido');
-    } else if (d.con_empresas === 0) {
-        add('con_empresas', 'Agrega al menos una empresa del consorcio');
+    } else {
+        if (String(d.con_nombre ?? '').trim() === '') add('con_nombre', 'Indique el nombre del consorcio');
+        if (d.con_empresas === 0) add('con_empresas', 'Agrega al menos una empresa del consorcio');
     }
     if (!d.sol_email_has) add('sol_email', 'Ingresa al menos un correo');
     if (d.doc_solicitud === 0) add('doc_solicitud', 'Adjunta la solicitud de conformación de JPRD');
