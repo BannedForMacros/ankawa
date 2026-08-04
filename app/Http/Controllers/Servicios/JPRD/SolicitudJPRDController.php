@@ -116,13 +116,21 @@ class SolicitudJPRDController extends Controller
 
         try {
             // ── 1. Crear o recuperar usuario solicitante ─────────────────────
-            $emailSol = $emailPrincipal['email'];
-            $usuario  = User::where('email', $emailSol)->first()
-                      ?? User::where('numero_documento', $documentoSol)->first();
+            // En consorcio no hay RUC único → $documentoSol llega vacío. Buscar por
+            // documento vacío engancharía la solicitud al primer usuario sin documento
+            // (le pasó al Exp. 058, que heredó el nombre del contratista del Exp. 054),
+            // así que el fallback solo aplica si realmente hay documento.
+            $emailSol     = $emailPrincipal['email'];
+            $documentoSol = $documentoSol ?: null;
+
+            $usuario = User::where('email', $emailSol)->first();
+            if (!$usuario && $documentoSol) {
+                $usuario = User::where('numero_documento', $documentoSol)->first();
+            }
 
             $passwordRaw = null;
             if (!$usuario) {
-                $passwordRaw = $documentoSol . Str::random(6);
+                $passwordRaw = ($documentoSol ?? '') . Str::random(6);
                 $usuario = User::create([
                     'name'             => $nombreSol,
                     'email'            => $emailSol,
